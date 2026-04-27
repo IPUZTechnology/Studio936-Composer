@@ -1,1 +1,6 @@
-
+/* Studio 936 Composer - Modular CSS */
+body {
+  background: #050505;
+  color: white;
+  font-family: system-ui, sans-serif;
+}
