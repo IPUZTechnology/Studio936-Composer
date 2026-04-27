@@ -1,19 +1,38 @@
 # Arquitectura Studio 936 Composer
 
-## Fase actual
+## Estado actual
 
-Core v1 Modular: separación inicial de HTML, CSS y JavaScript sin cambio funcional.
+Base congelada: Studio 936 Composer v25.9.
 
-## Próxima fase
+El proyecto inició como un HTML monolítico funcional con:
+- HTML
+- CSS
+- JavaScript
+- motor de audio
+- editor de progresiones
+- ritmos
+- letra/TAB
+- exportación TXT/JSON/MIDI
+- estructura inicial de canción
+- soporte de iPad/touch
+- diapasón/guitarra/ukelele
+- ayuda bilingüe
 
-Dividir `js/app.js` en módulos:
-- song-model.js
-- audio-engine.js
-- piano.js
-- fretboard.js
-- rhythm-engine.js
-- structure-builder.js
-- storage.js
-- midi-export.js
-- i18n.js
-- help.js
+## Objetivo de esta fase
+
+Separar el prototipo en una estructura modular sin cambiar funcionalidad.
+
+## Estructura actual
+
+```text
+studio936-composer/
+├── index.html
+├── README.md
+├── css/
+│   └── styles.css
+├── js/
+│   └── app.js
+├── docs/
+│   └── arquitectura.md
+└── legacy/
+    └── studio936_composer_v25_9_congelada.html
