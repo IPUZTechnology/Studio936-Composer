@@ -53,6 +53,11 @@ if(!Storage){
     throw new Error('Studio936Storage no está cargado. Revisa que js/storage.js se cargue antes de js/app.js.');
 }
 
+const Piano = window.Studio936Piano;
+if(!Piano || !Piano.buildPiano){
+    throw new Error('Studio936Piano no está cargado. Revisa que js/piano.js se cargue antes de js/app.js.');
+}
+
 const els = {
     piano:document.getElementById('piano'), fretboardContainer:document.getElementById('fretboardContainer'), fretboard:document.getElementById('fretboard'), fretMarkers:document.getElementById('fretMarkers'), viewToggleBtn:document.getElementById('viewToggleBtn'), routingSelect:document.getElementById('routingSelect'), fretModeSelect:document.getElementById('fretModeSelect'), tuningSelect:document.getElementById('tuningSelect'), tuningCustom:document.getElementById('tuningCustom'), midiBtn:document.getElementById('midiBtn'), songTitle:document.getElementById('songTitle'), songAuthor:document.getElementById('songAuthor'), styleSelect:document.getElementById('styleSelect'), instrumentSelect:document.getElementById('instrumentSelect'), sectionSelect:document.getElementById('sectionSelect'),
     bpmSlider:document.getElementById('bpmSlider'), bpmDisplay:document.getElementById('bpmDisplay'), metroDot:document.getElementById('metroDot'), playBtn:document.getElementById('playBtn'), playSongBtn:document.getElementById('playSongBtn'), metroBtn:document.getElementById('metroBtn'), soloBtn:document.getElementById('soloBtn'), chordHoldBtn:document.getElementById('chordHoldBtn'), saveBtn:document.getElementById('saveBtn'),
@@ -70,23 +75,7 @@ let chordHoldEnabled=false, heldChord=new Set();
 let isPlaying=false, metroEnabled=false, soloEnabled=true, playAllMode=false, activeSongSection='intro', activeSongPartLabel='Introducción', songSectionIdx=0, selectedArrangementIndex=0, timer=null, nextTime=0, chordIdx=0, stepInChord=0, globalStep=0, soloCursor=0, lastVisualTimer=[], lastEditorSection='intro';
 
 function buildPiano(){
-    const noteCfg = [{n:'C',b:false},{n:'C#',b:true},{n:'D',b:false},{n:'D#',b:true},{n:'E',b:false},{n:'F',b:false},{n:'F#',b:true},{n:'G',b:false},{n:'G#',b:true},{n:'A',b:false},{n:'A#',b:true},{n:'B',b:false}];
-    for(let i=24;i<=84;i++){
-        const cfg = noteCfg[i%12];
-        const k = document.createElement('div');
-        k.className = 'key ' + (cfg.b?'black':'white');
-        k.dataset.midi = i;
-        if(!cfg.b && cfg.n==='C') k.textContent = 'C' + (Math.floor(i/12)-1);
-        els.piano.appendChild(k); keyMap[i]=k;
-        const down = e => {
-            e.preventDefault();
-            if(e.pointerId !== undefined && k.setPointerCapture){ try{k.setPointerCapture(e.pointerId);}catch(err){} }
-            triggerKeyboardNote(i);
-        };
-        k.addEventListener('pointerdown', down);
-        k.addEventListener('mousedown', e => { if(!window.PointerEvent){ e.preventDefault(); triggerKeyboardNote(i); } });
-        k.addEventListener('touchstart', e => { if(!window.PointerEvent){ e.preventDefault(); triggerKeyboardNote(i); } }, {passive:false});
-    }
+    return Piano.buildPiano(els.piano, keyMap, triggerKeyboardNote);
 }
 function buildStepGrid(){
     els.stepGrid.innerHTML='';
