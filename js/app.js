@@ -58,6 +58,11 @@ if(!Piano || !Piano.buildPiano){
     throw new Error('Studio936Piano no está cargado. Revisa que js/piano.js se cargue antes de js/app.js.');
 }
 
+const Fretboard = window.Studio936Fretboard;
+if(!Fretboard || !Fretboard.buildFretboard){
+    throw new Error('Studio936Fretboard no está cargado. Revisa que js/fretboard.js se cargue antes de js/app.js.');
+}
+
 const els = {
     piano:document.getElementById('piano'), fretboardContainer:document.getElementById('fretboardContainer'), fretboard:document.getElementById('fretboard'), fretMarkers:document.getElementById('fretMarkers'), viewToggleBtn:document.getElementById('viewToggleBtn'), routingSelect:document.getElementById('routingSelect'), fretModeSelect:document.getElementById('fretModeSelect'), tuningSelect:document.getElementById('tuningSelect'), tuningCustom:document.getElementById('tuningCustom'), midiBtn:document.getElementById('midiBtn'), songTitle:document.getElementById('songTitle'), songAuthor:document.getElementById('songAuthor'), styleSelect:document.getElementById('styleSelect'), instrumentSelect:document.getElementById('instrumentSelect'), sectionSelect:document.getElementById('sectionSelect'),
     bpmSlider:document.getElementById('bpmSlider'), bpmDisplay:document.getElementById('bpmDisplay'), metroDot:document.getElementById('metroDot'), playBtn:document.getElementById('playBtn'), playSongBtn:document.getElementById('playSongBtn'), metroBtn:document.getElementById('metroBtn'), soloBtn:document.getElementById('soloBtn'), chordHoldBtn:document.getElementById('chordHoldBtn'), saveBtn:document.getElementById('saveBtn'),
@@ -84,63 +89,41 @@ function buildStepGrid(){
 
 
 function buildFretboard(){
-    if(!els.fretboard || !els.fretMarkers) return;
-    fretCells = [];
-    els.fretMarkers.innerHTML = '<span></span>' + Array.from({length:13},(_,i)=>`<span class="${[3,5,7,9,12].includes(i)?'fret-dot':''}">${i}</span>`).join('');
-    const strings = project.fretMode === 'bass'
-        ? [{name:'G', midi:43},{name:'D', midi:38},{name:'A', midi:33},{name:'E', midi:28}]
-        : project.fretMode === 'ukulele'
-            ? [{name:'A', midi:69},{name:'E', midi:64},{name:'C', midi:60},{name:'G', midi:67}]
-            : [{name:'e', midi:64},{name:'B', midi:59},{name:'G', midi:55},{name:'D', midi:50},{name:'A', midi:45},{name:'E', midi:40}];
-    const labelMap = {guitar:'Diapasón guitarra · vista de notas', ukulele:'Diapasón ukelele · vista de notas', bass:'Diapasón bajo · vista de notas'};
-    if(document.getElementById('fretboardTitle')) document.getElementById('fretboardTitle').textContent = labelMap[project.fretMode] || labelMap.guitar;
-    els.fretboard.style.gridTemplateRows = 'repeat('+strings.length+',34px)';
-    els.fretboard.innerHTML = '';
-    strings.forEach((st,si)=>{
-        const row = document.createElement('div'); row.className='fret-row';
-        const label = document.createElement('div'); label.className='string-label'; label.textContent=st.name; row.appendChild(label);
-        for(let fret=0; fret<=12; fret++){
-            const midi = st.midi + fret;
-            const cell = document.createElement('div'); cell.className='fret-cell'; cell.dataset.midi=midi; cell.dataset.string=si; cell.dataset.fret=fret;
-            cell.innerHTML = `<span>${midiToNote(midi).replace(/-?\d+$/,'')}</span>`;
-            const play = ev => { ev.preventDefault(); resumeAudio(); playNote(midi,.28,.55,'triangle',audioCtx.currentTime); flashFretboard([midi],'active-chord',420); };
-            cell.addEventListener('pointerdown', play, {passive:false});
-            cell.addEventListener('contextmenu', e=>e.preventDefault());
-            row.appendChild(cell); fretCells.push(cell);
+    return Fretboard.buildFretboard({
+        els,
+        project,
+        fretCells,
+        midiToNote,
+        onCellPlay:midi => {
+            resumeAudio();
+            playNote(midi,.28,.55,'triangle',audioCtx.currentTime);
+            flashFretboard([midi],'active-chord',420);
         }
-        els.fretboard.appendChild(row);
     });
 }
 function setViewMode(mode){
-    project.viewMode = mode === 'fretboard' ? 'fretboard' : 'piano';
-    const pianoBox = document.getElementById('pianoContainer');
-    if(pianoBox) pianoBox.style.display = project.viewMode === 'piano' ? 'flex' : 'none';
-    if(els.fretboardContainer) els.fretboardContainer.style.display = project.viewMode === 'fretboard' ? 'flex' : 'none';
-    if(els.viewToggleBtn) els.viewToggleBtn.textContent = project.viewMode === 'piano' ? 'Vista diapasón' : 'Vista piano';
-    updateFretboardMap();
-}
-function flashFretboard(midis,cls,dur=220){
-    if(!fretCells.length) return;
-    const set = new Set(midis.filter(Number.isFinite).map(Number));
-    const active=[];
-    fretCells.forEach(c=>{ if(set.has(Number(c.dataset.midi))){ c.classList.add(cls); active.push(c); } });
-    setTimeout(()=>active.forEach(c=>c.classList.remove(cls)),dur);
-}
-function clearFretboardActive(){ fretCells.forEach(c=>c.classList.remove('active-chord','active-bass','active-solo')); }
-function updateFretboardMap(){
-    if(!fretCells.length) return;
-    fretCells.forEach(c=>c.classList.remove('map-chord','map-bass'));
-    const item = editorSeq()[Number(els.chordSelect?.value)||0] || currentItem();
-    if(!item) return;
-    const notes = new Set(parseNotes(item.notes));
-    const bass = noteToMidi(item.bass);
-    fretCells.forEach(c=>{
-        const m = Number(c.dataset.midi);
-        if(notes.has(m)) c.classList.add('map-chord');
-        if(Number.isFinite(bass) && ((m-bass)%12+12)%12===0) c.classList.add('map-bass');
+    return Fretboard.setViewMode({
+        mode,
+        project,
+        els,
+        updateFretboardMap
     });
 }
-
+function flashFretboard(midis,cls,dur=220){
+    return Fretboard.flashFretboard(fretCells, midis, cls, dur);
+}
+function clearFretboardActive(){
+    return Fretboard.clearFretboardActive(fretCells);
+}
+function updateFretboardMap(){
+    const item = editorSeq()[Number(els.chordSelect?.value)||0] || currentItem();
+    return Fretboard.updateFretboardMap({
+        fretCells,
+        item,
+        parseNotes,
+        noteToMidi
+    });
+}
 function triggerKeyboardNote(midi){
     resumeAudio();
     if(chordHoldEnabled){
