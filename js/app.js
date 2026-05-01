@@ -182,15 +182,7 @@ const defaultProject = () => ({
 });
 function chord(name,bass,notes,bars){return {name,bass,notes,bars:Number(bars)||1};}
 
-const instruments = {
-    piano:{label:'Piano', chord:{type:'triangle', type2:'triangle', filter:2600, attack:.014, decayMult:1, detune:1.005}, bass:{type:'sine', type2:'sine', filter:1200, attack:.01, decayMult:1.05, detune:1.002}, solo:{type:'square', type2:'triangle', filter:3000, attack:.012, decayMult:1, detune:1.004}, strum:.012},
-    epiano:{label:'Piano eléctrico', chord:{type:'sine', type2:'triangle', filter:2100, attack:.018, decayMult:1.35, detune:1.004}, bass:{type:'sine', type2:'triangle', filter:1050, attack:.012, decayMult:1.15, detune:1.002}, solo:{type:'triangle', type2:'sine', filter:2600, attack:.02, decayMult:1.25, detune:1.004}, strum:.015},
-    guitar:{label:'Guitarra', mode:'pluck', body:135, brightness:2450, pick:1.2, chord:{type:'sawtooth', type2:'triangle', filter:2300, attack:.003, decayMult:.54, detune:1.006}, bass:{type:'triangle', type2:'sine', filter:1050, attack:.004, decayMult:.72, detune:1.003}, solo:{type:'sawtooth', type2:'triangle', filter:2900, attack:.004, decayMult:.64, detune:1.006}, strum:.026},
-    ukulele:{label:'Ukelele', mode:'pluck', body:420, brightness:4300, pick:1.55, chord:{type:'triangle', type2:'sine', filter:4500, attack:.002, decayMult:.38, detune:1.01, transpose:12}, bass:{type:'triangle', type2:'sine', filter:2200, attack:.003, decayMult:.38, detune:1.006, transpose:12}, solo:{type:'triangle', type2:'sine', filter:5200, attack:.002, decayMult:.42, detune:1.008, transpose:12}, strum:.018},
-    organ:{label:'Órgano', chord:{type:'square', type2:'triangle', filter:1700, attack:.01, decayMult:2.2, detune:1.002}, bass:{type:'sine', type2:'triangle', filter:950, attack:.01, decayMult:1.7, detune:1.001}, solo:{type:'square', type2:'triangle', filter:2100, attack:.01, decayMult:1.8, detune:1.002}, strum:.006},
-    sax:{label:'Saxo guía', mode:'wind', chord:{type:'triangle', type2:'sine', filter:1500, attack:.075, decayMult:1.18, detune:1.002}, bass:{type:'sine', type2:'triangle', filter:900, attack:.045, decayMult:1.1, detune:1.001}, solo:{type:'sawtooth', type2:'triangle', filter:2200, attack:.07, decayMult:1.4, detune:1.003}, strum:.012},
-    synth:{label:'Synth', chord:{type:'sawtooth', type2:'square', filter:3000, attack:.018, decayMult:1.1, detune:1.007}, bass:{type:'square', type2:'sine', filter:1200, attack:.01, decayMult:1.05, detune:1.003}, solo:{type:'sawtooth', type2:'square', filter:3500, attack:.012, decayMult:1.05, detune:1.006}, strum:.008}
-};
+const instruments = window.Studio936Instruments || {}; // Loaded from js/instruments.js
 function currentInstrument(){ return instruments[project.instrument] || instruments.piano; }
 function masterA(){ return clamp(Number(project.tuningHz)||440,390,470); }
 function midiFreq(m){ return masterA() * Math.pow(2,(m-69)/12); }
@@ -203,52 +195,7 @@ function connectOut(node,role='music'){
 }
 function noteRole(type){ if(type==='sine') return 'bass'; if(type==='square') return 'solo'; return 'chord'; }
 
-const styles = {
-    funk:{
-        label:'Funk', swing:.08, bass:[0,6,8,14], chord:[0,3,7,10,12,15], ghost:[2,5,11], arp:false,
-        help:'Funk: semicorcheas, contratiempos, ghost chords y bajo sincopado. Ideal para sentir acompañamiento rítmico.'
-    },
-    rock:{
-        label:'Rock', swing:0, bass:[0,4,8,12], chord:[0,4,8,12], ghost:[2,6,10,14], arp:false,
-        help:'Rock: pulso fuerte en negras/corcheas, bajo sólido y acordes más directos.'
-    },
-    ballad:{
-        label:'Balada', swing:0, bass:[0,8], chord:[0,8], ghost:[], arp:true,
-        help:'Balada: acompañamiento abierto con arpegio. Menos golpes, más aire y sostén armónico.'
-    },
-    bossa:{
-        label:'Bossa Nova', swing:0, bass:[0,6,8,14], chord:[3,7,11,15], ghost:[5,13], arp:false,
-        help:'Bossa Nova: bajo alternado y acordes en síncopas suaves, tipo guitarra/piano brasileño.'
-    },
-    jazz:{
-        label:'Jazz', swing:.22, bass:[0,4,8,12], chord:[0,5,8,13], ghost:[10,15], arp:false,
-        help:'Jazz: comping con swing, walking bass simplificado y acordes desplazados.'
-    },
-    blues:{
-        label:'Blues', swing:.28, bass:[0,3,6,9,12,15], chord:[0,6,8,14], ghost:[4,10], arp:false,
-        help:'Blues: sensación shuffle, bajo repetido y golpes de acorde con respuesta.'
-    },
-    pop:{
-        label:'Pop', swing:0, bass:[0,8], chord:[0,4,8,12], ghost:[6,14], arp:true,
-        help:'Pop: patrón estable, claro para componer melodías y probar progresiones rápido.'
-    },
-    bolero:{
-        label:'Bolero', swing:0, bass:[0,8], chord:[3,6,11,14], ghost:[5,13], arp:false,
-        help:'Bolero: bajo lento con acordes suaves en contratiempo. Útil para balada latina, canción romántica y acompañamiento cantable.'
-    },
-    salsa:{
-        label:'Salsa', swing:.04, bass:[0,7,10,14], chord:[4,7,12,15], ghost:[2,10], arp:false,
-        help:'Salsa: tumbao simplificado para piano, con bajo anticipado y acordes sincopados. No reemplaza una clave completa, pero da el sabor para componer.'
-    },
-    cumbia:{
-        label:'Cumbia', swing:0, bass:[0,4,8,12], chord:[2,6,10,14], ghost:[15], arp:false,
-        help:'Cumbia: pulso bailable, bajo estable y acordes en respuesta. Muy útil para progresiones latinas sencillas.'
-    },
-    reggae:{
-        label:'Reggae', swing:.03, bass:[0,8], chord:[4,12], ghost:[6,14], arp:false,
-        help:'Reggae: acordes en off-beat, bajo con mucho espacio y sensación relajada.'
-    }
-};
+const styles = window.Studio936Rhythms || {}; // Loaded from js/rhythm-engine.js
 
 const els = {
     piano:document.getElementById('piano'), fretboardContainer:document.getElementById('fretboardContainer'), fretboard:document.getElementById('fretboard'), fretMarkers:document.getElementById('fretMarkers'), viewToggleBtn:document.getElementById('viewToggleBtn'), routingSelect:document.getElementById('routingSelect'), fretModeSelect:document.getElementById('fretModeSelect'), tuningSelect:document.getElementById('tuningSelect'), tuningCustom:document.getElementById('tuningCustom'), midiBtn:document.getElementById('midiBtn'), songTitle:document.getElementById('songTitle'), songAuthor:document.getElementById('songAuthor'), styleSelect:document.getElementById('styleSelect'), instrumentSelect:document.getElementById('instrumentSelect'), sectionSelect:document.getElementById('sectionSelect'),
