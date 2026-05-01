@@ -3,7 +3,6 @@
 
 window.Studio936SongModel = (() => {
 'use strict';
-
 const sectionNames = {
     intro:'Introducción', verse:'Verso', verse1:'Verso 1', verse2:'Verso 2', verse3:'Verso 3', verse4:'Verso 4', prechorus:'Pre-coro', chorus:'Coro', bridge:'Puente', interlude:'Interludio', solo:'Solo', outro:'Outro'
 };
