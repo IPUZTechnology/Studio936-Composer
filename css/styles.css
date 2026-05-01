@@ -1538,3 +1538,94 @@ body.v25ux-clean .editor[data-ux-panel="structure"] #structureBuilderCard{
     }
 }
 
+/* ---------------------------------------------------------
+   Studio 936 - Transport Bar No-Shift Patch
+   Fija anchos y elimina reacomodos visuales durante carga.
+   --------------------------------------------------------- */
+.status-bar{
+    grid-template-columns:minmax(170px,.8fr) minmax(650px,1.6fr) minmax(250px,1fr);
+}
+
+.transport{
+    display:grid;
+    grid-template-columns:118px 150px 126px 92px 112px 122px;
+    justify-content:center;
+    align-items:center;
+    gap:6px;
+    width:100%;
+    max-width:100%;
+    overflow:visible;
+    padding:4px 0;
+}
+
+.transport .btn{
+    width:100%;
+    min-width:0;
+    max-width:none;
+    white-space:nowrap;
+    min-height:38px;
+    padding:9px 8px;
+    font-size:.6rem;
+    line-height:1;
+    border-radius:10px;
+    text-align:center;
+}
+
+.transport .btn-play,
+.transport .btn-stop,
+.transport .btn-all,
+.transport .btn-dark,
+.transport .btn-solo{
+    min-width:0;
+}
+
+@media(max-width:1050px){
+    .status-bar{
+        grid-template-columns:1fr;
+        gap:8px;
+        padding:8px 12px;
+    }
+
+    .transport{
+        grid-template-columns:108px 136px 118px 84px 104px 112px;
+        justify-content:center;
+        overflow:visible;
+        border:1px solid #2d2d2d;
+        border-radius:14px;
+        background:rgba(0,0,0,.22);
+        padding:6px;
+    }
+
+    .transport .btn{
+        min-height:36px;
+        padding:8px 6px;
+        font-size:.54rem;
+    }
+}
+
+@media(max-width:700px){
+    .transport{
+        display:flex;
+        flex-wrap:nowrap;
+        justify-content:flex-start;
+        overflow-x:auto;
+        overflow-y:hidden;
+        -webkit-overflow-scrolling:touch;
+    }
+
+    .transport .btn{
+        flex:0 0 auto;
+        width:auto;
+        padding:8px 8px;
+        font-size:.53rem;
+    }
+
+    .transport .btn-play,
+    .transport .btn-stop{width:98px}
+
+    .transport .btn-all{width:118px}
+
+    .transport .btn-dark,
+    .transport .btn-solo{width:96px}
+}
+
