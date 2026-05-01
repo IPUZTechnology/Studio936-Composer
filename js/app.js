@@ -1,6 +1,5 @@
 // Studio 936 Composer - extracted JavaScript from legacy v25.9
 // Keep script order intact.
-
 (() => {
 'use strict';
 const STORAGE_KEY = 'studio936ComposerV25SongStructure';
