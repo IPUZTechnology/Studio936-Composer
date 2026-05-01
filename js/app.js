@@ -1,5 +1,6 @@
 // Studio 936 Composer - extracted JavaScript from legacy v25.9
 // Keep script order intact.
+
 (() => {
 'use strict';
 const STORAGE_KEY = 'studio936ComposerV25SongStructure';
@@ -38,6 +39,41 @@ function connectOut(node,role='music'){
 function noteRole(type){ if(type==='sine') return 'bass'; if(type==='square') return 'solo'; return 'chord'; }
 
 const styles = window.Studio936Rhythms || {}; // Loaded from js/rhythm-engine.js
+
+const Storage = window.Studio936Storage || {
+    loadProject(key, fallbackFactory, normalizeFn){
+        try{
+            const raw = localStorage.getItem(key);
+            if(!raw) return fallbackFactory();
+            return normalizeFn(JSON.parse(raw));
+        }catch(e){ return fallbackFactory(); }
+    },
+    saveProject(key, project){
+        localStorage.setItem(key, JSON.stringify(project));
+    },
+    clearProject(key){
+        localStorage.removeItem(key);
+    },
+    download(filename, content, type){
+        const blob = new Blob([content], {type});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    },
+    readJsonFile(file){
+        return new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(r.result);
+            r.onerror = () => reject(r.error || new Error('No se pudo leer el archivo.'));
+            r.readAsText(file);
+        });
+    }
+};
 
 const els = {
     piano:document.getElementById('piano'), fretboardContainer:document.getElementById('fretboardContainer'), fretboard:document.getElementById('fretboard'), fretMarkers:document.getElementById('fretMarkers'), viewToggleBtn:document.getElementById('viewToggleBtn'), routingSelect:document.getElementById('routingSelect'), fretModeSelect:document.getElementById('fretModeSelect'), tuningSelect:document.getElementById('tuningSelect'), tuningCustom:document.getElementById('tuningCustom'), midiBtn:document.getElementById('midiBtn'), songTitle:document.getElementById('songTitle'), songAuthor:document.getElementById('songAuthor'), styleSelect:document.getElementById('styleSelect'), instrumentSelect:document.getElementById('instrumentSelect'), sectionSelect:document.getElementById('sectionSelect'),
@@ -171,12 +207,7 @@ function toggleChordHold(){
 }
 
 function loadProject(){
-    try{
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if(!raw) return defaultProject();
-        const parsed = JSON.parse(raw);
-        return normalizeProject(parsed);
-    }catch(e){ return defaultProject(); }
+    return Storage.loadProject(STORAGE_KEY, defaultProject, normalizeProject);
 }
 function normalizeProject(p){
     const d = defaultProject();
@@ -248,7 +279,7 @@ function normalizeSectionSolos(raw, legacy, defaults){
 }
 function saveProject(show=false){
     syncProjectFromControls(false);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
+    Storage.saveProject(STORAGE_KEY, project);
     if(show){
         flashStatus('Guardado localmente en este navegador. Para respaldo externo usa Bajar JSON.');
         if(els.saveBtn){
@@ -761,7 +792,7 @@ function resetSection(){
     const def=defaultProject(); const k=editorSectionKey(); project.sections[k]=JSON.parse(JSON.stringify(def.sections[k])); chordIdx=0; stepInChord=0; renderChordSelect(); loadEditorFromSelected(); renderSectionList(); updateSectionNoteMap(); updateFretboardMap(); saveProject(false); flashStatus('Sección restaurada.');
 }
 function resetAll(){
-    stopPlayback(); project=defaultProject(); localStorage.removeItem(STORAGE_KEY); renderAll(); flashStatus('Proyecto restaurado al estado inicial.');
+    stopPlayback(); project=defaultProject(); Storage.clearProject(STORAGE_KEY); renderAll(); flashStatus('Proyecto restaurado al estado inicial.');
 }
 
 
@@ -952,16 +983,24 @@ function buildMidiBytes(){
 function exportMidi(){ const bytes = buildMidiBytes(); const blob = new Blob([bytes],{type:'audio/midi'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=slug(project.title)+'-arrangement.mid'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); flashStatus('MIDI exportado: acordes, bajo, groove y melodías/solos por sección.'); }
 
 function download(filename,content,type){
-    const blob = new Blob([content],{type}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    Storage.download(filename, content, type);
 }
 function slug(s){return String(s||'cancion').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'cancion';}
 function exportTxt(){ download(slug(project.title)+'-progresion.txt', projectText(), 'text/plain;charset=utf-8'); }
 function exportJson(){ syncProjectFromControls(false); syncLyricsFromModal(false); download(slug(project.title)+'-proyecto.json', JSON.stringify(project,null,2), 'application/json;charset=utf-8'); }
 async function copyText(){ try{ await navigator.clipboard.writeText(projectText()); flashStatus('Progresión copiada al portapapeles.'); }catch(e){ flashStatus('No pude copiar; usa Bajar TXT.'); } }
 function importJson(file){
-    if(!file) return; const r=new FileReader();
-    r.onload=()=>{ try{ project=normalizeProject(JSON.parse(r.result)); renderAll(); saveProject(false); flashStatus('Proyecto importado correctamente.'); }catch(e){ flashStatus('JSON inválido.'); } };
-    r.readAsText(file);
+    if(!file) return;
+    Storage.readJsonFile(file)
+        .then(text => {
+            try{
+                project = normalizeProject(JSON.parse(text));
+                renderAll();
+                saveProject(false);
+                flashStatus('Proyecto importado correctamente.');
+            }catch(e){ flashStatus('JSON inválido.'); }
+        })
+        .catch(() => flashStatus('No pude leer el archivo JSON.'));
 }
 
 function bind(){
