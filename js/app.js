@@ -1255,8 +1255,8 @@ buildPiano(); buildFretboard(); buildStepGrid(); bind(); renderAll();
 
 /* ---- Script block separator ---- */
 
-// Studio 936 Composer v18 Pro Suite extension
-(() => {
+// Studio 936 Composer v18 Pro Suite extension (disabled: legacy duplicate of newer v19-v25 UX layers).
+const ENABLE_LEGACY_V18_PRO_SUITE = false; if (ENABLE_LEGACY_V18_PRO_SUITE) { (() => {
 'use strict';
 const STORAGE_KEY = 'studio936ComposerV25SongStructure';
 const LIB_KEY = 'studio936ComposerLibraryV18';
@@ -1376,7 +1376,7 @@ function closeModal(){ const m=$('v18Modal'); if(m) m.style.display='none'; }
 function addHelp(){ const body=q('#helpModal .help-body'); if(!body||q('.v18-help-block',body)) return; body.insertAdjacentHTML('beforeend', `<div class="help-block wide v18-help-block"><h3>16. Studio 936 Pro Suite v18</h3><p><b>Biblioteca</b> guarda varias canciones dentro del navegador. <b>Plantillas</b> crea ideas por género. <b>Transponer</b> cambia tonalidad de acordes, bajo, notas y melodías. <b>Escalas</b> muestra notas recomendadas para improvisar. <b>Acordes IA</b> sugiere el siguiente acorde por intención. <b>Batería</b> agrega percusión sintética por estilo. <b>REC Idea</b> captura lo que tocas en el teclado virtual o MIDI y lo guarda como melodía de la sección. <b>PDF Lead Sheet</b> exporta un PDF simple para músicos. <b>Modo Práctica</b> muestra acorde y sección en grande.</p></div><div class="help-block v18-help-block"><h3>17. MIDI físico, detección de acordes y compartir</h3><p><b>MIDI IN</b> permite conectar un teclado físico compatible con Web MIDI. Al tocar notas, la app intenta detectar el acorde y puedes aplicarlo al editor. <b>Compartir</b> genera un enlace con el proyecto dentro del hash del navegador; para proyectos grandes sigue siendo mejor usar JSON.</p></div>`); }
 function init(){ checkHashImport(); addV18Ui(); setupKeyboardCapture(); addHelp(); setTimeout(showOnboarding,600); const help=$('helpBtn'); if(help) help.addEventListener('click',()=>setTimeout(addHelp,80)); const langBtn=$('langBtn'); if(langBtn) langBtn.addEventListener('click',()=>setTimeout(()=>{ q('#v18Suite')?.remove(); addV18Ui(); addHelp(); },140)); }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
-})();
+})(); }
 
 /* ---- Script block separator ---- */
 
