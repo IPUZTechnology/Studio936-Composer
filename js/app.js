@@ -40,6 +40,14 @@ function noteRole(type){ if(type==='sine') return 'bass'; if(type==='square') re
 
 const styles = window.Studio936Rhythms || {}; // Loaded from js/rhythm-engine.js
 
+const modelNormalizeProject = SongModel.normalizeProject;
+const normalizeArrangement = SongModel.normalizeArrangement;
+const normalizeSectionSolos = SongModel.normalizeSectionSolos;
+if(!modelNormalizeProject || !normalizeArrangement || !normalizeSectionSolos){
+    throw new Error('Studio936SongModel incompleto. Revisa normalizeProject / normalizeArrangement / normalizeSectionSolos en js/song-model.js.');
+}
+
+
 const Storage = window.Studio936Storage;
 if(!Storage){
     throw new Error('Studio936Storage no está cargado. Revisa que js/storage.js se cargue antes de js/app.js.');
@@ -177,48 +185,11 @@ function toggleChordHold(){
 }
 
 function loadProject(){
-    return Storage.loadProject(STORAGE_KEY, defaultProject, normalizeProject);
-}
-function normalizeProject(p){
-    const d = defaultProject();
-    p = p || {};
-    const merged = {...d, ...p};
-    merged.sections = {...d.sections, ...(p.sections||{})};
-    if(!merged.sections.verse4) merged.sections.verse4 = JSON.parse(JSON.stringify(merged.sections.verse3 || merged.sections.verse || d.sections.verse));
-    if(!merged.sections.bridge) merged.sections.bridge = JSON.parse(JSON.stringify(merged.sections.prechorus || d.sections.prechorus));
-    if(!merged.sections.outro) merged.sections.outro = [chord('C','C2','C3 E3 G3 C4',2)];
-    merged.lyrics = {...d.lyrics, ...(p.lyrics||{})};
-    merged.sectionSolos = normalizeSectionSolos(p.sectionSolos || null, p, d.sectionSolos);
-    Object.keys(merged.sections).forEach(k=>{
-        if(!Array.isArray(merged.sections[k]) || !merged.sections[k].length) merged.sections[k]=d.sections[k] || [chord('C','C2','C3 E3 G3',1)];
-        merged.sections[k] = merged.sections[k].map(x=>chord(x.name||'C', x.bass||'C2', x.notes||'C3 E3 G3', x.bars||1));
-    });
-    merged.arrangement = normalizeArrangement(p.arrangement, merged);
-    if(!styles[merged.style]) merged.style='funk';
-    if(!instruments[merged.instrument]) merged.instrument='piano';
-    merged.author = String(merged.author || '').trim() || 'Autor no definido';
-    merged.bpm = clamp(Number(merged.bpm)||95,60,160);
-    merged.grooveVol = clamp(Number(merged.grooveVol)||7,1,10);
-    merged.viewMode = merged.viewMode === 'fretboard' ? 'fretboard' : 'piano';
-    merged.routingMode = merged.routingMode === 'split' ? 'split' : 'normal';
-    merged.fretMode = ['guitar','ukulele','bass'].includes(merged.fretMode) ? merged.fretMode : 'guitar';
-    merged.tuningHz = clamp(Number(merged.tuningHz)||440,390,470);
-    merged.soloOn = merged.soloOn !== false;
-    return merged;
-}
-
-function normalizeArrangement(raw, prj){
-    const fallback = defaultArrangement();
-    const sections = prj && prj.sections ? prj.sections : {};
-    let arr = Array.isArray(raw) && raw.length ? raw : fallback;
-    arr = arr.map((p,i)=>{
-        if(typeof p === 'string') return {id:'part_'+i+'_'+p, section:p, label:sectionNames[p] || p};
-        const section = p && p.section && sections[p.section] ? p.section : null;
-        if(!section) return null;
-        return {id: p.id || ('part_'+i+'_'+section), section, label: String(p.label || sectionNames[section] || section)};
-    }).filter(Boolean);
-    if(!arr.length) arr = Object.keys(sections).filter(k=>sections[k] && sections[k].length).slice(0,1).map((k,i)=>({id:'part_'+i+'_'+k,section:k,label:sectionNames[k]||k}));
-    return arr;
+    return Storage.loadProject(
+        STORAGE_KEY,
+        defaultProject,
+        p => modelNormalizeProject(p, styles, instruments)
+    );
 }
 function arrangementParts(){
     if(!project.arrangement || !Array.isArray(project.arrangement)) project.arrangement = normalizeArrangement(null, project);
@@ -227,26 +198,6 @@ function arrangementParts(){
 }
 function sectionChordCount(k){ return (project.sections[k]||[]).length; }
 
-function normalizeSectionSolos(raw, legacy, defaults){
-    const out = JSON.parse(JSON.stringify(defaults || defaultSectionSolos()));
-    if(raw && typeof raw === 'object'){
-        songOrder.forEach(k=>{
-            const r = raw[k];
-            if(typeof r === 'string') out[k] = {...out[k], phrase:r};
-            else if(r && typeof r === 'object') out[k] = {...out[k], ...r};
-        });
-    }
-    if(legacy && legacy.soloPhrase && (!raw || !raw.solo)){
-        out.solo = {key:legacy.soloKey || 'F', scale:legacy.soloScale || 'major', phrase:legacy.soloPhrase};
-    }
-    songOrder.forEach(k=>{
-        out[k] = out[k] || {key:'C', scale:'major', phrase:''};
-        out[k].key = out[k].key || 'C';
-        out[k].scale = out[k].scale || 'major';
-        out[k].phrase = out[k].phrase || '';
-    });
-    return out;
-}
 function saveProject(show=false){
     syncProjectFromControls(false);
     Storage.saveProject(STORAGE_KEY, project);
@@ -964,7 +915,7 @@ function importJson(file){
     Storage.readJsonFile(file)
         .then(text => {
             try{
-                project = normalizeProject(JSON.parse(text));
+                project = modelNormalizeProject(JSON.parse(text), styles, instruments);
                 renderAll();
                 saveProject(false);
                 flashStatus('Proyecto importado correctamente.');
