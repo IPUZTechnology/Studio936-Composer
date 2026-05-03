@@ -1501,19 +1501,39 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     const panel=document.createElement('div'); panel.id='v19FlowPanel'; panel.className='v19-flow-panel';
     panel.innerHTML=`<h4>${T('flow')}</h4><div class="prod-grid"><div class="wide"><label>${T('select')}</label><select id="v19OutputSelect" class="v19-output-select"><option value="">${T('none')}</option></select></div><button class="mini-btn" id="v19DetectAudio" type="button">${T('detect')}</button></div><div id="v19FlowStatus" class="v19-status">${T('request')}</div>`;
     prod.appendChild(panel);
-    $('v19DetectAudio').onclick=detectOutputs;
-    $('v19OutputSelect').onchange=async e=>{
-      const id=e.target.value;
-      if(!id) return;
-      const ctx=window.__studio936AudioCtx;
-      const status=$('v19FlowStatus');
-      if(ctx && typeof ctx.setSinkId==='function'){
-        try{ await ctx.setSinkId(id); status.textContent=T('ok'); status.className='v19-status good'; }
-        catch(err){ status.textContent=T('unsupported'); status.className='v19-status warn'; }
-      } else { status.textContent=T('unsupported'); status.className='v19-status warn'; }
-    };
+    if(window.Studio936Flow8 && typeof window.Studio936Flow8.initFlow8==='function'){
+      window.Studio936Flow8.initFlow8({
+        els:{
+          v19DetectAudio:$('v19DetectAudio'),
+          v19OutputSelect:$('v19OutputSelect'),
+          v19FlowStatus:$('v19FlowStatus')
+        },
+        audioCtx:window.__studio936AudioCtx
+      });
+    } else {
+      $('v19DetectAudio').onclick=detectOutputs;
+      $('v19OutputSelect').onchange=async e=>{
+        const id=e.target.value;
+        if(!id) return;
+        const ctx=window.__studio936AudioCtx;
+        const status=$('v19FlowStatus');
+        if(ctx && typeof ctx.setSinkId==='function'){
+          try{ await ctx.setSinkId(id); status.textContent=T('ok'); status.className='v19-status good'; }
+          catch(err){ status.textContent=T('unsupported'); status.className='v19-status warn'; }
+        } else { status.textContent=T('unsupported'); status.className='v19-status warn'; }
+      };
+    }
   }
   async function detectOutputs(){
+    if(window.Studio936Flow8 && typeof window.Studio936Flow8.detectOutputs==='function'){
+      return window.Studio936Flow8.detectOutputs({
+        els:{
+          v19FlowStatus:$('v19FlowStatus'),
+          v19OutputSelect:$('v19OutputSelect')
+        },
+        audioCtx:window.__studio936AudioCtx
+      });
+    }
     const status=$('v19FlowStatus'), select=$('v19OutputSelect');
     if(!navigator.mediaDevices?.enumerateDevices){ status.textContent=T('unsupported'); status.className='v19-status warn'; return; }
     try{
