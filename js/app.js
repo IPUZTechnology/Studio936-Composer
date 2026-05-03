@@ -210,17 +210,7 @@ const MusicTheory = window.Studio936MusicTheory || {};
 function noteToMidi(note){ return MusicTheory.noteToMidi(note); }
 function midiToNote(midi){ return MusicTheory.midiToNote(midi); }
 function parseNotes(text){ return MusicTheory.parseNotes(text); }
-function parseSolo(str){
-    const tokens = String(str||'').split(/[ ,;\n]+/).filter(Boolean);
-    const out=[];
-    tokens.forEach(t=>{
-        const parts=t.split(':');
-        const midi = /^R$/i.test(parts[0]) ? null : noteToMidi(parts[0]);
-        const dur = clamp(Number(parts[1])||2,1,16);
-        out.push({midi,dur,token:t});
-    });
-    return out;
-}
+function parseSolo(text){ return MusicTheory.parseSolo(text); }
 function rootMidiFromKey(key,oct=4){
     const m = noteToMidi(String(key||'C').replace(/-?\d$/,'') + oct);
     return m === null ? 60 : m;
@@ -981,10 +971,8 @@ const ONBOARD_KEY = 'studio936ComposerOnboardingSeenV18';
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const PC = {C:0,'C#':1,DB:1,D:2,'D#':3,EB:3,E:4,FB:4,'E#':5,F:5,'F#':6,GB:6,G:7,'G#':8,AB:8,A:9,'A#':10,BB:10,B:11,CB:11,'B#':0};
 const SPANISH_ROOT = {DO:'C',RE:'D',MI:'E',FA:'F',SOL:'G',LA:'A',SI:'B'};
-const SCALE_INTERVALS = {
-  major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10], dorian:[0,2,3,5,7,9,10], phrygian:[0,1,3,5,7,8,10], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10], locrian:[0,1,3,5,6,8,10], majorPent:[0,2,4,7,9], minorPent:[0,3,5,7,10], blues:[0,3,5,6,7,10], harmonicMinor:[0,2,3,5,7,8,11]
-};
-const SCALE_LABELS = {major:'Major / Mayor',minor:'Minor / Menor',dorian:'Dorian / Dórico',phrygian:'Phrygian / Frigio',lydian:'Lydian / Lidio',mixolydian:'Mixolydian / Mixolidio',locrian:'Locrian / Locrio',majorPent:'Major pentatonic / Pentatónica mayor',minorPent:'Minor pentatonic / Pentatónica menor',blues:'Blues',harmonicMinor:'Harmonic minor / Menor armónica'};
+const SCALE_INTERVALS = MusicTheory.SCALE_INTERVALS;
+const SCALE_LABELS = MusicTheory.SCALE_LABELS;
 const SECTION_NAMES_ES = {intro:'Introducción', verse:'Verso', verse1:'Verso 1', verse2:'Verso 2', verse3:'Verso 3', verse4:'Verso 4', prechorus:'Pre-coro', chorus:'Coro', bridge:'Puente', interlude:'Interludio', solo:'Solo', outro:'Outro'};
 const SECTION_NAMES_EN = {intro:'Introduction', verse:'Verse', verse1:'Verse 1', verse2:'Verse 2', verse3:'Verse 3', prechorus:'Pre-chorus', chorus:'Chorus', interlude:'Interlude', solo:'Solo'};
 const SONG_ORDER = ['intro','verse','verse1','verse2','verse3','prechorus','chorus','interlude','solo'];
@@ -1023,7 +1011,7 @@ function transposeProject(p,semi){ p=clone(p); SONG_ORDER.forEach(k=>{ (p.sectio
 function noteToMidi(tok){ const m=String(tok||'').trim().match(/^([A-Ga-g](?:#|b|♭|♯)?)(-?\d+)$/); if(!m) return null; const pc=parseRoot(m[1]); if(pc==null) return null; return pc + (Number(m[2])+1)*12; }
 function midiToNote(m){ return pcToName(m%12)+(Math.floor(m/12)-1); }
 function parseNotes(str){ return String(str||'').split(/[\s,;]+/).map(noteToMidi).filter(Number.isFinite); }
-function scaleNotes(key,scale){ const pc=parseRoot(key)||0; return (SCALE_INTERVALS[scale]||SCALE_INTERVALS.major).map(i=>pcToName(pc+i)); }
+function scaleNotes(key,scale){ return MusicTheory.scaleNotes(key, scale); }
 function sectionName(k){ return (lang()==='en'?SECTION_NAMES_EN:SECTION_NAMES_ES)[k]||k; }
 function projectLines(p){ const lines=[]; lines.push(`${lang()==='en'?'SONG':'CANCIÓN'}: ${p.title}`); lines.push(`${lang()==='en'?'AUTHOR':'AUTOR'}: ${p.author}`); lines.push(`BPM: ${p.bpm} · Style: ${p.style} · A4: ${p.tuningHz||440} Hz`); lines.push(''); SONG_ORDER.forEach(k=>{ const sec=p.sections[k]||[]; if(!sec.length) return; lines.push(`[${sectionName(k).toUpperCase()}]`); sec.forEach(c=>lines.push(`| ${c.name} | bass:${c.bass} | notes:${c.notes} | bars:${c.bars}`)); const solo=p.sectionSolos?.[k]; if(solo?.phrase) lines.push(`Melody/Solo (${solo.key} ${solo.scale}): ${solo.phrase}`); if(p.lyrics?.[k]){ lines.push(lang()==='en'?'Lyrics:':'Letra:'); String(p.lyrics[k]).split('\n').forEach(l=>lines.push('  '+l)); } lines.push(''); }); return lines; }
 function download(name,content,type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1200); }
