@@ -167,11 +167,8 @@ function loadProject(){
         p => modelNormalizeProject(p, styles, instruments)
     );
 }
-function arrangementParts(){
-    if(!project.arrangement || !Array.isArray(project.arrangement)) project.arrangement = normalizeArrangement(null, project);
-    project.arrangement = normalizeArrangement(project.arrangement, project);
-    return project.arrangement;
-}
+let Arrangement = null;
+function arrangementParts(){ return Arrangement.arrangementParts(); }
 function sectionChordCount(k){ return (project.sections[k]||[]).length; }
 
 function saveProject(show=false){
@@ -396,7 +393,7 @@ function setVisual(time,fn){
 function clearKeys(){ Object.values(keyMap).forEach(k=>k.classList.remove('active-chord','active-bass','active-solo')); clearFretboardActive(); updateHeldChordVisual(); }
 function resumeAudio(){ if(audioCtx.state==='suspended') audioCtx.resume(); }
 
-function arrangementOrder(){ return arrangementParts().map(p => p.section).filter(k => Array.isArray(project.sections[k]) && project.sections[k].length); }
+function arrangementOrder(){ return Arrangement.arrangementOrder(); }
 /* Editor extraction map (pre js/editor.js split):
    Core editor state/readers: editorSectionKey, editorSeq, currentItem.
    Core editor mutators/render: renderSectionList, applyEditorToProject, addChord, duplicateChord, deleteChord, resetSection, resetAll.
@@ -599,48 +596,8 @@ function setBPM(v){
 window.setBPM = setBPM;
 
 
-function ensureSectionOption(key){
-    if(!els.sectionSelect || els.sectionSelect.querySelector(`option[value="${CSS.escape(key)}"]`)) return;
-    const o=document.createElement('option'); o.value=key; o.textContent=sectionNames[key] || key; els.sectionSelect.appendChild(o);
-}
-function renderSectionOptions(){ Object.keys(project.sections || {}).forEach(k=>ensureSectionOption(k)); }
-function ensureArrangementCard(){
-    let card=document.getElementById('structureBuilderCard'); if(card) return card;
-    const editor=document.querySelector('.editor'); if(!editor) return null;
-    card=document.createElement('div'); card.className='card structure-card'; card.id='structureBuilderCard';
-    card.innerHTML=`<h3>Constructor de estructura <span class="structure-badge">v25</span></h3><div class="structure-toolbar"><select id="arrangeSourceSelect" class="select"></select><button class="mini-btn primary" id="arrangeAddBtn">Agregar parte</button><button class="mini-btn" id="arrangeDupBtn">Duplicar</button><button class="mini-btn" id="arrangeUpBtn">↑</button><button class="mini-btn" id="arrangeDownBtn">↓</button><button class="mini-btn danger" id="arrangeDelBtn">Borrar</button></div><div class="button-row"><button class="mini-btn warn" id="arrangeNewBtn">Crear nueva sección</button><button class="mini-btn" id="arrangeVariationBtn">Copiar como variación</button><button class="mini-btn" id="arrangeRenameBtn">Renombrar bloque</button></div><div id="arrangementList" class="arrangement-list"></div><div class="structure-help"><b>Banco de secciones:</b> define acordes/letra/melodía. <b>Orden de canción:</b> repite o reordena bloques sin copiar toda la música. “Escuchar canción”, TXT y MIDI usan este orden real.</div>`;
-    editor.insertBefore(card, editor.firstElementChild);
-    card.addEventListener('click', handleArrangementClick);
-    return card;
-}
-function renderArrangementBuilder(){
-    renderSectionOptions(); const card=ensureArrangementCard(); if(!card) return;
-    const src=document.getElementById('arrangeSourceSelect'); const list=document.getElementById('arrangementList'); if(!src||!list) return;
-    const cur=src.value || els.sectionSelect.value || 'intro';
-    src.innerHTML=''; Object.keys(project.sections||{}).forEach(k=>{ const o=document.createElement('option'); o.value=k; o.textContent=(sectionNames[k]||k)+` · ${sectionChordCount(k)} acordes`; src.appendChild(o); });
-    src.value = project.sections[cur] ? cur : 'intro';
-    const parts=arrangementParts(); if(selectedArrangementIndex>=parts.length) selectedArrangementIndex=Math.max(0,parts.length-1);
-    list.innerHTML=parts.map((p,i)=>`<div class="arrange-part ${i===selectedArrangementIndex?'active':''}" data-arr-i="${i}"><div class="arrange-num">${i+1}</div><div class="arrange-label">${escapeHtml(p.label||sectionNames[p.section]||p.section)}</div><div class="arrange-src">${escapeHtml(sectionNames[p.section]||p.section)}</div><div class="arrange-meta">${sectionChordCount(p.section)} acorde(s) · click para editar</div></div>`).join('');
-}
-function handleArrangementClick(ev){
-    const part=ev.target.closest('[data-arr-i]'); if(part){ selectedArrangementIndex=Number(part.dataset.arrI)||0; const p=arrangementParts()[selectedArrangementIndex]; if(p){ els.sectionSelect.value=p.section; els.sectionSelect.dispatchEvent(new Event('change',{bubbles:true})); activeSongPartLabel=p.label || sectionNames[p.section] || p.section; updatePartDisplay(); } renderArrangementBuilder(); return; }
-    const id=ev.target.id; if(!id) return;
-    if(id==='arrangeAddBtn') addArrangementPart();
-    if(id==='arrangeDupBtn') duplicateArrangementPart();
-    if(id==='arrangeUpBtn') moveArrangementPart(-1);
-    if(id==='arrangeDownBtn') moveArrangementPart(1);
-    if(id==='arrangeDelBtn') deleteArrangementPart();
-    if(id==='arrangeRenameBtn') renameArrangementPart();
-    if(id==='arrangeNewBtn') createNewSection(false);
-    if(id==='arrangeVariationBtn') createNewSection(true);
-}
-function addArrangementPart(){ const src=document.getElementById('arrangeSourceSelect')?.value || els.sectionSelect.value || 'intro'; const label=sectionNames[src] || src; const idx=Math.min(selectedArrangementIndex+1, arrangementParts().length); project.arrangement.splice(idx,0,{id:'p'+Date.now(),section:src,label}); selectedArrangementIndex=idx; renderArrangementBuilder(); saveProject(false); flashStatus('Parte agregada al orden de canción.'); }
-function duplicateArrangementPart(){ const parts=arrangementParts(); const p=parts[selectedArrangementIndex]; if(!p) return; const copy={id:'p'+Date.now(),section:p.section,label:(p.label||sectionNames[p.section]||p.section)+' BIS'}; project.arrangement.splice(selectedArrangementIndex+1,0,copy); selectedArrangementIndex++; renderArrangementBuilder(); saveProject(false); flashStatus('Bloque duplicado en el arreglo.'); }
-function moveArrangementPart(dir){ const parts=arrangementParts(); const i=selectedArrangementIndex, j=i+dir; if(j<0||j>=parts.length) return; [project.arrangement[i],project.arrangement[j]]=[project.arrangement[j],project.arrangement[i]]; selectedArrangementIndex=j; renderArrangementBuilder(); saveProject(false); }
-function deleteArrangementPart(){ const parts=arrangementParts(); if(parts.length<=1){ flashStatus('La canción debe tener al menos una parte.'); return; } project.arrangement.splice(selectedArrangementIndex,1); selectedArrangementIndex=Math.max(0,selectedArrangementIndex-1); renderArrangementBuilder(); saveProject(false); flashStatus('Parte borrada del arreglo. La sección original no se borró.'); }
-function renameArrangementPart(){ const p=arrangementParts()[selectedArrangementIndex]; if(!p) return; const name=prompt('Nombre del bloque en el arreglo:', p.label || sectionNames[p.section] || p.section); if(!name) return; p.label=name.trim(); renderArrangementBuilder(); saveProject(false); }
-function uniqueSectionKey(base){ base=String(base||'section').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')||'section'; let k=base, n=2; while(project.sections[k]) k=base+'_'+(n++); return k; }
-function createNewSection(asVariation){ const current=els.sectionSelect.value||'intro'; const source=asVariation ? current : (document.getElementById('arrangeSourceSelect')?.value || current); const baseName=asVariation ? ((sectionNames[source]||source)+' variación') : 'Nueva sección'; const name=prompt(asVariation?'Nombre de la nueva variación:':'Nombre de la nueva sección:', baseName); if(!name) return; const key=uniqueSectionKey(name); project.sections[key]=JSON.parse(JSON.stringify(project.sections[source]||[chord('C','C2','C3 E3 G3',1)])); sectionNames[key]=name.trim(); project.lyrics=project.lyrics||{}; project.lyrics[key]=asVariation?(project.lyrics[source]||''):''; project.sectionSolos=project.sectionSolos||{}; project.sectionSolos[key]=JSON.parse(JSON.stringify(project.sectionSolos[source]||{key:'C',scale:'major',phrase:''})); ensureSectionOption(key); project.arrangement.splice(selectedArrangementIndex+1,0,{id:'p'+Date.now(),section:key,label:name.trim()}); selectedArrangementIndex++; els.sectionSelect.value=key; els.sectionSelect.dispatchEvent(new Event('change',{bubbles:true})); renderArrangementBuilder(); saveProject(false); flashStatus('Nueva sección creada y agregada al arreglo.'); }
+function renderArrangementBuilder(){ return Arrangement.renderArrangementBuilder(); }
+function renderSectionOptions(){ Object.keys(project.sections || {}).forEach(k=>{ if(!els.sectionSelect.querySelector(`option[value="${CSS.escape(k)}"]`)){ const o=document.createElement('option'); o.value=k; o.textContent=sectionNames[k] || k; els.sectionSelect.appendChild(o); } }); }
 
 function renderAll(){
     els.songTitle.value = project.title;
@@ -975,6 +932,24 @@ function bind(){
     [els.soloPhrase,els.soloKey,els.soloScale].forEach(x=>x.addEventListener('change',()=>saveSoloForSection(editorSectionKey(), false)));
 }
 
+Arrangement = window.Studio936Arrangement.setup({
+    els,
+    get project(){ return project; },
+    set project(v){ project=v; },
+    sectionNames,
+    songOrder,
+    normalizeArrangement,
+    chord,
+    escapeHtml,
+    saveProject,
+    flashStatus,
+    renderSectionList,
+    editorSectionKey,
+    loadEditorFromSelected,
+    onPartSelected:(p)=>{ activeSongPartLabel=p.label || sectionNames[p.section] || p.section; updatePartDisplay(); },
+    getSelectedArrangementIndex:()=>selectedArrangementIndex,
+    setSelectedArrangementIndex:v=>{ selectedArrangementIndex=Number(v)||0; }
+});
 buildPiano(); buildFretboard(); buildStepGrid(); bind(); renderAll();
 })();
 
