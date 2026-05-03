@@ -17,7 +17,15 @@
         const PPQ=480, STEP=PPQ/4;
         const meta=[metaTempo(project.bpm,0), metaTimeSig(0), metaText(0x03, project.title || 'Song',0), metaText(0x01, `Author: ${project.author || ''} | Style: ${project.style} | A4=${helpers.masterA()} Hz`,0)];
         const chords=[metaText(0x03,'Chords / Harmony',0)]; const bass=[metaText(0x03,'Bass',0)]; const melody=[metaText(0x03,'Melody / Solo',0)];
-        let tick=0; const parts = helpers.arrangementParts();
+        let tick=0; let parts = helpers.arrangementParts();
+        if(!Array.isArray(parts) || !parts.length){
+            const sections = project.sections || {};
+            parts = Object.keys(sections).filter(k=>Array.isArray(sections[k]) && sections[k].length>0).map((section,idx)=>({ id:'fallback_'+idx, section, label:(helpers.sectionNames && helpers.sectionNames[section]) || section }));
+        }
+        if(!parts.length){
+            if(helpers.flashStatus) helpers.flashStatus('Error al exportar MIDI: no hay arreglo ni secciones con acordes.');
+            return new Uint8Array();
+        }
         parts.forEach(part=>{ const section=part.section; meta.push(metaText(0x06, part.label || helpers.sectionNames[section] || section, tick)); const seq = project.sections[section] || []; const sectionSolo = helpers.parseSolo(helpers.getSectionSolo(section).phrase || ''); let sectionStep=0;
             seq.forEach(item=>{ const st = helpers.styles[project.style] || helpers.styles.funk; const b = helpers.noteToMidi(item.bass) ?? 36; const chNotes = helpers.parseNotes(item.notes); const notes = chNotes.length ? chNotes : [60,64,67]; const steps = Math.max(1,Number(item.bars)||1)*16; meta.push(metaText(0x01, `${section}: ${item.name}`, tick + sectionStep*STEP));
                 for(let ss=0;ss<steps;ss++){ const stepBar=ss%16; const t = tick + (sectionStep+ss)*STEP + swingTicksForStep(stepBar,project.style,helpers); if(st.bass.includes(stepBar)) midiNoteEvents(bass,t,helpers.bassPatternNote(b,notes,stepBar,project.style),Math.round(STEP*1.65),82,helpers,1); if(st.arp){ const arpSteps = project.style==='ballad' ? [0,2,4,6,8,10,12,14] : [0,3,6,8,11,14]; if(arpSteps.includes(stepBar)) midiNoteEvents(chords,t,notes[(Math.floor(stepBar/2)+Math.floor(ss/16)+1)%notes.length],Math.round(STEP*1.4),66,helpers,0); } if(st.chord.includes(stepBar)) addMidiChord(chords,t,notes,Math.round(STEP*1.9),72,helpers,0); if(st.ghost.includes(stepBar)) addMidiChord(chords,t,helpers.thinChord(notes),Math.round(STEP*.9),38,helpers,0); const ev = soloEventStartAt(sectionSolo, sectionStep+ss); if(ev && ev.midi !== null) midiNoteEvents(melody,t+Math.round(STEP*.1),helpers.clamp(ev.midi,0,127),Math.round(STEP*ev.dur*.9),86,helpers,2); }
