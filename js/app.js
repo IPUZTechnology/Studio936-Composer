@@ -966,7 +966,29 @@ Arrangement = window.Studio936Arrangement.setup({
     getSelectedArrangementIndex:()=>selectedArrangementIndex,
     setSelectedArrangementIndex:v=>{ selectedArrangementIndex=Number(v)||0; }
 });
+
+// MIDI diagnostic/fix: force modular Exportar MIDI binding after legacy blocks finish wiring handlers.
+function forceModularMidiExportBinding(){
+    const btn = document.getElementById('midiBtn');
+    if(!btn) return;
+    btn.onclick = () => {
+        console.log('MIDI diagnóstico: final modular handler.');
+        flashStatus('MIDI diagnóstico: final modular handler.');
+        try{
+            if(!window.Studio936MidiExport) throw new Error('Studio936MidiExport no disponible');
+            exportMidi();
+        }catch(err){
+            console.error(err);
+            flashStatus('Error exportando MIDI. Revisa consola.');
+        }
+    };
+}
+
 buildPiano(); buildFretboard(); buildStepGrid(); bind(); renderAll();
+forceModularMidiExportBinding();
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',forceModularMidiExportBinding,{once:true});
+setTimeout(forceModularMidiExportBinding,0);
+setTimeout(forceModularMidiExportBinding,500);
 })();
 
 /* ---- Script block separator ---- */
