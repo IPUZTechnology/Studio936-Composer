@@ -232,7 +232,7 @@ function adjustedMidiForInstrument(midi, prof, role){
     }
     return m;
 }
-function playNote(midi,vol=.18,decay=.45,type='triangle',time=audioCtx.currentTime){
+function playNoteImpl(midi,vol=.18,decay=.45,type='triangle',time=audioCtx.currentTime){
     if(!Number.isFinite(midi)) return;
     const role = noteRole(type);
     const inst = currentInstrument();
@@ -241,6 +241,7 @@ function playNote(midi,vol=.18,decay=.45,type='triangle',time=audioCtx.currentTi
     if(inst.mode === 'wind') return playWindNote(midi,vol,decay,type,time,role,inst,prof);
     return playBasicSynthNote(midi,vol,decay,type,time,role,inst,prof);
 }
+function playNote(midi,dur=.18,vol=.45,type='triangle',when=audioCtx.currentTime){ return AudioEngine.playNote(midi,dur,vol,type,when); }
 function connectToneChain(osc,osc2,filter,gain,role='music'){
     osc.connect(filter); osc2.connect(filter); filter.connect(gain); connectOut(gain,role);
 }
@@ -328,33 +329,9 @@ function playWindNote(midi,vol,decay,type,time,role,inst,prof){
     osc.start(now); osc2.start(now); lfo.start(now);
     osc.stop(now+finalDecay+.05); osc2.stop(now+finalDecay+.05); lfo.stop(now+finalDecay+.05);
 }
-function playMetronomeClick(accent=false,time=audioCtx.currentTime){
-    const now = Math.max(time, audioCtx.currentTime);
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(accent ? 1760 : 1175, now);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(accent ? 0.24 : 0.17, now + 0.004);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + (accent ? 0.08 : 0.06));
-    osc.connect(gain); connectOut(gain,'click');
-    osc.start(now); osc.stop(now + 0.1);
-}
-function previewMetronome(){
-    resumeAudio();
-    const beatDur = 60 / project.bpm;
-    const start = audioCtx.currentTime + 0.04;
-    for(let i=0;i<4;i++){
-        const t = start + i * beatDur;
-        playMetronomeClick(i===0, t);
-        setVisual(t,()=>pulseMetro());
-    }
-}
-function strumChord(notes,vol,decay,time,cls='active-chord'){
-    const delay = currentInstrument().strum || .012;
-    notes.forEach((m,i)=>playNote(m,vol,decay,'triangle',time+i*delay));
-    setVisual(time,()=>flashKeys(notes,cls,230));
-}
+function playMetronomeClick(accent,when){ return AudioEngine.playMetronomeClick(accent,when); }
+function previewMetronome(){ return AudioEngine.previewMetronome(); }
+function strumChord(notes,dur,vol,when,cls='active-chord'){ return AudioEngine.strumChord(notes,dur,vol,when,cls); }
 function flashKeys(midis,cls,dur=200){
     midis.forEach(m=>{ if(keyMap[m]) keyMap[m].classList.add(cls); });
     flashFretboard(midis,cls,dur);
@@ -365,7 +342,18 @@ function setVisual(time,fn){
     lastVisualTimer.push(setTimeout(fn,delay));
 }
 function clearKeys(){ Object.values(keyMap).forEach(k=>k.classList.remove('active-chord','active-bass','active-solo')); clearFretboardActive(); updateHeldChordVisual(); }
-function resumeAudio(){ if(audioCtx.state==='suspended') audioCtx.resume(); }
+function resumeAudio(){ return AudioEngine.resumeAudio(); }
+
+const AudioEngine = (window.Studio936AudioEngine || {}).setup({
+    audioCtx,
+    getProject:()=>project,
+    connectOut,
+    flashKeys,
+    setVisual,
+    pulseMetro,
+    getStrumDelay:()=>currentInstrument().strum || .012,
+    playNoteImpl
+});
 
 function arrangementOrder(){ return Arrangement.arrangementOrder(); }
 /* Editor extraction map (pre js/editor.js split):
