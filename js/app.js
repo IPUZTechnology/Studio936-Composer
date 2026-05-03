@@ -393,6 +393,12 @@ function clearKeys(){ Object.values(keyMap).forEach(k=>k.classList.remove('activ
 function resumeAudio(){ if(audioCtx.state==='suspended') audioCtx.resume(); }
 
 function arrangementOrder(){ return arrangementParts().map(p => p.section).filter(k => Array.isArray(project.sections[k]) && project.sections[k].length); }
+/* Editor extraction map (pre js/editor.js split):
+   Core editor state/readers: editorSectionKey, editorSeq, currentItem.
+   Core editor mutators/render: renderSectionList, applyEditorToProject, addChord, duplicateChord, deleteChord, resetSection, resetAll.
+   Related control sync currently named loadEditorFromSelected (candidate alias: applyEditorChordToControls).
+   Section selector refresh currently named renderSectionOptions/ensureSectionOption (candidate alias: updateSectionSelect).
+*/
 function editorSectionKey(){ return els.sectionSelect.value || 'intro'; }
 function currentSectionKey(){ return playAllMode ? activeSongSection : editorSectionKey(); }
 function currentSeq(){return project.sections[currentSectionKey()] || project.sections.intro;}
