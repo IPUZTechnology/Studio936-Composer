@@ -2,6 +2,29 @@
 (() => {
 'use strict';
 
+const DEFAULT_SECTION_OPTIONS = [
+  ['intro','Introducción'],
+  ['verse','Verso'],
+  ['verse1','Verso 1'],
+  ['verse2','Verso 2'],
+  ['verse3','Verso 3'],
+  ['verse4','Verso 4'],
+  ['prechorus','Pre-coro'],
+  ['chorus','Coro'],
+  ['bridge','Puente'],
+  ['interlude','Interludio'],
+  ['solo','Solo'],
+  ['outro','Outro']
+];
+
+function escAttr(value){
+  return String(value ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function escText(value){
+  return String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 const Editor = {
   setup(host){
     this.host = host;
@@ -11,6 +34,7 @@ const Editor = {
       top.dataset.editorPartSync = '1';
       top.addEventListener('change',()=>this.syncEditorPartSelector(),true);
     }
+    setTimeout(()=>this.syncEditorPartSelector(),0);
     return this;
   },
   ensureEditorPartSelector(){
@@ -25,21 +49,32 @@ const Editor = {
     sel.addEventListener('change',()=>this.selectEditorSection(sel.value));
     this.syncEditorPartSelector();
   },
+  buildSectionOptions(){
+    const top = this.host?.els?.sectionSelect;
+    const source = top && top.options && top.options.length ? Array.from(top.options).map(o=>[o.value,o.textContent]) : DEFAULT_SECTION_OPTIONS;
+    return source.map(([value,label])=>`<option value="${escAttr(value)}">${escText(label)}</option>`).join('');
+  },
   syncEditorPartSelector(){
     const { els } = this.host;
     const sel = document.getElementById('editorPartSelect');
     if(!sel) return;
     const top = els.sectionSelect;
-    const options = Array.from(top.options || []).map(o=>`<option value="${String(o.value).replace(/"/g,'&quot;')}">${o.textContent}</option>`).join('');
-    if(sel.dataset.optionsHtml!==options){ sel.innerHTML=options; sel.dataset.optionsHtml=options; }
-    sel.value = top.value || 'intro';
+    const options = this.buildSectionOptions();
+    if(sel.dataset.optionsHtml!==options){
+      sel.innerHTML=options;
+      sel.dataset.optionsHtml=options;
+    }
+    const targetValue = top?.value || sel.value || 'intro';
+    if(Array.from(sel.options).some(o=>o.value===targetValue)) sel.value = targetValue;
   },
   selectEditorSection(sectionKey){
     const { els } = this.host;
     const top = els.sectionSelect;
-    if(!top) return;
+    if(!top || !sectionKey) return;
     if(top.value!==sectionKey) top.value = sectionKey;
     top.dispatchEvent(new Event('change',{bubbles:true}));
+    this.loadEditorFromSelected();
+    this.renderSectionList();
     this.syncEditorPartSelector();
   },
   editorSectionKey(){ return this.host.els.sectionSelect.value || 'intro'; },
