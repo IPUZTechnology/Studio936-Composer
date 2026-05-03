@@ -62,6 +62,10 @@ const Fretboard = window.Studio936Fretboard;
 if(!Fretboard || !Fretboard.buildFretboard){
     throw new Error('Studio936Fretboard no está cargado. Revisa que js/fretboard.js se cargue antes de js/app.js.');
 }
+const EditorModule = window.Studio936Editor;
+if(!EditorModule || !EditorModule.setup){
+    throw new Error('Studio936Editor no está cargado. Revisa que js/editor.js se cargue antes de js/app.js.');
+}
 
 const els = {
     piano:document.getElementById('piano'), fretboardContainer:document.getElementById('fretboardContainer'), fretboard:document.getElementById('fretboard'), fretMarkers:document.getElementById('fretMarkers'), viewToggleBtn:document.getElementById('viewToggleBtn'), routingSelect:document.getElementById('routingSelect'), fretModeSelect:document.getElementById('fretModeSelect'), tuningSelect:document.getElementById('tuningSelect'), tuningCustom:document.getElementById('tuningCustom'), midiBtn:document.getElementById('midiBtn'), songTitle:document.getElementById('songTitle'), songAuthor:document.getElementById('songAuthor'), styleSelect:document.getElementById('styleSelect'), instrumentSelect:document.getElementById('instrumentSelect'), sectionSelect:document.getElementById('sectionSelect'),
@@ -403,6 +407,25 @@ function editorSectionKey(){ return els.sectionSelect.value || 'intro'; }
 function currentSectionKey(){ return playAllMode ? activeSongSection : editorSectionKey(); }
 function currentSeq(){return project.sections[currentSectionKey()] || project.sections.intro;}
 function editorSeq(){return project.sections[editorSectionKey()] || project.sections.intro;}
+const Editor = EditorModule.setup({
+    els,
+    get project(){ return project; },
+    set project(v){ project=v; },
+    chord,
+    clamp,
+    defaultProject,
+    noteToMidi,
+    parseNotes,
+    saveProject,
+    flashStatus,
+    renderChordSelect,
+    updateSectionNoteMap,
+    updateFretboardMap,
+    escapeHtml,
+    getChordIdx:()=>chordIdx,
+    setChordIdx:v=>{ chordIdx=v; },
+    setStepInChord:v=>{ stepInChord=v; }
+});
 function currentItem(){ const seq=currentSeq(); return seq[Math.min(chordIdx,seq.length-1)] || chord('C','C2','C3 E3 G3',1); }
 function chordDurationSteps(item){ return Math.max(1,Number(item.bars)||1) * 16; }
 function stepOffset(step,style){
@@ -643,32 +666,9 @@ function renderChordSelect(){
     seq.forEach((c,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=`${i+1}. ${c.name} · ${c.bars||1} compás(es)`; els.chordSelect.appendChild(o); });
     if(Number(els.chordSelect.value)>=seq.length) els.chordSelect.value=0;
 }
-function renderSectionList(){
-    const seq = editorSeq(); els.sectionList.innerHTML='';
-    seq.forEach((c,i)=>{
-        const row=document.createElement('div'); row.className='chord-row' + (i===Number(els.chordSelect.value)?' active':'');
-        row.innerHTML = `<div class="index-pill">${i+1}</div><div><div class="row-title">${escapeHtml(c.name)}</div><div class="row-sub">Bajo ${escapeHtml(c.bass)} · ${escapeHtml(c.notes)}</div></div><div class="bars-pill">${c.bars||1} comp.</div>`;
-        row.onclick=()=>{ els.chordSelect.value=i; loadEditorFromSelected(); renderSectionList(); };
-        els.sectionList.appendChild(row);
-    });
-}
-function loadEditorFromSelected(){
-    const item = editorSeq()[Number(els.chordSelect.value)||0] || editorSeq()[0];
-    if(!item) return;
-    els.chordName.value = item.name || '';
-    els.bassInput.value = item.bass || 'C2';
-    els.chordNotes.value = item.notes || '';
-    els.barsInput.value = item.bars || 1;
-    updateFretboardMap();
-}
-function applyEditorToProject(render=true){
-    const seq = editorSeq(); const idx = Number(els.chordSelect.value)||0; if(!seq[idx]) return false;
-    const bass = els.bassInput.value.trim(); const notes = els.chordNotes.value.trim();
-    if(noteToMidi(bass) === null || parseNotes(notes).length === 0){ if(render) flashStatus('Revisa bajo/notas: no pude leer alguna nota.'); return false; }
-    seq[idx] = chord(els.chordName.value.trim() || 'Acorde', bass, notes, clamp(Number(els.barsInput.value)||1,1,16));
-    if(render){ renderChordSelect(); els.chordSelect.value=idx; renderSectionList(); updateSectionNoteMap(); updateFretboardMap(); saveProject(false); flashStatus('Acorde aplicado.'); }
-    return true;
-}
+function renderSectionList(){ return Editor.renderSectionList(); }
+function loadEditorFromSelected(){ return Editor.loadEditorFromSelected(); }
+function applyEditorToProject(render=true){ return Editor.applyEditorToProject(render); }
 function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function updateStyleHelp(){ const inst = instruments[project.instrument]?.label || 'Piano'; els.styleHelp.textContent = (styles[project.style]?.help || styles.funk.help) + ' · Instrumento guía: ' + inst + '.'; }
 
@@ -678,18 +678,10 @@ function previewChord(){
     if(bass!==null){ playNote(bass,.28,.75,'sine',t); flashKeys([bass],'active-bass',600); }
     strumChord(notes,.16,.9,t+.05,'active-chord');
 }
-function addChord(){
-    const seq=editorSeq(); const idx=Number(els.chordSelect.value)||0; const base=seq[idx] || chord('C','C2','C3 E3 G3',1);
-    seq.splice(idx+1,0,{...base,name:base.name+' copy'}); renderChordSelect(); els.chordSelect.value=idx+1; loadEditorFromSelected(); renderSectionList(); updateSectionNoteMap(); updateFretboardMap(); saveProject(false);
-}
-function duplicateChord(){ addChord(); }
-function deleteChord(){
-    const seq=editorSeq(); if(seq.length<=1){ flashStatus('La sección debe conservar al menos un acorde.'); return; }
-    const idx=Number(els.chordSelect.value)||0; seq.splice(idx,1); renderChordSelect(); els.chordSelect.value=Math.max(0,idx-1); loadEditorFromSelected(); renderSectionList(); updateSectionNoteMap(); updateFretboardMap(); saveProject(false); flashStatus('Acorde borrado.');
-}
-function resetSection(){
-    const def=defaultProject(); const k=editorSectionKey(); project.sections[k]=JSON.parse(JSON.stringify(def.sections[k])); chordIdx=0; stepInChord=0; renderChordSelect(); loadEditorFromSelected(); renderSectionList(); updateSectionNoteMap(); updateFretboardMap(); saveProject(false); flashStatus('Sección restaurada.');
-}
+function addChord(){ return Editor.addChord(); }
+function duplicateChord(){ return Editor.duplicateChord(); }
+function deleteChord(){ return Editor.deleteChord(); }
+function resetSection(){ return Editor.resetSection(); }
 function resetAll(){
     stopPlayback(); project=defaultProject(); Storage.clearProject(STORAGE_KEY); renderAll(); flashStatus('Proyecto restaurado al estado inicial.');
 }
