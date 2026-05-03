@@ -428,166 +428,13 @@ const Editor = EditorModule.setup({
 });
 function currentItem(){ const seq=currentSeq(); return seq[Math.min(chordIdx,seq.length-1)] || chord('C','C2','C3 E3 G3',1); }
 function chordDurationSteps(item){ return Math.max(1,Number(item.bars)||1) * 16; }
-function stepOffset(step,style){
-    const s = styles[style] || styles.funk;
-    if(!s.swing) return 0;
-    const offSteps = [2,6,10,14];
-    return offSteps.includes(step%16) ? (60/project.bpm/4)*s.swing : 0;
-}
-function scheduler(){
-    while(isPlaying && nextTime < audioCtx.currentTime + .14){
-        scheduleStep(nextTime);
-        const stepDur = 60 / project.bpm / 4;
-        nextTime += stepDur;
-        advanceStep();
-    }
-    if(isPlaying) timer = requestAnimationFrame(scheduler);
-}
-function scheduleStep(time){
-    const item = currentItem();
-    const section = currentSectionKey();
-    const stepBar = stepInChord % 16;
-    const barNum = Math.floor(stepInChord/16) + 1;
-    const st = styles[project.style] || styles.funk;
-    const when = time + stepOffset(stepBar,project.style);
-    const bass = noteToMidi(item.bass) ?? 36;
-    const notes = parseNotes(item.notes);
-    const chordNotes = notes.length ? notes : [60,64,67];
-    const rootFifth = [bass, bass+7].filter(n=>n>=24 && n<=84);
-    const visualType = {chord:st.chord.includes(stepBar), bass:st.bass.includes(stepBar), ghost:st.ghost.includes(stepBar), solo:false};
+const Transport = window.Studio936Transport || null;
+let transportControls = null;
+function startStop(){ if(transportControls) transportControls.startStop(); }
+function startFullSong(){ if(transportControls) transportControls.startFullSong(); }
+function stopPlayback(){ if(transportControls) transportControls.stopPlayback(); }
 
-    setVisual(time,()=>updateLiveUI(item,stepBar,barNum,visualType));
-    if(metroEnabled && stepBar%4===0){ playMetronomeClick(stepBar===0,time); setVisual(time,()=>pulseMetro()); }
 
-    if(st.bass.includes(stepBar)){
-        const bassChoice = bassPatternNote(bass,chordNotes,stepBar,project.style);
-        playNote(bassChoice,.29,.46,'sine',when);
-        if(stepBar===0 || project.style==='rock' || project.style==='ballad') playNote(Math.max(24,bassChoice-12),.16,.62,'sine',when);
-        setVisual(when,()=>flashKeys([bassChoice, Math.max(24,bassChoice-12)],'active-bass',210));
-    }
-    if(st.arp){
-        const arpSteps = project.style==='ballad' ? [0,2,4,6,8,10,12,14] : [0,3,6,8,11,14];
-        if(arpSteps.includes(stepBar)){
-            const m = chordNotes[(Math.floor(stepBar/2)+barNum)%chordNotes.length];
-            playNote(m,.12,.54,'triangle',when);
-            setVisual(when,()=>flashKeys([m],'active-chord',190));
-        }
-    }
-    if(st.chord.includes(stepBar)) strumChord(chordNotes,.13,.35,when,'active-chord');
-    if(st.ghost.includes(stepBar)) strumChord(thinChord(chordNotes),.055,.18,when,'active-chord');
-
-    if(soloEnabled){
-        const sectionSolo = getSectionSolo(section);
-        const solo = parseSolo(sectionSolo.phrase || '');
-        const event = soloEventAtStep(solo, globalStep);
-        if(event && event.midi !== null){
-            const soloMidi = clamp(event.midi,48,84);
-            playNote(soloMidi,.22,.34,'square',when+.01);
-            setVisual(when,()=>{ flashKeys([soloMidi],'active-solo',240); markStepSolo(stepBar); });
-        }
-    }
-}
-function soloEventAtStep(events,step){
-    if(!events.length) return null;
-    const total = events.reduce((a,e)=>a+e.dur,0);
-    let pos = step % total;
-    for(const e of events){ if(pos===0) return e; pos -= e.dur; if(pos<0) return null; }
-    return null;
-}
-function bassPatternNote(bass,chordNotes,step,style){
-    if(style==='jazz'){
-        const tones=[bass, chordNotes[0]||bass+4, chordNotes[1]||bass+7, bass+11].map(n=>whileInRange(n,31,55));
-        return tones[[0,4,8,12].indexOf(step)] || bass;
-    }
-    if(style==='blues') return whileInRange(step%6===0?bass+7:bass,31,55);
-    if(style==='bossa') return whileInRange((step===0||step===8)?bass:bass+7,31,55);
-    if(style==='funk') return whileInRange((step===6||step===14)?bass+7:bass,31,55);
-    if(style==='bolero') return whileInRange((step===8)?bass+7:bass,31,55);
-    if(style==='salsa') return whileInRange((step===7||step===14)?bass+7:(step===10?bass+12:bass),31,55);
-    if(style==='cumbia') return whileInRange((step===4||step===12)?bass+7:bass,31,55);
-    if(style==='reggae') return whileInRange((step===8)?bass+7:bass,31,55);
-    return whileInRange(bass,31,55);
-}
-function whileInRange(n,min,max){ while(n<min)n+=12; while(n>max)n-=12; return n; }
-function thinChord(notes){ if(notes.length<=2) return notes; return [notes[0], notes[notes.length-1]]; }
-function advanceStep(){
-    globalStep++; stepInChord++;
-    if(stepInChord >= chordDurationSteps(currentItem())){
-        stepInChord=0; chordIdx++;
-        if(chordIdx>=currentSeq().length){
-            if(playAllMode){ moveToNextSongSection(); }
-            else { chordIdx=0; }
-        }
-    }
-}
-function moveToNextSongSection(){
-    const parts = arrangementParts();
-    songSectionIdx++;
-    if(songSectionIdx >= parts.length){ stopPlayback(); flashStatus('Canción completa reproducida.'); return; }
-    activeSongSection = parts[songSectionIdx].section; activeSongPartLabel = parts[songSectionIdx].label || sectionNames[activeSongSection] || activeSongSection;
-    selectedArrangementIndex = songSectionIdx; renderArrangementBuilder();
-    chordIdx = 0; stepInChord = 0;
-}
-
-function updatePartDisplay(){
-    const partName = playAllMode ? (activeSongPartLabel || sectionNames[currentSectionKey()] || currentSectionKey()) : (sectionNames[currentSectionKey()] || currentSectionKey());
-    if(!els.currentPartTag) return;
-    els.currentPartTag.textContent = playAllMode ? `Parte: ${partName} · Canción completa` : `Parte: ${partName}`;
-    els.currentPartTag.classList.toggle('fullsong', !!playAllMode);
-}
-function updateLiveUI(item,stepBar,barNum,types){
-    els.sectionLabel.textContent = (playAllMode ? 'Canción completa · ' : '') + (playAllMode ? (activeSongPartLabel || sectionNames[currentSectionKey()] || currentSectionKey()) : (sectionNames[currentSectionKey()] || currentSectionKey()));
-    els.chordLabel.textContent = item.name || 'Acorde';
-    updatePartDisplay();
-    els.measureLabel.textContent = `Compás ${barNum}/${item.bars || 1} · Paso ${stepBar+1}/16`;
-    updateStepGrid(stepBar,types);
-}
-function updateStepGrid(activeStep=-1,types={}){
-    const st = styles[project.style] || styles.funk;
-    [...els.stepGrid.children].forEach((el,i)=>{
-        el.className = 'step ' + (i%4===0?'beat ':'');
-        if(st.bass.includes(i)) el.classList.add('bass');
-        if(st.chord.includes(i)) el.classList.add('chord');
-        if(st.ghost.includes(i)) el.classList.add('ghost');
-        if(i===activeStep) el.classList.add('active');
-    });
-}
-function markStepSolo(step){ const el=els.stepGrid.children[step]; if(el) el.classList.add('solo'); }
-function pulseMetro(){ els.metroDot.classList.add('dot-active'); setTimeout(()=>els.metroDot.classList.remove('dot-active'),80); }
-
-function startStop(){
-    resumeAudio();
-    syncProjectFromControls(false); saveProject(false);
-    if(isPlaying && !playAllMode){ stopPlayback(); return; }
-    if(isPlaying) stopPlayback();
-    playAllMode=false;
-    isPlaying = true;
-    els.playBtn.textContent='Stop Groove'; els.playBtn.className='btn btn-stop';
-    els.playSongBtn.textContent='Escuchar canción'; els.playSongBtn.classList.remove('active');
-    chordIdx = Number(els.chordSelect.value)||0; stepInChord=0; globalStep=0; nextTime=audioCtx.currentTime+.04;
-    scheduler();
-}
-function startFullSong(){
-    resumeAudio();
-    syncProjectFromControls(false); saveProject(false);
-    if(isPlaying && playAllMode){ stopPlayback(); return; }
-    if(isPlaying) stopPlayback();
-    const parts = arrangementParts();
-    if(!parts.length){ flashStatus('No hay secciones para reproducir.'); return; }
-    playAllMode=true; isPlaying=true; songSectionIdx=0; activeSongSection=parts[0].section; activeSongPartLabel = parts[0].label || sectionNames[activeSongSection] || activeSongSection; selectedArrangementIndex=0; renderArrangementBuilder();
-    chordIdx=0; stepInChord=0; globalStep=0; nextTime=audioCtx.currentTime+.04;
-    els.playBtn.textContent='Start Groove'; els.playBtn.className='btn btn-play';
-    els.playSongBtn.textContent='Stop canción'; els.playSongBtn.classList.add('active');
-    scheduler();
-}
-function stopPlayback(){
-    isPlaying=false; playAllMode=false; activeSongSection=els.sectionSelect.value; activeSongPartLabel = sectionNames[activeSongSection] || activeSongSection;
-    els.playBtn.textContent='Start Groove'; els.playBtn.className='btn btn-play';
-    els.playSongBtn.textContent='Escuchar canción'; els.playSongBtn.classList.remove('active');
-    if(timer) cancelAnimationFrame(timer); timer=null; clearKeys();
-    lastVisualTimer.forEach(clearTimeout); lastVisualTimer=[];
-    els.chordLabel.textContent='Modo manual'; updatePartDisplay(); updateStepGrid(-1);
-}
 
 function setBPM(v){
     project.bpm = clamp(Number(v)||95,60,160);
@@ -871,8 +718,8 @@ function midiExportHelpers(){
         styles,
         noteToMidi,
         parseNotes,
-        bassPatternNote,
-        thinChord,
+        bassPatternNote: Transport.bassPatternNote,
+        thinChord: Transport.thinChord,
         clamp,
         masterA,
         slug,
@@ -974,6 +821,65 @@ function bind(){
     [els.chordName,els.bassInput,els.chordNotes,els.barsInput,els.grooveVol,els.tuningCustom].filter(Boolean).forEach(x=>x.addEventListener('change',()=>saveProject(false)));
     [els.soloPhrase,els.soloKey,els.soloScale].forEach(x=>x.addEventListener('change',()=>saveSoloForSection(editorSectionKey(), false)));
 }
+
+if(!Transport || !Transport.setup){ throw new Error('Studio936Transport no está cargado. Revisa que js/transport.js se cargue antes de js/app.js.'); }
+transportControls = Transport.setup({
+    audioCtx,
+    els,
+    styles,
+    sectionNames,
+    noteToMidi,
+    parseNotes,
+    parseSolo,
+    setVisual,
+    updateLiveUI,
+    playMetronomeClick,
+    pulseMetro,
+    playNote,
+    flashKeys,
+    strumChord,
+    getSectionSolo,
+    clamp,
+    markStepSolo,
+    chordDurationSteps,
+    currentItem,
+    currentSectionKey,
+    currentSeq,
+    arrangementParts,
+    renderArrangementBuilder,
+    flashStatus,
+    resumeAudio,
+    syncProjectFromControls,
+    saveProject,
+    updatePartDisplay,
+    updateStepGrid,
+    clearKeys,
+    getProject:()=>project,
+    getIsPlaying:()=>isPlaying,
+    setIsPlaying:v=>{ isPlaying=v; },
+    getMetroEnabled:()=>metroEnabled,
+    getSoloEnabled:()=>soloEnabled,
+    getPlayAllMode:()=>playAllMode,
+    setPlayAllMode:v=>{ playAllMode=v; },
+    getNextTime:()=>nextTime,
+    setNextTime:v=>{ nextTime=v; },
+    getStepInChord:()=>stepInChord,
+    setStepInChord:v=>{ stepInChord=v; },
+    getGlobalStep:()=>globalStep,
+    setGlobalStep:v=>{ globalStep=v; },
+    getChordIdx:()=>chordIdx,
+    setChordIdx:v=>{ chordIdx=v; },
+    getTimer:()=>timer,
+    setTimer:v=>{ timer=v; },
+    getLastVisualTimer:()=>lastVisualTimer,
+    setLastVisualTimer:v=>{ lastVisualTimer=v; },
+    getSongSectionIdx:()=>songSectionIdx,
+    setSongSectionIdx:v=>{ songSectionIdx=v; },
+    getActiveSongSection:()=>activeSongSection,
+    setActiveSongSection:v=>{ activeSongSection=v; },
+    setActiveSongPartLabel:v=>{ activeSongPartLabel=v; },
+    setSelectedArrangementIndex:v=>{ selectedArrangementIndex=v; }
+});
 
 buildPiano(); buildFretboard(); buildStepGrid(); bind(); renderAll();
 })();
