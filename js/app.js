@@ -930,6 +930,17 @@ function importJson(file){
         .catch(() => flashStatus('No pude leer el archivo JSON.'));
 }
 
+
+function setupTransport(){
+    const Transport = window.Studio936Transport || null;
+    if(!Transport || typeof Transport.setup !== 'function') return;
+    Transport.setup({
+        bassPatternNote,
+        thinChord,
+        soloEventAtStep
+    });
+}
+
 function bind(){
     els.playBtn.onclick=startStop;
     els.playSongBtn.onclick=startFullSong;
@@ -975,7 +986,7 @@ function bind(){
     [els.soloPhrase,els.soloKey,els.soloScale].forEach(x=>x.addEventListener('change',()=>saveSoloForSection(editorSectionKey(), false)));
 }
 
-buildPiano(); buildFretboard(); buildStepGrid(); bind(); renderAll();
+buildPiano(); buildFretboard(); buildStepGrid(); setupTransport(); bind(); renderAll();
 })();
 
 /* ---- Script block separator ---- */
@@ -2103,7 +2114,18 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
       `<div class="help-block wide v23-help-block"><h3>20. v23: Piano zoom and real chord charts</h3><ul><li><b>Piano zoom:</b> opens the piano in a full-screen close-up for iPad or touch screens. Use it when you want larger keys without changing the song.</li><li><b>Chord charts:</b> when Guitar, Ukulele or Bass is selected, the app shows playable chord-shape cards for every chord in the current section. Tap a card to load that chord in the progression editor.</li><li><b>Fretboard:</b> the large fretboard still shows the selected chord; the chart strip shows the full section.</li></ul></div>` :
       `<div class="help-block wide v23-help-block"><h3>20. v23/v25: Zoom de piano, charts y estructura real</h3><ul><li><b>Zoom piano:</b> abre el teclado en primer plano para iPad o pantallas táctiles. Úsalo cuando quieras teclas más grandes sin cambiar la canción.</li><li><b>Charts de acordes:</b> al elegir Guitarra, Ukelele o Bajo, la app muestra tarjetas con formas tocables para cada acorde de la sección actual. Toca un chart para cargar ese acorde en el editor.</li><li><b>Diapasón:</b> el mástil grande sigue mostrando el acorde seleccionado; la franja de charts muestra toda la sección.</li></ul></div>`);
   }
-  function bind(){
+  
+function setupTransport(){
+    const Transport = window.Studio936Transport || null;
+    if(!Transport || typeof Transport.setup !== 'function') return;
+    Transport.setup({
+        bassPatternNote,
+        thinChord,
+        soloEventAtStep
+    });
+}
+
+function bind(){
     ['instrumentSelect','sectionSelect','chordSelect','fretModeSelect'].forEach(id=>{const e=$(id); if(e && !e.dataset.v23){e.dataset.v23='1'; e.addEventListener('change',()=>setTimeout(()=>{forceInstrumentView(); renderChordCharts();},120),true);}});
     ['chordName','bassInput','chordNotes','barsInput'].forEach(id=>{const e=$(id); if(e && !e.dataset.v23){e.dataset.v23='1'; e.addEventListener('input',()=>setTimeout(renderChordCharts,180),true); e.addEventListener('change',()=>setTimeout(renderChordCharts,180),true);}});
     const help=$('helpBtn'); if(help && !help.dataset.v23){help.dataset.v23='1'; help.addEventListener('click',()=>setTimeout(patchHelp,160));}
@@ -2438,7 +2460,18 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     body.insertAdjacentHTML('afterbegin',html);
   }
 
-  function bind(){
+  
+function setupTransport(){
+    const Transport = window.Studio936Transport || null;
+    if(!Transport || typeof Transport.setup !== 'function') return;
+    Transport.setup({
+        bassPatternNote,
+        thinChord,
+        soloEventAtStep
+    });
+}
+
+function bind(){
     setVersion(); reorderWorkspace(); addEditorSectionSelector(); addEditorHelp(); patchApplyValidation(); updateEditorLabels(); syncEditorSelector();
     const top=$('sectionSelect'); if(top&&!top.dataset.v258){top.dataset.v258='1'; top.addEventListener('change',()=>setTimeout(()=>{syncEditorSelector(); validateEditorFields(false);},120),true);}
     const langBtn=$('langBtn'); if(langBtn&&!langBtn.dataset.v258){langBtn.dataset.v258='1'; langBtn.addEventListener('click',()=>setTimeout(()=>{setVersion(); reorderWorkspace(); updateEditorLabels(); syncEditorSelector(); patchHelpManual();},420),true);}
@@ -2793,7 +2826,18 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     <div class="help-block wide"><h3>13. Troubleshooting</h3><ul><li><b>No sound on iPad:</b> open the HTML in a real browser, not iCloud/OneDrive preview. Tap Start Groove or Metronome first.</li><li><b>Flow 8 not visible:</b> check USB connection, audio permissions and system output.</li><li><b>Song is lost:</b> without JSON backup, it may depend on browser/localStorage.</li><li><b>Chord changes too fast:</b> raise Bars to 2 or 4 in the Editor.</li><li><b>TXT language is wrong:</b> switch EN/ES before downloading.</li></ul></div>
   `;}
 
-  function bind(){
+  
+function setupTransport(){
+    const Transport = window.Studio936Transport || null;
+    if(!Transport || typeof Transport.setup !== 'function') return;
+    Transport.setup({
+        bassPatternNote,
+        thinChord,
+        soloEventAtStep
+    });
+}
+
+function bind(){
     setVersion();
     const help=$('helpBtn');
     if(help && !help.dataset.v257){
