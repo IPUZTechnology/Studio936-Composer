@@ -876,11 +876,38 @@ function exportMidi(){ const bytes = buildMidiBytes(); const blob = new Blob([by
 function download(filename,content,type){
     Storage.download(filename, content, type);
 }
-function slug(s){return String(s||'cancion').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'cancion';}
-function exportTxt(){ download(slug(project.title)+'-progresion.txt', projectText(), 'text/plain;charset=utf-8'); }
-function exportJson(){ syncProjectFromControls(false); syncLyricsFromModal(false); download(slug(project.title)+'-proyecto.json', JSON.stringify(project,null,2), 'application/json;charset=utf-8'); }
-async function copyText(){ try{ await navigator.clipboard.writeText(projectText()); flashStatus('Progresión copiada al portapapeles.'); }catch(e){ flashStatus('No pude copiar; usa Bajar TXT.'); } }
+const ExportText = window.Studio936ExportText || null;
+function exportHelpers(){
+    return {
+        projectText: () => projectText(),
+        download,
+        syncProjectFromControls,
+        syncLyricsFromModal,
+        flashStatus,
+        readJsonFile: Storage.readJsonFile,
+        modelNormalizeProject,
+        styles,
+        instruments,
+        renderAll,
+        saveProject,
+        setProject: nextProject => { project = nextProject; }
+    };
+}
+function exportTxt(){
+    if(ExportText && ExportText.exportTxt) return ExportText.exportTxt(project, exportHelpers());
+    download('progresion.txt', projectText(), 'text/plain;charset=utf-8');
+}
+function exportJson(){
+    if(ExportText && ExportText.exportJson) return ExportText.exportJson(project, exportHelpers());
+    syncProjectFromControls(false); syncLyricsFromModal(false);
+    download('proyecto.json', JSON.stringify(project,null,2), 'application/json;charset=utf-8');
+}
+async function copyText(){
+    if(ExportText && ExportText.copyText) return ExportText.copyText(project, exportHelpers());
+    try{ await navigator.clipboard.writeText(projectText()); flashStatus('Progresión copiada al portapapeles.'); }catch(e){ flashStatus('No pude copiar; usa Bajar TXT.'); }
+}
 function importJson(file){
+    if(ExportText && ExportText.importFromFile) return ExportText.importFromFile(file, exportHelpers());
     if(!file) return;
     Storage.readJsonFile(file)
         .then(text => {
