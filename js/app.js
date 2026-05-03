@@ -2059,7 +2059,8 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     if($('v25UxBar')) return;
     const status=q('.status-bar'); if(!status) return;
     const bar=document.createElement('section'); bar.id='v25UxBar';
-    bar.innerHTML='<span class="ux-title">Workspace</span><button type="button" class="v25ux-btn" data-ux-open="editor">Editor</button><button type="button" class="v25ux-btn" data-ux-open="structure">Estructura</button><button type="button" class="v25ux-btn" data-ux-open="lyrics">Letra/TAB</button><button type="button" class="v25ux-btn" data-ux-open="export">Exportar/Flow</button><button type="button" class="v25ux-btn" data-ux-open="suite">Suite Pro</button><button type="button" class="v25ux-btn" data-ux-open="help">Ayuda</button><span class="ux-spacer"></span><button type="button" class="v25ux-btn close" id="v25UxClose">Cerrar panel</button>';
+    const hasLegacySuite=Boolean($('v18Suite'));
+    bar.innerHTML='<span class="ux-title">Workspace</span><button type="button" class="v25ux-btn" data-ux-open="editor">Editor</button><button type="button" class="v25ux-btn" data-ux-open="structure">Estructura</button><button type="button" class="v25ux-btn" data-ux-open="lyrics">Letra/TAB</button><button type="button" class="v25ux-btn" data-ux-open="export">Exportar/Flow</button>'+(hasLegacySuite?'<button type="button" class="v25ux-btn" data-ux-open="suite">Suite Pro</button>':'')+'<button type="button" class="v25ux-btn" data-ux-open="help">Ayuda</button><span class="ux-spacer"></span><button type="button" class="v25ux-btn close" id="v25UxClose">Cerrar panel</button>';
     status.insertAdjacentElement('afterend',bar);
     bar.addEventListener('click',ev=>{
       const b=ev.target.closest('[data-ux-open]'); if(!b) return;
