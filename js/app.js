@@ -970,9 +970,13 @@ function bind(){
     els.generateSoloBtn.onclick=generateSolo; els.previewSoloBtn.onclick=previewSolo; els.applySoloBtn.onclick=saveSolo; els.clearSoloBtn.onclick=clearSoloForSection;
     els.txtBtn.onclick=exportTxt; els.jsonBtn.onclick=exportJson; if(els.midiBtn) els.midiBtn.onclick=exportMidi; els.copyBtn.onclick=copyText; els.importBtn.onclick=()=>els.importFile.click(); els.importFile.onchange=e=>importJson(e.target.files[0]);
     els.lyricsBtn.onclick=openLyrics; els.closeLyricsBtn.onclick=closeLyrics; els.saveLyricsBtn.onclick=saveLyricsModal; els.lyricsModal.onclick=e=>{ if(e.target===els.lyricsModal) closeLyrics(); };
-    els.helpBtn.onclick=()=>{ els.helpModal.style.display='flex'; };
-    els.closeHelpBtn.onclick=()=>{ els.helpModal.style.display='none'; };
-    els.helpModal.onclick=e=>{ if(e.target===els.helpModal) els.helpModal.style.display='none'; };
+    if(window.Studio936Help?.bindHelp){
+        window.Studio936Help.bindHelp({ els, flashStatus });
+    } else {
+        els.helpBtn.onclick=()=>{ els.helpModal.style.display='flex'; };
+        els.closeHelpBtn.onclick=()=>{ els.helpModal.style.display='none'; };
+        els.helpModal.onclick=e=>{ if(e.target===els.helpModal) els.helpModal.style.display='none'; };
+    }
     [els.chordName,els.bassInput,els.chordNotes,els.barsInput,els.grooveVol,els.tuningCustom].filter(Boolean).forEach(x=>x.addEventListener('change',()=>saveProject(false)));
     [els.soloPhrase,els.soloKey,els.soloScale].forEach(x=>x.addEventListener('change',()=>saveSoloForSection(editorSectionKey(), false)));
 }
