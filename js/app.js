@@ -2260,8 +2260,13 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     sel.addEventListener('change',()=>{
       const top=$('sectionSelect'); if(!top) return;
       try{ if(typeof saveSoloForSection==='function') saveSoloForSection((typeof lastEditorSection!=='undefined'?lastEditorSection:top.value), false); }catch(e){}
-      top.value=sel.value;
-      top.dispatchEvent(new Event('change',{bubbles:true}));
+      const sectionKey=sel.value;
+      if(window.Studio936Editor && typeof window.Studio936Editor.selectEditorSection==='function'){
+        window.Studio936Editor.selectEditorSection(sectionKey);
+      }else{
+        top.value=sectionKey;
+        top.dispatchEvent(new Event('change',{bubbles:true}));
+      }
       setTimeout(()=>{syncEditorSelector(); validateEditorFields(false);},80);
     });
     syncEditorSelector();
@@ -2787,8 +2792,12 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
         const idx=Number(sel.value)||0;
         const p=getParts()[idx]; if(!p) return;
         try{ selectedArrangementIndex=idx; }catch(e){}
-        const top=$('sectionSelect');
-        if(top){ top.value=p.section; top.dispatchEvent(new Event('change',{bubbles:true})); }
+        if(window.Studio936Editor && typeof window.Studio936Editor.selectEditorSection==='function'){
+          window.Studio936Editor.selectEditorSection(p.section);
+        }else{
+          const top=$('sectionSelect');
+          if(top){ top.value=p.section; top.dispatchEvent(new Event('change',{bubbles:true})); }
+        }
         try{ activeSongSection=p.section; activeSongPartLabel=p.label||secName(p.section); updatePartDisplay&&updatePartDisplay(); renderArrangementBuilder&&renderArrangementBuilder(); }catch(e){}
         setTimeout(syncArrangementEditorSelector,80);
       });
