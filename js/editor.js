@@ -7,13 +7,13 @@ const Editor = {
   editorSectionKey(){ return this.host.els.sectionSelect.value || 'intro'; },
   editorSeq(){ return this.host.project.sections[this.editorSectionKey()] || this.host.project.sections.intro; },
   renderSectionList(){
-    const { els, escapeHtml, loadEditorFromSelected } = this.host;
+    const { els, escapeHtml } = this.host;
     const seq = this.editorSeq();
     els.sectionList.innerHTML='';
     seq.forEach((c,i)=>{
       const row=document.createElement('div'); row.className='chord-row' + (i===Number(els.chordSelect.value)?' active':'');
       row.innerHTML = `<div class="index-pill">${i+1}</div><div><div class="row-title">${escapeHtml(c.name)}</div><div class="row-sub">Bajo ${escapeHtml(c.bass)} · ${escapeHtml(c.notes)}</div></div><div class="bars-pill">${c.bars||1} comp.</div>`;
-      row.onclick=()=>{ els.chordSelect.value=i; loadEditorFromSelected(); this.renderSectionList(); };
+      row.onclick=()=>{ els.chordSelect.value=i; this.loadEditorFromSelected(); this.renderSectionList(); };
       els.sectionList.appendChild(row);
     });
   },
