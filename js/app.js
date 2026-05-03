@@ -853,7 +853,7 @@ function midiExportHelpers(){
     };
 }
 function buildMidiBytes(){ const MidiExport = getMidiExport(); return MidiExport && MidiExport.buildMidiBytes ? MidiExport.buildMidiBytes(project, midiExportHelpers()) : new Uint8Array(); }
-function exportMidi(){ const MidiExport = getMidiExport(); if(MidiExport && MidiExport.exportMidi) return MidiExport.exportMidi(project, midiExportHelpers()); }
+function exportMidi(){ const MidiExport = getMidiExport(); if(MidiExport && MidiExport.exportMidi){ console.log('MIDI diagnóstico: export modular.'); flashStatus('MIDI diagnóstico: export modular.'); return MidiExport.exportMidi(project, midiExportHelpers()); } console.log('MIDI diagnóstico: export legacy.'); flashStatus('MIDI diagnóstico: export legacy.'); }
 
 function download(filename,content,type){
     Storage.download(filename, content, type);
@@ -935,7 +935,7 @@ function bind(){
     els.previewBtn.onclick=previewChord; els.applyBtn.onclick=()=>applyEditorToProject(true); els.addBtn.onclick=addChord; els.dupBtn.onclick=duplicateChord; els.deleteBtn.onclick=deleteChord;
     els.resetSectionBtn.onclick=resetSection; els.resetAllBtn.onclick=resetAll;
     els.generateSoloBtn.onclick=generateSolo; els.previewSoloBtn.onclick=previewSolo; els.applySoloBtn.onclick=saveSolo; els.clearSoloBtn.onclick=clearSoloForSection;
-    els.txtBtn.onclick=exportTxt; els.jsonBtn.onclick=exportJson; if(els.midiBtn) els.midiBtn.onclick=()=>{ try{ if(!window.Studio936MidiExport) throw new Error('Studio936MidiExport no disponible'); exportMidi(); }catch(err){ console.error(err); flashStatus('Error exportando MIDI. Revisa consola.'); } }; els.copyBtn.onclick=copyText; els.importBtn.onclick=()=>els.importFile.click(); els.importFile.onchange=e=>importJson(e.target.files[0]);
+    els.txtBtn.onclick=exportTxt; els.jsonBtn.onclick=exportJson; if(els.midiBtn) els.midiBtn.onclick=()=>{ console.log('MIDI diagnóstico: click recibido.'); flashStatus('MIDI diagnóstico: click recibido.'); try{ if(!window.Studio936MidiExport) throw new Error('Studio936MidiExport no disponible'); exportMidi(); }catch(err){ console.error(err); flashStatus('Error exportando MIDI. Revisa consola.'); } }; els.copyBtn.onclick=copyText; els.importBtn.onclick=()=>els.importFile.click(); els.importFile.onchange=e=>importJson(e.target.files[0]);
     els.lyricsBtn.onclick=openLyrics; els.closeLyricsBtn.onclick=closeLyrics; els.saveLyricsBtn.onclick=saveLyricsModal; els.lyricsModal.onclick=e=>{ if(e.target===els.lyricsModal) closeLyrics(); };
     if(window.Studio936Help?.bindHelp){
         window.Studio936Help.bindHelp({ els, flashStatus });
