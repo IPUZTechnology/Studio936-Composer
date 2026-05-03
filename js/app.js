@@ -848,7 +848,8 @@ function midiExportHelpers(){
         clamp,
         masterA,
         slug,
-        flashStatus
+        flashStatus,
+        download: (filename, content, type) => download(filename, content, type)
     };
 }
 function buildMidiBytes(){ const MidiExport = getMidiExport(); return MidiExport && MidiExport.buildMidiBytes ? MidiExport.buildMidiBytes(project, midiExportHelpers()) : new Uint8Array(); }
