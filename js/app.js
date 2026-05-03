@@ -393,6 +393,48 @@ function stepOffset(step,style){
     const offSteps = [2,6,10,14];
     return offSteps.includes(step%16) ? (60/project.bpm/4)*s.swing : 0;
 }
+/* Transport Extraction Inventory
+   Scope target: safe future extraction of transport/playback from js/app.js into js/transport.js (not performed in this PR).
+   Runtime rule: inventory-only comments; no behavior changes.
+
+   1) Transport state variables (shared mutable playback state in app scope):
+      - isPlaying, metroEnabled, soloEnabled, playAllMode
+      - activeSongSection, activeSongPartLabel
+      - songSectionIdx, chordIdx, stepInChord, globalStep
+      - timer, nextTime, lastVisualTimer
+
+   2) Transport functions and call flow:
+      - Entry/exit: startStop, startFullSong, stopPlayback
+      - Clocking: scheduler -> scheduleStep -> advanceStep -> moveToNextSongSection
+      - Timing/selectors: stepOffset, chordDurationSteps, currentSectionKey, currentSeq, currentItem
+      - UI updates: updateLiveUI, updatePartDisplay, updateStepGrid, markStepSolo, pulseMetro
+      - Visual scheduling/cleanup helpers used by transport: setVisual, clearKeys
+
+   3) Dependencies on modules/helpers:
+      - AudioEngine wrappers used by transport path: resumeAudio, playNote, strumChord, playMetronomeClick
+      - MusicTheory wrappers used by transport path: noteToMidi, parseNotes, parseSolo
+      - Arrangement dependencies: arrangementParts, renderArrangementBuilder
+      - Editor selection dependencies: editorSectionKey() reader, els.sectionSelect, els.chordSelect
+      - Fretboard/piano visual dependencies: flashKeys, clearFretboardActive, updateHeldChordVisual
+      - Persistence dependencies in transport starts: syncProjectFromControls, saveProject
+      - UI/state helpers: flashStatus, sectionNames, styles, els
+
+   4) DOM elements used by transport/UI updates:
+      - playBtn, playSongBtn, metroBtn, soloBtn
+      - sectionSelect, chordSelect
+      - sectionLabel, chordLabel, measureLabel
+      - stepGrid, metroDot, currentPartTag
+
+   5) Risk notes for first extraction stage:
+      - Previous transport splits typically fail when hidden app-scope coupling is missed
+        (shared mutable indices, arrangement/editor selectors, and visual timers must stay coherent).
+      - Keep tightly-coupled UI helpers in app.js for stage 1 (updateLiveUI/updatePartDisplay/updateStepGrid,
+        plus direct els writes) and extract pure scheduling pieces first.
+      - Preserve wrapper layer compatibility (AudioEngine/MusicTheory wrapper functions) so call sites do not
+        bind directly to module internals during first move.
+      - Transport setup should occur once at startup (single wiring/source of truth for playback state and wrappers),
+        not inside resetAll or legacy/init blocks, to avoid duplicate handlers, stale closures, and timer leaks.
+ */
 function scheduler(){
     while(isPlaying && nextTime < audioCtx.currentTime + .14){
         scheduleStep(nextTime);
