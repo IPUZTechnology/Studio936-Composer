@@ -3,7 +3,45 @@
 'use strict';
 
 const Editor = {
-  setup(host){ this.host = host; return this; },
+  setup(host){
+    this.host = host;
+    this.ensureEditorPartSelector();
+    const top = this.host.els.sectionSelect;
+    if(top && !top.dataset.editorPartSync){
+      top.dataset.editorPartSync = '1';
+      top.addEventListener('change',()=>this.syncEditorPartSelector(),true);
+    }
+    return this;
+  },
+  ensureEditorPartSelector(){
+    const { els } = this.host;
+    const badge = els.editorSectionBadge;
+    if(!badge || document.getElementById('editorPartSelect')) return;
+    const wrap = document.createElement('div');
+    wrap.id = 'editorPartSelectWrap';
+    wrap.innerHTML = '<label for="editorPartSelect">Editar parte</label><select id="editorPartSelect" class="select" aria-label="Editar parte"></select>';
+    badge.insertAdjacentElement('afterend', wrap);
+    const sel = wrap.querySelector('#editorPartSelect');
+    sel.addEventListener('change',()=>this.selectEditorSection(sel.value));
+    this.syncEditorPartSelector();
+  },
+  syncEditorPartSelector(){
+    const { els } = this.host;
+    const sel = document.getElementById('editorPartSelect');
+    if(!sel) return;
+    const top = els.sectionSelect;
+    const options = Array.from(top.options || []).map(o=>`<option value="${String(o.value).replace(/"/g,'&quot;')}">${o.textContent}</option>`).join('');
+    if(sel.dataset.optionsHtml!==options){ sel.innerHTML=options; sel.dataset.optionsHtml=options; }
+    sel.value = top.value || 'intro';
+  },
+  selectEditorSection(sectionKey){
+    const { els } = this.host;
+    const top = els.sectionSelect;
+    if(!top) return;
+    if(top.value!==sectionKey) top.value = sectionKey;
+    top.dispatchEvent(new Event('change',{bubbles:true}));
+    this.syncEditorPartSelector();
+  },
   editorSectionKey(){ return this.host.els.sectionSelect.value || 'intro'; },
   editorSeq(){ return this.host.project.sections[this.editorSectionKey()] || this.host.project.sections.intro; },
   renderSectionList(){
@@ -54,4 +92,5 @@ const Editor = {
 };
 
 window.Studio936Editor = Editor;
+window.Studio936Editor.selectEditorSection = sectionKey => Editor.selectEditorSection(sectionKey);
 })();
