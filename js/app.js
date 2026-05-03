@@ -81,7 +81,7 @@ let project = loadProject();
 let keyMap = {};
 let fretCells = [];
 let chordHoldEnabled=false, heldChord=new Set();
-let isPlaying=false, metroEnabled=false, soloEnabled=true, playAllMode=false, activeSongSection='intro', activeSongPartLabel='Introducción', songSectionIdx=0, selectedArrangementIndex=0, timer=null, nextTime=0, chordIdx=0, stepInChord=0, globalStep=0, soloCursor=0, lastVisualTimer=[], lastEditorSection='intro';
+let activeSongSection='intro', activeSongPartLabel='Introducción', selectedArrangementIndex=0, lastEditorSection='intro';
 
 function buildPiano(){
     return Piano.buildPiano(els.piano, keyMap, triggerKeyboardNote);
@@ -200,7 +200,7 @@ function syncProjectFromControls(readChord=true){
     if(els.tuningSelect){ project.tuningHz = els.tuningSelect.value === 'custom' ? clamp(Number(els.tuningCustom.value)||440,390,470) : clamp(Number(els.tuningSelect.value)||440,390,470); }
     project.bpm = Number(els.bpmSlider.value);
     project.grooveVol = clamp(Number(els.grooveVol.value)||7,1,10);
-    project.soloOn = soloEnabled;
+    project.soloOn = getTransportState().soloEnabled;
     saveSoloForSection(editorSectionKey(), false);
     project.soloPhrase = project.sectionSolos?.solo?.phrase || els.soloPhrase.value.trim();
     project.soloKey = project.sectionSolos?.solo?.key || els.soloKey.value.trim() || 'C';
@@ -404,7 +404,7 @@ function arrangementOrder(){ return arrangementParts().map(p => p.section).filte
    Section selector refresh currently named renderSectionOptions/ensureSectionOption (candidate alias: updateSectionSelect).
 */
 function editorSectionKey(){ return els.sectionSelect.value || 'intro'; }
-function currentSectionKey(){ return playAllMode ? activeSongSection : editorSectionKey(); }
+function currentSectionKey(){ const t=getTransportState(); return t.playAllMode ? t.activeSongSection : editorSectionKey(); }
 function currentSeq(){return project.sections[currentSectionKey()] || project.sections.intro;}
 function editorSeq(){return project.sections[editorSectionKey()] || project.sections.intro;}
 const Editor = EditorModule.setup({
@@ -422,11 +422,11 @@ const Editor = EditorModule.setup({
     updateSectionNoteMap,
     updateFretboardMap,
     escapeHtml,
-    getChordIdx:()=>chordIdx,
-    setChordIdx:v=>{ chordIdx=v; },
-    setStepInChord:v=>{ stepInChord=v; }
+    getChordIdx:()=>getTransportState().chordIdx,
+    setChordIdx:v=>{ getTransportState().chordIdx=v; },
+    setStepInChord:v=>{ getTransportState().stepInChord=v; }
 });
-function currentItem(){ const seq=currentSeq(); return seq[Math.min(chordIdx,seq.length-1)] || chord('C','C2','C3 E3 G3',1); }
+function currentItem(){ const seq=currentSeq(); return seq[Math.min(getTransportState().chordIdx,seq.length-1)] || chord('C','C2','C3 E3 G3',1); }
 function chordDurationSteps(item){ return Math.max(1,Number(item.bars)||1) * 16; }
 function stepOffset(step,style){
     const s = styles[style] || styles.funk;
@@ -434,111 +434,23 @@ function stepOffset(step,style){
     const offSteps = [2,6,10,14];
     return offSteps.includes(step%16) ? (60/project.bpm/4)*s.swing : 0;
 }
-function scheduler(){
-    while(isPlaying && nextTime < audioCtx.currentTime + .14){
-        scheduleStep(nextTime);
-        const stepDur = 60 / project.bpm / 4;
-        nextTime += stepDur;
-        advanceStep();
-    }
-    if(isPlaying) timer = requestAnimationFrame(scheduler);
-}
-function scheduleStep(time){
-    const item = currentItem();
-    const section = currentSectionKey();
-    const stepBar = stepInChord % 16;
-    const barNum = Math.floor(stepInChord/16) + 1;
-    const st = styles[project.style] || styles.funk;
-    const when = time + stepOffset(stepBar,project.style);
-    const bass = noteToMidi(item.bass) ?? 36;
-    const notes = parseNotes(item.notes);
-    const chordNotes = notes.length ? notes : [60,64,67];
-    const rootFifth = [bass, bass+7].filter(n=>n>=24 && n<=84);
-    const visualType = {chord:st.chord.includes(stepBar), bass:st.bass.includes(stepBar), ghost:st.ghost.includes(stepBar), solo:false};
+const Transport = window.Studio936Transport;
+if(!Transport || !Transport.setup) throw new Error('Studio936Transport no está cargado. Revisa que js/transport.js se cargue antes de js/app.js.');
+function getTransportState(){ return Transport.getState(); }
+function startStop(){ Transport.togglePlay(); }
+function startFullSong(){ Transport.togglePlaySong(); }
+function stopPlayback(){ Transport.stopPlayback(); }
 
-    setVisual(time,()=>updateLiveUI(item,stepBar,barNum,visualType));
-    if(metroEnabled && stepBar%4===0){ playMetronomeClick(stepBar===0,time); setVisual(time,()=>pulseMetro()); }
-
-    if(st.bass.includes(stepBar)){
-        const bassChoice = bassPatternNote(bass,chordNotes,stepBar,project.style);
-        playNote(bassChoice,.29,.46,'sine',when);
-        if(stepBar===0 || project.style==='rock' || project.style==='ballad') playNote(Math.max(24,bassChoice-12),.16,.62,'sine',when);
-        setVisual(when,()=>flashKeys([bassChoice, Math.max(24,bassChoice-12)],'active-bass',210));
-    }
-    if(st.arp){
-        const arpSteps = project.style==='ballad' ? [0,2,4,6,8,10,12,14] : [0,3,6,8,11,14];
-        if(arpSteps.includes(stepBar)){
-            const m = chordNotes[(Math.floor(stepBar/2)+barNum)%chordNotes.length];
-            playNote(m,.12,.54,'triangle',when);
-            setVisual(when,()=>flashKeys([m],'active-chord',190));
-        }
-    }
-    if(st.chord.includes(stepBar)) strumChord(chordNotes,.13,.35,when,'active-chord');
-    if(st.ghost.includes(stepBar)) strumChord(thinChord(chordNotes),.055,.18,when,'active-chord');
-
-    if(soloEnabled){
-        const sectionSolo = getSectionSolo(section);
-        const solo = parseSolo(sectionSolo.phrase || '');
-        const event = soloEventAtStep(solo, globalStep);
-        if(event && event.midi !== null){
-            const soloMidi = clamp(event.midi,48,84);
-            playNote(soloMidi,.22,.34,'square',when+.01);
-            setVisual(when,()=>{ flashKeys([soloMidi],'active-solo',240); markStepSolo(stepBar); });
-        }
-    }
-}
-function soloEventAtStep(events,step){
-    if(!events.length) return null;
-    const total = events.reduce((a,e)=>a+e.dur,0);
-    let pos = step % total;
-    for(const e of events){ if(pos===0) return e; pos -= e.dur; if(pos<0) return null; }
-    return null;
-}
-function bassPatternNote(bass,chordNotes,step,style){
-    if(style==='jazz'){
-        const tones=[bass, chordNotes[0]||bass+4, chordNotes[1]||bass+7, bass+11].map(n=>whileInRange(n,31,55));
-        return tones[[0,4,8,12].indexOf(step)] || bass;
-    }
-    if(style==='blues') return whileInRange(step%6===0?bass+7:bass,31,55);
-    if(style==='bossa') return whileInRange((step===0||step===8)?bass:bass+7,31,55);
-    if(style==='funk') return whileInRange((step===6||step===14)?bass+7:bass,31,55);
-    if(style==='bolero') return whileInRange((step===8)?bass+7:bass,31,55);
-    if(style==='salsa') return whileInRange((step===7||step===14)?bass+7:(step===10?bass+12:bass),31,55);
-    if(style==='cumbia') return whileInRange((step===4||step===12)?bass+7:bass,31,55);
-    if(style==='reggae') return whileInRange((step===8)?bass+7:bass,31,55);
-    return whileInRange(bass,31,55);
-}
-function whileInRange(n,min,max){ while(n<min)n+=12; while(n>max)n-=12; return n; }
-function thinChord(notes){ if(notes.length<=2) return notes; return [notes[0], notes[notes.length-1]]; }
-function advanceStep(){
-    globalStep++; stepInChord++;
-    if(stepInChord >= chordDurationSteps(currentItem())){
-        stepInChord=0; chordIdx++;
-        if(chordIdx>=currentSeq().length){
-            if(playAllMode){ moveToNextSongSection(); }
-            else { chordIdx=0; }
-        }
-    }
-}
-function moveToNextSongSection(){
-    const parts = arrangementParts();
-    songSectionIdx++;
-    if(songSectionIdx >= parts.length){ stopPlayback(); flashStatus('Canción completa reproducida.'); return; }
-    activeSongSection = parts[songSectionIdx].section; activeSongPartLabel = parts[songSectionIdx].label || sectionNames[activeSongSection] || activeSongSection;
-    selectedArrangementIndex = songSectionIdx; renderArrangementBuilder();
-    chordIdx = 0; stepInChord = 0;
-}
-
-function updatePartDisplay(){
-    const partName = playAllMode ? (activeSongPartLabel || sectionNames[currentSectionKey()] || currentSectionKey()) : (sectionNames[currentSectionKey()] || currentSectionKey());
+function updatePartDisplay(playAll=getTransportState().playAllMode, partLabel=getTransportState().activeSongPartLabel, sectionKey=currentSectionKey()){
+    const partName = playAll ? (partLabel || sectionNames[sectionKey] || sectionKey) : (sectionNames[sectionKey] || sectionKey);
     if(!els.currentPartTag) return;
-    els.currentPartTag.textContent = playAllMode ? `Parte: ${partName} · Canción completa` : `Parte: ${partName}`;
-    els.currentPartTag.classList.toggle('fullsong', !!playAllMode);
+    els.currentPartTag.textContent = playAll ? `Parte: ${partName} · Canción completa` : `Parte: ${partName}`;
+    els.currentPartTag.classList.toggle('fullsong', !!playAll);
 }
-function updateLiveUI(item,stepBar,barNum,types){
-    els.sectionLabel.textContent = (playAllMode ? 'Canción completa · ' : '') + (playAllMode ? (activeSongPartLabel || sectionNames[currentSectionKey()] || currentSectionKey()) : (sectionNames[currentSectionKey()] || currentSectionKey()));
+function updateLiveUI(item,stepBar,barNum,types,playAll=getTransportState().playAllMode,partLabel=getTransportState().activeSongPartLabel,sectionKey=currentSectionKey()){
+    els.sectionLabel.textContent = (playAll ? 'Canción completa · ' : '') + (playAll ? (partLabel || sectionNames[sectionKey] || sectionKey) : (sectionNames[sectionKey] || sectionKey));
     els.chordLabel.textContent = item.name || 'Acorde';
-    updatePartDisplay();
+    updatePartDisplay(playAll,partLabel,sectionKey);
     els.measureLabel.textContent = `Compás ${barNum}/${item.bars || 1} · Paso ${stepBar+1}/16`;
     updateStepGrid(stepBar,types);
 }
@@ -554,40 +466,6 @@ function updateStepGrid(activeStep=-1,types={}){
 }
 function markStepSolo(step){ const el=els.stepGrid.children[step]; if(el) el.classList.add('solo'); }
 function pulseMetro(){ els.metroDot.classList.add('dot-active'); setTimeout(()=>els.metroDot.classList.remove('dot-active'),80); }
-
-function startStop(){
-    resumeAudio();
-    syncProjectFromControls(false); saveProject(false);
-    if(isPlaying && !playAllMode){ stopPlayback(); return; }
-    if(isPlaying) stopPlayback();
-    playAllMode=false;
-    isPlaying = true;
-    els.playBtn.textContent='Stop Groove'; els.playBtn.className='btn btn-stop';
-    els.playSongBtn.textContent='Escuchar canción'; els.playSongBtn.classList.remove('active');
-    chordIdx = Number(els.chordSelect.value)||0; stepInChord=0; globalStep=0; nextTime=audioCtx.currentTime+.04;
-    scheduler();
-}
-function startFullSong(){
-    resumeAudio();
-    syncProjectFromControls(false); saveProject(false);
-    if(isPlaying && playAllMode){ stopPlayback(); return; }
-    if(isPlaying) stopPlayback();
-    const parts = arrangementParts();
-    if(!parts.length){ flashStatus('No hay secciones para reproducir.'); return; }
-    playAllMode=true; isPlaying=true; songSectionIdx=0; activeSongSection=parts[0].section; activeSongPartLabel = parts[0].label || sectionNames[activeSongSection] || activeSongSection; selectedArrangementIndex=0; renderArrangementBuilder();
-    chordIdx=0; stepInChord=0; globalStep=0; nextTime=audioCtx.currentTime+.04;
-    els.playBtn.textContent='Start Groove'; els.playBtn.className='btn btn-play';
-    els.playSongBtn.textContent='Stop canción'; els.playSongBtn.classList.add('active');
-    scheduler();
-}
-function stopPlayback(){
-    isPlaying=false; playAllMode=false; activeSongSection=els.sectionSelect.value; activeSongPartLabel = sectionNames[activeSongSection] || activeSongSection;
-    els.playBtn.textContent='Start Groove'; els.playBtn.className='btn btn-play';
-    els.playSongBtn.textContent='Escuchar canción'; els.playSongBtn.classList.remove('active');
-    if(timer) cancelAnimationFrame(timer); timer=null; clearKeys();
-    lastVisualTimer.forEach(clearTimeout); lastVisualTimer=[];
-    els.chordLabel.textContent='Modo manual'; updatePartDisplay(); updateStepGrid(-1);
-}
 
 function setBPM(v){
     project.bpm = clamp(Number(v)||95,60,160);
@@ -653,11 +531,11 @@ function renderAll(){
     if(els.tuningSelect){ const hz=Number(project.tuningHz)||440; els.tuningSelect.value = [440,432,444].includes(Math.round(hz)) ? String(Math.round(hz)) : 'custom'; if(els.tuningCustom) els.tuningCustom.value = hz; }
     setViewMode(project.viewMode || 'piano');
     els.sectionSelect.value = (els.sectionSelect.value && project.sections[els.sectionSelect.value]) ? els.sectionSelect.value : 'intro';
-    activeSongSection = els.sectionSelect.value; activeSongPartLabel = sectionNames[activeSongSection] || activeSongSection;
+    getTransportState().activeSongSection = els.sectionSelect.value; getTransportState().activeSongPartLabel = sectionNames[getTransportState().activeSongSection] || getTransportState().activeSongSection;
     lastEditorSection = els.sectionSelect.value;
     els.bpmSlider.value = project.bpm; els.bpmDisplay.textContent = project.bpm;
     els.grooveVol.value = project.grooveVol;
-    soloEnabled = project.soloOn !== false; els.soloBtn.textContent = soloEnabled ? 'Solo ON' : 'Solo OFF'; els.soloBtn.classList.toggle('active',soloEnabled);
+    getTransportState().soloEnabled = project.soloOn !== false; els.soloBtn.textContent = getTransportState().soloEnabled ? 'Solo ON' : 'Solo OFF'; els.soloBtn.classList.toggle('active',getTransportState().soloEnabled);
     loadSoloFromSelectedSection();
     renderSectionOptions(); renderChordSelect(); renderSectionList(); loadEditorFromSelected(); updateStyleHelp(); updatePartDisplay(); updateStepGrid(-1); updateSectionNoteMap(); renderArrangementBuilder(); setBPM(project.bpm);
 }
@@ -683,7 +561,20 @@ function duplicateChord(){ return Editor.duplicateChord(); }
 function deleteChord(){ return Editor.deleteChord(); }
 function resetSection(){ return Editor.resetSection(); }
 function resetAll(){
-    stopPlayback(); project=defaultProject(); Storage.clearProject(STORAGE_KEY); renderAll(); flashStatus('Proyecto restaurado al estado inicial.');
+    stopPlayback(); project=defaultProject(); Storage.clearProject(STORAGE_KEY); 
+Transport.setup({
+    els,
+    project:()=>project,
+    setProject:v=>{ project=v; },
+    syncProjectFromControls, saveProject, arrangementParts, editorSectionKey,
+    sectionName:k=>sectionNames[k], playChordNow:playNote, playSoloTick:playNote,
+    updateFretboardMap, clearFretboardActive, audioCtx, styles, flashStatus, noteToMidi, parseNotes, parseSolo,
+    updateLiveUI, playTick:playMetronomeClick, pulseMetro, bassPatternNote, flashKeys, strumChord, thinChord,
+    getSectionSolo, soloEventAtStep, markStepSolo, clamp, resumeAudio, previewMetronome, clearKeys,
+    updatePartDisplay, updateStepGrid, renderArrangementBuilder, setSelectedArrangementIndex:v=>{ selectedArrangementIndex=v; },
+    fallbackChord:()=>chord('C','C2','C3 E3 G3',1)
+});
+renderAll(); flashStatus('Proyecto restaurado al estado inicial.');
 }
 
 
@@ -933,8 +824,8 @@ function importJson(file){
 function bind(){
     els.playBtn.onclick=startStop;
     els.playSongBtn.onclick=startFullSong;
-    els.metroBtn.onclick=()=>{ metroEnabled=!metroEnabled; els.metroBtn.textContent=metroEnabled?'Metrónomo ON 🔊':'Metrónomo OFF'; els.metroBtn.classList.toggle('active',metroEnabled); if(metroEnabled){ previewMetronome(); flashStatus('Metrónomo activado: escucharás el click junto con Start Groove o Escuchar canción.'); } else { flashStatus('Metrónomo apagado.'); } };
-    els.soloBtn.onclick=()=>{ soloEnabled=!soloEnabled; project.soloOn=soloEnabled; els.soloBtn.textContent=soloEnabled?'Solo ON':'Solo OFF'; els.soloBtn.classList.toggle('active',soloEnabled); saveProject(false); };
+    els.metroBtn.onclick=()=>Transport.toggleMetro();
+    els.soloBtn.onclick=()=>Transport.toggleSolo();
     if(els.chordHoldBtn) els.chordHoldBtn.onclick=toggleChordHold;
     els.saveBtn.onclick=()=>saveProject(true);
     els.bpmSlider.oninput=()=>setBPM(els.bpmSlider.value);
@@ -957,7 +848,7 @@ function bind(){
     if(els.fretModeSelect) els.fretModeSelect.onchange=()=>{ project.fretMode=els.fretModeSelect.value; buildFretboard(); updateFretboardMap(); saveProject(false); flashStatus(project.fretMode==='bass'?'Diapasón bajo activo.':project.fretMode==='ukulele'?'Diapasón ukelele activo.':'Diapasón guitarra activo.'); };
     if(els.tuningSelect) els.tuningSelect.onchange=()=>{ project.tuningHz = els.tuningSelect.value==='custom' ? clamp(Number(els.tuningCustom.value)||440,390,470) : clamp(Number(els.tuningSelect.value)||440,390,470); if(els.tuningCustom) els.tuningCustom.value=project.tuningHz; saveProject(false); flashStatus('Afinación A4 = '+project.tuningHz+' Hz.'); };
     if(els.tuningCustom) els.tuningCustom.onchange=()=>{ project.tuningHz=clamp(Number(els.tuningCustom.value)||440,390,470); els.tuningCustom.value=project.tuningHz; if(els.tuningSelect) els.tuningSelect.value=[440,432,444].includes(Math.round(project.tuningHz))?String(Math.round(project.tuningHz)):'custom'; saveProject(false); flashStatus('Afinación A4 = '+project.tuningHz+' Hz.'); };
-    els.sectionSelect.onchange=()=>{ saveSoloForSection(lastEditorSection, false); activeSongSection=els.sectionSelect.value; lastEditorSection=els.sectionSelect.value; chordIdx=0; stepInChord=0; renderChordSelect(); loadEditorFromSelected(); renderSectionList(); loadSoloFromSelectedSection(); updateSectionNoteMap(); renderArrangementBuilder(); updateLiveUI(currentItem(),0,1,{}); saveProject(false); };
+    els.sectionSelect.onchange=()=>{ saveSoloForSection(lastEditorSection, false); getTransportState().activeSongSection=els.sectionSelect.value; lastEditorSection=els.sectionSelect.value; getTransportState().chordIdx=0; getTransportState().stepInChord=0; renderChordSelect(); loadEditorFromSelected(); renderSectionList(); loadSoloFromSelectedSection(); updateSectionNoteMap(); renderArrangementBuilder(); updateLiveUI(currentItem(),0,1,{}); saveProject(false); };
     els.chordSelect.onchange=()=>{ loadEditorFromSelected(); renderSectionList(); updateSectionNoteMap(); };
     els.previewBtn.onclick=previewChord; els.applyBtn.onclick=()=>applyEditorToProject(true); els.addBtn.onclick=addChord; els.dupBtn.onclick=duplicateChord; els.deleteBtn.onclick=deleteChord;
     els.resetSectionBtn.onclick=resetSection; els.resetAllBtn.onclick=resetAll;
