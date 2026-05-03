@@ -28,7 +28,7 @@
         return new Uint8Array([...header, ...makeTrack(meta), ...makeTrack(chords), ...makeTrack(bass), ...makeTrack(melody)]);
     }
 
-    function exportMidi(project,helpers){ const bytes = buildMidiBytes(project, helpers); const blob = new Blob([bytes],{type:'audio/midi'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=helpers.slug(project.title)+'-arrangement.mid'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); helpers.flashStatus('MIDI exportado: acordes, bajo, groove y melodías/solos por sección.'); }
+    function exportMidi(project,helpers){ const bytes = buildMidiBytes(project, helpers); if(!bytes || !bytes.length){ if(helpers.flashStatus) helpers.flashStatus('Error al exportar MIDI: datos vacíos.'); return; } const blob = new Blob([bytes],{type:'audio/midi'}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=helpers.slug(project.title)+'-arrangement.mid'; a.style.display='none'; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(url),1000); helpers.flashStatus('MIDI exportado: acordes, bajo, groove y melodías/solos por sección.'); }
 
     global.Studio936MidiExport = { exportMidi, buildMidiBytes };
 })(window);
