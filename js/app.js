@@ -756,7 +756,11 @@ function previewSolo(){
 }
 function saveSolo(){ saveSoloForSection(editorSectionKey(), true); }
 
+function lyricsTabHelpers(){
+    return { els, songOrder, sectionNames, defaultLyrics, sectionChordMapHtml, renderLyricsMap, syncProjectFromControls, saveProject, flashStatus };
+}
 function renderLyricsGrid(){
+    if(window.Studio936LyricsTab?.buildLyricsModal) return window.Studio936LyricsTab.buildLyricsModal(project, lyricsTabHelpers());
     if(!project.lyrics) project.lyrics = defaultLyrics();
     renderLyricsMap();
     els.lyricsGrid.innerHTML='';
@@ -768,13 +772,24 @@ function renderLyricsGrid(){
         box.appendChild(label); box.appendChild(miniMap); box.appendChild(ta); els.lyricsGrid.appendChild(box);
     });
 }
-function openLyrics(){ syncProjectFromControls(false); renderLyricsGrid(); els.lyricsModal.style.display='flex'; }
-function closeLyrics(){ els.lyricsModal.style.display='none'; }
+function openLyrics(){
+    if(window.Studio936LyricsTab?.openLyricsModal) return window.Studio936LyricsTab.openLyricsModal(project, lyricsTabHelpers());
+    syncProjectFromControls(false); renderLyricsGrid(); els.lyricsModal.style.display='flex';
+}
+function closeLyrics(){
+    if(window.Studio936LyricsTab?.closeLyricsModal) return window.Studio936LyricsTab.closeLyricsModal(project, lyricsTabHelpers());
+    els.lyricsModal.style.display='none';
+}
 function syncLyricsFromModal(show=true){
+    if(window.Studio936LyricsTab?.syncLyricsFromModal) return window.Studio936LyricsTab.syncLyricsFromModal(project, lyricsTabHelpers(), show);
     if(!project.lyrics) project.lyrics = defaultLyrics();
     if(!els.lyricsGrid) return;
     els.lyricsGrid.querySelectorAll('[data-lyric-section]').forEach(ta=>{ project.lyrics[ta.dataset.lyricSection] = ta.value; });
     if(show){ saveProject(false); flashStatus('Letra guardada y lista para exportar TXT.'); closeLyrics(); }
+}
+function saveLyricsModal(){
+    if(window.Studio936LyricsTab?.saveLyricsModal) return window.Studio936LyricsTab.saveLyricsModal(project, lyricsTabHelpers());
+    syncLyricsFromModal(true);
 }
 
 
@@ -954,7 +969,7 @@ function bind(){
     els.resetSectionBtn.onclick=resetSection; els.resetAllBtn.onclick=resetAll;
     els.generateSoloBtn.onclick=generateSolo; els.previewSoloBtn.onclick=previewSolo; els.applySoloBtn.onclick=saveSolo; els.clearSoloBtn.onclick=clearSoloForSection;
     els.txtBtn.onclick=exportTxt; els.jsonBtn.onclick=exportJson; if(els.midiBtn) els.midiBtn.onclick=exportMidi; els.copyBtn.onclick=copyText; els.importBtn.onclick=()=>els.importFile.click(); els.importFile.onchange=e=>importJson(e.target.files[0]);
-    els.lyricsBtn.onclick=openLyrics; els.closeLyricsBtn.onclick=closeLyrics; els.saveLyricsBtn.onclick=()=>syncLyricsFromModal(true); els.lyricsModal.onclick=e=>{ if(e.target===els.lyricsModal) closeLyrics(); };
+    els.lyricsBtn.onclick=openLyrics; els.closeLyricsBtn.onclick=closeLyrics; els.saveLyricsBtn.onclick=saveLyricsModal; els.lyricsModal.onclick=e=>{ if(e.target===els.lyricsModal) closeLyrics(); };
     els.helpBtn.onclick=()=>{ els.helpModal.style.display='flex'; };
     els.closeHelpBtn.onclick=()=>{ els.helpModal.style.display='none'; };
     els.helpModal.onclick=e=>{ if(e.target===els.helpModal) els.helpModal.style.display='none'; };
