@@ -2034,6 +2034,17 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     if(!suite || typeof populateSuiteProPanel!=='function') return suite;
     const hasButtonsWrap=!!suite.querySelector('.v18-suite-buttons');
     const pillCount=suite.querySelectorAll('.v18-pill').length;
+    let closeBtn=suite.querySelector('#b25SuiteClose');
+    if(!closeBtn){
+      closeBtn=document.createElement('button');
+      closeBtn.id='b25SuiteClose';
+      closeBtn.className='b25SuiteClose';
+      closeBtn.type='button';
+      closeBtn.title='Close panel';
+      closeBtn.textContent='×';
+      closeBtn.addEventListener('click',()=>{ suite.classList.remove('v19-open'); });
+      suite.appendChild(closeBtn);
+    }
     if(!hasButtonsWrap || pillCount===0) populateSuiteProPanel(suite);
     return suite;
   }
