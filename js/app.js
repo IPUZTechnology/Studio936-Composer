@@ -172,6 +172,26 @@ function loadProject(){
 }
 let Arrangement = null;
 function arrangementParts(){ return Arrangement.arrangementParts(); }
+function selectArrangementPart(index, options = {}){
+    if(!Arrangement || typeof Arrangement.selectArrangementPart !== 'function') return null;
+    const state = Arrangement.selectArrangementPart(index);
+    if(!state || !state.selectedPart) return state;
+
+    activeSongSection = state.selectedPart.section;
+    activeSongPartLabel = state.selectedPart.label || sectionNames[activeSongSection] || activeSongSection;
+
+    if(options.syncSectionSelect !== false && els.sectionSelect){
+        els.sectionSelect.value = activeSongSection;
+        els.sectionSelect.dispatchEvent(new Event('change', { bubbles:true }));
+    }
+
+    if(options.render !== false){
+        renderArrangementBuilder();
+        updatePartDisplay();
+    }
+
+    return state;
+}
 function sectionChordCount(k){ return (project.sections[k]||[]).length; }
 
 function saveProject(show=false){
@@ -989,6 +1009,7 @@ Arrangement = window.Studio936Arrangement.setup({
     renderSectionList,
     editorSectionKey,
     loadEditorFromSelected,
+    selectArrangementPart:(index)=>selectArrangementPart(index),
     onPartSelected:(p)=>{ activeSongPartLabel=p.label || sectionNames[p.section] || p.section; updatePartDisplay(); },
     getSelectedArrangementIndex:()=>selectedArrangementIndex,
     setSelectedArrangementIndex:v=>{ selectedArrangementIndex=Number(v)||0; }
@@ -996,6 +1017,8 @@ Arrangement = window.Studio936Arrangement.setup({
 window.Studio936DebugArrangement = function(){
     const diagnostic = {
         arrangement: Arrangement.getArrangementState ? Arrangement.getArrangementState() : null,
+        arrangementSelectedIndex: Arrangement.getSelectedArrangementIndex ? Arrangement.getSelectedArrangementIndex() : selectedArrangementIndex,
+        arrangementSelectedSection: Arrangement.getArrangementState ? Arrangement.getArrangementState()?.selectedSection : null,
         sectionSelect: els.sectionSelect ? els.sectionSelect.value : null,
         activeSongSection,
         activeSongPartLabel,
@@ -1996,7 +2019,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
   function secName(k){try{return sectionNames[k]||k}catch(e){return k}}
   function addPanelClose(){const ed=q('.editor'); if(!ed || $('v25uxPanelClose')) return; const b=document.createElement('button'); b.id='v25uxPanelClose'; b.type='button'; b.className='v25ux-panel-close'; b.textContent=L('Cerrar','Close'); b.addEventListener('click',()=>{ed.classList.remove('ux-open'); qa('#v25UxBar .v25ux-btn').forEach(x=>x.classList.remove('active'));}); b.addEventListener('touchend',ev=>{ev.preventDefault(); b.click();},{passive:false}); ed.insertBefore(b, ed.firstChild);}
   function addSuiteClose(){const suite=$('v18Suite'); if(!suite || $('v25uxSuiteClose')) return; const b=document.createElement('button'); b.id='v25uxSuiteClose'; b.type='button'; b.className='v25ux-suite-close'; b.textContent=L('Cerrar','Close'); b.addEventListener('click',()=>{suite.classList.remove('v19-open'); const t=$('v19ToolsToggle'); if(t)t.classList.remove('open'); qa('#v25UxBar .v25ux-btn').forEach(x=>x.classList.remove('active'));}); b.addEventListener('touchend',ev=>{ev.preventDefault(); b.click();},{passive:false}); suite.appendChild(b);}
-  function addArrangementSelect(){const bar=$('v25UxBar'); if(!bar) return; let wrap=$('v25uxPartWrap'); if(!wrap){wrap=document.createElement('span'); wrap.id='v25uxPartWrap'; wrap.className='v25ux-part-wrap'; wrap.innerHTML='<label for="v25uxPartSelect">'+L('Orden actual','Current order')+'</label><select id="v25uxPartSelect" aria-label="'+L('Parte del arreglo','Arrangement part')+'"></select>'; const close=$('v25UxClose'); bar.insertBefore(wrap, close || null); $('v25uxPartSelect').addEventListener('change',ev=>{const idx=Number(ev.target.value)||0; const parts=getParts(); const p=parts[idx]; if(!p) return; try{ selectedArrangementIndex=idx; }catch(e){} const sec=$('sectionSelect'); if(sec){ sec.value=p.section; sec.dispatchEvent(new Event('change',{bubbles:true})); } try{ activeSongPartLabel=p.label || secName(p.section); activeSongSection=p.section; updatePartDisplay(); renderArrangementBuilder(); }catch(e){} });} refreshArrangementSelect();}
+  function addArrangementSelect(){const bar=$('v25UxBar'); if(!bar) return; let wrap=$('v25uxPartWrap'); if(!wrap){wrap=document.createElement('span'); wrap.id='v25uxPartWrap'; wrap.className='v25ux-part-wrap'; wrap.innerHTML='<label for="v25uxPartSelect">'+L('Orden actual','Current order')+'</label><select id="v25uxPartSelect" aria-label="'+L('Parte del arreglo','Arrangement part')+'"></select>'; const close=$('v25UxClose'); bar.insertBefore(wrap, close || null); $('v25uxPartSelect').addEventListener('change',ev=>{ const idx=Number(ev.target.value)||0; selectArrangementPart(idx); });} refreshArrangementSelect();}
   function refreshArrangementSelect(){const sel=$('v25uxPartSelect'); if(!sel) return; const parts=getParts(); let current=0; try{ current=Number(selectedArrangementIndex)||0; }catch(e){} if(current<0||current>=parts.length) current=0; sel.innerHTML=parts.map((p,i)=>`<option value="${i}">${i+1}. ${(p.label||secName(p.section))} · ${secName(p.section)}</option>`).join(''); sel.value=String(current);}
   function refreshLabels(){const pc=$('v25uxPanelClose'); if(pc) pc.textContent=L('Cerrar','Close'); const sc=$('v25uxSuiteClose'); if(sc) sc.textContent=L('Cerrar','Close'); const lab=q('#v25uxPartWrap label'); if(lab) lab.textContent=L('Orden actual','Current order'); const title=q('#v25UxBar .ux-title'); if(title) title.textContent=L('Workspace de composición','Composition workspace');}
   function patchStructureButtonNames(){const map=[['arrangeAddBtn',L('Añadir sección al arreglo','Add section to arrangement')],['arrangeDupBtn',L('Repetir bloque','Repeat block')],['arrangeNewBtn',L('Crear sección nueva','Create new section')],['arrangeVariationBtn',L('Crear variación independiente','Create independent variation')],['arrangeRenameBtn',L('Cambiar nombre visible','Change visible name')],['arrangeDelBtn',L('Borrar del arreglo','Remove from arrangement')]]; map.forEach(([id,txt])=>{const e=$(id); if(e) e.textContent=txt;});}
@@ -2704,11 +2727,8 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
         const rawUpdatedParts=getParts();
         if(!Array.isArray(rawUpdatedParts)) console.warn('Arrangement selector: invalid parts, using empty array', rawUpdatedParts);
         const updatedParts=(Array.isArray(rawUpdatedParts)?rawUpdatedParts:[]).filter(part=>part&&part.section);
-        const p=updatedParts[idx]; if(!p) return;
-        try{ selectedArrangementIndex=idx; }catch(e){}
-        const top=$('sectionSelect');
-        if(top){ top.value=p.section; top.dispatchEvent(new Event('change',{bubbles:true})); }
-        try{ activeSongSection=p.section; activeSongPartLabel=p.label||secName(p.section); updatePartDisplay&&updatePartDisplay(); renderArrangementBuilder&&renderArrangementBuilder(); }catch(e){}
+        if(!updatedParts[idx]) return;
+        selectArrangementPart(idx);
         setTimeout(syncArrangementEditorSelector,80);
       });
     }
