@@ -2597,14 +2597,17 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     const label=q('label',wrap); if(label) label.textContent=L('Editar parte del arreglo','Edit arrangement part');
     const sel=stripOldListenerSelect(); if(!sel) return;
     ensureEditorNote();
-    const parts=getParts();
+    const rawParts=getParts();
+    if(!Array.isArray(rawParts)) console.warn('Arrangement selector: invalid parts, using empty array', rawParts);
+    const parts=Array.isArray(rawParts)?rawParts:[];
+    const validParts=parts.filter(p=>p&&p.section);
     const curSec=$('sectionSelect')?.value || 'intro';
     let currentIdx=0;
     try{
-      if(typeof selectedArrangementIndex!=='undefined' && parts[selectedArrangementIndex]) currentIdx=selectedArrangementIndex;
-      else currentIdx=Math.max(0,parts.findIndex(p=>p.section===curSec));
-    }catch(e){currentIdx=Math.max(0,parts.findIndex(p=>p.section===curSec));}
-    const html=parts.map((p,i)=>{
+      if(typeof selectedArrangementIndex!=='undefined' && validParts[selectedArrangementIndex]) currentIdx=selectedArrangementIndex;
+      else currentIdx=Math.max(0,validParts.findIndex(p=>p.section===curSec));
+    }catch(e){currentIdx=Math.max(0,validParts.findIndex(p=>p.section===curSec));}
+    const html=validParts.map((p,i)=>{
       const label=(p.label||secName(p.section)||p.section);
       const src=secName(p.section)||p.section;
       const count=(project.sections&&project.sections[p.section]&&project.sections[p.section].length)||0;
@@ -2617,7 +2620,10 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
       sel.dataset.v259Bound='1';
       sel.addEventListener('change',()=>{
         const idx=Number(sel.value)||0;
-        const p=getParts()[idx]; if(!p) return;
+        const rawUpdatedParts=getParts();
+        if(!Array.isArray(rawUpdatedParts)) console.warn('Arrangement selector: invalid parts, using empty array', rawUpdatedParts);
+        const updatedParts=(Array.isArray(rawUpdatedParts)?rawUpdatedParts:[]).filter(part=>part&&part.section);
+        const p=updatedParts[idx]; if(!p) return;
         try{ selectedArrangementIndex=idx; }catch(e){}
         const top=$('sectionSelect');
         if(top){ top.value=p.section; top.dispatchEvent(new Event('change',{bubbles:true})); }
