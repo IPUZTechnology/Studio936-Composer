@@ -939,9 +939,22 @@ function bind(){
     if(els.tuningCustom) els.tuningCustom.onchange=()=>{ project.tuningHz=clamp(Number(els.tuningCustom.value)||440,390,470); els.tuningCustom.value=project.tuningHz; if(els.tuningSelect) els.tuningSelect.value=[440,432,444].includes(Math.round(project.tuningHz))?String(Math.round(project.tuningHz)):'custom'; saveProject(false); flashStatus('Afinación A4 = '+project.tuningHz+' Hz.'); };
     els.sectionSelect.onchange=()=>{ saveSoloForSection(lastEditorSection, false); activeSongSection=els.sectionSelect.value; lastEditorSection=els.sectionSelect.value; chordIdx=0; stepInChord=0; renderChordSelect(); loadEditorFromSelected(); renderSectionList(); loadSoloFromSelectedSection(); updateSectionNoteMap(); renderArrangementBuilder(); updateLiveUI(currentItem(),0,1,{}); saveProject(false); };
     els.chordSelect.onchange=()=>{ loadEditorFromSelected(); renderSectionList(); updateSectionNoteMap(); };
-    els.previewBtn.onclick=previewChord; els.applyBtn.onclick=()=>applyEditorToProject(true); els.addBtn.onclick=addChord; els.dupBtn.onclick=duplicateChord; els.deleteBtn.onclick=deleteChord;
-    els.resetSectionBtn.onclick=resetSection; els.resetAllBtn.onclick=resetAll;
-    els.generateSoloBtn.onclick=generateSolo; els.previewSoloBtn.onclick=previewSolo; els.applySoloBtn.onclick=saveSolo; els.clearSoloBtn.onclick=clearSoloForSection;
+    if(window.Studio936UiBindings?.bindEditorActions){
+        window.Studio936UiBindings.bindEditorActions({
+            els,
+            previewChord,
+            applyEditorToProject,
+            addChord,
+            duplicateChord,
+            deleteChord,
+            resetSection,
+            resetAll,
+            generateSolo,
+            previewSolo,
+            saveSolo,
+            clearSoloForSection
+        });
+    }
     if(window.Studio936UiBindings?.bindStaticActions){
         window.Studio936UiBindings.bindStaticActions({
             els,
