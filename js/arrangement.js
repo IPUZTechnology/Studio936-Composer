@@ -29,6 +29,22 @@
       const reason = isValid ? 'ok' : (rawIndex < 0 ? 'index_below_range' : 'index_above_range');
       return { parts, selectedIndex, selectedPart, selectedSection, isValid, reason };
     }
+    function selectArrangementPart(index){
+      const parts = arrangementParts();
+      if(!parts.length){
+        setSelected(0);
+        return { parts, selectedIndex:0, selectedPart:null, selectedSection:null, isValid:false, reason:'empty_parts' };
+      }
+      const rawIndex = Number(index);
+      const safeRawIndex = Number.isFinite(rawIndex) ? rawIndex : 0;
+      const selectedIndex = Math.max(0, Math.min(safeRawIndex, parts.length - 1));
+      setSelected(selectedIndex);
+      const selectedPart = parts[selectedIndex] || null;
+      const selectedSection = selectedPart ? selectedPart.section : null;
+      const isValid = safeRawIndex === selectedIndex && !!selectedPart;
+      const reason = isValid ? 'ok' : (safeRawIndex < 0 ? 'index_below_range' : 'index_above_range');
+      return { parts, selectedIndex, selectedPart, selectedSection, isValid, reason };
+    }
     function sectionChordCount(k){ const project = getProject(); return (project.sections[k]||[]).length; }
     function ensureSectionOption(key){
       if(!H.els.sectionSelect || H.els.sectionSelect.querySelector(`option[value="${CSS.escape(key)}"]`)) return;
@@ -62,7 +78,7 @@
     function renameArrangementPart(){ const p=arrangementParts()[getSelected()]; if(!p) return; const name=prompt('Nombre del bloque en el arreglo:', p.label || H.sectionNames[p.section] || p.section); if(!name) return; p.label=name.trim(); renderArrangementBuilder(); H.saveProject(false); }
     function createNewSection(asVariation){ const project=getProject(); const current=H.els.sectionSelect.value||'intro'; const source=asVariation ? current : (document.getElementById('arrangeSourceSelect')?.value || current); const baseName=asVariation ? ((H.sectionNames[source]||source)+' variación') : 'Nueva sección'; const name=prompt(asVariation?'Nombre de la nueva variación:':'Nombre de la nueva sección:', baseName); if(!name) return; const key=uniqueSectionKey(name); project.sections[key]=JSON.parse(JSON.stringify(project.sections[source]||[H.chord('C','C2','C3 E3 G3',1)])); H.sectionNames[key]=name.trim(); project.lyrics=project.lyrics||{}; project.lyrics[key]=asVariation?(project.lyrics[source]||''):''; project.sectionSolos=project.sectionSolos||{}; project.sectionSolos[key]=JSON.parse(JSON.stringify(project.sectionSolos[source]||{key:'C',scale:'major',phrase:''})); ensureSectionOption(key); project.arrangement.splice(getSelected()+1,0,{id:'p'+Date.now(),section:key,label:name.trim()}); setSelected(getSelected()+1); H.els.sectionSelect.value=key; H.els.sectionSelect.dispatchEvent(new Event('change',{bubbles:true})); renderArrangementBuilder(); H.saveProject(false); H.flashStatus('Nueva sección creada y agregada al arreglo.'); }
     function handleArrangementClick(ev){
-      const part=ev.target.closest('[data-arr-i]'); if(part){ setSelected(Number(part.dataset.arrI)||0); const p=arrangementParts()[getSelected()]; if(p){ H.els.sectionSelect.value=p.section; H.els.sectionSelect.dispatchEvent(new Event('change',{bubbles:true})); H.onPartSelected(p); } renderArrangementBuilder(); return; }
+      const part=ev.target.closest('[data-arr-i]'); if(part){ const idx=Number(part.dataset.arrI)||0; if(typeof H.selectArrangementPart==='function'){ H.selectArrangementPart(idx); }else{ setSelected(idx); const p=arrangementParts()[getSelected()]; if(p){ H.els.sectionSelect.value=p.section; H.els.sectionSelect.dispatchEvent(new Event('change',{bubbles:true})); H.onPartSelected(p); } renderArrangementBuilder(); } return; }
       const id=ev.target.id; if(!id) return;
       if(id==='arrangeAddBtn') addArrangementPart();
       if(id==='arrangeDupBtn') duplicateArrangementPart();
@@ -73,7 +89,7 @@
       if(id==='arrangeNewBtn') createNewSection(false);
       if(id==='arrangeVariationBtn') createNewSection(true);
     }
-    return { arrangementParts, arrangementOrder, renderArrangementBuilder, setSelectedArrangementIndex:setSelected, getSelectedArrangementIndex:getSelected, getArrangementState };
+    return { arrangementParts, arrangementOrder, renderArrangementBuilder, setSelectedArrangementIndex:setSelected, getSelectedArrangementIndex:getSelected, getArrangementState, selectArrangementPart };
   }
   window.Studio936Arrangement = { setup };
 })();
