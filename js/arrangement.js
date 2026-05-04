@@ -16,6 +16,19 @@
       const project = getProject();
       return arrangementParts().map(p => p.section).filter(k => Array.isArray(project.sections[k]) && project.sections[k].length);
     }
+    function getArrangementState(){
+      const parts = arrangementParts();
+      const rawIndex = getSelected();
+      if(!parts.length){
+        return { parts, selectedIndex:0, selectedPart:null, selectedSection:null, isValid:false, reason:'empty_parts' };
+      }
+      const selectedIndex = Math.max(0, Math.min(rawIndex, parts.length - 1));
+      const selectedPart = parts[selectedIndex] || null;
+      const selectedSection = selectedPart ? selectedPart.section : null;
+      const isValid = rawIndex === selectedIndex && !!selectedPart;
+      const reason = isValid ? 'ok' : (rawIndex < 0 ? 'index_below_range' : 'index_above_range');
+      return { parts, selectedIndex, selectedPart, selectedSection, isValid, reason };
+    }
     function sectionChordCount(k){ const project = getProject(); return (project.sections[k]||[]).length; }
     function ensureSectionOption(key){
       if(!H.els.sectionSelect || H.els.sectionSelect.querySelector(`option[value="${CSS.escape(key)}"]`)) return;
@@ -60,7 +73,7 @@
       if(id==='arrangeNewBtn') createNewSection(false);
       if(id==='arrangeVariationBtn') createNewSection(true);
     }
-    return { arrangementParts, arrangementOrder, renderArrangementBuilder, setSelectedArrangementIndex:setSelected, getSelectedArrangementIndex:getSelected };
+    return { arrangementParts, arrangementOrder, renderArrangementBuilder, setSelectedArrangementIndex:setSelected, getSelectedArrangementIndex:getSelected, getArrangementState };
   }
   window.Studio936Arrangement = { setup };
 })();
