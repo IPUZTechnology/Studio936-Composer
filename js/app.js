@@ -3,6 +3,7 @@
 
 (() => {
 'use strict';
+const debugArrangementEnabled = new URLSearchParams(window.location.search).get('debugArrangement') === '1';
 const STORAGE_KEY = 'studio936ComposerV25SongStructure';
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 window.__studio936AudioCtx = audioCtx;
@@ -992,6 +993,18 @@ Arrangement = window.Studio936Arrangement.setup({
     getSelectedArrangementIndex:()=>selectedArrangementIndex,
     setSelectedArrangementIndex:v=>{ selectedArrangementIndex=Number(v)||0; }
 });
+window.Studio936DebugArrangement = function(){
+    const diagnostic = {
+        arrangement: Arrangement.getArrangementState ? Arrangement.getArrangementState() : null,
+        sectionSelect: els.sectionSelect ? els.sectionSelect.value : null,
+        activeSongSection,
+        activeSongPartLabel,
+        selectedArrangementIndex,
+        projectArrangement: project.arrangement
+    };
+    if(debugArrangementEnabled) console.debug('Studio936 arrangement diagnostics', diagnostic);
+    return diagnostic;
+};
 
 function bindFinalMidiExport(){
     const btn = document.getElementById('midiBtn');
