@@ -837,6 +837,7 @@ function midiExportHelpers(){
         syncProjectFromControls,
         syncLyricsFromModal,
         arrangementParts,
+        songOrder,
         sectionNames,
         parseSolo,
         getSectionSolo,
