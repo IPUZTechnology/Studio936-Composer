@@ -1055,7 +1055,7 @@ function qa(sel,root=document){ return [...root.querySelectorAll(sel)]; }
 function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function clone(o){ return JSON.parse(JSON.stringify(o)); }
 function flash(msg){ const s=$('saveStatus'); if(s){ s.textContent=msg; setTimeout(()=>{ if(s.textContent===msg) s.textContent='Studio 936 Composer v19 listo.'; },2600); } }
-function slug(s){ return String(s||'song').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'song'; }
+function slug(s){ return String(s || 'studio936').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || 'studio936'; }
 function getProject(){
   try{ const save=$('saveBtn'); if(save) save.click(); }catch(e){}
   try{ const raw=localStorage.getItem(STORAGE_KEY); if(raw) return normalizeProject(JSON.parse(raw)); }catch(e){}
