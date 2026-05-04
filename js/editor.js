@@ -90,6 +90,14 @@ const Editor = {
       els.sectionList.appendChild(row);
     });
   },
+  selectEditorSection(sectionKey){
+    const { els } = this.host;
+    if(!els.sectionSelect || !sectionKey) return;
+    els.sectionSelect.value = sectionKey;
+    els.sectionSelect.dispatchEvent(new Event('change',{bubbles:true}));
+    this.loadEditorFromSelected();
+    this.renderSectionList();
+  },
   loadEditorFromSelected(){
     const { els, updateFretboardMap } = this.host;
     const item = this.editorSeq()[Number(els.chordSelect.value)||0] || this.editorSeq()[0];
