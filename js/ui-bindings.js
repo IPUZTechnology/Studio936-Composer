@@ -35,5 +35,36 @@ function bindStaticActions(api){
     }
 }
 
-window.Studio936UiBindings = { bindStaticActions };
+
+function bindEditorActions(api){
+    const {
+        els,
+        previewChord,
+        applyEditorToProject,
+        addChord,
+        duplicateChord,
+        deleteChord,
+        resetSection,
+        resetAll,
+        generateSolo,
+        previewSolo,
+        saveSolo,
+        clearSoloForSection
+    } = api || {};
+    if(!els) return;
+
+    if(els.previewBtn) els.previewBtn.onclick = previewChord;
+    if(els.applyBtn) els.applyBtn.onclick = () => applyEditorToProject?.(true);
+    if(els.addBtn) els.addBtn.onclick = addChord;
+    if(els.dupBtn) els.dupBtn.onclick = duplicateChord;
+    if(els.deleteBtn) els.deleteBtn.onclick = deleteChord;
+    if(els.resetSectionBtn) els.resetSectionBtn.onclick = resetSection;
+    if(els.resetAllBtn) els.resetAllBtn.onclick = resetAll;
+    if(els.generateSoloBtn) els.generateSoloBtn.onclick = generateSolo;
+    if(els.previewSoloBtn) els.previewSoloBtn.onclick = previewSolo;
+    if(els.applySoloBtn) els.applySoloBtn.onclick = saveSolo;
+    if(els.clearSoloBtn) els.clearSoloBtn.onclick = clearSoloForSection;
+}
+
+window.Studio936UiBindings = { bindStaticActions, bindEditorActions };
 })();
