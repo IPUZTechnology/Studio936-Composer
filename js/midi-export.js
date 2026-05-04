@@ -12,16 +12,34 @@
     function addMidiChord(track,tick,notes,dur,vel,helpers,ch=0){ notes.forEach((m,i)=>midiNoteEvents(track,tick+i*7,m,dur,vel,helpers,ch)); }
     function soloEventStartAt(events,step){ if(!events.length) return null; const total=events.reduce((a,e)=>a+e.dur,0); if(!total) return null; let pos = step % total; for(const e of events){ if(pos===0) return e; pos-=e.dur; if(pos<0) return null; } return null; }
 
+    function resolveMidiParts(project,helpers){
+        let parts = [];
+        try{ parts = typeof helpers.arrangementParts==='function' ? helpers.arrangementParts() : []; }catch(_){ parts = []; }
+        if(Array.isArray(parts) && parts.length) return parts;
+
+        const sections = project.sections || {};
+        const order = Array.isArray(helpers.songOrder) ? helpers.songOrder : [];
+        const ordered = [];
+        const seen = new Set();
+        order.forEach((section,idx)=>{
+            if(Array.isArray(sections[section]) && sections[section].length){
+                ordered.push({ id:'fallback_order_'+idx, section, label:(helpers.sectionNames && helpers.sectionNames[section]) || section });
+                seen.add(section);
+            }
+        });
+        if(ordered.length) return ordered;
+
+        return Object.keys(sections)
+            .filter(k=>Array.isArray(sections[k]) && sections[k].length>0 && !seen.has(k))
+            .map((section,idx)=>({ id:'fallback_'+idx, section, label:(helpers.sectionNames && helpers.sectionNames[section]) || section }));
+    }
+
     function buildMidiBytes(project,helpers){
         helpers.syncProjectFromControls(false); helpers.syncLyricsFromModal(false);
         const PPQ=480, STEP=PPQ/4;
         const meta=[metaTempo(project.bpm,0), metaTimeSig(0), metaText(0x03, project.title || 'Song',0), metaText(0x01, `Author: ${project.author || ''} | Style: ${project.style} | A4=${helpers.masterA()} Hz`,0)];
         const chords=[metaText(0x03,'Chords / Harmony',0)]; const bass=[metaText(0x03,'Bass',0)]; const melody=[metaText(0x03,'Melody / Solo',0)];
-        let tick=0; let parts = helpers.arrangementParts();
-        if(!Array.isArray(parts) || !parts.length){
-            const sections = project.sections || {};
-            parts = Object.keys(sections).filter(k=>Array.isArray(sections[k]) && sections[k].length>0).map((section,idx)=>({ id:'fallback_'+idx, section, label:(helpers.sectionNames && helpers.sectionNames[section]) || section }));
-        }
+        let tick=0; const parts = resolveMidiParts(project, helpers);
         if(!parts.length){
             if(helpers.flashStatus) helpers.flashStatus('Error al exportar MIDI: no hay arreglo ni secciones con acordes.');
             return new Uint8Array();
