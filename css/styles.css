@@ -979,6 +979,10 @@ body.v25ux-clean #v18Suite{
   border-radius:17px !important;
   z-index:98 !important;
 }
+body.v25ux-clean #v18Suite.v19-open{
+  display:grid !important;
+  visibility:visible !important;
+}
 body.v25ux-clean #v18Suite .v18-suite-title{
   display:flex !important;
   align-items:center !important;
@@ -1001,11 +1005,13 @@ body.v25ux-clean #v18Suite .v25ux-suite-close{
 }
 body.v25ux-clean #v18Suite .v18-suite-buttons{
   margin-top:8px !important;
-  display:grid !important;
+  display:flex !important;
+  flex-wrap:wrap !important;
   grid-template-columns:1fr 1fr !important;
   gap:7px !important;
 }
 body.v25ux-clean #v18Suite .v18-pill{
+  visibility:visible !important;
   min-height:34px !important;
   padding:8px 10px !important;
   border-radius:12px !important;
