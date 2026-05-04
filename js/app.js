@@ -2558,12 +2558,27 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
   const lang=()=>((document.documentElement.lang||localStorage.getItem('pianoComposerUiLangV15')||'es').toLowerCase().startsWith('en')?'en':'es');
   const L=(es,en)=>lang()==='en'?en:es;
   function secName(k){try{return (window.sectionNames&&sectionNames[k])||k;}catch(e){return k;}}
+  function getCurrentProjectSafe(){
+    try{
+      if(typeof window.Studio936GetProject === 'function') return window.Studio936GetProject();
+    }catch(e){}
+    try{
+      const raw = localStorage.getItem('studio936ComposerV25SongStructure');
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){}
+    return null;
+  }
   function getParts(){
     try{
       if(typeof arrangementParts==='function') return arrangementParts();
-      if(project && Array.isArray(project.arrangement)) return project.arrangement;
+      const currentProject=getCurrentProjectSafe();
+      if(currentProject && Array.isArray(currentProject.arrangement)) return currentProject.arrangement;
     }catch(e){}
-    try{return Object.keys(project.sections||{}).map((k,i)=>({id:'sec_'+i,section:k,label:secName(k)}));}catch(e){return [{section:'intro',label:'Intro'}];}
+    try{
+      const currentProject=getCurrentProjectSafe();
+      const sections=currentProject && currentProject.sections ? currentProject.sections : {};
+      return Object.keys(sections).map((k,i)=>({id:'sec_'+i,section:k,label:secName(k)}));
+    }catch(e){return [{section:'intro',label:'Intro'}];}
   }
   function setBrand(){const small=q('.brand small'); if(small) small.textContent=L('STUDIO 936 COMPOSER v25.9 · EDITOR/STRUCTURE SYNC','STUDIO 936 COMPOSER v25.9 · EDITOR/STRUCTURE SYNC');}
   function stripOldListenerSelect(){
@@ -2610,7 +2625,9 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     const html=validParts.map((p,i)=>{
       const label=(p.label||secName(p.section)||p.section);
       const src=secName(p.section)||p.section;
-      const count=(project.sections&&project.sections[p.section]&&project.sections[p.section].length)||0;
+      const currentProject=getCurrentProjectSafe();
+      const sections=currentProject && currentProject.sections ? currentProject.sections : {};
+      const count=(sections[p.section]&&sections[p.section].length)||0;
       const text=(label===src?label:(label+' → '+src))+' · '+count+' '+L('acorde(s)','chord(s)');
       return '<option value="'+i+'">'+escapeHtmlSafe(text)+'</option>';
     }).join('');
