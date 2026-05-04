@@ -833,6 +833,13 @@ function projectText(){
 
 function getMidiExport(){ return window.Studio936MidiExport || null; }
 function midiExportHelpers(){
+    const safeSlug = (s) => String(s || 'studio936')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-z0-9]+/g,'-')
+      .replace(/^-+|-+$/g,'') || 'studio936';
+
     return {
         syncProjectFromControls,
         syncLyricsFromModal,
@@ -848,7 +855,7 @@ function midiExportHelpers(){
         thinChord,
         clamp,
         masterA,
-        slug: slug,
+        slug: safeSlug,
         flashStatus,
         download: (filename, content, type) => download(filename, content, type)
     };
