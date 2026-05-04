@@ -983,6 +983,12 @@ body.v25ux-clean #v18Suite.v19-open{
   display:grid !important;
   visibility:visible !important;
 }
+body.v25ux-clean #v18Suite .v18-suite-inner{
+  display:flex !important;
+  flex-direction:column !important;
+  gap:8px !important;
+  visibility:visible !important;
+}
 body.v25ux-clean #v18Suite .v18-suite-title{
   display:flex !important;
   align-items:center !important;
@@ -1413,4 +1419,13 @@ body.v25ux-clean .editor[data-ux-panel="editor"] #v258EditorPartWrap{
 body.v25ux-clean .editor[data-ux-panel="structure"] .structure-card,
 body.v25ux-clean .editor[data-ux-panel="structure"] #structureBuilderCard{
   margin-top:0 !important;
+}
+
+
+body.v25ux-clean #v18Suite.v19-open,
+body.v25ux-clean #v18Suite .v18-suite-inner,
+body.v25ux-clean #v18Suite .v18-suite-buttons,
+body.v25ux-clean #v18Suite .v18-pill{
+  opacity:1 !important;
+  visibility:visible !important;
 }
