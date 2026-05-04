@@ -1267,7 +1267,10 @@ function showOnboarding(){ if(localStorage.getItem(ONBOARD_KEY)) return; localSt
 4) Current loaded UI: index.html does not ship #v18Suite markup; it is runtime-injected from js/app.js.
 5) Future extraction target: a modern suite-pro.js can isolate (a) addV18Ui creation, (b) show/hide controller logic, and (c) rebind-on-language-change behavior, without re-enabling legacy v18 defaults.
 */
-function addV18Ui(){ document.title='Studio 936 Composer v22 iPad Layout + Touch Fix'; const small=q('.brand small'); if(small) small.textContent='STUDIO 936 COMPOSER v20 PRODUCER UI'; const status=q('.status-bar'); if(!status||$('v18Suite')) return; const bar=document.createElement('div'); bar.id='v18Suite'; bar.className='v18-suite'; const buttons=[['library','library'],['templates','templates'],['transpose','transpose'],['scales','scales'],['chordAI','chordAI'],['drums','drums'],['mixer','mixer'],['record','record'],['midiIn','midiIn'],['pdf','pdf'],['lead','lead'],['practice','practice'],['share','share'],['inspire','inspire'],['theory','theory']]; bar.innerHTML=`<div class="v18-suite-title">${T('suite')}</div><div class="v18-suite-buttons">${buttons.map(([id,label])=>`<button class="v18-pill" id="v18_${id}">${T(label)}</button>`).join('')}</div><div class="v18-detect"><span id="v18DetectOut">${T('noChord')}</span><button class="v18-mini" id="v18ApplyDetected">${T('applyDetected')}</button><button class="v18-mini" id="v18DrumBtn">${T('drumsOff')}</button></div>`; status.insertAdjacentElement('afterend',bar); $('v18_library').onclick=showLibrary; $('v18_templates').onclick=showTemplates; $('v18_transpose').onclick=showTranspose; $('v18_scales').onclick=showScales; $('v18_chordAI').onclick=showChordAI; $('v18_drums').onclick=toggleDrums; $('v18_mixer').onclick=showMixer; $('v18_record').id='v18RecBtn'; $('v18RecBtn').onclick=toggleRec; $('v18_midiIn').onclick=setupMidiIn; $('v18_pdf').onclick=exportPdf; $('v18_lead').onclick=showLeadSheet; $('v18_practice').onclick=showPractice; $('v18_share').onclick=showShare; $('v18_inspire').onclick=inspire; $('v18_theory').onclick=showTheory; $('v18ApplyDetected').onclick=applyDetectedChord; $('v18DrumBtn').onclick=toggleDrums; }
+function buildSuiteProContent(suite){ const buttons=[['library','library'],['templates','templates'],['transpose','transpose'],['scales','scales'],['chordAI','chordAI'],['drums','drums'],['mixer','mixer'],['record','record'],['midiIn','midiIn'],['pdf','pdf'],['lead','lead'],['practice','practice'],['share','share'],['inspire','inspire'],['theory','theory']]; suite.innerHTML=`<div class="v18-suite-title">${T('suite')}</div><div class="v18-suite-buttons">${buttons.map(([id,label])=>`<button class="v18-pill" id="v18_${id}">${T(label)}</button>`).join('')}</div><div class="v18-detect"><span id="v18DetectOut">${T('noChord')}</span><button class="v18-mini" id="v18ApplyDetected">${T('applyDetected')}</button><button class="v18-mini" id="v18DrumBtn">${T('drumsOff')}</button></div>`; return suite; }
+function bindSuiteProHandlers(){ $('v18_library').onclick=showLibrary; $('v18_templates').onclick=showTemplates; $('v18_transpose').onclick=showTranspose; $('v18_scales').onclick=showScales; $('v18_chordAI').onclick=showChordAI; $('v18_drums').onclick=toggleDrums; $('v18_mixer').onclick=showMixer; $('v18_record').id='v18RecBtn'; $('v18RecBtn').onclick=toggleRec; $('v18_midiIn').onclick=setupMidiIn; $('v18_pdf').onclick=exportPdf; $('v18_lead').onclick=showLeadSheet; $('v18_practice').onclick=showPractice; $('v18_share').onclick=showShare; $('v18_inspire').onclick=inspire; $('v18_theory').onclick=showTheory; $('v18ApplyDetected').onclick=applyDetectedChord; $('v18DrumBtn').onclick=toggleDrums; }
+function populateSuiteProPanel(suite){ if(!suite) return suite; if(!suite.querySelector('.v18-suite-buttons')) buildSuiteProContent(suite); bindSuiteProHandlers(); return suite; }
+function addV18Ui(){ document.title='Studio 936 Composer v22 iPad Layout + Touch Fix'; const small=q('.brand small'); if(small) small.textContent='STUDIO 936 COMPOSER v20 PRODUCER UI'; const status=q('.status-bar'); if(!status||$('v18Suite')) return; const bar=document.createElement('div'); bar.id='v18Suite'; bar.className='v18-suite'; populateSuiteProPanel(bar); status.insertAdjacentElement('afterend',bar); }
 function openModal(name,title,body){ let m=$('v18Modal'); if(!m){ m=document.createElement('div'); m.id='v18Modal'; m.className='v18-modal'; m.innerHTML='<div class="v18-modal-card"><button class="v18-x" id="v18Close">×</button><h2 id="v18ModalTitle"></h2><div id="v18ModalBody"></div></div>'; document.body.appendChild(m); $('v18Close').onclick=closeModal; m.addEventListener('click',e=>{ if(e.target===m) closeModal(); }); } $('v18ModalTitle').textContent=title; $('v18ModalBody').innerHTML=body; m.style.display='flex'; }
 function closeModal(){ const m=$('v18Modal'); if(m) m.style.display='none'; }
 function addHelp(){ const body=q('#helpModal .help-body'); if(!body||q('.v18-help-block',body)) return; body.insertAdjacentHTML('beforeend', `<div class="help-block wide v18-help-block"><h3>16. Studio 936 Pro Suite v18</h3><p><b>Biblioteca</b> guarda varias canciones dentro del navegador. <b>Plantillas</b> crea ideas por género. <b>Transponer</b> cambia tonalidad de acordes, bajo, notas y melodías. <b>Escalas</b> muestra notas recomendadas para improvisar. <b>Acordes IA</b> sugiere el siguiente acorde por intención. <b>Batería</b> agrega percusión sintética por estilo. <b>REC Idea</b> captura lo que tocas en el teclado virtual o MIDI y lo guarda como melodía de la sección. <b>PDF Lead Sheet</b> exporta un PDF simple para músicos. <b>Modo Práctica</b> muestra acorde y sección en grande.</p></div><div class="help-block v18-help-block"><h3>17. MIDI físico, detección de acordes y compartir</h3><p><b>MIDI IN</b> permite conectar un teclado físico compatible con Web MIDI. Al tocar notas, la app intenta detectar el acorde y puedes aplicarlo al editor. <b>Compartir</b> genera un enlace con el proyecto dentro del hash del navegador; para proyectos grandes sigue siendo mejor usar JSON.</p></div>`); }
@@ -1993,29 +1996,29 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
   }
   function ensureSuiteProMounted(){
     let suite=document.getElementById('v18Suite');
-    if(suite) return suite;
+    if(suite) return typeof populateSuiteProPanel==='function'?populateSuiteProPanel(suite):suite;
     if(typeof addV18Ui==='function'){
       addV18Ui();
       suite=document.getElementById('v18Suite');
-      if(suite) return suite;
+      if(suite) return typeof populateSuiteProPanel==='function'?populateSuiteProPanel(suite):suite;
     }
     const bar=document.getElementById('v25UxBar');
     const host=bar&&bar.parentNode?bar.parentNode:document.body;
     if(!host) return null;
     suite=document.getElementById('v18Suite');
-    if(suite) return suite;
+    if(suite) return typeof populateSuiteProPanel==='function'?populateSuiteProPanel(suite):suite;
     const fallback=document.createElement('div');
     fallback.id='v18Suite';
     fallback.className='v18-suite';
     if(bar&&bar.nextSibling) host.insertBefore(fallback,bar.nextSibling);
     else host.appendChild(fallback);
-    return fallback;
+    return typeof populateSuiteProPanel==='function'?populateSuiteProPanel(fallback):fallback;
   }
   window.Studio936EnsureSuiteProMounted=ensureSuiteProMounted;
   window.Studio936DebugSuite=function(){
     const suite=document.getElementById('v18Suite');
     const btn=document.querySelector('#v25UxBar [data-ux-open="suite"]');
-    return {suiteExists:!!suite,suiteClass:suite?suite.className:null,buttonExists:!!btn,bodyClass:document.body.className};
+    return {suiteExists:!!suite,suiteClass:suite?suite.className:null,buttonExists:!!btn,hasButtons:!!suite?.querySelector('.v18-suite-buttons'),buttonCount:suite?suite.querySelectorAll('.v18-pill').length:0,text:suite?suite.textContent.slice(0,200):'',bodyClass:document.body.className};
   };
   function openPanel(p){
     classifyCards();
