@@ -848,7 +848,7 @@ function midiExportHelpers(){
         thinChord,
         clamp,
         masterA,
-        slug,
+        slug: slug,
         flashStatus,
         download: (filename, content, type) => download(filename, content, type)
     };
