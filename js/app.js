@@ -1991,6 +1991,32 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     });
     $('v25UxClose').addEventListener('click',closeAll);
   }
+  function ensureSuiteProMounted(){
+    let suite=document.getElementById('v18Suite');
+    if(suite) return suite;
+    if(typeof addV18Ui==='function'){
+      addV18Ui();
+      suite=document.getElementById('v18Suite');
+      if(suite) return suite;
+    }
+    const bar=document.getElementById('v25UxBar');
+    const host=bar&&bar.parentNode?bar.parentNode:document.body;
+    if(!host) return null;
+    suite=document.getElementById('v18Suite');
+    if(suite) return suite;
+    const fallback=document.createElement('div');
+    fallback.id='v18Suite';
+    fallback.className='v18-suite';
+    if(bar&&bar.nextSibling) host.insertBefore(fallback,bar.nextSibling);
+    else host.appendChild(fallback);
+    return fallback;
+  }
+  window.Studio936EnsureSuiteProMounted=ensureSuiteProMounted;
+  window.Studio936DebugSuite=function(){
+    const suite=document.getElementById('v18Suite');
+    const btn=document.querySelector('#v25UxBar [data-ux-open="suite"]');
+    return {suiteExists:!!suite,suiteClass:suite?suite.className:null,buttonExists:!!btn,bodyClass:document.body.className};
+  };
   function openPanel(p){
     classifyCards();
     const ed=q('.editor'); if(!ed) return;
@@ -2000,7 +2026,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     const s=$('v18Suite'), tb=$('v19ToolsToggle'); if(s) s.classList.remove('v19-open'); if(tb) tb.classList.remove('open');
   }
   function closeEditor(){const ed=q('.editor'); if(ed) ed.classList.remove('ux-open'); qa('#v25UxBar .v25ux-btn').forEach(b=>b.classList.remove('active'));}
-  function toggleSuite(){closeEditor(); let suite=document.getElementById('v18Suite'); if(!suite&&typeof addV18Ui==='function'){addV18Ui();} suite=document.getElementById('v18Suite'); if(!suite){if(typeof flashStatus==='function') flashStatus('Suite Pro no está disponible todavía.'); return;} suite.classList.toggle('v19-open'); const open=suite.classList.contains('v19-open'), tb=$('v19ToolsToggle'); if(tb){tb.classList.toggle('open',open); tb.textContent=open?label('close'):label('suite');} qa('#v25UxBar .v25ux-btn').forEach(b=>b.classList.toggle('active',b.dataset.uxOpen==='suite'&&open));}
+  function toggleSuite(){closeEditor(); const suite=ensureSuiteProMounted(); if(!suite){if(typeof flashStatus==='function') flashStatus('Suite Pro no está disponible todavía.'); return;} suite.classList.toggle('v19-open'); const open=suite.classList.contains('v19-open'), tb=$('v19ToolsToggle'); if(tb){tb.classList.toggle('open',open); tb.textContent=open?label('close'):label('suite');} qa('#v25UxBar .v25ux-btn').forEach(b=>b.classList.toggle('active',b.dataset.uxOpen==='suite'&&open));}
   function closeAll(){closeEditor(); const s=$('v18Suite'), tb=$('v19ToolsToggle'); if(s) s.classList.remove('v19-open'); if(tb) tb.classList.remove('open');}
   function touchSafe(){qa('#v25UxBar button').forEach(b=>{if(b.dataset.v25uxTouch) return; b.dataset.v25uxTouch='1'; b.addEventListener('touchend',ev=>{ev.preventDefault(); b.click();},{passive:false});});}
   function refresh(){document.body.classList.add('v25ux-clean'); const small=q('.brand small'); if(small) small.textContent='STUDIO 936 COMPOSER v25 UX · CLEAN WORKSPACE'; makeBar(); classifyCards(); updateLabels(); touchSafe();}
