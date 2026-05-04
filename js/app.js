@@ -861,7 +861,7 @@ function midiExportHelpers(){
     };
 }
 function buildMidiBytes(){ const MidiExport = getMidiExport(); return MidiExport && MidiExport.buildMidiBytes ? MidiExport.buildMidiBytes(project, midiExportHelpers()) : new Uint8Array(); }
-function exportMidi(){ const MidiExport = getMidiExport(); if(MidiExport && MidiExport.exportMidi){ console.log('MIDI diagnóstico: export modular.'); flashStatus('MIDI diagnóstico: export modular.'); return MidiExport.exportMidi(project, midiExportHelpers()); } console.log('MIDI diagnóstico: export legacy.'); flashStatus('MIDI diagnóstico: export legacy.'); }
+function exportMidi(){ const MidiExport = getMidiExport(); if(MidiExport && MidiExport.exportMidi){ console.log('MIDI diagnóstico: export modular.'); return MidiExport.exportMidi(project, midiExportHelpers()); } console.log('MIDI diagnóstico: export legacy.'); }
 
 function download(filename,content,type){
     Storage.download(filename, content, type);
@@ -943,7 +943,7 @@ function bind(){
     els.previewBtn.onclick=previewChord; els.applyBtn.onclick=()=>applyEditorToProject(true); els.addBtn.onclick=addChord; els.dupBtn.onclick=duplicateChord; els.deleteBtn.onclick=deleteChord;
     els.resetSectionBtn.onclick=resetSection; els.resetAllBtn.onclick=resetAll;
     els.generateSoloBtn.onclick=generateSolo; els.previewSoloBtn.onclick=previewSolo; els.applySoloBtn.onclick=saveSolo; els.clearSoloBtn.onclick=clearSoloForSection;
-    els.txtBtn.onclick=exportTxt; els.jsonBtn.onclick=exportJson; if(els.midiBtn) els.midiBtn.onclick=()=>{ console.log('MIDI diagnóstico: click recibido.'); flashStatus('MIDI diagnóstico: click recibido.'); try{ if(!window.Studio936MidiExport) throw new Error('Studio936MidiExport no disponible'); exportMidi(); }catch(err){ console.error(err); flashStatus('Error exportando MIDI. Revisa consola.'); } }; els.copyBtn.onclick=copyText; els.importBtn.onclick=()=>els.importFile.click(); els.importFile.onchange=e=>importJson(e.target.files[0]);
+    els.txtBtn.onclick=exportTxt; els.jsonBtn.onclick=exportJson; if(els.midiBtn) els.midiBtn.onclick=()=>{ console.log('MIDI diagnóstico: click recibido.'); try{ if(!window.Studio936MidiExport) throw new Error('Studio936MidiExport no disponible'); exportMidi(); }catch(err){ console.error(err); flashStatus('Error exportando MIDI. Revisa consola.'); } }; els.copyBtn.onclick=copyText; els.importBtn.onclick=()=>els.importFile.click(); els.importFile.onchange=e=>importJson(e.target.files[0]);
     els.lyricsBtn.onclick=openLyrics; els.closeLyricsBtn.onclick=closeLyrics; els.saveLyricsBtn.onclick=saveLyricsModal; els.lyricsModal.onclick=e=>{ if(e.target===els.lyricsModal) closeLyrics(); };
     if(window.Studio936Help?.bindHelp){
         window.Studio936Help.bindHelp({ els, flashStatus });
@@ -981,7 +981,6 @@ function bindFinalMidiExport(){
     btn.onclick = function(){
         try{
             console.log('MIDI FINAL: modular handler');
-            flashStatus('MIDI FINAL: modular handler');
             if(!window.Studio936MidiExport || typeof window.Studio936MidiExport.exportMidi !== 'function'){
                 throw new Error('Studio936MidiExport.exportMidi no disponible');
             }
@@ -999,6 +998,33 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
 setTimeout(bindFinalMidiExport,0);
 setTimeout(bindFinalMidiExport,500);
 setTimeout(bindFinalMidiExport,1500);
+
+/*
+Post-MIDI Recovery App Inventory
+- Remaining responsibilities in app.js:
+  - bootstrap/init and startup wiring
+  - project state and persistence orchestration
+  - DOM element map and shared UI/state helpers
+  - UI bindings for controls, toggles, and export/import actions
+  - editor wrappers/glue (section, chord, solo, lyrics)
+  - arrangement glue integration
+  - transport/playback integration still inline or partially wrapped
+  - legacy enhancement blocks
+  - Suite Pro integration code
+  - export wrappers (TXT/JSON/MIDI handoff + helper composition)
+- Candidate next modules:
+  - suite-pro.js
+  - legacy-enhancements.js
+  - ui-bindings.js
+  - app-bootstrap.js
+  - transport phase 2
+- Risk levels:
+  - low: ui-bindings.js, app-bootstrap.js
+  - medium: legacy-enhancements.js, suite-pro.js
+  - high: transport phase 2
+- Recommended next extraction:
+  - ui-bindings.js (safest): largely event wiring and delegation boundaries are already present, so extraction can be done with minimal behavior risk and without touching MIDI, scheduler, or transport internals.
+*/
 })();
 
 /* ---- Script block separator ---- */
