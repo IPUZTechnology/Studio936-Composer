@@ -968,16 +968,17 @@ Arrangement = window.Studio936Arrangement.setup({
     setSelectedArrangementIndex:v=>{ selectedArrangementIndex=Number(v)||0; }
 });
 
-// MIDI diagnostic/fix: force modular Exportar MIDI binding after legacy blocks finish wiring handlers.
-function forceModularMidiExportBinding(){
+function bindFinalMidiExport(){
     const btn = document.getElementById('midiBtn');
     if(!btn) return;
-    btn.onclick = () => {
-        console.log('MIDI diagnóstico: final modular handler.');
-        flashStatus('MIDI diagnóstico: final modular handler.');
+    btn.onclick = function(){
         try{
-            if(!window.Studio936MidiExport) throw new Error('Studio936MidiExport no disponible');
-            exportMidi();
+            console.log('MIDI FINAL: modular handler');
+            flashStatus('MIDI FINAL: modular handler');
+            if(!window.Studio936MidiExport || typeof window.Studio936MidiExport.exportMidi !== 'function'){
+                throw new Error('Studio936MidiExport.exportMidi no disponible');
+            }
+            window.Studio936MidiExport.exportMidi(project, midiExportHelpers());
         }catch(err){
             console.error(err);
             flashStatus('Error exportando MIDI. Revisa consola.');
@@ -986,10 +987,11 @@ function forceModularMidiExportBinding(){
 }
 
 buildPiano(); buildFretboard(); buildStepGrid(); bind(); renderAll();
-forceModularMidiExportBinding();
-if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',forceModularMidiExportBinding,{once:true});
-setTimeout(forceModularMidiExportBinding,0);
-setTimeout(forceModularMidiExportBinding,500);
+bindFinalMidiExport();
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bindFinalMidiExport);
+setTimeout(bindFinalMidiExport,0);
+setTimeout(bindFinalMidiExport,500);
+setTimeout(bindFinalMidiExport,1500);
 })();
 
 /* ---- Script block separator ---- */
@@ -2650,4 +2652,15 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
   }
   function init(){refresh(); enhanceStructureClicks(); setTimeout(refresh,400); setTimeout(refresh,1100); setInterval(refresh,1400);}
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();
+
+
+// Absolute-end MIDI binding reinforcement: keep modular handler as the only active #midiBtn click path.
+(function(){
+  if(typeof bindFinalMidiExport!=='function') return;
+  bindFinalMidiExport();
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bindFinalMidiExport);
+  setTimeout(bindFinalMidiExport,0);
+  setTimeout(bindFinalMidiExport,500);
+  setTimeout(bindFinalMidiExport,1500);
 })();
