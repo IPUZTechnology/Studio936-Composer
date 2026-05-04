@@ -917,7 +917,6 @@ function bind(){
     els.metroBtn.onclick=()=>{ metroEnabled=!metroEnabled; els.metroBtn.textContent=metroEnabled?'Metrónomo ON 🔊':'Metrónomo OFF'; els.metroBtn.classList.toggle('active',metroEnabled); if(metroEnabled){ previewMetronome(); flashStatus('Metrónomo activado: escucharás el click junto con Start Groove o Escuchar canción.'); } else { flashStatus('Metrónomo apagado.'); } };
     els.soloBtn.onclick=()=>{ soloEnabled=!soloEnabled; project.soloOn=soloEnabled; els.soloBtn.textContent=soloEnabled?'Solo ON':'Solo OFF'; els.soloBtn.classList.toggle('active',soloEnabled); saveProject(false); };
     if(els.chordHoldBtn) els.chordHoldBtn.onclick=toggleChordHold;
-    els.saveBtn.onclick=()=>saveProject(true);
     els.bpmSlider.oninput=()=>setBPM(els.bpmSlider.value);
     els.songTitle.oninput=()=>saveProject(false);
     els.songAuthor.oninput=()=>saveProject(false);
@@ -943,15 +942,21 @@ function bind(){
     els.previewBtn.onclick=previewChord; els.applyBtn.onclick=()=>applyEditorToProject(true); els.addBtn.onclick=addChord; els.dupBtn.onclick=duplicateChord; els.deleteBtn.onclick=deleteChord;
     els.resetSectionBtn.onclick=resetSection; els.resetAllBtn.onclick=resetAll;
     els.generateSoloBtn.onclick=generateSolo; els.previewSoloBtn.onclick=previewSolo; els.applySoloBtn.onclick=saveSolo; els.clearSoloBtn.onclick=clearSoloForSection;
-    els.txtBtn.onclick=exportTxt; els.jsonBtn.onclick=exportJson; if(els.midiBtn) els.midiBtn.onclick=()=>{ console.log('MIDI diagnóstico: click recibido.'); try{ if(!window.Studio936MidiExport) throw new Error('Studio936MidiExport no disponible'); exportMidi(); }catch(err){ console.error(err); flashStatus('Error exportando MIDI. Revisa consola.'); } }; els.copyBtn.onclick=copyText; els.importBtn.onclick=()=>els.importFile.click(); els.importFile.onchange=e=>importJson(e.target.files[0]);
-    els.lyricsBtn.onclick=openLyrics; els.closeLyricsBtn.onclick=closeLyrics; els.saveLyricsBtn.onclick=saveLyricsModal; els.lyricsModal.onclick=e=>{ if(e.target===els.lyricsModal) closeLyrics(); };
-    if(window.Studio936Help?.bindHelp){
-        window.Studio936Help.bindHelp({ els, flashStatus });
-    } else {
-        els.helpBtn.onclick=()=>{ els.helpModal.style.display='flex'; };
-        els.closeHelpBtn.onclick=()=>{ els.helpModal.style.display='none'; };
-        els.helpModal.onclick=e=>{ if(e.target===els.helpModal) els.helpModal.style.display='none'; };
+    if(window.Studio936UiBindings?.bindStaticActions){
+        window.Studio936UiBindings.bindStaticActions({
+            els,
+            saveProject,
+            exportTxt,
+            exportJson,
+            copyText,
+            importJson,
+            openLyrics,
+            closeLyrics,
+            saveLyricsModal,
+            flashStatus
+        });
     }
+    if(els.midiBtn) els.midiBtn.onclick=()=>{ console.log('MIDI diagnóstico: click recibido.'); try{ if(!window.Studio936MidiExport) throw new Error('Studio936MidiExport no disponible'); exportMidi(); }catch(err){ console.error(err); flashStatus('Error exportando MIDI. Revisa consola.'); } };
     [els.chordName,els.bassInput,els.chordNotes,els.barsInput,els.grooveVol,els.tuningCustom].filter(Boolean).forEach(x=>x.addEventListener('change',()=>saveProject(false)));
     [els.soloPhrase,els.soloKey,els.soloScale].forEach(x=>x.addEventListener('change',()=>saveSoloForSection(editorSectionKey(), false)));
 }
