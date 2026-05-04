@@ -9,7 +9,36 @@
   function buildSuiteProContent(suite){
     const T=getTextFn();
     const buttons=[['library','library'],['templates','templates'],['transpose','transpose'],['scales','scales'],['chordAI','chordAI'],['drums','drums'],['mixer','mixer'],['record','record'],['midiIn','midiIn'],['pdf','pdf'],['lead','lead'],['practice','practice'],['share','share'],['inspire','inspire'],['theory','theory']];
-    suite.innerHTML=`<div class="v18-suite-title">${T('suite')}</div><div class="v18-suite-buttons">${buttons.map(([id,label])=>`<button class="v18-pill" id="v18_${id}">${T(label)}</button>`).join('')}</div><div class="v18-detect"><span id="v18DetectOut">${T('noChord')}</span><button class="v18-mini" id="v18ApplyDetected">${T('applyDetected')}</button><button class="v18-mini" id="v18DrumBtn">${T('drumsOff')}</button></div>`;
+
+    let title=suite.querySelector('.v18-suite-title');
+    if(!title){ title=document.createElement('div'); title.className='v18-suite-title'; suite.appendChild(title); }
+    title.textContent=T('suite');
+
+    let buttonsWrap=suite.querySelector('.v18-suite-buttons');
+    if(!buttonsWrap){ buttonsWrap=document.createElement('div'); buttonsWrap.className='v18-suite-buttons'; suite.appendChild(buttonsWrap); }
+    buttons.forEach(([id,label])=>{
+      const bid='v18_'+id;
+      let b=buttonsWrap.querySelector('#'+bid);
+      if(!b){ b=document.createElement('button'); b.id=bid; b.className='v18-pill'; b.type='button'; buttonsWrap.appendChild(b); }
+      b.classList.add('v18-pill');
+      b.type='button';
+      b.textContent=T(label);
+    });
+
+    let detect=suite.querySelector('.v18-detect');
+    if(!detect){ detect=document.createElement('div'); detect.className='v18-detect'; suite.appendChild(detect); }
+
+    let out=detect.querySelector('#v18DetectOut');
+    if(!out){ out=document.createElement('span'); out.id='v18DetectOut'; detect.appendChild(out); }
+    out.textContent=T('noChord');
+
+    let apply=detect.querySelector('#v18ApplyDetected');
+    if(!apply){ apply=document.createElement('button'); apply.id='v18ApplyDetected'; apply.className='v18-mini'; apply.type='button'; detect.appendChild(apply); }
+    apply.textContent=T('applyDetected');
+
+    let drum=detect.querySelector('#v18DrumBtn');
+    if(!drum){ drum=document.createElement('button'); drum.id='v18DrumBtn'; drum.className='v18-mini'; drum.type='button'; detect.appendChild(drum); }
+    drum.textContent=T('drumsOff');
   }
 
   function bindSuiteProHandlers(){
