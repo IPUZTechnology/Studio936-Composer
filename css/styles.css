@@ -1425,7 +1425,8 @@ body.v25ux-clean .editor[data-ux-panel="structure"] #structureBuilderCard{
 body.v25ux-clean #v18Suite.v19-open,
 body.v25ux-clean #v18Suite .v18-suite-inner,
 body.v25ux-clean #v18Suite .v18-suite-buttons,
-body.v25ux-clean #v18Suite .v18-pill{
+body.v25ux-clean #v18Suite .v18-pill,
+body.v25ux-clean #v18Suite #b25SuiteClose{
   opacity:1 !important;
   visibility:visible !important;
 }
