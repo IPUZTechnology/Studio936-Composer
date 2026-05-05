@@ -68,17 +68,22 @@
       suite.appendChild(inner);
     }
 
-    if(!inner.dataset.v18Built){
-      inner.innerHTML = '<div class="v18-suite-title">Suite Pro</div><div class="v18-suite-buttons"></div><div class="v18-detect"><span id="v18DetectOut"></span><button id="v18ApplyDetected" class="v18-mini" type="button"></button><button id="v18DrumBtn" class="v18-mini" type="button"></button></div>';
-      inner.dataset.v18Built = '1';
-    }
-
     ensureCloseButton(suite);
 
-    const title = q('.v18-suite-title', inner);
-    if(title) title.textContent = 'Suite Pro';
+    let title = q('.v18-suite-title', inner);
+    if(!title){
+      title = document.createElement('div');
+      title.className = 'v18-suite-title';
+      inner.appendChild(title);
+    }
+    title.textContent = 'Suite Pro';
 
-    const wrap = q('.v18-suite-buttons', inner);
+    let wrap = q('.v18-suite-buttons', inner);
+    if(!wrap){
+      wrap = document.createElement('div');
+      wrap.className = 'v18-suite-buttons';
+      inner.appendChild(wrap);
+    }
     BUTTONS.forEach(([labelKey,id]) => {
       let b = $(id);
       if(!b){
@@ -91,9 +96,40 @@
       b.textContent = T(labelKey);
     });
 
-    const out = $('v18DetectOut'); if(out) out.textContent = T('noChord');
-    const apply = $('v18ApplyDetected'); if(apply) apply.textContent = T('applyDetected');
-    const drum = $('v18DrumBtn'); if(drum) drum.textContent = T('drumsOff');
+    let detect = q('.v18-detect', inner);
+    if(!detect){
+      detect = document.createElement('div');
+      detect.className = 'v18-detect';
+      inner.appendChild(detect);
+    }
+
+    let out = $('v18DetectOut');
+    if(!out){
+      out = document.createElement('span');
+      out.id = 'v18DetectOut';
+      detect.appendChild(out);
+    }
+    out.textContent = T('noChord');
+
+    let apply = $('v18ApplyDetected');
+    if(!apply){
+      apply = document.createElement('button');
+      apply.id = 'v18ApplyDetected';
+      apply.className = 'v18-mini';
+      apply.type = 'button';
+      detect.appendChild(apply);
+    }
+    apply.textContent = T('applyDetected');
+
+    let drum = $('v18DrumBtn');
+    if(!drum){
+      drum = document.createElement('button');
+      drum.id = 'v18DrumBtn';
+      drum.className = 'v18-mini';
+      drum.type = 'button';
+      detect.appendChild(drum);
+    }
+    drum.textContent = T('drumsOff');
 
     return suite;
   }
