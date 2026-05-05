@@ -10,7 +10,6 @@
 
   function $(id){ return document.getElementById(id); }
   function q(sel,root=document){ return root.querySelector(sel); }
-  function qa(sel,root=document){ return Array.from(root.querySelectorAll(sel)); }
   function T(k){ try{ return (typeof window.T==='function' ? window.T(k) : k); }catch(_){ return k; } }
 
   function ensureStyle(){
@@ -26,31 +25,113 @@
 #v18Suite .v18-mini{border:1px solid #333;background:#101010;color:#ddd;border-radius:999px;padding:5px 9px;font-size:.6rem;font-weight:800}
 #b25SuiteClose{position:sticky;top:0;float:right;border:1px solid rgba(255,216,77,.35);background:#171717;color:#ffd84d;border-radius:999px;padding:4px 10px;cursor:pointer;font-weight:900}
 `;
-    const s=document.createElement('style'); s.id='suiteProLegacyStyle'; s.textContent=css; document.head.appendChild(s);
+    const s=document.createElement('style');
+    s.id='suiteProLegacyStyle';
+    s.textContent=css;
+    document.head.appendChild(s);
+  }
+
+  function ensureCloseButton(suite){
+    let closeBtn = q('#b25SuiteClose', suite);
+    if(!closeBtn){
+      closeBtn = document.createElement('button');
+      closeBtn.id = 'b25SuiteClose';
+      closeBtn.type = 'button';
+      closeBtn.title = 'Close panel';
+      closeBtn.textContent = '×';
+      suite.appendChild(closeBtn);
+    }
+    if(!closeBtn.dataset.boundClose){
+      closeBtn.dataset.boundClose = '1';
+      closeBtn.addEventListener('click', close);
+    }
+    return closeBtn;
   }
 
   function ensurePanel(){
     ensureStyle();
-    let suite=$('v18Suite');
+
+    let suite = $('v18Suite');
     if(!suite){
-      suite=document.createElement('div');
-      suite.id='v18Suite'; suite.className='v18-suite';
-      const status=q('.status-bar');
-      if(status && status.parentNode) status.insertAdjacentElement('afterend',suite); else document.body.appendChild(suite);
+      suite = document.createElement('div');
+      suite.id = 'v18Suite';
+      suite.className = 'v18-suite';
+      const status = q('.status-bar');
+      if(status && status.parentNode) status.insertAdjacentElement('afterend', suite);
+      else document.body.appendChild(suite);
     }
-    if(!q('.v18-suite-inner',suite)){
-      suite.innerHTML='<button id="b25SuiteClose" type="button" title="Close panel">×</button><div class="v18-suite-inner"><div class="v18-suite-title">Suite Pro</div><div class="v18-suite-buttons"></div><div class="v18-detect"><span id="v18DetectOut"></span><button id="v18ApplyDetected" class="v18-mini" type="button"></button><button id="v18DrumBtn" class="v18-mini" type="button"></button></div></div>';
-      $('b25SuiteClose').addEventListener('click', close);
+
+    ensureCloseButton(suite);
+
+    let inner = q('.v18-suite-inner', suite);
+    if(!inner){
+      inner = document.createElement('div');
+      inner.className = 'v18-suite-inner';
+      suite.appendChild(inner);
     }
-    const wrap=q('.v18-suite-buttons',suite);
-    BUTTONS.forEach(([labelKey,id])=>{
-      let b=$(id);
-      if(!b){ b=document.createElement('button'); b.id=id; b.type='button'; b.className='v18-pill'; wrap.appendChild(b); }
-      b.textContent=T(labelKey);
+
+    let title = q('.v18-suite-title', inner);
+    if(!title){
+      title = document.createElement('div');
+      title.className = 'v18-suite-title';
+      inner.appendChild(title);
+    }
+    title.textContent = 'Suite Pro';
+
+    let wrap = q('.v18-suite-buttons', inner);
+    if(!wrap){
+      wrap = document.createElement('div');
+      wrap.className = 'v18-suite-buttons';
+      inner.appendChild(wrap);
+    }
+
+    BUTTONS.forEach(([labelKey,id]) => {
+      let b = $(id);
+      if(!b){
+        b = document.createElement('button');
+        b.id = id;
+        b.type = 'button';
+        b.className = 'v18-pill';
+        wrap.appendChild(b);
+      }
+      b.textContent = T(labelKey);
     });
-    const out=$('v18DetectOut'); if(out) out.textContent=T('noChord');
-    const apply=$('v18ApplyDetected'); if(apply) apply.textContent=T('applyDetected');
-    const drum=$('v18DrumBtn'); if(drum) drum.textContent=T('drumsOff');
+
+    let detect = q('.v18-detect', inner);
+    if(!detect){
+      detect = document.createElement('div');
+      detect.className = 'v18-detect';
+      inner.appendChild(detect);
+    }
+
+    let out = $('v18DetectOut');
+    if(!out){
+      out = document.createElement('span');
+      out.id = 'v18DetectOut';
+      detect.appendChild(out);
+    }
+    out.textContent = T('noChord');
+
+    let apply = $('v18ApplyDetected');
+    if(!apply){
+      apply = document.createElement('button');
+      apply.id = 'v18ApplyDetected';
+      apply.className = 'v18-mini';
+      apply.type = 'button';
+      detect.appendChild(apply);
+    }
+    apply.textContent = T('applyDetected');
+
+    let drum = $('v18DrumBtn');
+    if(!drum){
+      drum = document.createElement('button');
+      drum.id = 'v18DrumBtn';
+      drum.className = 'v18-mini';
+      drum.type = 'button';
+      detect.appendChild(drum);
+    }
+    drum.textContent = T('drumsOff');
+
     return suite;
   }
 
