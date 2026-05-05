@@ -66,7 +66,7 @@
     }
 
     BUTTONS.forEach(([key,id,label]) => {
-      if(document.getElementById(id)) return;
+      if(wrap.querySelector('#' + CSS.escape(id))) return;
       const btn = document.createElement('button');
       btn.id = id;
       btn.className = 'v18-pill';
