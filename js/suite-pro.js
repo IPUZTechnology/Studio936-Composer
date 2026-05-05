@@ -69,11 +69,11 @@
     }
 
     if(!inner.dataset.v18Built){
-      inner.innerHTML = '<button id="b25SuiteClose" type="button" title="Close panel">×</button><div class="v18-suite-title">Suite Pro</div><div class="v18-suite-buttons"></div><div class="v18-detect"><span id="v18DetectOut"></span><button id="v18ApplyDetected" class="v18-mini" type="button"></button><button id="v18DrumBtn" class="v18-mini" type="button"></button></div>';
+      inner.innerHTML = '<div class="v18-suite-title">Suite Pro</div><div class="v18-suite-buttons"></div><div class="v18-detect"><span id="v18DetectOut"></span><button id="v18ApplyDetected" class="v18-mini" type="button"></button><button id="v18DrumBtn" class="v18-mini" type="button"></button></div>';
       inner.dataset.v18Built = '1';
     }
 
-    ensureCloseButton(inner);
+    ensureCloseButton(suite);
 
     const title = q('.v18-suite-title', inner);
     if(title) title.textContent = 'Suite Pro';
