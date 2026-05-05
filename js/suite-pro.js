@@ -10,6 +10,7 @@
 
   function $(id){ return document.getElementById(id); }
   function q(sel,root=document){ return root.querySelector(sel); }
+  function qa(sel,root=document){ return Array.from(root.querySelectorAll(sel)); }
   function T(k){ try{ return (typeof window.T==='function' ? window.T(k) : k); }catch(_){ return k; } }
 
   function ensureStyle(){
@@ -31,7 +32,12 @@
     document.head.appendChild(s);
   }
 
-  function ensureCloseButton(suite){
+  function ensurePanel(){
+    ensureStyle();
+
+    const suite = $('v18Suite');
+    if(!suite) return null;
+
     let closeBtn = q('#b25SuiteClose', suite);
     if(!closeBtn){
       closeBtn = document.createElement('button');
@@ -42,102 +48,40 @@
       suite.appendChild(closeBtn);
     }
     if(!closeBtn.dataset.boundClose){
-      closeBtn.dataset.boundClose = '1';
+      closeBtn.dataset.boundClose='1';
       closeBtn.addEventListener('click', close);
     }
-    return closeBtn;
-  }
 
-  function ensurePanel(){
-    ensureStyle();
-
-    let suite = $('v18Suite');
-    if(!suite){
-      suite = document.createElement('div');
-      suite.id = 'v18Suite';
-      suite.className = 'v18-suite';
-      const status = q('.status-bar');
-      if(status && status.parentNode) status.insertAdjacentElement('afterend', suite);
-      else document.body.appendChild(suite);
-    }
-
-    let inner = q('.v18-suite-inner', suite);
+    let inner = suite.querySelector('.v18-suite-inner');
     if(!inner){
       inner = document.createElement('div');
       inner.className = 'v18-suite-inner';
       suite.appendChild(inner);
     }
 
-    ensureCloseButton(suite);
-
-    let title = q('.v18-suite-title', inner);
-    if(!title){
-      title = document.createElement('div');
-      title.className = 'v18-suite-title';
-      inner.appendChild(title);
+    const hasPills = inner.querySelectorAll('.v18-pill').length > 0;
+    if(!hasPills){
+      inner.innerHTML = '<div class="v18-suite-title">Suite Pro</div><div class="v18-suite-buttons"><button id="v18_library" type="button" class="v18-pill"></button><button id="v18_templates" type="button" class="v18-pill"></button><button id="v18_transpose" type="button" class="v18-pill"></button><button id="v18_scales" type="button" class="v18-pill"></button><button id="v18_chordAI" type="button" class="v18-pill"></button><button id="v18_drums" type="button" class="v18-pill"></button><button id="v18_mixer" type="button" class="v18-pill"></button><button id="v18_record" type="button" class="v18-pill"></button><button id="v18_midiIn" type="button" class="v18-pill"></button><button id="v18_pdf" type="button" class="v18-pill"></button><button id="v18_lead" type="button" class="v18-pill"></button><button id="v18_practice" type="button" class="v18-pill"></button><button id="v18_share" type="button" class="v18-pill"></button><button id="v18_inspire" type="button" class="v18-pill"></button><button id="v18_theory" type="button" class="v18-pill"></button></div><div class="v18-detect"><span id="v18DetectOut"></span><button id="v18ApplyDetected" class="v18-mini" type="button"></button><button id="v18DrumBtn" class="v18-mini" type="button"></button></div>';
     }
-    title.textContent = 'Suite Pro';
 
-    let wrap = q('.v18-suite-buttons', inner);
-    if(!wrap){
-      wrap = document.createElement('div');
-      wrap.className = 'v18-suite-buttons';
-      inner.appendChild(wrap);
-    }
-    BUTTONS.forEach(([labelKey,id]) => {
-      let b = $(id);
-      if(!b){
-        b = document.createElement('button');
-        b.id = id;
-        b.type = 'button';
-        b.className = 'v18-pill';
-        if(wrap) wrap.appendChild(b);
-      }
-      b.textContent = T(labelKey);
+    const title = q('.v18-suite-title', inner);
+    if(title) title.textContent = 'Suite Pro';
+
+    BUTTONS.forEach(([labelKey,id])=>{
+      const b=$(id);
+      if(b) b.textContent=T(labelKey);
     });
 
-    let detect = q('.v18-detect', inner);
-    if(!detect){
-      detect = document.createElement('div');
-      detect.className = 'v18-detect';
-      inner.appendChild(detect);
-    }
-
-    let out = $('v18DetectOut');
-    if(!out){
-      out = document.createElement('span');
-      out.id = 'v18DetectOut';
-      detect.appendChild(out);
-    }
-    out.textContent = T('noChord');
-
-    let apply = $('v18ApplyDetected');
-    if(!apply){
-      apply = document.createElement('button');
-      apply.id = 'v18ApplyDetected';
-      apply.className = 'v18-mini';
-      apply.type = 'button';
-      detect.appendChild(apply);
-    }
-    apply.textContent = T('applyDetected');
-
-    let drum = $('v18DrumBtn');
-    if(!drum){
-      drum = document.createElement('button');
-      drum.id = 'v18DrumBtn';
-      drum.className = 'v18-mini';
-      drum.type = 'button';
-      detect.appendChild(drum);
-    }
-    drum.textContent = T('drumsOff');
+    const out=$('v18DetectOut'); if(out) out.textContent=T('noChord');
+    const apply=$('v18ApplyDetected'); if(apply) apply.textContent=T('applyDetected');
+    const drum=$('v18DrumBtn'); if(drum) drum.textContent=T('drumsOff');
 
     return suite;
   }
 
-
-  function open(){ ensurePanel().classList.add('v19-open'); }
+  function open(){ const p=ensurePanel(); if(p) p.classList.add('v19-open'); }
   function close(){ const p=$('v18Suite'); if(p) p.classList.remove('v19-open'); }
-  function toggle(){ const p=ensurePanel(); p.classList.toggle('v19-open'); }
+  function toggle(){ const p=ensurePanel(); if(p) p.classList.toggle('v19-open'); }
 
   window.Studio936SuitePro = { open, close, toggle, ensurePanel };
 })();
