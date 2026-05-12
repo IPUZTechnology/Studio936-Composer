@@ -79,8 +79,53 @@
     return suite;
   }
 
+  function runSuiteAction(name, candidates){
+    for(const candidate of candidates){
+      const fn = window[candidate];
+      if(typeof fn === 'function'){
+        try {
+          fn();
+          return;
+        } catch(err){
+          console.error('[Suite Pro] Error en módulo ' + name + ':', err);
+          return;
+        }
+      }
+    }
+
+    console.warn('Módulo pendiente: ' + name);
+  }
+
+  function bindSuiteProHandlers(){
+    const actions = {
+      v18_library: ['openLibrary','showLibrary','libraryOpen'],
+      v18_templates: ['openTemplates','showTemplates','templatesOpen'],
+      v18_transpose: ['openTranspose','showTranspose','transposeOpen'],
+      v18_scales: ['openScales','showScales','scalesOpen'],
+      v18_chordAI: ['openChordAI','showChordAI','chordAIOpen'],
+      v18_drums: ['openDrums','showDrums','drumsOpen'],
+      v18_mixer: ['openMixer','showMixer','mixerOpen'],
+      v18_record: ['openRecord','showRecord','recordOpen'],
+      v18_midiIn: ['openMidiIn','showMidiIn','midiInOpen'],
+      v18_pdf: ['openPdf','showPdf','pdfOpen'],
+      v18_lead: ['openLead','showLead','leadOpen'],
+      v18_practice: ['openPractice','showPractice','practiceOpen'],
+      v18_share: ['openShare','showShare','shareOpen'],
+      v18_inspire: ['openInspire','showInspire','inspireOpen'],
+      v18_theory: ['openTheory','showTheory','theoryOpen']
+    };
+
+    Object.keys(actions).forEach((id) => {
+      const button = document.getElementById(id);
+      if(!button) return;
+      const name = button.textContent || id;
+      button.onclick = () => runSuiteAction(name, actions[id]);
+    });
+  }
+
   function open(){
     const suite = ensurePanel();
+    bindSuiteProHandlers();
     suite.classList.add('v19-open');
     return suite;
   }
