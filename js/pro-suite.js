@@ -22,6 +22,120 @@
     ['theory','v18_theory','Theory']
   ];
 
+  const LIB_KEY = 'studio936ComposerLibraryV18';
+
+  function $(id){ return document.getElementById(id); }
+  function q(sel,root=document){ return root.querySelector(sel); }
+  function qa(sel,root=document){ return Array.from(root.querySelectorAll(sel)); }
+  function esc(s){
+    return String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function T(k){
+    const map = {
+      save: 'Guardar',
+      newSong: 'Nueva canción',
+      open: 'Abrir',
+      duplicate: 'Duplicar',
+      delete: 'Borrar',
+      library: 'Biblioteca',
+      templates: 'Plantillas',
+      libraryEmpty: 'No hay canciones guardadas todavía.',
+      practice: 'Modo Práctica'
+    };
+    return map[k] || k;
+  }
+
+  function openModal(name,title,body){
+    let m = $('v18Modal');
+    if(!m){
+      m = document.createElement('div');
+      m.id = 'v18Modal';
+      m.className = 'v18-modal';
+      m.innerHTML = '<div class="v18-modal-card"><button class="v18-x" id="v18Close">×</button><h2 id="v18ModalTitle"></h2><div id="v18ModalBody"></div></div>';
+      document.body.appendChild(m);
+      $('v18Close').onclick = closeModal;
+      m.addEventListener('click', (e) => { if(e.target === m) closeModal(); });
+    }
+    $('v18ModalTitle').textContent = title;
+    $('v18ModalBody').innerHTML = body;
+    m.style.display = 'flex';
+  }
+
+  function closeModal(){
+    const m = $('v18Modal');
+    if(m) m.style.display = 'none';
+  }
+
+  function showMissingLegacyHelper(helperName, featureName){
+    openModal(featureName, featureName, `<p>Helper legacy faltante: <b>${esc(helperName)}</b>.</p><p>Módulo pendiente hasta portar ese helper real.</p>`);
+  }
+
+  function showTemplates(){
+    const styles=['funk','rock','balada','bossa','jazz','blues','bolero','salsa','cumbia','reggae'];
+    const canBuild = typeof window.makeTemplate === 'function';
+    const cardHtml = styles.map((s)=>{
+      const bpm = canBuild ? (window.makeTemplate(s)?.bpm ?? '---') : '---';
+      return `<button class="v18-card" data-template="${s}"><b>${s.toUpperCase()}</b><small>${bpm} BPM</small></button>`;
+    }).join('');
+    openModal('templates', T('templates'), `<p>Elige una plantilla para cargar estructura, acordes, tempo y estilo.</p><div class="v18-card-grid">${cardHtml}</div>`);
+    qa('[data-template]').forEach((b)=>b.onclick=()=>{
+      if(typeof window.makeTemplate !== 'function') return showMissingLegacyHelper('makeTemplate', 'Templates');
+      if(typeof window.setProject !== 'function') return showMissingLegacyHelper('setProject', 'Templates');
+      window.setProject(window.makeTemplate(b.dataset.template));
+    });
+  }
+
+  function showLibrary(){ renderLibraryModal(); }
+  function library(){ try{return JSON.parse(localStorage.getItem(LIB_KEY)||'[]');}catch(e){return [];} }
+  function saveLibrary(list){ localStorage.setItem(LIB_KEY, JSON.stringify(list)); }
+  function renderLibraryModal(){
+    const list = library();
+    const body = `<div class="v18-actions"><button class="v18-btn" id="v18SaveLib">${T('save')} actual</button><button class="v18-btn" id="v18NewBlank">${T('newSong')}</button></div>${list.length?`<div class="v18-list">${list.map(x=>`<div class="v18-list-row"><div><b>${esc(x.title)}</b><small>${esc(x.author||'')} · ${new Date(x.updated).toLocaleString()}</small></div><div><button class="v18-mini" data-open="${x.id}">${T('open')}</button><button class="v18-mini" data-dup="${x.id}">${T('duplicate')}</button><button class="v18-mini danger" data-del="${x.id}">${T('delete')}</button></div></div>`).join('')}</div>`:`<p>${T('libraryEmpty')}</p>`}`;
+    openModal('library', T('library'), body);
+    $('v18SaveLib').onclick = ()=>{
+      if(typeof window.getProject !== 'function') return showMissingLegacyHelper('getProject', 'Library');
+      const p = window.getProject();
+      const l = library();
+      l.unshift({id:Date.now().toString(36),title:p.title,author:p.author,updated:Date.now(),project:p});
+      saveLibrary(l.slice(0,60));
+      renderLibraryModal();
+    };
+    $('v18NewBlank').onclick = ()=>showMissingLegacyHelper('baseProject + setProject', 'Library');
+    qa('[data-open]').forEach((b)=>b.onclick=()=>{
+      if(typeof window.setProject !== 'function') return showMissingLegacyHelper('setProject', 'Library');
+      const it = library().find(x=>x.id===b.dataset.open);
+      if(it) window.setProject(it.project);
+    });
+    qa('[data-dup]').forEach((b)=>b.onclick=()=>{
+      const l = library();
+      const it = l.find(x=>x.id===b.dataset.dup);
+      if(it){
+        const cp = JSON.parse(JSON.stringify(it));
+        cp.id = Date.now().toString(36);
+        cp.title = cp.title + ' copia';
+        cp.updated = Date.now();
+        l.unshift(cp);
+        saveLibrary(l);
+        renderLibraryModal();
+      }
+    });
+    qa('[data-del]').forEach((b)=>b.onclick=()=>{ saveLibrary(library().filter(x=>x.id!==b.dataset.del)); renderLibraryModal(); });
+  }
+
+  function showPractice(){
+    const body=`<div id="v18Practice" class="v18-practice"><div class="big-section">${esc($('currentPartTag')?.textContent||$('sectionLabel')?.textContent||'')}</div><div class="big-chord">${esc($('chordLabel')?.textContent||'')}</div><div class="big-next">${esc($('measureLabel')?.textContent||'')}</div><div class="v18-actions"><button class="v18-btn primary" onclick="document.getElementById('playSongBtn')?.click()">${$('playSongBtn')?.textContent||'Play Song'}</button><button class="v18-btn" onclick="document.getElementById('playBtn')?.click()">${$('playBtn')?.textContent||'Start'}</button></div></div>`;
+    openModal('practice', T('practice'), body);
+    const obs = new MutationObserver(()=>{
+      const box = $('v18Practice');
+      if(box){
+        q('.big-section',box).textContent = $('currentPartTag')?.textContent||$('sectionLabel')?.textContent||'';
+        q('.big-chord',box).textContent = $('chordLabel')?.textContent||'';
+        q('.big-next',box).textContent = $('measureLabel')?.textContent||'';
+      }
+    });
+    ['currentPartTag','sectionLabel','chordLabel','measureLabel'].forEach((id)=>{ const e=$(id); if(e) obs.observe(e,{childList:true,characterData:true,subtree:true}); });
+  }
+
   function ensurePanel(){
     let suite = document.getElementById('v18Suite');
     if(!suite){
@@ -120,7 +234,10 @@
       const button = document.getElementById(id);
       if(!button) return;
       const name = button.textContent || id;
-      button.onclick = () => runSuiteAction(name, actions[id]);
+      if(id === 'v18_library') button.onclick = showLibrary;
+      else if(id === 'v18_templates') button.onclick = showTemplates;
+      else if(id === 'v18_practice') button.onclick = showPractice;
+      else button.onclick = () => runSuiteAction(name, actions[id]);
     });
   }
 
