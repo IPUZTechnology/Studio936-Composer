@@ -94,6 +94,7 @@
     }
 
     console.warn('Módulo pendiente: ' + name);
+    alert('Módulo pendiente: ' + name);
   }
 
   function bindSuiteProHandlers(){
