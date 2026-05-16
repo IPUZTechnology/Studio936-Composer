@@ -247,9 +247,15 @@
     });
   }
 
+
+  function ensureTheoryHandler(){
+    const theoryButton = document.getElementById('v18_theory');
+    if(theoryButton) theoryButton.onclick = showTheory;
+  }
   function open(){
     const suite = ensurePanel();
     bindSuiteProHandlers();
+    ensureTheoryHandler();
     suite.classList.add('v19-open');
     return suite;
   }
@@ -261,6 +267,7 @@
 
   function toggle(){
     const suite = ensurePanel();
+    ensureTheoryHandler();
     suite.classList.toggle('v19-open');
     return suite;
   }
