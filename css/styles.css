@@ -1440,3 +1440,35 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
   opacity:1 !important;
   visibility:visible !important;
 }
+
+
+/* Suite Pro close button fallback style (applies even when legacy class variants exist). */
+#v18Suite #b25SuiteClose{
+  position:absolute !important;
+  top:18px !important;
+  right:16px !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  width:auto !important;
+  min-width:68px !important;
+  height:30px !important;
+  min-height:30px !important;
+  margin:0 !important;
+  padding:6px 11px !important;
+  border:1px solid rgba(255,216,77,.5) !important;
+  border-radius:999px !important;
+  background:#1a1605 !important;
+  color:var(--solo) !important;
+  font-size:.54rem !important;
+  font-weight:950 !important;
+  line-height:1 !important;
+  cursor:pointer;
+  writing-mode:horizontal-tb !important;
+  text-orientation:mixed !important;
+  white-space:nowrap !important;
+}
+#v18Suite #b25SuiteClose:hover{
+  border-color:var(--solo) !important;
+  background:rgba(255,216,77,.14) !important;
+}
