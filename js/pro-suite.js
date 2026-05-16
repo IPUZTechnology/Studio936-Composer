@@ -141,6 +141,10 @@
     alert('Studio 936 Theory module: basic theory view is connected.');
   }
 
+  function showScales(){
+    alert('Studio 936 Scales module: basic scales view is connected.');
+  }
+
   function ensurePanel(){
     let suite = document.getElementById('v18Suite');
     if(!suite){
@@ -242,6 +246,7 @@
       if(id === 'v18_library') button.onclick = showLibrary;
       else if(id === 'v18_templates') button.onclick = showTemplates;
       else if(id === 'v18_practice') button.onclick = showPractice;
+      else if(id === 'v18_scales') button.onclick = showScales;
       else if(id === 'v18_theory') button.onclick = showTheory;
       else button.onclick = () => runSuiteAction(name, actions[id]);
     });
@@ -252,10 +257,15 @@
     const theoryButton = document.getElementById('v18_theory');
     if(theoryButton) theoryButton.onclick = showTheory;
   }
+  function ensureScalesHandler(){
+    const scalesButton = document.getElementById('v18_scales');
+    if(scalesButton) scalesButton.onclick = showScales;
+  }
   function open(){
     const suite = ensurePanel();
     bindSuiteProHandlers();
     ensureTheoryHandler();
+    ensureScalesHandler();
     suite.classList.add('v19-open');
     return suite;
   }
@@ -268,6 +278,7 @@
   function toggle(){
     const suite = ensurePanel();
     ensureTheoryHandler();
+    ensureScalesHandler();
     suite.classList.toggle('v19-open');
     return suite;
   }
