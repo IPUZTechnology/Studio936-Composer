@@ -1497,3 +1497,18 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
   font-size:.9rem;
   line-height:1.55
 }
+
+/* Suite Pro clean module scoped layout */
+#v18Suite .v18-suite-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+#v18Suite .v18-suite-title{
+  margin:0;
+  font-size:.9rem;
+  font-weight:900;
+  letter-spacing:.7px;
+  text-transform:uppercase;
+}
