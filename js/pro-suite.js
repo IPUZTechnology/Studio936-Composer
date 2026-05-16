@@ -171,25 +171,25 @@
         grid.appendChild(button);
       }
       button.onclick = () => {
-        const content = ensureContent();
+        const content = ensureContent(panel);
         if(tool.key === 'theory') return renderTheory(content);
         if(tool.key === 'scales') return renderScales(content);
         renderComingSoon(content, tool.label);
       };
     });
 
-    ensureContent();
+    ensureContent(panel);
     return panel;
   }
 
-  function ensureContent(){
-    const panel = ensurePanel();
-    let content = panel.querySelector('#v18SuiteContent');
+  function ensureContent(panel){
+    const targetPanel = panel || document.getElementById('v18Suite') || ensurePanel();
+    let content = targetPanel.querySelector('#v18SuiteContent');
     if(!content){
       content = document.createElement('div');
       content.id = 'v18SuiteContent';
       content.className = 'v18-suite-content';
-      panel.appendChild(content);
+      targetPanel.appendChild(content);
     }
     return content;
   }
