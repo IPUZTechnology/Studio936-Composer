@@ -137,6 +137,55 @@
   }
 
 
+
+  function showLibraryReady(){
+    alert('Studio 936 Library module: connection ready.');
+  }
+
+  function showTemplatesReady(){
+    alert('Studio 936 Templates module: connection ready.');
+  }
+
+  function showTransposeReady(){
+    alert('Studio 936 Transpose module: connection ready.');
+  }
+
+  function showChordAIReady(){
+    alert('Studio 936 Chord AI module: connection ready.');
+  }
+
+  function showDrumsReady(){
+    alert('Studio 936 Drums module: connection ready.');
+  }
+
+  function showMixerReady(){
+    alert('Studio 936 Mixer module: connection ready.');
+  }
+
+  function showRecordReady(){
+    alert('Studio 936 REC Idea module: connection ready.');
+  }
+
+  function showMidiInReady(){
+    alert('Studio 936 MIDI IN module: connection ready.');
+  }
+
+  function showPdfReady(){
+    alert('Studio 936 PDF module: connection ready.');
+  }
+
+  function showLeadSheetReady(){
+    alert('Studio 936 Lead Sheet module: connection ready.');
+  }
+
+  function showPracticeReady(){
+    alert('Studio 936 Practice module: connection ready.');
+  }
+
+  function showShareReady(){
+    alert('Studio 936 Share module: connection ready.');
+  }
+
   function showTheory(){
     alert('Studio 936 Theory module: basic theory view is connected.');
   }
@@ -247,9 +296,18 @@
       const button = document.getElementById(id);
       if(!button) return;
       const name = button.textContent || id;
-      if(id === 'v18_library') button.onclick = showLibrary;
-      else if(id === 'v18_templates') button.onclick = showTemplates;
-      else if(id === 'v18_practice') button.onclick = showPractice;
+      if(id === 'v18_library') button.onclick = showLibraryReady;
+      else if(id === 'v18_templates') button.onclick = showTemplatesReady;
+      else if(id === 'v18_transpose') button.onclick = showTransposeReady;
+      else if(id === 'v18_chordAI') button.onclick = showChordAIReady;
+      else if(id === 'v18_drums') button.onclick = showDrumsReady;
+      else if(id === 'v18_mixer') button.onclick = showMixerReady;
+      else if(id === 'v18_record') button.onclick = showRecordReady;
+      else if(id === 'v18_midiIn') button.onclick = showMidiInReady;
+      else if(id === 'v18_pdf') button.onclick = showPdfReady;
+      else if(id === 'v18_lead') button.onclick = showLeadSheetReady;
+      else if(id === 'v18_practice') button.onclick = showPracticeReady;
+      else if(id === 'v18_share') button.onclick = showShareReady;
       else if(id === 'v18_scales') button.onclick = showScales;
       else if(id === 'v18_inspire') button.onclick = showInspire;
       else if(id === 'v18_theory') button.onclick = showTheory;
