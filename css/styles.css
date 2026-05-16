@@ -1497,3 +1497,86 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
   font-size:.9rem;
   line-height:1.55
 }
+
+/* Suite Pro module */
+#v18Suite.v18-suite-panel {
+  position: fixed;
+  right: 20px;
+  top: 84px;
+  width: min(560px, calc(100vw - 40px));
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  background: #121212;
+  border: 1px solid #2f2f2f;
+  border-radius: 14px;
+  padding: 14px;
+  z-index: 1200;
+  display: none;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+
+#v18Suite.v18-suite-panel.is-open {
+  display: block;
+}
+
+#v18Suite .v18-suite-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+#v18Suite .v18-suite-title {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #f5f5f5;
+}
+
+#v18Suite .v18-suite-close {
+  border: 1px solid #7a7a7a;
+  background: #1e1e1e;
+  color: #f5f5f5;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#v18Suite .v18-suite-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+#v18Suite .v18-suite-tool {
+  border: 1px solid #333;
+  background: #1a1a1a;
+  color: #f1f1f1;
+  border-radius: 8px;
+  min-height: 40px;
+  padding: 8px;
+  text-align: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#v18Suite #v18SuiteContent.v18-suite-content {
+  border: 1px solid #2f2f2f;
+  border-radius: 10px;
+  background: #181818;
+  padding: 12px;
+  color: #efefef;
+  min-height: 140px;
+}
+
+#v18Suite .v18-suite-content-title {
+  margin: 0 0 8px 0;
+  font-size: 1rem;
+}
+
+#v18Suite .v18-suite-muted {
+  color: #9d9d9d;
+  font-size: 0.88rem;
+}
