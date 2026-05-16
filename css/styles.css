@@ -1357,6 +1357,16 @@ body.v25ux-clean #v18Suite .v18-suite-title{
 }
 body.v25ux-clean #v18Suite .v25ux-suite-close{
   top:16px !important;
+  writing-mode:horizontal-tb !important;
+  text-orientation:mixed !important;
+  white-space:nowrap !important;
+  color:#f7f7f7 !important;
+  background:linear-gradient(180deg,#2a2a2a,#171717) !important;
+  border:1px solid rgba(255,255,255,.26) !important;
+}
+body.v25ux-clean #v18Suite .v25ux-suite-close:hover{
+  color:#ffffff !important;
+  background:linear-gradient(180deg,#343434,#1d1d1d) !important;
 }
 
 /* 3) El selector de orden se entiende mejor y no queda como una flecha vacía. */
