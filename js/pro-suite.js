@@ -211,6 +211,30 @@
     alert('Módulo pendiente: ' + name);
   }
 
+
+
+  function getTheoryKey(){
+    const sec = $('sectionSelect')?.value;
+    const project = (typeof window.getProject === 'function') ? window.getProject() : null;
+    const raw = project?.sectionSolos?.[sec]?.key || project?.soloKey || $('chordName')?.value || 'C';
+    const m = String(raw).match(/([A-G](?:#|b)?)/i);
+    return (m && m[1]) ? m[1] : 'C';
+  }
+
+  function showTheoryLite(){
+    const key = getTheoryKey();
+    const mt = window.Studio936MusicTheory;
+    const major = (mt && typeof mt.scaleNotes === 'function') ? mt.scaleNotes(key, 'major') : ['C','D','E','F','G','A','B'];
+    const minorPent = (mt && typeof mt.scaleNotes === 'function') ? mt.scaleNotes(key, 'minorPent') : ['A','C','D','E','G'];
+    const body = `
+      <p><b>Key / Tonalidad:</b> ${esc(key)}</p>
+      <p><b>Major scale / Escala mayor:</b> ${major.join(' · ')}</p>
+      <p><b>Minor pentatonic / Pentatónica menor:</b> ${minorPent.join(' · ')}</p>
+      <p class="v18-muted">Tip: start phrases on 1, 3 or 5 and resolve on strong beats.</p>
+    `;
+    openModal('theory', 'Theory / Teoría', body);
+  }
+
   function bindSuiteProHandlers(){
     const actions = {
       v18_library: ['openLibrary','showLibrary','libraryOpen'],
@@ -237,6 +261,7 @@
       if(id === 'v18_library') button.onclick = showLibrary;
       else if(id === 'v18_templates') button.onclick = showTemplates;
       else if(id === 'v18_practice') button.onclick = showPractice;
+      else if(id === 'v18_theory') button.onclick = showTheoryLite;
       else button.onclick = () => runSuiteAction(name, actions[id]);
     });
   }

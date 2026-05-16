@@ -85,3 +85,7 @@ Without refactoring `app.js` or rewriting Suite Pro, the smallest stable path is
 4. Bind once after mount and after language rebuild, from one owner only.
 
 This approach can be executed one button per PR, matching the table above.
+
+## Implementation note (2026-05-16)
+
+- Theory (`#v18_theory`) is now the first implemented Suite Pro action in the module path (`js/pro-suite.js`) with a minimal in-app modal that uses current song key when available and a safe default when not.
