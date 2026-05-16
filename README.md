@@ -1,7 +1,3 @@
-from pathlib import Path
-
-readme = """# Studio 936 Composer
-
 **Studio 936 Composer** es una aplicación web musical para componer, estructurar, editar, escuchar y exportar canciones desde el navegador.
 
 La visión del proyecto es convertirse en una herramienta modular para el Estudio 936: un asistente de composición capaz de manejar estructura de canción, progresiones de acordes, letras, melodías, playback, exportaciones y una Suite Pro de herramientas avanzadas.
