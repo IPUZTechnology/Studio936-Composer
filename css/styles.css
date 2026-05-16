@@ -1475,6 +1475,25 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
   background:rgba(255,216,77,.14) !important;
 }
 
-#v18Suite .v18-suite-content{margin-top:10px;padding:10px 12px;border:1px solid #2f2f2f;border-radius:10px;background:#0f0f0f;color:#d8d8d8}
-#v18Suite .v18-suite-content-title{margin:0 0 8px;color:var(--accent);font-size:.86rem;letter-spacing:.4px;text-transform:uppercase}
-#v18Suite .v18-suite-content p{margin:6px 0;font-size:.78rem;line-height:1.4}
+#v18Suite .v18-suite-content{
+  margin-top:14px;
+  padding:14px 15px;
+  border:1px solid #2f2f2f;
+  border-radius:12px;
+  background:#0f0f0f;
+  color:#e3e3e3;
+  width:100%;
+  max-width:100%;
+}
+#v18Suite .v18-suite-content-title{
+  margin:0 0 10px;
+  color:var(--accent);
+  font-size:1rem;
+  letter-spacing:.5px;
+  text-transform:uppercase
+}
+#v18Suite .v18-suite-content p{
+  margin:8px 0;
+  font-size:.9rem;
+  line-height:1.55
+}
