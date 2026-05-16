@@ -286,10 +286,11 @@
       close.className = 'b25SuiteClose v25ux-suite-close';
       close.type = 'button';
       close.title = 'Close panel';
-      close.textContent = '×';
+      close.textContent = 'CERRAR';
       suite.insertBefore(close, suite.firstChild);
     }
     close.classList.add('b25SuiteClose','v25ux-suite-close');
+    close.textContent = 'CERRAR';
     close.onclick = () => suite.classList.remove('v19-open');
 
     let inner = suite.querySelector('.v18-suite-inner');
