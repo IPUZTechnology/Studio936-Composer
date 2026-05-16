@@ -57,7 +57,12 @@
       m.addEventListener('click', (e) => { if(e.target === m) closeModal(); });
     }
     $('v18ModalTitle').textContent = title;
-    $('v18ModalBody').innerHTML = body;
+    const modalBody = $('v18ModalBody');
+    if(body instanceof Node){
+      modalBody.replaceChildren(body);
+    } else {
+      modalBody.innerHTML = body;
+    }
     m.style.display = 'flex';
   }
 
@@ -120,6 +125,55 @@
       }
     });
     qa('[data-del]').forEach((b)=>b.onclick=()=>{ saveLibrary(library().filter(x=>x.id!==b.dataset.del)); renderLibraryModal(); });
+  }
+
+  function detectCurrentKey(){
+    const soloKeyEl = $('soloKey');
+    if(soloKeyEl && typeof soloKeyEl.value === 'string' && soloKeyEl.value.trim()) return soloKeyEl.value.trim();
+
+    if(typeof window.getProject === 'function'){
+      try {
+        const project = window.getProject();
+        if(project && typeof project.key === 'string' && project.key.trim()) return project.key.trim();
+      } catch(_err){
+        // Safe fallback handled below.
+      }
+    }
+
+    return null;
+  }
+
+  function showTheory(){
+    const panel = document.createElement('div');
+
+    const title = document.createElement('p');
+    title.textContent = 'Theory';
+    panel.appendChild(title);
+
+    const key = detectCurrentKey();
+    const keyLine = document.createElement('p');
+    if(key){
+      keyLine.textContent = 'Current key: ' + key;
+    } else {
+      keyLine.textContent = 'Current key is not available.';
+    }
+    panel.appendChild(keyLine);
+
+    const theory = window.Studio936MusicTheory;
+    const scaleLine = document.createElement('p');
+    if(key && theory && typeof theory.scaleNotes === 'function'){
+      const notes = theory.scaleNotes(key, 'major');
+      if(Array.isArray(notes) && notes.length){
+        scaleLine.textContent = 'Major scale: ' + notes.join(' - ');
+      } else {
+        scaleLine.textContent = 'Major scale is not available for this key.';
+      }
+    } else {
+      scaleLine.textContent = 'Major scale data is not available.';
+    }
+    panel.appendChild(scaleLine);
+
+    openModal('theory', 'Theory', panel);
   }
 
   function showPractice(){
@@ -237,6 +291,7 @@
       if(id === 'v18_library') button.onclick = showLibrary;
       else if(id === 'v18_templates') button.onclick = showTemplates;
       else if(id === 'v18_practice') button.onclick = showPractice;
+      else if(id === 'v18_theory') button.onclick = showTheory;
       else button.onclick = () => runSuiteAction(name, actions[id]);
     });
   }
