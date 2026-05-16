@@ -1,484 +1,302 @@
-// Studio 936 Composer - Suite Pro UI restoration
-// UI only. No MIDI / transport / arrangement / playback / editor.
-
-(function(){
+(function () {
   'use strict';
 
-  const BUTTONS = [
-    ['library','v18_library','Library'],
-    ['templates','v18_templates','Templates'],
-    ['transpose','v18_transpose','Transpose'],
-    ['scales','v18_scales','Scales'],
-    ['chordAI','v18_chordAI','Chord AI'],
-    ['drums','v18_drums','Drums'],
-    ['mixer','v18_mixer','Mixer'],
-    ['record','v18_record','Record'],
-    ['midiIn','v18_midiIn','MIDI In'],
-    ['pdf','v18_pdf','PDF'],
-    ['lead','v18_lead','Lead Sheet'],
-    ['practice','v18_practice','Practice'],
-    ['share','v18_share','Share'],
-    ['inspire','v18_inspire','Inspire'],
-    ['theory','v18_theory','Theory']
+  var TOOL_DEFINITIONS = [
+    { id: 'library', label: 'Library' },
+    { id: 'templates', label: 'Templates' },
+    { id: 'transpose', label: 'Transpose' },
+    { id: 'scales', label: 'Scales' },
+    { id: 'chord-ai', label: 'Chord AI' },
+    { id: 'drums', label: 'Drums' },
+    { id: 'mixer', label: 'Mixer' },
+    { id: 'rec-idea', label: 'REC Idea' },
+    { id: 'midi-in', label: 'MIDI IN' },
+    { id: 'pdf', label: 'PDF' },
+    { id: 'lead-sheet', label: 'Lead Sheet' },
+    { id: 'practice', label: 'Practice' },
+    { id: 'share', label: 'Share' },
+    { id: 'inspire', label: 'Inspire' },
+    { id: 'theory', label: 'Theory' }
   ];
 
-  const LIB_KEY = 'studio936ComposerLibraryV18';
-
-  function $(id){ return document.getElementById(id); }
-  function q(sel,root=document){ return root.querySelector(sel); }
-  function qa(sel,root=document){ return Array.from(root.querySelectorAll(sel)); }
-  function esc(s){
-    return String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
-  function T(k){
-    const map = {
-      save: 'Guardar',
-      newSong: 'Nueva canción',
-      open: 'Abrir',
-      duplicate: 'Duplicar',
-      delete: 'Borrar',
-      library: 'Biblioteca',
-      templates: 'Plantillas',
-      libraryEmpty: 'No hay canciones guardadas todavía.',
-      practice: 'Modo Práctica'
-    };
-    return map[k] || k;
+  function getById(id) {
+    return document.getElementById(id);
   }
 
-  function openModal(name,title,body){
-    let m = $('v18Modal');
-    if(!m){
-      m = document.createElement('div');
-      m.id = 'v18Modal';
-      m.className = 'v18-modal';
-      m.innerHTML = '<div class="v18-modal-card"><button class="v18-x" id="v18Close">×</button><h2 id="v18ModalTitle"></h2><div id="v18ModalBody"></div></div>';
-      document.body.appendChild(m);
-      $('v18Close').onclick = closeModal;
-      m.addEventListener('click', (e) => { if(e.target === m) closeModal(); });
+  function normalizeKey(raw) {
+    var value = String(raw || '').trim();
+    var match = value.match(/^([A-Ga-g])([#b]?)/);
+    if (!match) {
+      return null;
     }
-    $('v18ModalTitle').textContent = title;
-    $('v18ModalBody').innerHTML = body;
-    m.style.display = 'flex';
+    return match[1].toUpperCase() + (match[2] || '');
   }
 
-  function closeModal(){
-    const m = $('v18Modal');
-    if(m) m.style.display = 'none';
-  }
-
-  function showMissingLegacyHelper(helperName, featureName){
-    openModal(featureName, featureName, `<p>Helper legacy faltante: <b>${esc(helperName)}</b>.</p><p>Módulo pendiente hasta portar ese helper real.</p>`);
-  }
-
-  function showTemplates(){
-    const styles=['funk','rock','balada','bossa','jazz','blues','bolero','salsa','cumbia','reggae'];
-    const canBuild = typeof window.makeTemplate === 'function';
-    const cardHtml = styles.map((s)=>{
-      const bpm = canBuild ? (window.makeTemplate(s)?.bpm ?? '---') : '---';
-      return `<button class="v18-card" data-template="${s}"><b>${s.toUpperCase()}</b><small>${bpm} BPM</small></button>`;
-    }).join('');
-    openModal('templates', T('templates'), `<p>Elige una plantilla para cargar estructura, acordes, tempo y estilo.</p><div class="v18-card-grid">${cardHtml}</div>`);
-    qa('[data-template]').forEach((b)=>b.onclick=()=>{
-      if(typeof window.makeTemplate !== 'function') return showMissingLegacyHelper('makeTemplate', 'Templates');
-      if(typeof window.setProject !== 'function') return showMissingLegacyHelper('setProject', 'Templates');
-      window.setProject(window.makeTemplate(b.dataset.template));
-    });
-  }
-
-  function showLibrary(){ renderLibraryModal(); }
-  function library(){ try{return JSON.parse(localStorage.getItem(LIB_KEY)||'[]');}catch(e){return [];} }
-  function saveLibrary(list){ localStorage.setItem(LIB_KEY, JSON.stringify(list)); }
-  function renderLibraryModal(){
-    const list = library();
-    const body = `<div class="v18-actions"><button class="v18-btn" id="v18SaveLib">${T('save')} actual</button><button class="v18-btn" id="v18NewBlank">${T('newSong')}</button></div>${list.length?`<div class="v18-list">${list.map(x=>`<div class="v18-list-row"><div><b>${esc(x.title)}</b><small>${esc(x.author||'')} · ${new Date(x.updated).toLocaleString()}</small></div><div><button class="v18-mini" data-open="${x.id}">${T('open')}</button><button class="v18-mini" data-dup="${x.id}">${T('duplicate')}</button><button class="v18-mini danger" data-del="${x.id}">${T('delete')}</button></div></div>`).join('')}</div>`:`<p>${T('libraryEmpty')}</p>`}`;
-    openModal('library', T('library'), body);
-    $('v18SaveLib').onclick = ()=>{
-      if(typeof window.getProject !== 'function') return showMissingLegacyHelper('getProject', 'Library');
-      const p = window.getProject();
-      const l = library();
-      l.unshift({id:Date.now().toString(36),title:p.title,author:p.author,updated:Date.now(),project:p});
-      saveLibrary(l.slice(0,60));
-      renderLibraryModal();
-    };
-    $('v18NewBlank').onclick = ()=>showMissingLegacyHelper('baseProject + setProject', 'Library');
-    qa('[data-open]').forEach((b)=>b.onclick=()=>{
-      if(typeof window.setProject !== 'function') return showMissingLegacyHelper('setProject', 'Library');
-      const it = library().find(x=>x.id===b.dataset.open);
-      if(it) window.setProject(it.project);
-    });
-    qa('[data-dup]').forEach((b)=>b.onclick=()=>{
-      const l = library();
-      const it = l.find(x=>x.id===b.dataset.dup);
-      if(it){
-        const cp = JSON.parse(JSON.stringify(it));
-        cp.id = Date.now().toString(36);
-        cp.title = cp.title + ' copia';
-        cp.updated = Date.now();
-        l.unshift(cp);
-        saveLibrary(l);
-        renderLibraryModal();
-      }
-    });
-    qa('[data-del]').forEach((b)=>b.onclick=()=>{ saveLibrary(library().filter(x=>x.id!==b.dataset.del)); renderLibraryModal(); });
-  }
-
-  function showPractice(){
-    const body=`<div id="v18Practice" class="v18-practice"><div class="big-section">${esc($('currentPartTag')?.textContent||$('sectionLabel')?.textContent||'')}</div><div class="big-chord">${esc($('chordLabel')?.textContent||'')}</div><div class="big-next">${esc($('measureLabel')?.textContent||'')}</div><div class="v18-actions"><button class="v18-btn primary" onclick="document.getElementById('playSongBtn')?.click()">${$('playSongBtn')?.textContent||'Play Song'}</button><button class="v18-btn" onclick="document.getElementById('playBtn')?.click()">${$('playBtn')?.textContent||'Start'}</button></div></div>`;
-    openModal('practice', T('practice'), body);
-    const obs = new MutationObserver(()=>{
-      const box = $('v18Practice');
-      if(box){
-        q('.big-section',box).textContent = $('currentPartTag')?.textContent||$('sectionLabel')?.textContent||'';
-        q('.big-chord',box).textContent = $('chordLabel')?.textContent||'';
-        q('.big-next',box).textContent = $('measureLabel')?.textContent||'';
-      }
-    });
-    ['currentPartTag','sectionLabel','chordLabel','measureLabel'].forEach((id)=>{ const e=$(id); if(e) obs.observe(e,{childList:true,characterData:true,subtree:true}); });
-  }
-
-
-
-
-  function ensureSuiteContent(){
-    const suite = ensurePanel();
-    const inner = suite.querySelector('.v18-suite-inner');
-    if(!inner) return null;
-    let content = inner.querySelector('#v18SuiteContent');
-    if(!content){
-      content = document.createElement('div');
-      content.id = 'v18SuiteContent';
-      content.className = 'v18-suite-content';
-      inner.appendChild(content);
+  function detectCurrentKey() {
+    var projectKey = null;
+    if (typeof window.getProject === 'function') {
+      var project = window.getProject();
+      projectKey = project && project.soloKey ? project.soloKey : null;
     }
+
+    return normalizeKey(
+      (getById('soloKey') && getById('soloKey').value) ||
+      (getById('chordName') && getById('chordName').value) ||
+      projectKey ||
+      'C'
+    ) || 'C';
+  }
+
+  function fallbackMajorData(key) {
+    var resolvedKey = key || 'C';
+    if (resolvedKey !== 'C') {
+      return {
+        key: resolvedKey,
+        major: ['C', 'D', 'E', 'F', 'G', 'A', 'B'],
+        chords: ['C', 'Dm', 'Em', 'F', 'G', 'Am', 'Bdim'],
+        minorNatural: ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
+        minorPentatonic: ['A', 'C', 'D', 'E', 'G'],
+        fallbackNote: 'Helper unavailable. Showing safe fallback note layout.'
+      };
+    }
+
+    return {
+      key: 'C',
+      major: ['C', 'D', 'E', 'F', 'G', 'A', 'B'],
+      chords: ['C', 'Dm', 'Em', 'F', 'G', 'Am', 'Bdim'],
+      minorNatural: ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
+      minorPentatonic: ['A', 'C', 'D', 'E', 'G'],
+      fallbackNote: 'Using safe fallback in C major / A minor.'
+    };
+  }
+
+  function buildScaleData(key) {
+    var data = fallbackMajorData(key);
+    var theory = window.Studio936MusicTheory;
+    if (!theory || typeof theory.scaleNotes !== 'function') {
+      return data;
+    }
+
+    var major = theory.scaleNotes(key, 'major');
+    if (Array.isArray(major) && major.length >= 7) {
+      data.major = major.slice(0, 7);
+      data.chords = [
+        data.major[0],
+        data.major[1] + 'm',
+        data.major[2] + 'm',
+        data.major[3],
+        data.major[4],
+        data.major[5] + 'm',
+        data.major[6] + 'dim'
+      ];
+      data.fallbackNote = '';
+    }
+
+    var naturalMinor = theory.scaleNotes(key, 'natural_minor') || theory.scaleNotes(key, 'minor');
+    if (Array.isArray(naturalMinor) && naturalMinor.length >= 7) {
+      data.minorNatural = naturalMinor.slice(0, 7);
+    }
+
+    var pentatonic = theory.scaleNotes(key, 'minor_pentatonic');
+    if (Array.isArray(pentatonic) && pentatonic.length >= 5) {
+      data.minorPentatonic = pentatonic.slice(0, 5);
+    }
+
+    return data;
+  }
+
+  function ensureContent(panel) {
+    if (!panel) {
+      return null;
+    }
+
+    var content = panel.querySelector('#v18SuiteContent');
+    if (content) {
+      return content;
+    }
+
+    content = document.createElement('section');
+    content.id = 'v18SuiteContent';
+    content.className = 'v18-suite-content';
+    panel.appendChild(content);
     return content;
   }
 
-  function detectCurrentKey(){
-    const fromChord = document.getElementById('chordName')?.value;
-    const fromSolo = document.getElementById('soloKey')?.value;
-    const fromProject = typeof window.getProject === 'function' ? window.getProject()?.soloKey : null;
-    const key = String(fromChord || fromSolo || fromProject || 'C').trim();
-    const m = key.match(/^([A-Ga-g])([#b]?)/);
-    return m ? (m[1].toUpperCase() + (m[2] || '')) : null;
-  }
-
-  function buildTheoryData(key){
-    const fallback = {
-      key: 'C',
-      notes: ['C','D','E','F','G','A','B'],
-      chords: ['C','Dm','Em','F','G','Am','Bdim'],
-      message: 'Using fallback theory data (C major) because key or theory helpers are unavailable.'
-    };
-    if(!key || !window.Studio936MusicTheory || typeof window.Studio936MusicTheory.scaleNotes !== 'function') return fallback;
-
-    const notes = window.Studio936MusicTheory.scaleNotes(key, 'major');
-    if(!Array.isArray(notes) || notes.length < 7) return fallback;
-
-    const quality = ['','m','m','','','m','dim'];
-    const chords = notes.slice(0,7).map((n,idx)=>n + quality[idx]);
-    return { key, notes: notes.slice(0,7), chords, message: '' };
-  }
-  function showLibraryReady(){
-    alert('Studio 936 Library module: connection ready.');
-  }
-
-  function showTemplatesReady(){
-    alert('Studio 936 Templates module: connection ready.');
-  }
-
-  function showTransposeReady(){
-    alert('Studio 936 Transpose module: connection ready.');
-  }
-
-  function showChordAIReady(){
-    alert('Studio 936 Chord AI module: connection ready.');
-  }
-
-  function showDrumsReady(){
-    alert('Studio 936 Drums module: connection ready.');
-  }
-
-  function showMixerReady(){
-    alert('Studio 936 Mixer module: connection ready.');
-  }
-
-  function showRecordReady(){
-    alert('Studio 936 REC Idea module: connection ready.');
-  }
-
-  function showMidiInReady(){
-    alert('Studio 936 MIDI IN module: connection ready.');
-  }
-
-  function showPdfReady(){
-    alert('Studio 936 PDF module: connection ready.');
-  }
-
-  function showLeadSheetReady(){
-    alert('Studio 936 Lead Sheet module: connection ready.');
-  }
-
-  function showPracticeReady(){
-    alert('Studio 936 Practice module: connection ready.');
-  }
-
-  function showShareReady(){
-    alert('Studio 936 Share module: connection ready.');
-  }
-
-  function showTheory(){
-    const content = ensureSuiteContent();
-    if(!content) return;
-
-    const detectedKey = detectCurrentKey();
-    const theory = buildTheoryData(detectedKey);
-
+  function renderTitle(content, title) {
     content.textContent = '';
+    var heading = document.createElement('h3');
+    heading.className = 'v18-suite-content-title';
+    heading.textContent = title;
+    content.appendChild(heading);
+  }
 
-    const title = document.createElement('h3');
-    title.className = 'v18-suite-content-title';
-    title.textContent = 'Theory / Teoría';
-    content.appendChild(title);
+  function renderToolConnected(content, label) {
+    renderTitle(content, label);
 
-    const keyLine = document.createElement('p');
-    keyLine.textContent = 'Key / Tonalidad: ' + theory.key;
+    var message = document.createElement('p');
+    message.textContent = 'Module connected. Full panel coming soon.';
+    content.appendChild(message);
+  }
+
+  function renderTheory(content) {
+    var key = detectCurrentKey();
+    var data = buildScaleData(key);
+
+    renderTitle(content, 'Theory / Teoría');
+
+    var keyLine = document.createElement('p');
+    keyLine.textContent = 'Current key / Tonalidad actual: ' + (data.key || 'C');
     content.appendChild(keyLine);
 
-    const scaleLine = document.createElement('p');
-    scaleLine.textContent = 'Major scale / Escala mayor: ' + theory.notes.join(' ');
-    content.appendChild(scaleLine);
-
-    const chordLine = document.createElement('p');
-    chordLine.textContent = 'Diatonic chords / Acordes diatónicos: ' + theory.chords.join(', ');
-    content.appendChild(chordLine);
-
-    if(theory.message){
-      const fallback = document.createElement('p');
-      fallback.className = 'v18-muted';
-      fallback.textContent = theory.message;
-      content.appendChild(fallback);
-    }
-  }
-
-  function showScales(){
-    const content = ensureSuiteContent();
-    if(!content) return;
-
-    const detectedKey = detectCurrentKey() || 'C';
-    const theory = window.Studio936MusicTheory;
-    const hasScaleHelper = !!(theory && typeof theory.scaleNotes === 'function');
-
-    const majorNotes = hasScaleHelper ? theory.scaleNotes(detectedKey, 'major') : null;
-    const major = Array.isArray(majorNotes) && majorNotes.length ? majorNotes : ['C','D','E','F','G','A','B'];
-
-    const naturalMinorNotes = hasScaleHelper ? theory.scaleNotes(detectedKey, 'minor') : null;
-    const naturalMinor = Array.isArray(naturalMinorNotes) && naturalMinorNotes.length ? naturalMinorNotes : null;
-
-    const minorPentNotes = hasScaleHelper ? theory.scaleNotes(detectedKey, 'minorPent') : null;
-    const minorPent = Array.isArray(minorPentNotes) && minorPentNotes.length ? minorPentNotes : null;
-
-    content.textContent = '';
-
-    const title = document.createElement('h3');
-    title.className = 'v18-suite-content-title';
-    title.textContent = 'Scales / Escalas';
-    content.appendChild(title);
-
-    const keyLine = document.createElement('p');
-    keyLine.textContent = 'Key / Tonalidad: ' + detectedKey;
-    content.appendChild(keyLine);
-
-    const majorLine = document.createElement('p');
-    majorLine.textContent = 'Major scale / Escala mayor: ' + major.join(' ');
+    var majorLine = document.createElement('p');
+    majorLine.textContent = 'Major scale / Escala mayor: ' + data.major.join(' ');
     content.appendChild(majorLine);
 
-    if(naturalMinor){
-      const minorLine = document.createElement('p');
-      minorLine.textContent = 'Natural minor / Menor natural: ' + naturalMinor.join(' ');
-      content.appendChild(minorLine);
-    }
+    var chordsLine = document.createElement('p');
+    chordsLine.textContent = 'Diatonic chords / Acordes diatónicos: ' + data.chords.join(', ');
+    content.appendChild(chordsLine);
 
-    if(minorPent){
-      const pentLine = document.createElement('p');
-      pentLine.textContent = 'Minor pentatonic / Pentatónica menor: ' + minorPent.join(' ');
-      content.appendChild(pentLine);
-    }
-
-    if(!hasScaleHelper){
-      const fallback = document.createElement('p');
-      fallback.className = 'v18-muted';
-      fallback.textContent = 'Using fallback scale data in C because theory helpers are unavailable.';
+    if (data.fallbackNote) {
+      var fallback = document.createElement('p');
+      fallback.className = 'v18-suite-muted';
+      fallback.textContent = data.fallbackNote;
       content.appendChild(fallback);
     }
   }
 
-  function showInspire(){
-    alert('Studio 936 Inspire module: creative inspiration view is connected.');
+  function renderScales(content) {
+    var key = detectCurrentKey();
+    var data = buildScaleData(key);
+
+    renderTitle(content, 'Scales / Escalas');
+
+    var keyLine = document.createElement('p');
+    keyLine.textContent = 'Current key / Tonalidad actual: ' + (data.key || 'C');
+    content.appendChild(keyLine);
+
+    var majorLine = document.createElement('p');
+    majorLine.textContent = 'Major scale / Escala mayor: ' + data.major.join(' ');
+    content.appendChild(majorLine);
+
+    var minorLine = document.createElement('p');
+    minorLine.textContent = 'Natural minor / Menor natural: ' + data.minorNatural.join(' ');
+    content.appendChild(minorLine);
+
+    var pentLine = document.createElement('p');
+    pentLine.textContent = 'Minor pentatonic / Pentatónica menor: ' + data.minorPentatonic.join(' ');
+    content.appendChild(pentLine);
+
+    if (data.fallbackNote) {
+      var fallback = document.createElement('p');
+      fallback.className = 'v18-suite-muted';
+      fallback.textContent = data.fallbackNote;
+      content.appendChild(fallback);
+    }
   }
 
-  function ensurePanel(){
-    let suite = document.getElementById('v18Suite');
-    if(!suite){
-      suite = document.createElement('div');
-      suite.id = 'v18Suite';
-      document.body.appendChild(suite);
-    }
-    suite.classList.add('v18-suite');
-
-    qa('#v18Suite #v18SuiteClose, #v18Suite #v25uxSuiteClose, #v18Suite .legacy-suite-close').forEach((node)=>node.remove());
-
-    let close = document.getElementById('b25SuiteClose');
-    if(!close || close.parentElement !== suite){
-      close = document.createElement('button');
-      close.id = 'b25SuiteClose';
-      close.className = 'b25SuiteClose v25ux-suite-close';
-      close.type = 'button';
-      close.title = 'Close panel';
-      close.textContent = 'CERRAR';
-      suite.insertBefore(close, suite.firstChild);
-    }
-    close.classList.add('b25SuiteClose','v25ux-suite-close');
-    close.textContent = 'CERRAR';
-    close.onclick = () => suite.classList.remove('v19-open');
-
-    let inner = suite.querySelector('.v18-suite-inner');
-    if(!inner){
-      inner = document.createElement('div');
-      inner.className = 'v18-suite-inner';
-      suite.appendChild(inner);
+  function handleTool(toolId, label) {
+    var panel = ensurePanel();
+    var content = ensureContent(panel);
+    if (!content) {
+      return;
     }
 
-    let title = inner.querySelector('.v18-suite-title');
-    if(!title){
-      title = document.createElement('div');
-      title.className = 'v18-suite-title';
-      title.textContent = 'Suite Pro';
-      inner.appendChild(title);
+    if (toolId === 'theory') {
+      renderTheory(content);
+      return;
     }
 
-    let wrap = inner.querySelector('.v18-suite-buttons');
-    if(!wrap){
-      wrap = document.createElement('div');
-      wrap.className = 'v18-suite-buttons';
-      inner.appendChild(wrap);
+    if (toolId === 'scales') {
+      renderScales(content);
+      return;
     }
 
-    BUTTONS.forEach(([key,id,label]) => {
-      if(wrap.querySelector('#' + CSS.escape(id))) return;
-      const btn = document.createElement('button');
-      btn.id = id;
-      btn.className = 'v18-pill';
-      btn.type = 'button';
-      btn.dataset.v18Tool = key;
-      btn.textContent = label;
-      wrap.appendChild(btn);
+    renderToolConnected(content, label);
+  }
+
+  function buildToolButton(definition) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'v18-suite-tool';
+    button.dataset.tool = definition.id;
+    button.textContent = definition.label;
+    button.addEventListener('click', function () {
+      handleTool(definition.id, definition.label);
     });
-
-    return suite;
+    return button;
   }
 
-  function runSuiteAction(name, candidates){
-    for(const candidate of candidates){
-      const fn = window[candidate];
-      if(typeof fn === 'function'){
-        try {
-          fn();
-          return;
-        } catch(err){
-          console.error('[Suite Pro] Error en módulo ' + name + ':', err);
-          return;
-        }
-      }
+  function ensurePanel() {
+    var existing = getById('v18Suite');
+    if (existing) {
+      ensureContent(existing);
+      return existing;
     }
 
-    console.warn('Módulo pendiente: ' + name);
-    alert('Módulo pendiente: ' + name);
-  }
+    var panel = document.createElement('aside');
+    panel.id = 'v18Suite';
+    panel.className = 'v18-suite-panel';
 
-  function bindSuiteProHandlers(){
-    const actions = {
-      v18_library: ['openLibrary','showLibrary','libraryOpen'],
-      v18_templates: ['openTemplates','showTemplates','templatesOpen'],
-      v18_transpose: ['openTranspose','showTranspose','transposeOpen'],
-      v18_scales: ['openScales','showScales','scalesOpen'],
-      v18_chordAI: ['openChordAI','showChordAI','chordAIOpen'],
-      v18_drums: ['openDrums','showDrums','drumsOpen'],
-      v18_mixer: ['openMixer','showMixer','mixerOpen'],
-      v18_record: ['openRecord','showRecord','recordOpen'],
-      v18_midiIn: ['openMidiIn','showMidiIn','midiInOpen'],
-      v18_pdf: ['openPdf','showPdf','pdfOpen'],
-      v18_lead: ['openLead','showLead','leadOpen'],
-      v18_practice: ['openPractice','showPractice','practiceOpen'],
-      v18_share: ['openShare','showShare','shareOpen'],
-      v18_inspire: ['openInspire','showInspire','inspireOpen'],
-      v18_theory: ['openTheory','showTheory','theoryOpen']
-    };
+    var header = document.createElement('div');
+    header.className = 'v18-suite-header';
 
-    Object.keys(actions).forEach((id) => {
-      const button = document.getElementById(id);
-      if(!button) return;
-      const name = button.textContent || id;
-      if(id === 'v18_library') button.onclick = showLibraryReady;
-      else if(id === 'v18_templates') button.onclick = showTemplatesReady;
-      else if(id === 'v18_transpose') button.onclick = showTransposeReady;
-      else if(id === 'v18_chordAI') button.onclick = showChordAIReady;
-      else if(id === 'v18_drums') button.onclick = showDrumsReady;
-      else if(id === 'v18_mixer') button.onclick = showMixerReady;
-      else if(id === 'v18_record') button.onclick = showRecordReady;
-      else if(id === 'v18_midiIn') button.onclick = showMidiInReady;
-      else if(id === 'v18_pdf') button.onclick = showPdfReady;
-      else if(id === 'v18_lead') button.onclick = showLeadSheetReady;
-      else if(id === 'v18_practice') button.onclick = showPracticeReady;
-      else if(id === 'v18_share') button.onclick = showShareReady;
-      else if(id === 'v18_scales') button.onclick = showScales;
-      else if(id === 'v18_inspire') button.onclick = showInspire;
-      else if(id === 'v18_theory') button.onclick = showTheory;
-      else button.onclick = () => runSuiteAction(name, actions[id]);
+    var title = document.createElement('h2');
+    title.className = 'v18-suite-title';
+    title.textContent = 'Suite Pro';
+    header.appendChild(title);
+
+    var closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'v18-suite-close';
+    closeButton.textContent = 'CERRAR';
+    closeButton.addEventListener('click', function () {
+      close();
     });
+    header.appendChild(closeButton);
+
+    panel.appendChild(header);
+
+    var grid = document.createElement('div');
+    grid.className = 'v18-suite-grid';
+    for (var i = 0; i < TOOL_DEFINITIONS.length; i += 1) {
+      grid.appendChild(buildToolButton(TOOL_DEFINITIONS[i]));
+    }
+    panel.appendChild(grid);
+
+    ensureContent(panel);
+
+    document.body.appendChild(panel);
+    return panel;
   }
 
-
-  function ensureTheoryHandler(){
-    const theoryButton = document.getElementById('v18_theory');
-    if(theoryButton) theoryButton.onclick = showTheory;
-  }
-  function ensureScalesHandler(){
-    const scalesButton = document.getElementById('v18_scales');
-    if(scalesButton) scalesButton.onclick = showScales;
-  }
-  function ensureInspireHandler(){
-    const inspireButton = document.getElementById('v18_inspire');
-    if(inspireButton) inspireButton.onclick = showInspire;
-  }
-  function ensureAllSuiteButtonHandlers(){
-    bindSuiteProHandlers();
-    ensureTheoryHandler();
-    ensureScalesHandler();
-    ensureInspireHandler();
-  }
-  function open(){
-    const suite = ensurePanel();
-    ensureAllSuiteButtonHandlers();
-    suite.classList.add('v19-open');
-    return suite;
+  function open() {
+    var panel = ensurePanel();
+    panel.classList.add('is-open');
+    panel.setAttribute('aria-hidden', 'false');
   }
 
-  function close(){
-    const suite = document.getElementById('v18Suite');
-    if(suite) suite.classList.remove('v19-open');
+  function close() {
+    var panel = getById('v18Suite');
+    if (!panel) {
+      return;
+    }
+    panel.classList.remove('is-open');
+    panel.setAttribute('aria-hidden', 'true');
   }
 
-  function toggle(){
-    const suite = ensurePanel();
-    ensureAllSuiteButtonHandlers();
-    suite.classList.toggle('v19-open');
-    return suite;
+  function toggle() {
+    var panel = ensurePanel();
+    if (panel.classList.contains('is-open')) {
+      close();
+      return;
+    }
+    open();
   }
 
   window.Studio936SuitePro = {
-    open,
-    close,
-    toggle,
-    ensureMounted: ensurePanel
+    open: open,
+    close: close,
+    toggle: toggle,
+    ensurePanel: ensurePanel
   };
 })();
