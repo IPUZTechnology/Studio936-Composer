@@ -207,16 +207,19 @@
     }
     suite.classList.add('v18-suite');
 
+    qa('#v18Suite #v18SuiteClose, #v18Suite #v25uxSuiteClose, #v18Suite .legacy-suite-close').forEach((node)=>node.remove());
+
     let close = document.getElementById('b25SuiteClose');
     if(!close || close.parentElement !== suite){
       close = document.createElement('button');
       close.id = 'b25SuiteClose';
-      close.className = 'b25SuiteClose';
+      close.className = 'b25SuiteClose v25ux-suite-close';
       close.type = 'button';
       close.title = 'Close panel';
       close.textContent = '×';
       suite.insertBefore(close, suite.firstChild);
     }
+    close.classList.add('b25SuiteClose','v25ux-suite-close');
     close.onclick = () => suite.classList.remove('v19-open');
 
     let inner = suite.querySelector('.v18-suite-inner');
