@@ -138,6 +138,46 @@
 
 
 
+
+  function ensureSuiteContent(){
+    const suite = ensurePanel();
+    const inner = suite.querySelector('.v18-suite-inner');
+    if(!inner) return null;
+    let content = inner.querySelector('#v18SuiteContent');
+    if(!content){
+      content = document.createElement('div');
+      content.id = 'v18SuiteContent';
+      content.className = 'v18-suite-content';
+      inner.appendChild(content);
+    }
+    return content;
+  }
+
+  function detectCurrentKey(){
+    const fromChord = document.getElementById('chordName')?.value;
+    const fromSolo = document.getElementById('soloKey')?.value;
+    const fromProject = typeof window.getProject === 'function' ? window.getProject()?.soloKey : null;
+    const key = String(fromChord || fromSolo || fromProject || 'C').trim();
+    const m = key.match(/^([A-Ga-g])([#b]?)/);
+    return m ? (m[1].toUpperCase() + (m[2] || '')) : null;
+  }
+
+  function buildTheoryData(key){
+    const fallback = {
+      key: 'C',
+      notes: ['C','D','E','F','G','A','B'],
+      chords: ['C','Dm','Em','F','G','Am','Bdim'],
+      message: 'Using fallback theory data (C major) because key or theory helpers are unavailable.'
+    };
+    if(!key || !window.Studio936MusicTheory || typeof window.Studio936MusicTheory.scaleNotes !== 'function') return fallback;
+
+    const notes = window.Studio936MusicTheory.scaleNotes(key, 'major');
+    if(!Array.isArray(notes) || notes.length < 7) return fallback;
+
+    const quality = ['','m','m','','','m','dim'];
+    const chords = notes.slice(0,7).map((n,idx)=>n + quality[idx]);
+    return { key, notes: notes.slice(0,7), chords, message: '' };
+  }
   function showLibraryReady(){
     alert('Studio 936 Library module: connection ready.');
   }
@@ -187,7 +227,37 @@
   }
 
   function showTheory(){
-    alert('Studio 936 Theory module: basic theory view is connected.');
+    const content = ensureSuiteContent();
+    if(!content) return;
+
+    const detectedKey = detectCurrentKey();
+    const theory = buildTheoryData(detectedKey);
+
+    content.textContent = '';
+
+    const title = document.createElement('h3');
+    title.className = 'v18-suite-content-title';
+    title.textContent = 'Theory / Teoría';
+    content.appendChild(title);
+
+    const keyLine = document.createElement('p');
+    keyLine.textContent = 'Key / Tonalidad: ' + theory.key;
+    content.appendChild(keyLine);
+
+    const scaleLine = document.createElement('p');
+    scaleLine.textContent = 'Major scale / Escala mayor: ' + theory.notes.join(' ');
+    content.appendChild(scaleLine);
+
+    const chordLine = document.createElement('p');
+    chordLine.textContent = 'Diatonic chords / Acordes diatónicos: ' + theory.chords.join(', ');
+    content.appendChild(chordLine);
+
+    if(theory.message){
+      const fallback = document.createElement('p');
+      fallback.className = 'v18-muted';
+      fallback.textContent = theory.message;
+      content.appendChild(fallback);
+    }
   }
 
   function showScales(){
