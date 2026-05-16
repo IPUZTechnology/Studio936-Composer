@@ -145,6 +145,10 @@
     alert('Studio 936 Scales module: basic scales view is connected.');
   }
 
+  function showInspire(){
+    alert('Studio 936 Inspire module: creative inspiration view is connected.');
+  }
+
   function ensurePanel(){
     let suite = document.getElementById('v18Suite');
     if(!suite){
@@ -247,6 +251,7 @@
       else if(id === 'v18_templates') button.onclick = showTemplates;
       else if(id === 'v18_practice') button.onclick = showPractice;
       else if(id === 'v18_scales') button.onclick = showScales;
+      else if(id === 'v18_inspire') button.onclick = showInspire;
       else if(id === 'v18_theory') button.onclick = showTheory;
       else button.onclick = () => runSuiteAction(name, actions[id]);
     });
@@ -261,11 +266,16 @@
     const scalesButton = document.getElementById('v18_scales');
     if(scalesButton) scalesButton.onclick = showScales;
   }
+  function ensureInspireHandler(){
+    const inspireButton = document.getElementById('v18_inspire');
+    if(inspireButton) inspireButton.onclick = showInspire;
+  }
   function open(){
     const suite = ensurePanel();
     bindSuiteProHandlers();
     ensureTheoryHandler();
     ensureScalesHandler();
+    ensureInspireHandler();
     suite.classList.add('v19-open');
     return suite;
   }
@@ -279,6 +289,7 @@
     const suite = ensurePanel();
     ensureTheoryHandler();
     ensureScalesHandler();
+    ensureInspireHandler();
     suite.classList.toggle('v19-open');
     return suite;
   }
