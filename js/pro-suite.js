@@ -136,6 +136,11 @@
     ['currentPartTag','sectionLabel','chordLabel','measureLabel'].forEach((id)=>{ const e=$(id); if(e) obs.observe(e,{childList:true,characterData:true,subtree:true}); });
   }
 
+
+  function showTheory(){
+    alert('Studio 936 Theory module: basic theory view is connected.');
+  }
+
   function ensurePanel(){
     let suite = document.getElementById('v18Suite');
     if(!suite){
@@ -237,6 +242,7 @@
       if(id === 'v18_library') button.onclick = showLibrary;
       else if(id === 'v18_templates') button.onclick = showTemplates;
       else if(id === 'v18_practice') button.onclick = showPractice;
+      else if(id === 'v18_theory') button.onclick = showTheory;
       else button.onclick = () => runSuiteAction(name, actions[id]);
     });
   }
