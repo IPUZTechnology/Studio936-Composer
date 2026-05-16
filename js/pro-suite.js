@@ -51,7 +51,7 @@
       m = document.createElement('div');
       m.id = 'v18Modal';
       m.className = 'v18-modal';
-      m.innerHTML = '<div class="v18-modal-card"><button class="v18-x" id="v18Close">×</button><h2 id="v18ModalTitle"></h2><div id="v18ModalBody"></div></div>';
+      m.innerHTML = '<div class="v18-modal-card"><button class="v18-x" id="v18Close">x</button><h2 id="v18ModalTitle"></h2><div id="v18ModalBody"></div></div>';
       document.body.appendChild(m);
       $('v18Close').onclick = closeModal;
       m.addEventListener('click', (e) => { if(e.target === m) closeModal(); });
@@ -90,7 +90,7 @@
   function saveLibrary(list){ localStorage.setItem(LIB_KEY, JSON.stringify(list)); }
   function renderLibraryModal(){
     const list = library();
-    const body = `<div class="v18-actions"><button class="v18-btn" id="v18SaveLib">${T('save')} actual</button><button class="v18-btn" id="v18NewBlank">${T('newSong')}</button></div>${list.length?`<div class="v18-list">${list.map(x=>`<div class="v18-list-row"><div><b>${esc(x.title)}</b><small>${esc(x.author||'')} · ${new Date(x.updated).toLocaleString()}</small></div><div><button class="v18-mini" data-open="${x.id}">${T('open')}</button><button class="v18-mini" data-dup="${x.id}">${T('duplicate')}</button><button class="v18-mini danger" data-del="${x.id}">${T('delete')}</button></div></div>`).join('')}</div>`:`<p>${T('libraryEmpty')}</p>`}`;
+    const body = `<div class="v18-actions"><button class="v18-btn" id="v18SaveLib">${T('save')} actual</button><button class="v18-btn" id="v18NewBlank">${T('newSong')}</button></div>${list.length?`<div class="v18-list">${list.map(x=>`<div class="v18-list-row"><div><b>${esc(x.title)}</b><small>${esc(x.author||'')} - ${new Date(x.updated).toLocaleString()}</small></div><div><button class="v18-mini" data-open="${x.id}">${T('open')}</button><button class="v18-mini" data-dup="${x.id}">${T('duplicate')}</button><button class="v18-mini danger" data-del="${x.id}">${T('delete')}</button></div></div>`).join('')}</div>`:`<p>${T('libraryEmpty')}</p>`}`;
     openModal('library', T('library'), body);
     $('v18SaveLib').onclick = ()=>{
       if(typeof window.getProject !== 'function') return showMissingLegacyHelper('getProject', 'Library');
@@ -152,7 +152,7 @@
       close.className = 'b25SuiteClose';
       close.type = 'button';
       close.title = 'Close panel';
-      close.textContent = '×';
+      close.textContent = 'x';
       suite.insertBefore(close, suite.firstChild);
     }
     close.onclick = () => suite.classList.remove('v19-open');
@@ -228,8 +228,8 @@
     const minorPent = (mt && typeof mt.scaleNotes === 'function') ? mt.scaleNotes(key, 'minorPent') : ['A','C','D','E','G'];
     const body = `
       <p><b>Key / Tonalidad:</b> ${esc(key)}</p>
-      <p><b>Major scale / Escala mayor:</b> ${major.join(' · ')}</p>
-      <p><b>Minor pentatonic / Pentatónica menor:</b> ${minorPent.join(' · ')}</p>
+      <p><b>Major scale / Escala mayor:</b> ${major.join(' - ')}</p>
+      <p><b>Minor pentatonic / Pentatónica menor:</b> ${minorPent.join(' - ')}</p>
       <p class="v18-muted">Tip: start phrases on 1, 3 or 5 and resolve on strong beats.</p>
     `;
     openModal('theory', 'Theory / Teoría', body);

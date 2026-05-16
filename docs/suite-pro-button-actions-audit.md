@@ -51,7 +51,7 @@ Because of this split, runtime behavior depends on which implementation owns the
 
 ---
 
-## Recommended implementation order (safest → riskiest)
+## Recommended implementation order (safest -> riskiest)
 
 1. Library
 2. Templates
