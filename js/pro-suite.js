@@ -261,7 +261,55 @@
   }
 
   function showScales(){
-    alert('Studio 936 Scales module: basic scales view is connected.');
+    const content = ensureSuiteContent();
+    if(!content) return;
+
+    const detectedKey = detectCurrentKey() || 'C';
+    const theory = window.Studio936MusicTheory;
+    const hasScaleHelper = !!(theory && typeof theory.scaleNotes === 'function');
+
+    const majorNotes = hasScaleHelper ? theory.scaleNotes(detectedKey, 'major') : null;
+    const major = Array.isArray(majorNotes) && majorNotes.length ? majorNotes : ['C','D','E','F','G','A','B'];
+
+    const naturalMinorNotes = hasScaleHelper ? theory.scaleNotes(detectedKey, 'minor') : null;
+    const naturalMinor = Array.isArray(naturalMinorNotes) && naturalMinorNotes.length ? naturalMinorNotes : null;
+
+    const minorPentNotes = hasScaleHelper ? theory.scaleNotes(detectedKey, 'minorPent') : null;
+    const minorPent = Array.isArray(minorPentNotes) && minorPentNotes.length ? minorPentNotes : null;
+
+    content.textContent = '';
+
+    const title = document.createElement('h3');
+    title.className = 'v18-suite-content-title';
+    title.textContent = 'Scales / Escalas';
+    content.appendChild(title);
+
+    const keyLine = document.createElement('p');
+    keyLine.textContent = 'Key / Tonalidad: ' + detectedKey;
+    content.appendChild(keyLine);
+
+    const majorLine = document.createElement('p');
+    majorLine.textContent = 'Major scale / Escala mayor: ' + major.join(' ');
+    content.appendChild(majorLine);
+
+    if(naturalMinor){
+      const minorLine = document.createElement('p');
+      minorLine.textContent = 'Natural minor / Menor natural: ' + naturalMinor.join(' ');
+      content.appendChild(minorLine);
+    }
+
+    if(minorPent){
+      const pentLine = document.createElement('p');
+      pentLine.textContent = 'Minor pentatonic / Pentatónica menor: ' + minorPent.join(' ');
+      content.appendChild(pentLine);
+    }
+
+    if(!hasScaleHelper){
+      const fallback = document.createElement('p');
+      fallback.className = 'v18-muted';
+      fallback.textContent = 'Using fallback scale data in C because theory helpers are unavailable.';
+      content.appendChild(fallback);
+    }
   }
 
   function showInspire(){
