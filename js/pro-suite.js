@@ -328,12 +328,15 @@
     const inspireButton = document.getElementById('v18_inspire');
     if(inspireButton) inspireButton.onclick = showInspire;
   }
-  function open(){
-    const suite = ensurePanel();
+  function ensureAllSuiteButtonHandlers(){
     bindSuiteProHandlers();
     ensureTheoryHandler();
     ensureScalesHandler();
     ensureInspireHandler();
+  }
+  function open(){
+    const suite = ensurePanel();
+    ensureAllSuiteButtonHandlers();
     suite.classList.add('v19-open');
     return suite;
   }
@@ -345,9 +348,7 @@
 
   function toggle(){
     const suite = ensurePanel();
-    ensureTheoryHandler();
-    ensureScalesHandler();
-    ensureInspireHandler();
+    ensureAllSuiteButtonHandlers();
     suite.classList.toggle('v19-open');
     return suite;
   }
