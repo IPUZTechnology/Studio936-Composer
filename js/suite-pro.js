@@ -337,6 +337,13 @@ function normalizeNoteName(value) {
     return Array.from(new Set(intervals.map((n) => (root + n + 120) % 12)));
   }
 
+  function notesFromChordName(name) {
+    const root = chordRootName(name);
+    const pcs = chordPitchClassesFromName(name);
+    const noteNames = FLAT_KEYS.has(root) || root.includes("b") ? NOTES_FLAT : NOTES_SHARP;
+    return pcs.map((pc) => noteNames[((pc % 12) + 12) % 12]);
+  }
+
   function itemPitchClasses(item) {
     const raw = String(item?.notes || "").trim();
     const pcs = raw.split(/\s+/)
