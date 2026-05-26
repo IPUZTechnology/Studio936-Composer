@@ -1,12 +1,14 @@
-// Studio 936 Composer - Suite Pro Professional Command Center v2
-// Isolated module. Uses #s936SuitePro only. Does not touch #v18Suite.
-// Scope: Suite Pro UI + safe bridge calls. No direct audio engine, MIDI engine, transport internals, editor internals, or arrangement internals.
+// Studio 936 Composer - Suite Pro Professional v3
+// Product goal: professional composition cockpit, not a duplicate of the main app.
+// Scope: this file only owns #s936SuitePro. It does not use #v18Suite and does not touch app legacy.
 (function () {
   "use strict";
 
   const PANEL_ID = "s936SuitePro";
-  const STYLE_ID = "s936SuiteProProStyles";
-  const STORAGE_KEY = "studio936_suite_pro_library_v2";
+  const STYLE_ID = "s936SuiteProV3Styles";
+  const LIBRARY_KEY = "studio936_suitepro_library_v3";
+  const IDEA_KEY = "studio936_suitepro_ideas_v3";
+  const APP_STORAGE_KEY = "studio936ComposerV25SongStructure";
 
   const NOTES_SHARP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   const NOTES_FLAT = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
@@ -20,120 +22,193 @@
   };
   const ROMAN_INDEX = { I:0, ii:1, iii:2, IV:3, V:4, vi:5, vii:6 };
 
-  const TOOL_GROUPS = [
-    {
-      title: "Command",
-      tools: [
-        ["dashboard", "Dashboard"],
-        ["practice", "Practice"],
-        ["export", "Export Center"]
-      ]
-    },
-    {
-      title: "Compose",
-      tools: [
-        ["templates", "Templates"],
-        ["inspire", "Inspire"],
-        ["chordAI", "Chord AI"],
-        ["transpose", "Transpose"],
-        ["theory", "Theory"],
-        ["scales", "Scales"]
-      ]
-    },
-    {
-      title: "Arrange",
-      tools: [
-        ["lead", "Lead Sheet"],
-        ["lyrics", "Letra / TAB"],
-        ["structure", "Estructura"],
-        ["editor", "Editor"]
-      ]
-    },
-    {
-      title: "Studio",
-      tools: [
-        ["drums", "Drums"],
-        ["mixer", "Mixer"],
-        ["record", "REC Idea"],
-        ["midiIn", "MIDI IN"],
-        ["library", "Library"]
-      ]
-    }
+  const AREAS = [
+    ["command", "Command"],
+    ["compose", "Compose"],
+    ["arrange", "Arrange"],
+    ["practice", "Practice"],
+    ["studio", "Studio"],
+    ["export", "Export"]
   ];
 
   const TEMPLATES = [
-    { name:"Pop", style:"pop", mood:"Claro, directo, memorable.", parts:["Intro","Verso 1","Pre-coro","Coro","Verso 2","Pre-coro","Coro","Puente","Coro final","Outro"], progression:["I","V","vi","IV"] },
-    { name:"Worship", style:"ballad", mood:"Crecimiento emocional, coro expansivo.", parts:["Intro","Verso 1","Verso 2","Pre-coro","Coro","Interludio","Puente","Coro final","Outro"], progression:["I","V","vi","IV"] },
-    { name:"Balada", style:"ballad", mood:"Íntima, vocal, lírica.", parts:["Intro","Verso 1","Coro","Verso 2","Coro","Solo","Puente","Coro final","Outro"], progression:["vi","IV","I","V"] },
-    { name:"Rock", style:"rock", mood:"Energía, riff, coro fuerte.", parts:["Intro riff","Verso 1","Coro","Riff","Verso 2","Coro","Solo","Coro final","Outro"], progression:["I","IV","V","IV"] },
-    { name:"Urbano", style:"pop", mood:"Hook rápido y espacio para flow.", parts:["Intro","Hook","Verso 1","Hook","Verso 2","Bridge","Hook final","Outro"], progression:["vi","IV","I","V"] },
-    { name:"Jazz básico", style:"jazz", mood:"Color armónico y forma flexible.", parts:["Intro","Tema A","Tema A","Tema B","Solo","Tema A final","Coda"], progression:["ii","V","I","vi"] }
+    {
+      name: "Pop",
+      style: "pop",
+      bpm: 100,
+      intent: "Canción clara con coro recordable.",
+      parts: [["intro", "Intro"], ["verse", "Verso 1"], ["prechorus", "Pre-coro"], ["chorus", "Coro"], ["verse2", "Verso 2"], ["prechorus", "Pre-coro 2"], ["chorus", "Coro 2"], ["bridge", "Puente"], ["chorus", "Coro final"], ["outro", "Outro"]],
+      progressions: { verse:["I","V","vi","IV"], prechorus:["IV","V","vi","V"], chorus:["I","V","vi","IV"], bridge:["vi","IV","I","V"] }
+    },
+    {
+      name: "Worship",
+      style: "ballad",
+      bpm: 76,
+      intent: "Construcción lenta hacia coro grande.",
+      parts: [["intro","Intro"], ["verse","Verso 1"], ["verse2","Verso 2"], ["prechorus","Pre-coro"], ["chorus","Coro"], ["interlude","Interludio"], ["bridge","Puente"], ["chorus","Coro final"], ["outro","Outro"]],
+      progressions: { verse:["I","V","vi","IV"], prechorus:["IV","V","I","V"], chorus:["I","V","vi","IV"], bridge:["vi","IV","I","V"] }
+    },
+    {
+      name: "Balada",
+      style: "ballad",
+      bpm: 84,
+      intent: "Voz al frente, emoción y desarrollo lírico.",
+      parts: [["intro","Intro"], ["verse","Verso 1"], ["chorus","Coro"], ["verse2","Verso 2"], ["chorus","Coro 2"], ["solo","Solo"], ["bridge","Puente"], ["chorus","Coro final"], ["outro","Outro"]],
+      progressions: { verse:["vi","IV","I","V"], chorus:["IV","I","V","vi"], bridge:["ii","IV","V","V"] }
+    },
+    {
+      name: "Rock",
+      style: "rock",
+      bpm: 112,
+      intent: "Riff, energía, coro fuerte.",
+      parts: [["intro","Intro riff"], ["verse","Verso 1"], ["chorus","Coro"], ["interlude","Riff"], ["verse2","Verso 2"], ["chorus","Coro 2"], ["solo","Solo"], ["chorus","Coro final"], ["outro","Outro"]],
+      progressions: { verse:["I","IV","V","IV"], chorus:["I","V","IV","I"], bridge:["vi","V","IV","V"] }
+    },
+    {
+      name: "Urbano",
+      style: "pop",
+      bpm: 96,
+      intent: "Hook rápido y espacio para flow.",
+      parts: [["intro","Intro"], ["chorus","Hook"], ["verse","Verso 1"], ["chorus","Hook 2"], ["verse2","Verso 2"], ["bridge","Bridge"], ["chorus","Hook final"], ["outro","Outro"]],
+      progressions: { verse:["vi","IV","I","V"], chorus:["vi","IV","I","V"], bridge:["IV","V","vi","V"] }
+    },
+    {
+      name: "Jazz básico",
+      style: "jazz",
+      bpm: 110,
+      intent: "Forma flexible con color armónico.",
+      parts: [["intro","Intro"], ["verse","Tema A"], ["verse2","Tema A 2"], ["bridge","Tema B"], ["solo","Solo"], ["verse","Tema A final"], ["outro","Coda"]],
+      progressions: { verse:["ii","V","I","vi"], chorus:["ii","V","I","I"], bridge:["iii","vi","ii","V"] }
+    }
   ];
 
-  const CHORD_SETS = [
-    ["Luminosa", ["I","V","vi","IV"], "Coro abierto, pop, worship."],
-    ["Emocional", ["vi","IV","I","V"], "Verso íntimo o balada."],
-    ["Ascendente", ["I","ii","IV","V"], "Construcción hacia coro."],
-    ["Puente", ["IV","V","vi","V"], "Tensión antes del final."],
-    ["Resolución", ["I","IV","V","I"], "Cierre claro y estable."],
-    ["Jazz suave", ["ii","V","I","vi"], "Movimiento armónico elegante."]
+  const INSPIRE_SEEDS = [
+    {
+      title: "Luz sobre el vidrio",
+      theme: "volver a respirar después de una etapa pesada",
+      firstLine: "Hoy la ventana aprendió mi nombre",
+      chorusHook: "No vuelvo atrás, camino en luz",
+      image: "un amanecer reflejado en el piano",
+      progression: ["I","V","vi","IV"],
+      groove: "medio tiempo, bombo simple, hats suaves"
+    },
+    {
+      title: "Ciudad de agua",
+      theme: "memoria, viaje y reconciliación",
+      firstLine: "La lluvia escribió lo que no pude decir",
+      chorusHook: "Déjame volver donde empezó la voz",
+      image: "luces nocturnas moviéndose en el río",
+      progression: ["vi","IV","I","V"],
+      groove: "balada con pulso interno y bajo cálido"
+    },
+    {
+      title: "Fuego tranquilo",
+      theme: "fuerza interior sin rabia",
+      firstLine: "No grito, pero arde mi verdad",
+      chorusHook: "Soy fuego tranquilo, raíz y canción",
+      image: "una vela firme en una habitación oscura",
+      progression: ["I","IV","V","vi"],
+      groove: "rock/pop con caja marcada y guitarras abiertas"
+    }
   ];
 
-  const STYLE_LABELS = {
-    funk: "Funk",
-    rock: "Rock",
-    ballad: "Balada",
-    bossa: "Bossa Nova",
-    jazz: "Jazz",
-    blues: "Blues",
-    pop: "Pop",
-    bolero: "Bolero",
-    salsa: "Salsa",
-    cumbia: "Cumbia",
-    reggae: "Reggae"
+  const DRUM_PATTERNS = {
+    pop:   { kick:[0,8,11], snare:[4,12], hat:[0,2,4,6,8,10,12,14], label:"Pop 4/4" },
+    rock:  { kick:[0,7,8,10], snare:[4,12], hat:[0,2,4,6,8,10,12,14], label:"Rock medio" },
+    ballad:{ kick:[0,8], snare:[4,12], hat:[0,4,8,12], label:"Balada lenta" },
+    jazz:  { kick:[0,10], snare:[4,12], hat:[0,3,6,9,12,15], label:"Jazz guide" },
+    bossa: { kick:[0,6,10], snare:[4,12,14], hat:[0,2,4,6,8,10,12,14], label:"Bossa guide" },
+    funk:  { kick:[0,3,8,10], snare:[4,12], hat:[0,2,3,6,8,10,11,14], label:"Funk guide" },
+    salsa: { kick:[0,8], snare:[4,7,12,15], hat:[0,2,4,6,8,10,12,14], label:"Salsa guide" },
+    cumbia:{ kick:[0,8], snare:[4,12], hat:[0,2,4,6,8,10,12,14], label:"Cumbia guide" },
+    reggae:{ kick:[8], snare:[4,12], hat:[2,6,10,14], label:"Reggae offbeat" }
   };
 
-  const FALLBACK_RHYTHMS = {
-    funk: { bass:[0,6,8,14], chord:[2,4,10,12], ghost:[3,7,11,15], help:"Bajo sincopado y ghost chords." },
-    rock: { bass:[0,4,8,12], chord:[0,4,8,12], ghost:[], help:"Golpes fuertes y base directa." },
-    ballad: { bass:[0,8], chord:[0,6,10,14], ghost:[], arp:true, help:"Arpegio suave y espacio para voz." },
-    bossa: { bass:[0,8], chord:[3,6,11,14], ghost:[], help:"Bajo alternado y síncopa suave." },
-    jazz: { bass:[0,4,8,12], chord:[2,5,10,13], ghost:[7,15], swing:.16, help:"Comping con color y movimiento." },
-    blues: { bass:[0,6,10,14], chord:[0,4,8,12], ghost:[3,11], help:"Shuffle simplificado." },
-    pop: { bass:[0,8], chord:[0,4,8,12], ghost:[], help:"Pulso estable para componer rápido." },
-    bolero: { bass:[0,8], chord:[4,10,14], ghost:[], help:"Romántico, lento, con aire." },
-    salsa: { bass:[0,7,10,14], chord:[3,6,11,14], ghost:[], help:"Tumbao simplificado y sincopado." },
-    cumbia: { bass:[0,4,8,12], chord:[2,6,10,14], ghost:[], help:"Pulso bailable y estable." },
-    reggae: { bass:[0,8], chord:[4,12], ghost:[], help:"Off-beat relajado." }
+  const state = {
+    open: false,
+    mode: localStorage.getItem("s936_suite_mode_v3") || "dock",
+    area: localStorage.getItem("s936_suite_area_v3") || "command",
+    composeTool: "templates",
+    arrangeTool: "lead",
+    studioTool: "drums",
+    exportTool: "center",
+    drum: { playing:false, timer:null, step:0, ctx:null, volume:0.55 }
   };
 
-  let activeTool = "dashboard";
-  let isMax = false;
+  function bridge() { return window.Studio936AppBridge || null; }
+  function byId(id) { return document.getElementById(id); }
+  function q(sel, root=document) { return root.querySelector(sel); }
+  function qa(sel, root=document) { return Array.from(root.querySelectorAll(sel)); }
 
-  function bridge() {
-    return window.Studio936AppBridge || null;
-  }
-
-  function byId(id) {
-    return document.getElementById(id);
-  }
-
-  function qs(selector, root) {
-    return (root || document).querySelector(selector);
-  }
-
-  function el(tagName, className, text) {
-    const node = document.createElement(tagName);
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
     if (className) node.className = className;
     if (text !== undefined) node.textContent = text;
     return node;
   }
 
-  function button(className, text, onClick) {
-    const b = el("button", className, text);
-    b.type = "button";
-    b.onclick = onClick;
-    return b;
+  function safe(fn, fallback=null) {
+    try { return fn(); } catch (error) { console.warn("Suite Pro safe call:", error); return fallback; }
+  }
+
+  function callBridge(method, fallback) {
+    const api = bridge();
+    if (api && typeof api[method] === "function") return safe(() => api[method](), false);
+    if (typeof fallback === "function") return safe(fallback, false);
+    return false;
+  }
+
+  function snapshot() {
+    const api = bridge();
+    if (api && typeof api.getSongSnapshot === "function") {
+      const data = safe(() => api.getSongSnapshot(), null);
+      if (data) return data;
+    }
+    return {
+      title: byId("songTitle")?.value || "Canción sin título",
+      author: byId("songAuthor")?.value || "",
+      bpm: byId("bpmDisplay")?.textContent || byId("bpmSlider")?.value || "",
+      style: byId("styleSelect")?.value || "",
+      instrument: byId("instrumentSelect")?.value || "",
+      key: byId("soloKey")?.value || "C",
+      currentSection: byId("sectionSelect")?.value || "",
+      currentSectionName: byId("sectionSelect")?.selectedOptions?.[0]?.textContent || "",
+      currentPart: byId("currentPartTag")?.textContent || "",
+      chordLabel: byId("chordLabel")?.textContent || "",
+      arrangement: [],
+      sections: {},
+      lyrics: {},
+      sectionSolos: {},
+      project: {}
+    };
+  }
+
+  function fullSongText() {
+    const api = bridge();
+    if (api && typeof api.getFullSongText === "function") {
+      const text = safe(() => api.getFullSongText(), "");
+      if (text) return text;
+    }
+    const s = snapshot();
+    return [
+      "Studio 936 Composer",
+      "Canción: " + (s.title || ""),
+      "Autor: " + (s.author || ""),
+      "BPM: " + (s.bpm || ""),
+      "Estilo: " + (s.style || ""),
+      "Instrumento: " + (s.instrument || ""),
+      "Tonalidad: " + (s.key || "C")
+    ].join("\n");
+  }
+
+  function projectJson() {
+    const api = bridge();
+    if (api && typeof api.getProjectJson === "function") {
+      const json = safe(() => api.getProjectJson(), "");
+      if (json) return json;
+    }
+    const s = snapshot();
+    return JSON.stringify(s.project || s, null, 2);
   }
 
   function normalizeKey(value) {
@@ -143,75 +218,15 @@
     return match[1].toUpperCase() + (match[2] || "");
   }
 
-  function currentKeyFromDom() {
-    return normalizeKey(byId("soloKey")?.value || byId("chordName")?.value || "C");
-  }
-
-  function safeBridge(name, fallback) {
-    const api = bridge();
-    try {
-      if (api && typeof api[name] === "function") return api[name]();
-    } catch (error) {
-      console.warn("[Suite Pro bridge]", name, error);
-      showToast("Bridge error: " + name);
-    }
-    if (typeof fallback === "function") return fallback();
-    return null;
-  }
-
-  function snapshot() {
-    const data = safeBridge("getSongSnapshot", null);
-    if (data && typeof data === "object") return data;
-
-    return {
-      title: byId("songTitle")?.value || "Untitled Song",
-      author: byId("songAuthor")?.value || "Studio 936",
-      bpm: byId("bpmDisplay")?.textContent || "",
-      style: byId("styleSelect")?.value || "",
-      instrument: byId("instrumentSelect")?.value || "",
-      key: currentKeyFromDom(),
-      currentSection: byId("sectionSelect")?.value || "",
-      currentSectionName: byId("sectionSelect")?.selectedOptions?.[0]?.textContent || "",
-      currentPart: byId("currentPartTag")?.textContent || "",
-      chordLabel: byId("chordLabel")?.textContent || "",
-      arrangement: [],
-      sections: {},
-      lyrics: {},
-      project: {}
-    };
-  }
-
-  function fullSongText() {
-    const text = safeBridge("getFullSongText", null);
-    if (typeof text === "string" && text.trim()) return text;
-    const s = snapshot();
-    return [
-      "STUDIO 936 COMPOSER",
-      "Title: " + (s.title || ""),
-      "Author: " + (s.author || ""),
-      "Key: " + (s.key || "C"),
-      "BPM: " + (s.bpm || ""),
-      "Style: " + (s.style || ""),
-      "Instrument: " + (s.instrument || ""),
-      "Section: " + (s.currentSectionName || s.currentSection || "")
-    ].join("\n");
-  }
-
-  function projectJson() {
-    const json = safeBridge("getProjectJson", null);
-    if (typeof json === "string" && json.trim()) return json;
-    return JSON.stringify(snapshot().project || snapshot(), null, 2);
-  }
-
   function preferFlats(key) {
     return String(key || "").includes("b") || FLAT_KEYS.has(key);
   }
 
-  function scale(key, type) {
-    const clean = normalizeKey(key);
-    const root = NOTE_INDEX[clean];
+  function scale(key, type="major") {
+    const cleanKey = normalizeKey(key);
+    const root = NOTE_INDEX[cleanKey];
     const intervals = INTERVALS[type] || INTERVALS.major;
-    const names = preferFlats(clean) ? NOTES_FLAT : NOTES_SHARP;
+    const names = preferFlats(cleanKey) ? NOTES_FLAT : NOTES_SHARP;
     if (root === undefined) return scale("C", type);
     return intervals.map((step) => names[(root + step) % 12]);
   }
@@ -230,8 +245,54 @@
     });
   }
 
-  function downloadText(filename, text, mime) {
-    const blob = new Blob([text], { type: mime || "text/plain;charset=utf-8" });
+  function allSectionItems(s=snapshot()) {
+    const sections = s.sections || {};
+    return Object.keys(sections).flatMap((key) => {
+      const list = Array.isArray(sections[key]) ? sections[key] : [];
+      return list.map((item) => ({ section:key, item }));
+    });
+  }
+
+  function chordCount(s=snapshot()) {
+    return allSectionItems(s).length;
+  }
+
+  function lyricCount(s=snapshot()) {
+    const lyrics = s.lyrics || {};
+    return Object.values(lyrics).filter((v) => String(v || "").trim().length > 0).length;
+  }
+
+  function soloCount(s=snapshot()) {
+    const solos = s.sectionSolos || {};
+    return Object.values(solos).filter((v) => String(v?.phrase || "").trim().length > 0).length;
+  }
+
+  function arrangementCount(s=snapshot()) {
+    return Array.isArray(s.arrangement) ? s.arrangement.length : 0;
+  }
+
+  function currentChordNotes() {
+    const raw = byId("chordNotes")?.value || "";
+    const notes = raw.split(/\s+/).filter(Boolean).slice(0, 8);
+    return notes.length ? notes : majorChords(snapshot().key || "C").slice(0, 3);
+  }
+
+  function currentChordName() {
+    return byId("chordName")?.value || snapshot().chordLabel || "Acorde actual";
+  }
+
+  async function copyText(text, message="Copiado.") {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(String(text || ""));
+      toast(message);
+      return true;
+    }
+    toast("Portapapeles no disponible. Usa descargar TXT.");
+    return false;
+  }
+
+  function downloadText(filename, text, type="text/plain;charset=utf-8") {
+    const blob = new Blob([String(text || "")], { type });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -240,496 +301,394 @@
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    showToast("Descargado: " + filename);
   }
 
-  async function copyText(text) {
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error("Clipboard API no disponible");
-      await navigator.clipboard.writeText(text);
-      showToast("Copiado al portapapeles");
-    } catch (error) {
-      console.warn(error);
-      showToast("No se pudo copiar. Usa Descargar TXT.");
+  function slug(text) {
+    return String(text || "studio936").toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "studio936";
+  }
+
+  function toast(message) {
+    const panel = ensurePanel();
+    let box = q(".s936-sp-toast", panel);
+    if (!box) {
+      box = el("div", "s936-sp-toast");
+      panel.appendChild(box);
     }
-  }
-
-  function applyStyle(styleKey) {
-    const select = byId("styleSelect");
-    if (!select) {
-      showToast("Selector de estilo no encontrado");
-      return;
-    }
-    select.value = styleKey;
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-    showToast("Estilo aplicado: " + (STYLE_LABELS[styleKey] || styleKey));
-    renderCurrentTool();
-  }
-
-  function clickById(id) {
-    const node = byId(id);
-    if (node && typeof node.click === "function") {
-      node.click();
-      return true;
-    }
-    return false;
-  }
-
-  function toggleMetronome() {
-    if (!clickById("metroBtn")) showToast("Metrónomo no disponible");
-  }
-
-  function toggleSolo() {
-    if (!clickById("soloBtn")) showToast("Solo no disponible");
-  }
-
-  function startGroove() {
-    safeBridge("startGroove", () => clickById("playBtn"));
-  }
-
-  function playFullSong() {
-    safeBridge("playFullSong", () => clickById("playSongBtn"));
-  }
-
-  function stopPlayback() {
-    safeBridge("stopPlayback", () => {
-      const play = byId("playBtn");
-      const song = byId("playSongBtn");
-      if (play && /stop/i.test(play.textContent || "")) play.click();
-      if (song && /stop/i.test(song.textContent || "")) song.click();
-    });
-  }
-
-  function exportRealTxt() {
-    safeBridge("exportTxt", () => clickById("txtBtn"));
-  }
-
-  function exportRealJson() {
-    safeBridge("exportJson", () => clickById("jsonBtn"));
-  }
-
-  function exportRealMidi() {
-    safeBridge("exportMidi", () => clickById("midiBtn"));
-  }
-
-  function openWorkspace(kind) {
-    const map = {
-      editor: "openEditor",
-      structure: "openStructure",
-      export: "openExport",
-      lyrics: "openLyrics",
-      help: "openHelp"
-    };
-    const fallbackId = {
-      lyrics: "lyricsBtn",
-      help: "helpBtn"
-    };
-    safeBridge(map[kind], () => {
-      if (fallbackId[kind]) clickById(fallbackId[kind]);
-      else showToast("Panel no disponible: " + kind);
-    });
-  }
-
-  function showToast(message) {
-    const panel = byId(PANEL_ID);
-    if (!panel) return;
-    let toast = panel.querySelector(".s936sp-toast");
-    if (!toast) {
-      toast = el("div", "s936sp-toast");
-      panel.appendChild(toast);
-    }
-    toast.textContent = message;
-    toast.classList.add("show");
-    clearTimeout(toast._timer);
-    toast._timer = setTimeout(() => toast.classList.remove("show"), 1800);
+    box.textContent = message;
+    box.classList.add("show");
+    clearTimeout(box._timer);
+    box._timer = setTimeout(() => box.classList.remove("show"), 2200);
+    const api = bridge();
+    if (api && typeof api.flashStatus === "function") safe(() => api.flashStatus(message), null);
   }
 
   function installStyles() {
-    const previous = byId(STYLE_ID);
-    if (previous) previous.remove();
-
+    if (byId(STYLE_ID)) return;
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
 #${PANEL_ID} {
   position: fixed;
-  right: 16px;
-  top: 92px;
-  bottom: 16px;
-  width: min(560px, calc(100vw - 32px));
-  z-index: 10080;
+  left: 12px;
+  top: 112px;
+  bottom: 12px;
+  width: min(430px, 92vw);
+  z-index: 10060;
   display: none;
-  color: #f6fbff;
+  color: #f7fbff;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  pointer-events: auto;
 }
-#${PANEL_ID}.open { display: block; }
-#${PANEL_ID}.max {
-  left: 16px;
-  right: 16px;
-  top: 68px;
-  bottom: 16px;
+#${PANEL_ID}.is-open { display: block; }
+#${PANEL_ID}.is-max {
+  left: 18px;
+  right: 18px;
+  top: 72px;
+  bottom: 18px;
   width: auto;
 }
 #${PANEL_ID} * { box-sizing: border-box; }
-#${PANEL_ID} button, #${PANEL_ID} select, #${PANEL_ID} textarea, #${PANEL_ID} input {
-  font-family: inherit;
-}
-#${PANEL_ID} .s936sp-shell {
+#${PANEL_ID} .s936-sp-shell {
   height: 100%;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  overflow: hidden;
-  border: 1px solid rgba(0,255,204,.32);
-  border-radius: 22px;
+  grid-template-rows: auto auto minmax(0, 1fr);
   background:
-    radial-gradient(circle at top left, rgba(0,255,204,.14), transparent 34%),
-    linear-gradient(180deg, rgba(10,16,27,.98), rgba(3,5,9,.985));
-  box-shadow: 0 28px 90px rgba(0,0,0,.78);
-  backdrop-filter: blur(10px);
+    radial-gradient(circle at 20% 0%, rgba(0,255,204,.14), transparent 26%),
+    linear-gradient(180deg, rgba(13,18,28,.98), rgba(5,7,12,.97));
+  border: 1px solid rgba(0,255,204,.34);
+  border-radius: 22px;
+  box-shadow: 0 30px 90px rgba(0,0,0,.72);
+  overflow: hidden;
+  backdrop-filter: blur(12px);
 }
-#${PANEL_ID} .s936sp-header {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 12px;
+#${PANEL_ID} .s936-sp-header {
+  display: flex;
   align-items: center;
-  padding: 14px 16px;
-  border-bottom: 1px solid rgba(255,255,255,.12);
-  background: rgba(255,255,255,.035);
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.10);
 }
-#${PANEL_ID} .s936sp-brand {
+#${PANEL_ID} .s936-sp-brand {
   min-width: 0;
 }
-#${PANEL_ID} .s936sp-kicker {
+#${PANEL_ID} .s936-sp-kicker {
   color: #00ffcc;
-  font-size: .62rem;
-  letter-spacing: .16em;
+  font-size: .60rem;
   font-weight: 950;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
 }
-#${PANEL_ID} .s936sp-title {
+#${PANEL_ID} .s936-sp-title {
   margin: 2px 0 0;
-  color: #fff;
   font-size: 1.05rem;
   line-height: 1.05;
   font-weight: 950;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-#${PANEL_ID} .s936sp-subtitle {
-  margin-top: 4px;
-  color: rgba(255,255,255,.58);
-  font-size: .7rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-#${PANEL_ID} .s936sp-window-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-#${PANEL_ID} .s936sp-icon,
-#${PANEL_ID} .s936sp-close {
-  border: 1px solid rgba(255,255,255,.18);
-  background: rgba(255,255,255,.07);
   color: #fff;
-  border-radius: 12px;
-  padding: 8px 10px;
-  min-height: 36px;
-  font-size: .7rem;
-  font-weight: 950;
-  cursor: pointer;
-  text-transform: uppercase;
-}
-#${PANEL_ID} .s936sp-close {
-  border-color: rgba(255,216,77,.62);
-  color: #ffe066;
-}
-#${PANEL_ID} .s936sp-body {
-  min-height: 0;
-  display: grid;
-  grid-template-columns: 158px minmax(0, 1fr);
-  gap: 12px;
-  padding: 12px;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
-#${PANEL_ID}.max .s936sp-body {
-  grid-template-columns: 230px minmax(0, 1fr);
+#${PANEL_ID} .s936-sp-header-actions {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
 }
-#${PANEL_ID} .s936sp-nav {
-  min-height: 0;
-  overflow: auto;
-  padding-right: 2px;
-}
-#${PANEL_ID} .s936sp-group {
-  margin-bottom: 12px;
-}
-#${PANEL_ID} .s936sp-group-title {
-  color: rgba(255,255,255,.46);
-  font-size: .58rem;
-  font-weight: 950;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  margin: 0 0 6px 2px;
-}
-#${PANEL_ID} .s936sp-tool {
-  width: 100%;
-  display: block;
-  margin: 0 0 6px;
-  border: 1px solid rgba(255,255,255,.13);
-  background: rgba(255,255,255,.055);
-  color: rgba(255,255,255,.86);
-  border-radius: 13px;
-  padding: 9px 10px;
-  text-align: left;
+#${PANEL_ID} .s936-sp-icon {
+  min-width: 42px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,.06);
+  color: #eafdf8;
   font-size: .66rem;
-  font-weight: 920;
-  text-transform: uppercase;
-  letter-spacing: .03em;
+  font-weight: 950;
   cursor: pointer;
 }
-#${PANEL_ID} .s936sp-tool:hover,
-#${PANEL_ID} .s936sp-tool.active {
+#${PANEL_ID} .s936-sp-icon:hover {
   color: #00ffcc;
-  border-color: rgba(0,255,204,.72);
-  background: rgba(0,255,204,.11);
+  border-color: rgba(0,255,204,.55);
+  background: rgba(0,255,204,.10);
 }
-#${PANEL_ID} .s936sp-content {
+#${PANEL_ID} .s936-sp-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 10px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+#${PANEL_ID}.is-max .s936-sp-tabs {
+  grid-template-columns: repeat(6, 1fr);
+}
+#${PANEL_ID} .s936-sp-tab {
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 12px;
+  padding: 8px 6px;
+  background: rgba(255,255,255,.05);
+  color: rgba(255,255,255,.82);
+  font-size: .64rem;
+  font-weight: 950;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+#${PANEL_ID} .s936-sp-tab.active,
+#${PANEL_ID} .s936-sp-tab:hover {
+  border-color: rgba(0,255,204,.7);
+  color: #00ffcc;
+  background: rgba(0,255,204,.12);
+}
+#${PANEL_ID} .s936-sp-content {
   min-height: 0;
   overflow: auto;
-  border: 1px solid rgba(255,255,255,.12);
-  border-radius: 18px;
-  background: rgba(255,255,255,.04);
-  padding: 16px;
+  padding: 12px;
 }
-#${PANEL_ID} .s936sp-section-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: flex-start;
-  margin-bottom: 12px;
+#${PANEL_ID}.is-max .s936-sp-content {
+  padding: 18px;
 }
-#${PANEL_ID} .s936sp-section-head h3 {
-  margin: 0;
-  color: #8affff;
-  font-size: 1.02rem;
-  letter-spacing: .08em;
-  text-transform: uppercase;
+#${PANEL_ID} .s936-sp-section-title {
+  margin: 0 0 5px;
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 950;
 }
-#${PANEL_ID} .s936sp-section-head p {
-  margin: 5px 0 0;
-  color: rgba(255,255,255,.62);
+#${PANEL_ID} .s936-sp-subtitle {
+  margin: 0 0 12px;
+  color: rgba(255,255,255,.68);
+  line-height: 1.42;
   font-size: .78rem;
-  line-height: 1.45;
 }
-#${PANEL_ID} .s936sp-grid {
+#${PANEL_ID} .s936-sp-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 10px;
 }
-#${PANEL_ID}.max .s936sp-grid {
+#${PANEL_ID}.is-max .s936-sp-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+#${PANEL_ID}.is-max .s936-sp-grid.three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-#${PANEL_ID} .s936sp-card {
+#${PANEL_ID} .s936-sp-card {
   border: 1px solid rgba(255,255,255,.12);
   border-radius: 16px;
-  background: rgba(0,0,0,.18);
   padding: 12px;
-  min-width: 0;
+  background: rgba(255,255,255,.045);
 }
-#${PANEL_ID} .s936sp-card.feature {
-  background: linear-gradient(180deg, rgba(0,255,204,.08), rgba(0,0,0,.16));
-  border-color: rgba(0,255,204,.18);
+#${PANEL_ID} .s936-sp-card.important {
+  border-color: rgba(255,216,77,.28);
+  background: rgba(255,216,77,.055);
 }
-#${PANEL_ID} .s936sp-card h4 {
+#${PANEL_ID} .s936-sp-card h4 {
   margin: 0 0 8px;
-  color: #fff;
-  font-size: .86rem;
+  font-size: .82rem;
+  color: #8affff;
   text-transform: uppercase;
-  letter-spacing: .06em;
+  letter-spacing: .7px;
 }
-#${PANEL_ID} .s936sp-line {
-  margin: 6px 0;
-  color: rgba(255,255,255,.84);
-  font-size: .78rem;
+#${PANEL_ID} .s936-sp-line {
+  margin: 5px 0;
+  color: rgba(255,255,255,.88);
   line-height: 1.42;
-}
-#${PANEL_ID} .s936sp-line strong {
-  color: #bfffee;
-}
-#${PANEL_ID} .s936sp-muted {
-  color: rgba(255,255,255,.66);
   font-size: .78rem;
-  line-height: 1.5;
 }
-#${PANEL_ID} .s936sp-actions {
+#${PANEL_ID} .s936-sp-line strong { color: #ffe066; }
+#${PANEL_ID} .s936-sp-muted {
+  color: rgba(255,255,255,.66);
+  line-height: 1.45;
+  font-size: .76rem;
+}
+#${PANEL_ID} .s936-sp-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 7px;
+  margin-top: 10px;
 }
-#${PANEL_ID} .s936sp-action {
-  border: 1px solid rgba(0,255,204,.42);
-  background: rgba(0,255,204,.08);
-  color: #8affff;
+#${PANEL_ID} .s936-sp-btn {
+  border: 1px solid rgba(0,255,204,.35);
   border-radius: 999px;
   padding: 8px 11px;
-  font-size: .67rem;
+  background: rgba(0,255,204,.08);
+  color: #bfffee;
+  font-size: .68rem;
   font-weight: 950;
   cursor: pointer;
-  text-transform: uppercase;
 }
-#${PANEL_ID} .s936sp-action.gold {
-  border-color: rgba(255,216,77,.7);
-  background: rgba(255,216,77,.1);
+#${PANEL_ID} .s936-sp-btn.secondary {
+  border-color: rgba(255,255,255,.16);
+  background: rgba(255,255,255,.055);
+  color: rgba(255,255,255,.86);
+}
+#${PANEL_ID} .s936-sp-btn.warn {
+  border-color: rgba(255,216,77,.55);
+  background: rgba(255,216,77,.09);
   color: #ffe066;
 }
-#${PANEL_ID} .s936sp-action.danger {
-  border-color: rgba(255,80,80,.62);
-  color: #ff9c9c;
-  background: rgba(255,80,80,.08);
+#${PANEL_ID} .s936-sp-btn.danger {
+  border-color: rgba(255,92,92,.55);
+  background: rgba(255,92,92,.08);
+  color: #ffadad;
 }
-#${PANEL_ID} .s936sp-preview,
-#${PANEL_ID} .s936sp-textarea {
-  width: 100%;
+#${PANEL_ID} .s936-sp-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+#${PANEL_ID} .s936-sp-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+#${PANEL_ID} .s936-sp-mini-nav {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+#${PANEL_ID} .s936-sp-mini-tab {
+  flex: 0 0 auto;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: rgba(255,255,255,.05);
+  color: rgba(255,255,255,.8);
+  font-size: .66rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+#${PANEL_ID} .s936-sp-mini-tab.active {
+  border-color: rgba(0,255,204,.65);
+  background: rgba(0,255,204,.12);
+  color: #00ffcc;
+}
+#${PANEL_ID} .s936-sp-health {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+#${PANEL_ID}.is-max .s936-sp-health {
+  grid-template-columns: repeat(4, 1fr);
+}
+#${PANEL_ID} .s936-sp-health-item {
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 14px;
+  padding: 10px;
+  background: rgba(0,0,0,.16);
+}
+#${PANEL_ID} .s936-sp-health-item b {
+  display: block;
+  font-size: 1.35rem;
+  color: #fff;
+}
+#${PANEL_ID} .s936-sp-health-item span {
+  display: block;
+  margin-top: 3px;
+  color: rgba(255,255,255,.62);
+  font-size: .66rem;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+#${PANEL_ID} .s936-sp-preview {
+  white-space: pre-wrap;
+  max-height: 360px;
+  overflow: auto;
+  padding: 11px;
   border: 1px solid rgba(255,255,255,.12);
   border-radius: 14px;
-  background: rgba(0,0,0,.22);
-  color: rgba(255,255,255,.9);
-  padding: 12px;
-  font-size: .78rem;
-  line-height: 1.55;
+  background: rgba(0,0,0,.24);
+  color: rgba(255,255,255,.87);
+  line-height: 1.42;
+  font-size: .76rem;
 }
-#${PANEL_ID} .s936sp-preview {
-  white-space: pre-wrap;
-  max-height: 340px;
-  overflow: auto;
-}
-#${PANEL_ID} .s936sp-textarea {
-  min-height: 118px;
-  resize: vertical;
-}
-#${PANEL_ID} .s936sp-select,
-#${PANEL_ID} .s936sp-input,
-#${PANEL_ID} .s936sp-range {
+#${PANEL_ID} .s936-sp-select,
+#${PANEL_ID} .s936-sp-textarea,
+#${PANEL_ID} .s936-sp-input,
+#${PANEL_ID} .s936-sp-range {
   width: 100%;
+  margin: 6px 0 10px;
+}
+#${PANEL_ID} .s936-sp-select,
+#${PANEL_ID} .s936-sp-textarea,
+#${PANEL_ID} .s936-sp-input {
   border: 1px solid rgba(255,255,255,.16);
   border-radius: 12px;
   background: rgba(0,0,0,.26);
   color: #fff;
   padding: 9px 10px;
-  min-height: 38px;
+  font: inherit;
+  font-size: .78rem;
 }
-#${PANEL_ID} .s936sp-meter {
+#${PANEL_ID} .s936-sp-textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+#${PANEL_ID} .s936-sp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 8px 0;
+}
+#${PANEL_ID} .s936-sp-chip {
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: rgba(255,255,255,.06);
+  color: #fff;
+  font-size: .68rem;
+  font-weight: 850;
+}
+#${PANEL_ID} .s936-sp-chip.root {
+  border-color: rgba(255,216,77,.62);
+  color: #ffe066;
+}
+#${PANEL_ID} .s936-sp-drum-grid {
   display: grid;
-  grid-template-columns: repeat(16, minmax(0, 1fr));
-  gap: 4px;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 3px;
   margin: 10px 0;
 }
-#${PANEL_ID} .s936sp-step {
-  min-height: 34px;
-  border-radius: 9px;
-  border: 1px solid rgba(255,255,255,.1);
-  background: rgba(255,255,255,.055);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255,255,255,.55);
-  font-size: .58rem;
-  font-weight: 950;
+#${PANEL_ID} .s936-sp-step {
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.06);
 }
-#${PANEL_ID} .s936sp-step.bass {
-  color: #ff99ff;
-  border-color: rgba(255,0,255,.38);
-  background: rgba(255,0,255,.1);
-}
-#${PANEL_ID} .s936sp-step.chord {
-  color: #00ffcc;
-  border-color: rgba(0,255,204,.38);
-  background: rgba(0,255,204,.1);
-}
-#${PANEL_ID} .s936sp-step.ghost {
-  color: #ffe066;
-  border-color: rgba(255,216,77,.38);
-  background: rgba(255,216,77,.09);
-}
-#${PANEL_ID} .s936sp-status-strip {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 12px;
-}
-#${PANEL_ID} .s936sp-stat {
-  border: 1px solid rgba(255,255,255,.1);
-  border-radius: 14px;
-  padding: 10px;
-  background: rgba(0,0,0,.16);
-}
-#${PANEL_ID} .s936sp-stat b {
-  display: block;
-  color: #fff;
-  font-size: .82rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-#${PANEL_ID} .s936sp-stat span {
-  display: block;
-  color: rgba(255,255,255,.52);
-  font-size: .58rem;
-  text-transform: uppercase;
-  letter-spacing: .1em;
-  margin-top: 4px;
-}
-#${PANEL_ID} .s936sp-toast {
+#${PANEL_ID} .s936-sp-step.kick { background: rgba(0,255,204,.45); }
+#${PANEL_ID} .s936-sp-step.snare { background: rgba(255,216,77,.48); }
+#${PANEL_ID} .s936-sp-step.hat { box-shadow: inset 0 -4px 0 rgba(255,255,255,.34); }
+#${PANEL_ID} .s936-sp-step.play { outline: 2px solid #fff; }
+#${PANEL_ID} .s936-sp-toast {
   position: absolute;
-  right: 16px;
+  left: 18px;
+  right: 18px;
   bottom: 16px;
-  max-width: 320px;
-  opacity: 0;
-  transform: translateY(10px);
-  transition: .16s ease;
-  border: 1px solid rgba(0,255,204,.4);
-  background: rgba(0,0,0,.78);
-  color: #bfffee;
-  border-radius: 999px;
-  padding: 9px 12px;
-  font-size: .72rem;
-  font-weight: 850;
   pointer-events: none;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: .18s ease;
+  border: 1px solid rgba(0,255,204,.38);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(0,0,0,.82);
+  color: #bfffee;
+  font-size: .78rem;
+  font-weight: 800;
 }
-#${PANEL_ID} .s936sp-toast.show {
+#${PANEL_ID} .s936-sp-toast.show {
   opacity: 1;
   transform: translateY(0);
 }
-@media (max-width: 960px) {
+@media(max-width: 760px) {
   #${PANEL_ID} {
-    left: 10px;
-    right: 10px;
-    top: 82px;
-    bottom: 10px;
+    left: 8px;
+    right: 8px;
+    top: 8px;
+    bottom: 8px;
     width: auto;
   }
-  #${PANEL_ID} .s936sp-body {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-  #${PANEL_ID} .s936sp-nav {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    max-height: 210px;
-  }
-  #${PANEL_ID} .s936sp-group { margin-bottom: 0; }
-  #${PANEL_ID} .s936sp-group-title { display: none; }
-  #${PANEL_ID} .s936sp-grid,
-  #${PANEL_ID}.max .s936sp-grid {
-    grid-template-columns: 1fr;
-  }
-  #${PANEL_ID} .s936sp-status-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  #${PANEL_ID} .s936-sp-tabs {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 `;
@@ -738,742 +697,844 @@
 
   function ensurePanel() {
     installStyles();
-
     let panel = byId(PANEL_ID);
     if (!panel) {
-      panel = el("aside", "s936-suite-pro");
+      panel = el("aside", "");
       panel.id = PANEL_ID;
+      panel.setAttribute("aria-label", "Suite Pro");
       document.body.appendChild(panel);
     }
-
-    if (panel.dataset.version !== "professional-v2") {
-      buildPanel(panel);
-    }
-
-    panel.classList.toggle("max", isMax);
+    if (!panel.dataset.ready) buildShell(panel);
+    applyMode(panel);
     return panel;
   }
 
-  function buildPanel(panel) {
+  function buildShell(panel) {
     panel.textContent = "";
-    panel.dataset.version = "professional-v2";
+    panel.dataset.ready = "1";
 
-    const shell = el("div", "s936sp-shell");
-    const header = el("header", "s936sp-header");
-    const brand = el("div", "s936sp-brand");
-    brand.appendChild(el("div", "s936sp-kicker", "Studio 936 Command Center"));
-    brand.appendChild(el("h2", "s936sp-title", "Suite Pro"));
-    brand.appendChild(el("div", "s936sp-subtitle", "Composición · arreglo · práctica · exportación"));
+    const shell = el("div", "s936-sp-shell");
+    const header = el("header", "s936-sp-header");
+    const brand = el("div", "s936-sp-brand");
+    brand.appendChild(el("div", "s936-sp-kicker", "Studio 936"));
+    brand.appendChild(el("h2", "s936-sp-title", "Suite Pro"));
+    const actions = el("div", "s936-sp-header-actions");
 
-    const headerActions = el("div", "s936sp-window-actions");
-    headerActions.appendChild(button("s936sp-icon", isMax ? "Dock" : "Max", () => {
-      isMax = !isMax;
-      ensurePanel().classList.toggle("max", isMax);
-      const b = qs(".s936sp-window-actions .s936sp-icon", ensurePanel());
-      if (b) b.textContent = isMax ? "Dock" : "Max";
-    }));
-    headerActions.appendChild(button("s936sp-close", "CERRAR", close));
+    const refreshBtn = el("button", "s936-sp-icon", "SYNC");
+    refreshBtn.type = "button";
+    refreshBtn.onclick = () => render();
 
-    header.appendChild(brand);
-    header.appendChild(headerActions);
+    const modeBtn = el("button", "s936-sp-icon", state.mode === "max" ? "DOCK" : "MAX");
+    modeBtn.type = "button";
+    modeBtn.dataset.role = "mode";
+    modeBtn.onclick = () => {
+      state.mode = state.mode === "max" ? "dock" : "max";
+      localStorage.setItem("s936_suite_mode_v3", state.mode);
+      applyMode(panel);
+    };
 
-    const body = el("div", "s936sp-body");
-    const nav = el("nav", "s936sp-nav");
-    nav.id = "s936SuiteProNav";
+    const closeBtn = el("button", "s936-sp-icon", "CERRAR");
+    closeBtn.type = "button";
+    closeBtn.onclick = close;
 
-    TOOL_GROUPS.forEach((group) => {
-      const wrap = el("div", "s936sp-group");
-      wrap.appendChild(el("div", "s936sp-group-title", group.title));
-      group.tools.forEach(([key, label]) => {
-        const tool = button("s936sp-tool", label, () => renderTool(key));
-        tool.dataset.tool = key;
-        wrap.appendChild(tool);
-      });
-      nav.appendChild(wrap);
+    actions.append(refreshBtn, modeBtn, closeBtn);
+    header.append(brand, actions);
+
+    const tabs = el("nav", "s936-sp-tabs");
+    AREAS.forEach(([key, label]) => {
+      const btn = el("button", "s936-sp-tab", label);
+      btn.type = "button";
+      btn.dataset.area = key;
+      btn.onclick = () => setArea(key);
+      tabs.appendChild(btn);
     });
 
-    const content = el("main", "s936sp-content");
+    const content = el("section", "s936-sp-content");
     content.id = "s936SuiteProContent";
 
-    body.appendChild(nav);
-    body.appendChild(content);
-    shell.appendChild(header);
-    shell.appendChild(body);
+    shell.append(header, tabs, content);
     panel.appendChild(shell);
+    render();
+  }
 
-    renderTool(activeTool || "dashboard");
+  function applyMode(panel=ensurePanel()) {
+    panel.classList.toggle("is-max", state.mode === "max");
+    const btn = q("[data-role='mode']", panel);
+    if (btn) btn.textContent = state.mode === "max" ? "DOCK" : "MAX";
+  }
+
+  function setArea(area) {
+    state.area = area;
+    localStorage.setItem("s936_suite_area_v3", area);
+    render();
   }
 
   function content() {
-    const panel = ensurePanel();
-    const c = byId("s936SuiteProContent");
+    return q("#s936SuiteProContent", ensurePanel());
+  }
+
+  function clearContent() {
+    const c = content();
     c.textContent = "";
-    document.querySelectorAll("#" + PANEL_ID + " .s936sp-tool").forEach((item) => {
-      item.classList.toggle("active", item.dataset.tool === activeTool);
+    qa(".s936-sp-tab", ensurePanel()).forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.area === state.area);
     });
     return c;
   }
 
-  function head(parent, title, description) {
-    const h = el("div", "s936sp-section-head");
-    const left = el("div");
-    left.appendChild(el("h3", "", title));
-    if (description) left.appendChild(el("p", "", description));
-    h.appendChild(left);
-    parent.appendChild(h);
+  function title(c, heading, subtitle) {
+    c.appendChild(el("h3", "s936-sp-section-title", heading));
+    if (subtitle) c.appendChild(el("p", "s936-sp-subtitle", subtitle));
   }
 
   function line(parent, label, value) {
-    const p = el("p", "s936sp-line");
-    p.appendChild(el("strong", "", label));
+    const p = el("p", "s936-sp-line");
+    p.appendChild(el("strong", "", label + ":"));
     p.appendChild(document.createTextNode(" " + (value ?? "")));
     parent.appendChild(p);
   }
 
-  function actions(parent, items) {
-    const row = el("div", "s936sp-actions");
-    items.forEach((item) => {
-      const b = button("s936sp-action" + (item.gold ? " gold" : "") + (item.danger ? " danger" : ""), item.label, item.onClick);
-      row.appendChild(b);
-    });
-    parent.appendChild(row);
-    return row;
+  function action(parent, label, fn, className="s936-sp-btn") {
+    const btn = el("button", className, label);
+    btn.type = "button";
+    btn.onclick = fn;
+    parent.appendChild(btn);
+    return btn;
   }
 
-  function statusStrip(parent) {
+  function actions(parent) {
+    const box = el("div", "s936-sp-actions");
+    parent.appendChild(box);
+    return box;
+  }
+
+  function render() {
+    const map = {
+      command: renderCommand,
+      compose: renderCompose,
+      arrange: renderArrange,
+      practice: renderPractice,
+      studio: renderStudio,
+      export: renderExport
+    };
+    (map[state.area] || renderCommand)();
+  }
+
+  function renderCommand() {
     const s = snapshot();
-    const strip = el("div", "s936sp-status-strip");
+    const c = clearContent();
+    title(c, "Command Center", "Resumen inteligente de la canción y próximos pasos. No duplica módulos: te dice qué falta y hacia dónde conviene ir.");
+
+    const health = el("div", "s936-sp-health");
     [
-      ["Canción", s.title || "Sin título"],
-      ["BPM", s.bpm || "—"],
-      ["Estilo", STYLE_LABELS[s.style] || s.style || "—"],
-      ["Sección", s.currentSectionName || s.currentSection || "—"]
-    ].forEach(([label, value]) => {
-      const box = el("div", "s936sp-stat");
-      box.appendChild(el("b", "", String(value)));
-      box.appendChild(el("span", "", label));
-      strip.appendChild(box);
+      [s.bpm || "—", "BPM"],
+      [s.style || "—", "Estilo"],
+      [chordCount(s), "Acordes"],
+      [arrangementCount(s), "Partes"]
+    ].forEach(([num, label]) => {
+      const item = el("div", "s936-sp-health-item");
+      item.appendChild(el("b", "", String(num)));
+      item.appendChild(el("span", "", label));
+      health.appendChild(item);
     });
-    parent.appendChild(strip);
-  }
+    c.appendChild(health);
 
-  function renderDashboard() {
-    const c = content();
-    const s = snapshot();
-    head(c, "Dashboard", "Cabina central: lee la canción real y controla los módulos que ya funcionan.");
-    statusStrip(c);
+    const grid = el("div", "s936-sp-grid two");
+    const card = el("article", "s936-sp-card important");
+    card.appendChild(el("h4", "", "Canción actual"));
+    line(card, "Título", s.title || "Sin título");
+    line(card, "Autor", s.author || "Sin autor");
+    line(card, "Instrumento", s.instrument || "—");
+    line(card, "Sección", s.currentSectionName || s.currentSection || "—");
+    line(card, "Acorde en pantalla", s.chordLabel || currentChordName());
+    grid.appendChild(card);
 
-    const grid = el("div", "s936sp-grid");
-
-    const session = el("section", "s936sp-card feature");
-    session.appendChild(el("h4", "", "Sesión actual"));
-    line(session, "Título:", s.title || "Sin título");
-    line(session, "Autor:", s.author || "—");
-    line(session, "Tonalidad:", s.key || currentKeyFromDom());
-    line(session, "Instrumento:", s.instrument || "—");
-    line(session, "Acorde actual:", s.chordLabel || "—");
-    actions(session, [
-      { label:"Start Groove", gold:true, onClick:startGroove },
-      { label:"Escuchar canción", onClick:playFullSong },
-      { label:"Stop", danger:true, onClick:stopPlayback }
-    ]);
-    grid.appendChild(session);
-
-    const compose = el("section", "s936sp-card");
-    compose.appendChild(el("h4", "", "Composición rápida"));
-    line(compose, "Siguiente paso:", "elige una plantilla, inspira una idea o transponla.");
-    actions(compose, [
-      { label:"Templates", onClick:() => renderTool("templates") },
-      { label:"Inspire", onClick:() => renderTool("inspire") },
-      { label:"Transpose", onClick:() => renderTool("transpose") }
-    ]);
-    grid.appendChild(compose);
-
-    const arrange = el("section", "s936sp-card");
-    arrange.appendChild(el("h4", "", "Arreglo real"));
-    line(arrange, "Objetivo:", "abrir los módulos reales sin duplicarlos.");
-    actions(arrange, [
-      { label:"Editor", onClick:() => openWorkspace("editor") },
-      { label:"Estructura", onClick:() => openWorkspace("structure") },
-      { label:"Letra/TAB", onClick:() => openWorkspace("lyrics") }
-    ]);
-    grid.appendChild(arrange);
-
-    const exportCard = el("section", "s936sp-card");
-    exportCard.appendChild(el("h4", "", "Exportación real"));
-    line(exportCard, "Usa:", "los exportadores de la app principal.");
-    actions(exportCard, [
-      { label:"TXT", onClick:exportRealTxt },
-      { label:"JSON", onClick:exportRealJson },
-      { label:"MIDI", onClick:exportRealMidi }
-    ]);
-    grid.appendChild(exportCard);
+    const next = el("article", "s936-sp-card");
+    next.appendChild(el("h4", "", "Diagnóstico de producción"));
+    const missing = [];
+    if (!s.title || /sin título|untitled/i.test(s.title)) missing.push("definir título");
+    if (chordCount(s) < 4) missing.push("crear progresión mínima");
+    if (arrangementCount(s) < 4) missing.push("ordenar estructura");
+    if (lyricCount(s) === 0) missing.push("escribir letra/TAB");
+    if (soloCount(s) === 0) missing.push("crear línea melódica");
+    if (!missing.length) missing.push("exportar versión y guardar snapshot");
+    line(next, "Siguiente paso", missing[0]);
+    line(next, "Pendiente", missing.join(" · "));
+    const nextActions = actions(next);
+    action(nextActions, "Compose", () => setArea("compose"));
+    action(nextActions, "Arrange", () => setArea("arrange"), "s936-sp-btn secondary");
+    action(nextActions, "Export", () => setArea("export"), "s936-sp-btn warn");
+    grid.appendChild(next);
 
     c.appendChild(grid);
   }
 
-  function templateText(template) {
-    const key = snapshot().key || currentKeyFromDom();
-    return [
-      "Studio 936 Template: " + template.name,
-      "Tonalidad: " + key,
-      "Uso: " + template.mood,
-      "Forma: " + template.parts.join(" / "),
-      "Progresión: " + template.progression.join(" - "),
-      "Acordes: " + romanToChords(key, template.progression).join(" - ")
-    ].join("\n");
+  function toolNav(tools, active, setter) {
+    const nav = el("div", "s936-sp-mini-nav");
+    tools.forEach(([key, label]) => {
+      const btn = el("button", "s936-sp-mini-tab", label);
+      btn.type = "button";
+      btn.classList.toggle("active", key === active);
+      btn.onclick = () => { setter(key); render(); };
+      nav.appendChild(btn);
+    });
+    return nav;
   }
 
-  function renderTemplates() {
-    const c = content();
-    head(c, "Templates", "Plantillas de composición. No pisan tu arreglo: sirven para iniciar, copiar o descargar.");
-    const grid = el("div", "s936sp-grid");
+  function renderCompose() {
+    const tools = [
+      ["templates", "Templates"],
+      ["inspire", "Inspire"],
+      ["transpose", "Transpose"],
+      ["chordAI", "Chord AI"],
+      ["theory", "Theory"],
+      ["scales", "Scales"]
+    ];
+    const c = clearContent();
+    c.appendChild(toolNav(tools, state.composeTool, (v) => state.composeTool = v));
+    const map = {
+      templates: renderTemplates,
+      inspire: renderInspire,
+      transpose: renderTranspose,
+      chordAI: renderChordAI,
+      theory: renderTheory,
+      scales: renderScales
+    };
+    (map[state.composeTool] || renderTemplates)(c);
+  }
 
-    TEMPLATES.forEach((template) => {
-      const card = el("section", "s936sp-card");
-      const text = templateText(template);
-      card.appendChild(el("h4", "", template.name));
-      line(card, "Uso:", template.mood);
-      line(card, "Forma:", template.parts.join(" / "));
-      line(card, "Progresión:", template.progression.join(" - "));
-      line(card, "Acordes:", romanToChords(snapshot().key || currentKeyFromDom(), template.progression).join(" - "));
-      actions(card, [
-        { label:"Copiar", onClick:() => copyText(text) },
-        { label:"TXT", onClick:() => downloadText("studio936-template-" + template.name.toLowerCase().replace(/\s+/g, "-") + ".txt", text) },
-        { label:"Aplicar estilo", gold:true, onClick:() => applyStyle(template.style) },
-        { label:"Abrir estructura", onClick:() => openWorkspace("structure") }
-      ]);
+  function renderTemplates(c) {
+    const s = snapshot();
+    const key = normalizeKey(s.key || "C");
+    title(c, "Templates", "Plantillas de composición. Hoy generan mapa y material listo; aplicar directo a la canción queda como fase segura con bridge de escritura.");
+
+    const grid = el("div", "s936-sp-grid two");
+    TEMPLATES.forEach((tpl) => {
+      const card = el("article", "s936-sp-card");
+      card.appendChild(el("h4", "", tpl.name));
+      line(card, "Objetivo", tpl.intent);
+      line(card, "Estilo sugerido", tpl.style + " · " + tpl.bpm + " BPM");
+      line(card, "Forma", tpl.parts.map((p) => p[1]).join(" / "));
+      const prog = tpl.progressions.chorus || tpl.progressions.verse;
+      line(card, "Coro en " + key, romanToChords(key, prog).join(" - "));
+      const text = templateText(tpl, key);
+      const box = actions(card);
+      action(box, "Copiar", () => copyText(text, "Plantilla copiada."));
+      action(box, "TXT", () => downloadText("studio936-template-" + slug(tpl.name) + ".txt", text), "s936-sp-btn secondary");
+      const apply = action(box, "Aplicar a canción", () => {
+        toast("Aplicar plantilla requiere bridge de escritura. Lo haremos como siguiente fase segura.");
+      }, "s936-sp-btn warn");
+      apply.title = "Pendiente: aplicar sin romper estructura/editor.";
       grid.appendChild(card);
     });
-
     c.appendChild(grid);
   }
 
-  function renderTranspose() {
-    const c = content();
-    const from = snapshot().key || currentKeyFromDom();
-    head(c, "Transpose", "Vista previa segura. No cambia la canción hasta que tú edites/apliques acordes en el editor.");
+  function templateText(tpl, key) {
+    const lines = [
+      "Studio 936 Template: " + tpl.name,
+      "Tonalidad: " + key,
+      "Objetivo: " + tpl.intent,
+      "Estilo: " + tpl.style + " · " + tpl.bpm + " BPM",
+      "Forma: " + tpl.parts.map((p) => p[1]).join(" / ")
+    ];
+    Object.keys(tpl.progressions).forEach((section) => {
+      lines.push(section + ": " + tpl.progressions[section].join(" - ") + " = " + romanToChords(key, tpl.progressions[section]).join(" - "));
+    });
+    return lines.join("\n");
+  }
 
-    const card = el("section", "s936sp-card feature");
-    card.appendChild(el("h4", "", "Nueva tonalidad"));
-    const select = el("select", "s936sp-select");
-    ["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"].forEach((key) => {
-      const opt = el("option", "", key);
-      opt.value = key;
-      if (key === from) opt.selected = true;
+  function renderInspire(c) {
+    const s = snapshot();
+    const key = normalizeKey(s.key || "C");
+    title(c, "Inspire", "Genera material usable: título, primera línea, hook, progresión y color de producción.");
+
+    const seed = INSPIRE_SEEDS[Math.floor(Date.now() / 1000) % INSPIRE_SEEDS.length];
+    const text = [
+      "Título: " + seed.title,
+      "Tema: " + seed.theme,
+      "Primera línea: " + seed.firstLine,
+      "Hook de coro: " + seed.chorusHook,
+      "Imagen: " + seed.image,
+      "Progresión en " + key + ": " + romanToChords(key, seed.progression).join(" - "),
+      "Groove: " + seed.groove
+    ].join("\n");
+
+    const card = el("article", "s936-sp-card important");
+    card.appendChild(el("h4", "", seed.title));
+    line(card, "Tema", seed.theme);
+    line(card, "Primera línea", seed.firstLine);
+    line(card, "Hook", seed.chorusHook);
+    line(card, "Progresión", romanToChords(key, seed.progression).join(" - "));
+    line(card, "Groove", seed.groove);
+    const box = actions(card);
+    action(box, "Nueva idea", () => render());
+    action(box, "Copiar", () => copyText(text, "Idea copiada."));
+    action(box, "Guardar idea", () => { saveIdea(text); toast("Idea guardada en REC Idea / Library."); }, "s936-sp-btn warn");
+    c.appendChild(card);
+  }
+
+  function renderTranspose(c) {
+    const s = snapshot();
+    const fromKey = normalizeKey(s.key || "C");
+    title(c, "Transpose", "Vista previa de transposición. No altera la canción hasta activar bridge de escritura seguro.");
+
+    const card = el("article", "s936-sp-card");
+    line(card, "Tonalidad actual", fromKey);
+    const select = el("select", "s936-sp-select");
+    ["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"].forEach((k) => {
+      const opt = el("option", "", k);
+      opt.value = k;
+      if (k === fromKey) opt.selected = true;
       select.appendChild(opt);
     });
-
-    const preview = el("pre", "s936sp-preview");
+    const preview = el("pre", "s936-sp-preview");
     function update() {
-      const to = select.value;
+      const toKey = select.value;
       preview.textContent = [
-        "TRANSPOSE PREVIEW",
-        "De: " + from,
-        "A: " + to,
-        "",
-        "Escala mayor: " + scale(to, "major").join(" "),
-        "Acordes diatónicos: " + majorChords(to).join(", "),
-        "Pop rápido: " + romanToChords(to, ["I","V","vi","IV"]).join(" - "),
-        "Emocional: " + romanToChords(to, ["vi","IV","I","V"]).join(" - ")
+        "From: " + fromKey,
+        "To: " + toKey,
+        "Escala mayor: " + scale(toKey, "major").join(" "),
+        "Acordes diatónicos: " + majorChords(toKey).join(", "),
+        "Pop rápido: " + romanToChords(toKey, ["I","V","vi","IV"]).join(" - "),
+        "Emocional: " + romanToChords(toKey, ["vi","IV","I","V"]).join(" - ")
       ].join("\n");
     }
     select.onchange = update;
     card.appendChild(select);
     card.appendChild(preview);
     update();
-
-    actions(card, [
-      { label:"Copiar", onClick:() => copyText(preview.textContent) },
-      { label:"Descargar TXT", onClick:() => downloadText("studio936-transpose.txt", preview.textContent) },
-      { label:"Abrir Editor", gold:true, onClick:() => openWorkspace("editor") }
-    ]);
+    const box = actions(card);
+    action(box, "Copiar", () => copyText(preview.textContent, "Transposición copiada."));
+    action(box, "TXT", () => downloadText("studio936-transpose.txt", preview.textContent), "s936-sp-btn secondary");
     c.appendChild(card);
   }
 
-  function renderInspire() {
-    const c = content();
-    const key = snapshot().key || currentKeyFromDom();
-    const style = snapshot().style || byId("styleSelect")?.value || "pop";
-    const ideas = [
-      ["Título", "Luz en la ventana"],
-      ["Tema", "volver a empezar con calma y fuerza"],
-      ["Primera línea", "Abro la puerta y vuelve a respirar mi voz"],
-      ["Imagen", "amanecer sobre una ciudad silenciosa"],
-      ["Color sonoro", (STYLE_LABELS[style] || style) + " · " + key],
-      ["Progresión", romanToChords(key, ["I","V","vi","IV"]).join(" - ")],
-      ["Producción", "voz al frente, base simple, final expansivo"]
-    ];
-    const text = ideas.map((i) => i[0] + ": " + i[1]).join("\n");
-
-    head(c, "Inspire", "Generador local de chispa creativa para empezar o desbloquear.");
-    const card = el("section", "s936sp-card feature");
-    card.appendChild(el("h4", "", "Idea inmediata"));
-    ideas.forEach((item) => line(card, item[0] + ":", item[1]));
-    actions(card, [
-      { label:"Copiar", onClick:() => copyText(text) },
-      { label:"TXT", onClick:() => downloadText("studio936-inspire.txt", text) },
-      { label:"Usar en Templates", gold:true, onClick:() => renderTool("templates") }
-    ]);
-    c.appendChild(card);
-  }
-
-  function renderChordAI() {
-    const c = content();
-    const key = snapshot().key || currentKeyFromDom();
-    head(c, "Chord AI", "Sugerencias armónicas locales basadas en la tonalidad actual.");
-    const grid = el("div", "s936sp-grid");
-
-    CHORD_SETS.forEach(([name, degrees, use]) => {
-      const chords = romanToChords(key, degrees);
-      const text = name + "\n" + degrees.join(" - ") + "\n" + chords.join(" - ") + "\nUso: " + use;
-      const card = el("section", "s936sp-card");
+  function renderChordAI(c) {
+    const key = normalizeKey(snapshot().key || "C");
+    title(c, "Chord AI", "Sugerencias armónicas locales para componer sin bloquearte.");
+    const grid = el("div", "s936-sp-grid two");
+    [
+      ["Verso estable", ["I","V","vi","IV"], "Base clara para contar historia."],
+      ["Pre-coro con tensión", ["IV","V","vi","V"], "Empuja hacia el coro."],
+      ["Coro luminoso", ["I","V","IV","I"], "Resolución fuerte y recordable."],
+      ["Puente emocional", ["vi","IV","I","V"], "Cambio de energía antes del final."]
+    ].forEach(([name, prog, use]) => {
+      const card = el("article", "s936-sp-card");
       card.appendChild(el("h4", "", name));
-      line(card, "Grados:", degrees.join(" - "));
-      line(card, "En " + key + ":", chords.join(" - "));
-      line(card, "Uso:", use);
-      actions(card, [
-        { label:"Copiar", onClick:() => copyText(text) },
-        { label:"Editor", gold:true, onClick:() => openWorkspace("editor") }
-      ]);
+      line(card, "Uso", use);
+      line(card, "Grados", prog.join(" - "));
+      line(card, "En " + key, romanToChords(key, prog).join(" - "));
+      const text = name + "\n" + use + "\n" + romanToChords(key, prog).join(" - ");
+      action(actions(card), "Copiar", () => copyText(text, "Progresión copiada."));
       grid.appendChild(card);
     });
-
     c.appendChild(grid);
   }
 
-  function renderTheory() {
-    const c = content();
-    const key = snapshot().key || currentKeyFromDom();
+  function renderTheory(c) {
+    const key = normalizeKey(snapshot().key || "C");
     const chords = majorChords(key);
-    head(c, "Theory", "Lectura musical rápida para decidir acordes y funciones armónicas.");
-    const card = el("section", "s936sp-card feature");
-    line(card, "Tonalidad:", key);
-    line(card, "Escala mayor:", scale(key, "major").join(" "));
-    line(card, "Acordes:", chords.join(", "));
-    line(card, "Funciones:", "I tónica · IV subdominante · V dominante · vi relativa menor");
-    line(card, "Uso práctico:", "versos con vi/IV, coros con I/V, puentes con IV/V.");
+    title(c, "Theory para componer", "No es teoría abstracta: usa funciones armónicas para decidir qué hace cada parte de la canción.");
+    const card = el("article", "s936-sp-card");
+    card.appendChild(el("h4", "", "Mapa funcional en " + key));
+    line(card, "Tónica / descanso", chords[0] + " y " + chords[5] + " · ideal para empezar verso o cerrar coro");
+    line(card, "Subdominante / apertura", chords[3] + " y " + chords[1] + " · abre emoción y prepara movimiento");
+    line(card, "Dominante / tensión", chords[4] + " y " + chords[6] + " · empuja al siguiente bloque");
+    line(card, "Verso", "menos tensión, frases con aire, progresión estable");
+    line(card, "Pre-coro", "aumenta tensión con IV/V/vi para levantar al coro");
+    line(card, "Coro", "resuelve claro en I o IV, melodía más alta y frase repetible");
     c.appendChild(card);
   }
 
-  function renderScales() {
-    const c = content();
-    const key = snapshot().key || currentKeyFromDom();
-    head(c, "Scales", "Notas para melodía, bajo, solos y respuestas instrumentales.");
-    const card = el("section", "s936sp-card feature");
-    line(card, "Mayor:", scale(key, "major").join(" "));
-    line(card, "Menor natural:", scale(key, "naturalMinor").join(" "));
-    line(card, "Pentatónica mayor:", scale(key, "majorPentatonic").join(" "));
-    line(card, "Pentatónica menor:", scale(key, "minorPentatonic").join(" "));
-    line(card, "Tip:", "usa pentatónica para melodías rápidas y mayor/menor para líneas más cantables.");
-    c.appendChild(card);
-  }
-
-  function currentRhythm() {
-    const style = byId("styleSelect")?.value || snapshot().style || "pop";
-    const rhythms = window.Studio936Rhythms || {};
-    return {
-      style,
-      label: STYLE_LABELS[style] || style,
-      data: rhythms[style] || FALLBACK_RHYTHMS[style] || FALLBACK_RHYTHMS.pop
-    };
-  }
-
-  function renderRhythmMeter(parent, rhythm) {
-    const data = rhythm.data || {};
-    const meter = el("div", "s936sp-meter");
-    for (let i = 0; i < 16; i++) {
-      const step = el("div", "s936sp-step", String(i + 1));
-      if ((data.bass || []).includes(i)) {
-        step.classList.add("bass");
-        step.textContent = "B";
-      }
-      if ((data.chord || []).includes(i)) {
-        step.classList.add("chord");
-        step.textContent = step.textContent === "B" ? "B+C" : "C";
-      }
-      if ((data.ghost || []).includes(i)) {
-        step.classList.add("ghost");
-        step.textContent = step.textContent === String(i + 1) ? "G" : step.textContent + "+G";
-      }
-      meter.appendChild(step);
-    }
-    parent.appendChild(meter);
-  }
-
-  function renderDrums() {
-    const c = content();
-    const rhythm = currentRhythm();
-    head(c, "Drums", "No es texto muerto: lee el estilo activo y lo convierte en mapa rítmico de producción.");
-
-    const card = el("section", "s936sp-card feature");
-    card.appendChild(el("h4", "", rhythm.label + " · " + (snapshot().bpm || "") + " BPM"));
-    line(card, "Uso:", rhythm.data.help || "Patrón de acompañamiento del estilo activo.");
-    line(card, "Bass steps:", (rhythm.data.bass || []).map((n) => n + 1).join(", ") || "—");
-    line(card, "Chord steps:", (rhythm.data.chord || []).map((n) => n + 1).join(", ") || "—");
-    line(card, "Ghost steps:", (rhythm.data.ghost || []).map((n) => n + 1).join(", ") || "—");
-    renderRhythmMeter(card, rhythm);
-    actions(card, [
-      { label:"Probar Groove", gold:true, onClick:startGroove },
-      { label:"Stop", danger:true, onClick:stopPlayback },
-      { label:"Editar estilo", onClick:() => openWorkspace("editor") }
-    ]);
-    c.appendChild(card);
-
-    const presets = el("section", "s936sp-card");
-    presets.appendChild(el("h4", "", "Cambiar estilo"));
-    const row = el("div", "s936sp-actions");
-    Object.keys(STYLE_LABELS).forEach((styleKey) => {
-      row.appendChild(button("s936sp-action", STYLE_LABELS[styleKey], () => applyStyle(styleKey)));
+  function renderScales(c) {
+    const key = normalizeKey(snapshot().key || "C");
+    title(c, "Scales aplicadas", "Escalas explicadas como herramientas de melodía, bajo y solo.");
+    const grid = el("div", "s936-sp-grid");
+    [
+      ["Mayor", scale(key, "major"), "melodía principal, coro luminoso, arreglos claros"],
+      ["Menor natural", scale(key, "naturalMinor"), "verso emocional, puente introspectivo"],
+      ["Pentatónica menor", scale(key, "minorPentatonic"), "solo seguro, riff, respuesta de guitarra"],
+      ["Pentatónica mayor", scale(key, "majorPentatonic"), "melodías simples y cantables"]
+    ].forEach(([name, notes, use]) => {
+      const card = el("article", "s936-sp-card");
+      card.appendChild(el("h4", "", name));
+      const chips = el("div", "s936-sp-chips");
+      notes.forEach((n, i) => chips.appendChild(el("span", "s936-sp-chip " + (i === 0 ? "root" : ""), n)));
+      card.appendChild(chips);
+      line(card, "Uso", use);
+      grid.appendChild(card);
     });
-    presets.appendChild(row);
-    c.appendChild(presets);
+    c.appendChild(grid);
   }
 
-  function renderMixer() {
-    const c = content();
+  function renderArrange() {
+    const c = clearContent();
+    const tools = [
+      ["lead", "Lead Sheet"],
+      ["structure", "Estructura"],
+      ["lyrics", "Letra/TAB"],
+      ["editor", "Editor"]
+    ];
+    c.appendChild(toolNav(tools, state.arrangeTool, (v) => state.arrangeTool = v));
+
+    if (state.arrangeTool === "structure") return renderStructure(c);
+    if (state.arrangeTool === "lyrics") return renderLyricsPanel(c);
+    if (state.arrangeTool === "editor") return renderEditorPanel(c);
+    return renderLeadSheet(c);
+  }
+
+  function renderLeadSheet(c) {
+    title(c, "Lead Sheet real", "Usa el texto completo de la canción desde el motor principal.");
+    const text = fullSongText();
+    const pre = el("pre", "s936-sp-preview", text);
+    c.appendChild(pre);
+    const box = actions(c);
+    action(box, "Copiar", () => copyText(text, "Lead Sheet copiado."));
+    action(box, "TXT", () => downloadText("studio936-lead-sheet.txt", text), "s936-sp-btn secondary");
+  }
+
+  function renderStructure(c) {
     const s = snapshot();
-    head(c, "Mixer", "Control de superficie: usa controles reales de la app sin entrar al motor de audio.");
-
-    const card = el("section", "s936sp-card feature");
-    card.appendChild(el("h4", "", "Balance de sesión"));
-    line(card, "Instrumento:", s.instrument || "—");
-    line(card, "Estilo:", STYLE_LABELS[s.style] || s.style || "—");
-    line(card, "BPM:", s.bpm || "—");
-
-    const grooveInput = byId("grooveVol");
-    if (grooveInput) {
-      const label = el("p", "s936sp-line");
-      label.appendChild(el("strong", "", "Volumen groove:"));
-      label.appendChild(document.createTextNode(" " + grooveInput.value));
-      const range = el("input", "s936sp-range");
-      range.type = "range";
-      range.min = grooveInput.min || "1";
-      range.max = grooveInput.max || "10";
-      range.value = grooveInput.value || "7";
-      range.oninput = () => {
-        grooveInput.value = range.value;
-        label.lastChild.textContent = " " + range.value;
-        grooveInput.dispatchEvent(new Event("change", { bubbles: true }));
-      };
-      card.appendChild(label);
-      card.appendChild(range);
+    title(c, "Estructura real", "Resumen de la estructura actual. El editor completo sigue en el módulo real.");
+    const grid = el("div", "s936-sp-grid");
+    const arr = Array.isArray(s.arrangement) ? s.arrangement : [];
+    if (!arr.length) {
+      const card = el("article", "s936-sp-card");
+      card.appendChild(el("h4", "", "Sin arreglo detectado"));
+      card.appendChild(el("p", "s936-sp-muted", "Abre Estructura para ordenar partes de la canción."));
+      action(actions(card), "Abrir Estructura", () => callBridge("openStructure", () => byId("structureBtn")?.click()));
+      grid.appendChild(card);
     } else {
-      line(card, "Volumen groove:", "no disponible");
+      arr.forEach((part, i) => {
+        const card = el("article", "s936-sp-card");
+        card.appendChild(el("h4", "", String(i + 1).padStart(2, "0") + " · " + (part.label || part.section || "Parte")));
+        line(card, "Sección", part.section || "");
+        grid.appendChild(card);
+      });
     }
+    c.appendChild(grid);
+    action(actions(c), "Abrir módulo Estructura", () => callBridge("openStructure"), "s936-sp-btn warn");
+  }
 
-    actions(card, [
-      { label:"Metrónomo", onClick:toggleMetronome },
-      { label:"Solo ON/OFF", onClick:toggleSolo },
-      { label:"Start Groove", gold:true, onClick:startGroove },
-      { label:"Stop", danger:true, onClick:stopPlayback }
-    ]);
+  function renderLyricsPanel(c) {
+    const s = snapshot();
+    title(c, "Letra / TAB", "Suite Pro no duplica el editor de letras: resume estado y abre el módulo real.");
+    const card = el("article", "s936-sp-card");
+    card.appendChild(el("h4", "", "Estado de letras"));
+    line(card, "Secciones con letra", lyricCount(s));
+    line(card, "Uso recomendado", "escribe letra por sección y exporta desde Export Center.");
+    const box = actions(card);
+    action(box, "Abrir Letra/TAB", () => callBridge("openLyrics"), "s936-sp-btn warn");
+    c.appendChild(card);
+  }
+
+  function renderEditorPanel(c) {
+    title(c, "Editor", "El editor real sigue siendo el lugar para escribir acordes, bajo, notas y compases.");
+    const card = el("article", "s936-sp-card");
+    card.appendChild(el("h4", "", "Acorde actual"));
+    line(card, "Nombre", currentChordName());
+    line(card, "Notas", currentChordNotes().join(" · "));
+    line(card, "Compases", byId("barsInput")?.value || "—");
+    line(card, "Qué hacer aquí", "abre el editor real para cambiar notas y compases sin duplicar controles.");
+    action(actions(card), "Abrir Editor real", () => callBridge("openEditor"), "s936-sp-btn warn");
     c.appendChild(card);
   }
 
   function renderPractice() {
-    const c = content();
-    const s = snapshot();
-    head(c, "Practice", "Modo ensayo conectado a controles reales: sección, canción completa, metrónomo y stop.");
-    statusStrip(c);
+    const c = clearContent();
+    title(c, "Practice / Play Along", "Modo de práctica contextual: acordes, notas y acompañamiento. Aquí sí tienen sentido controles de reproducción.");
 
-    const card = el("section", "s936sp-card feature");
-    card.appendChild(el("h4", "", "Ensayo actual"));
-    line(card, "Sección:", s.currentSectionName || s.currentSection || "—");
-    line(card, "Acorde:", s.chordLabel || "—");
-    line(card, "Parte:", s.currentPart || "—");
-    actions(card, [
-      { label:"Start Groove", gold:true, onClick:startGroove },
-      { label:"Escuchar canción", onClick:playFullSong },
-      { label:"Metrónomo", onClick:toggleMetronome },
-      { label:"Solo ON/OFF", onClick:toggleSolo },
-      { label:"Stop", danger:true, onClick:stopPlayback }
-    ]);
+    const grid = el("div", "s936-sp-grid two");
+    const now = el("article", "s936-sp-card important");
+    now.appendChild(el("h4", "", "Ahora"));
+    line(now, "Sección", snapshot().currentSectionName || snapshot().currentSection || "—");
+    line(now, "Acorde", currentChordName());
+    const chips = el("div", "s936-sp-chips");
+    currentChordNotes().forEach((n, i) => chips.appendChild(el("span", "s936-sp-chip " + (i === 0 ? "root" : ""), n)));
+    now.appendChild(chips);
+    grid.appendChild(now);
+
+    const controls = el("article", "s936-sp-card");
+    controls.appendChild(el("h4", "", "Control de práctica"));
+    controls.appendChild(el("p", "s936-sp-muted", "Usa esto cuando quieres practicar encima del groove. No reemplaza el editor: acompaña tu interpretación."));
+    const box = actions(controls);
+    action(box, "Start Groove", () => callBridge("startGroove", () => byId("playBtn")?.click()));
+    action(box, "Canción completa", () => callBridge("playFullSong", () => byId("playSongBtn")?.click()), "s936-sp-btn secondary");
+    action(box, "Stop", () => callBridge("stopPlayback", () => byId("playBtn")?.click()), "s936-sp-btn danger");
+    action(box, state.drum.playing ? "Stop Drums" : "Drums guía", () => toggleDrums(), "s936-sp-btn warn");
+    grid.appendChild(controls);
+
+    c.appendChild(grid);
+  }
+
+  function renderStudio() {
+    const tools = [
+      ["drums", "Drums"],
+      ["mixer", "Mixer"],
+      ["record", "REC Idea"],
+      ["midi", "MIDI IN"]
+    ];
+    const c = clearContent();
+    c.appendChild(toolNav(tools, state.studioTool, (v) => state.studioTool = v));
+    if (state.studioTool === "mixer") return renderMixer(c);
+    if (state.studioTool === "record") return renderRecord(c);
+    if (state.studioTool === "midi") return renderMidi(c);
+    return renderDrums(c);
+  }
+
+  function stylePattern() {
+    const style = snapshot().style || "pop";
+    return DRUM_PATTERNS[style] || DRUM_PATTERNS.pop;
+  }
+
+  function renderDrums(c) {
+    const s = snapshot();
+    const pattern = stylePattern();
+    title(c, "Drums", "Batería guía propia de Suite Pro. Puede sonar junto al groove, pero todavía no está sincronizada al motor principal compás por compás.");
+
+    const card = el("article", "s936-sp-card important");
+    card.appendChild(el("h4", "", pattern.label));
+    line(card, "Estilo actual", s.style || "—");
+    line(card, "BPM", s.bpm || "—");
+    line(card, "Estado", state.drum.playing ? "Drums guía sonando" : "Drums guía detenido");
+    const grid = el("div", "s936-sp-drum-grid");
+    for (let i = 0; i < 16; i++) {
+      const step = el("div", "s936-sp-step");
+      if (pattern.kick.includes(i)) step.classList.add("kick");
+      if (pattern.snare.includes(i)) step.classList.add("snare");
+      if (pattern.hat.includes(i)) step.classList.add("hat");
+      if (state.drum.playing && i === state.drum.step) step.classList.add("play");
+      grid.appendChild(step);
+    }
+    card.appendChild(grid);
+    const box = actions(card);
+    action(box, state.drum.playing ? "Stop Drums" : "Start Drums", () => toggleDrums());
+    action(box, "Groove + Drums", () => { callBridge("startGroove", () => byId("playBtn")?.click()); startDrums(); }, "s936-sp-btn warn");
+    action(box, "Stop todo", () => { stopDrums(); callBridge("stopPlayback", () => {}); }, "s936-sp-btn danger");
     c.appendChild(card);
   }
 
-  function renderLeadSheet() {
-    const c = content();
-    const text = fullSongText();
-    head(c, "Lead Sheet", "Hoja guía generada desde la canción real actual.");
-    const pre = el("pre", "s936sp-preview", text);
-    c.appendChild(pre);
-    actions(c, [
-      { label:"Copiar", onClick:() => copyText(text) },
-      { label:"Descargar TXT", gold:true, onClick:() => downloadText("studio936-lead-sheet.txt", text) },
-      { label:"Letra/TAB", onClick:() => openWorkspace("lyrics") }
-    ]);
+  function renderMixer(c) {
+    title(c, "Mixer", "Controla lo que existe hoy de forma real. Más adelante se separan buses: chords, bass, solo, drums y click.");
+    const card = el("article", "s936-sp-card");
+    card.appendChild(el("h4", "", "Controles disponibles"));
+    const groove = byId("grooveVol");
+    if (groove) {
+      line(card, "Groove volume", groove.value + " / 10");
+      const slider = el("input", "s936-sp-range");
+      slider.type = "range";
+      slider.min = groove.min || "1";
+      slider.max = groove.max || "10";
+      slider.value = groove.value || "7";
+      slider.oninput = () => {
+        groove.value = slider.value;
+        groove.dispatchEvent(new Event("change", { bubbles:true }));
+        renderMixer(c);
+      };
+      card.appendChild(slider);
+    } else {
+      line(card, "Groove volume", "no disponible");
+    }
+    const box = actions(card);
+    action(box, "Metrónomo", () => byId("metroBtn")?.click(), "s936-sp-btn secondary");
+    action(box, "Solo ON/OFF", () => byId("soloBtn")?.click(), "s936-sp-btn secondary");
+    action(box, "Start Groove", () => callBridge("startGroove", () => byId("playBtn")?.click()));
+    action(box, "Stop", () => callBridge("stopPlayback", () => {}), "s936-sp-btn danger");
+    c.appendChild(card);
+  }
+
+  function renderRecord(c) {
+    title(c, "REC Idea", "Captura textual rápida. Grabación de micrófono/guitarra queda como módulo futuro s936-recorder.js.");
+    const area = el("textarea", "s936-sp-textarea");
+    area.placeholder = "Idea de letra, riff, groove, arreglo, producción...";
+    const card = el("article", "s936-sp-card");
+    card.appendChild(el("h4", "", "Nueva idea"));
+    card.appendChild(area);
+    const box = actions(card);
+    action(box, "Guardar idea", () => {
+      if (!area.value.trim()) return toast("Escribe una idea primero.");
+      saveIdea(area.value.trim());
+      area.value = "";
+      toast("Idea guardada.");
+    }, "s936-sp-btn warn");
+    c.appendChild(card);
+
+    const ideas = loadIdeas();
+    if (ideas.length) {
+      const list = el("div", "s936-sp-grid");
+      ideas.slice(0, 6).forEach((idea) => {
+        const item = el("article", "s936-sp-card");
+        item.appendChild(el("h4", "", new Date(idea.createdAt).toLocaleString()));
+        item.appendChild(el("p", "s936-sp-muted", idea.text));
+        action(actions(item), "Copiar", () => copyText(idea.text, "Idea copiada."));
+        list.appendChild(item);
+      });
+      c.appendChild(list);
+    }
+  }
+
+  function loadIdeas() {
+    return safe(() => JSON.parse(localStorage.getItem(IDEA_KEY) || "[]"), []);
+  }
+
+  function saveIdea(text) {
+    const ideas = loadIdeas();
+    ideas.unshift({ text, createdAt: new Date().toISOString(), snapshot: snapshot() });
+    localStorage.setItem(IDEA_KEY, JSON.stringify(ideas.slice(0, 50)));
+  }
+
+  function renderMidi(c) {
+    title(c, "MIDI IN", "Diagnóstico MIDI y exportación. Entrada MIDI real requiere permisos del navegador.");
+    const card = el("article", "s936-sp-card");
+    card.appendChild(el("h4", "", "MIDI"));
+    line(card, "Web MIDI", navigator.requestMIDIAccess ? "disponible" : "no disponible en este navegador");
+    const box = actions(card);
+    action(box, "Detectar MIDI", async () => {
+      if (!navigator.requestMIDIAccess) return toast("Web MIDI no disponible.");
+      const access = await navigator.requestMIDIAccess();
+      const names = Array.from(access.inputs.values()).map((i) => i.name).join(" · ") || "Sin dispositivos";
+      toast("MIDI: " + names);
+    });
+    action(box, "Exportar MIDI real", () => callBridge("exportMidi"), "s936-sp-btn warn");
+    c.appendChild(card);
   }
 
   function renderExport() {
-    const c = content();
-    head(c, "Export Center", "Centraliza los exportadores reales de la app: TXT, JSON y MIDI.");
-    const card = el("section", "s936sp-card feature");
-    card.appendChild(el("h4", "", "Exportación real"));
-    line(card, "TXT:", "documento completo legible.");
-    line(card, "JSON:", "proyecto editable completo.");
-    line(card, "MIDI:", "archivo musical para DAW.");
-    actions(card, [
-      { label:"Bajar TXT", gold:true, onClick:exportRealTxt },
-      { label:"Bajar JSON", onClick:exportRealJson },
-      { label:"Exportar MIDI", onClick:exportRealMidi },
-      { label:"Copiar canción", onClick:() => safeBridge("copyFullSongText", () => copyText(fullSongText())) }
-    ]);
-    c.appendChild(card);
-
-    const preview = el("pre", "s936sp-preview", fullSongText());
-    c.appendChild(preview);
+    const tools = [
+      ["center", "Export Center"],
+      ["library", "Library"],
+      ["share", "Share/PDF"]
+    ];
+    const c = clearContent();
+    c.appendChild(toolNav(tools, state.exportTool, (v) => state.exportTool = v));
+    if (state.exportTool === "library") return renderLibrary(c);
+    if (state.exportTool === "share") return renderSharePdf(c);
+    return renderExportCenter(c);
   }
 
-  function renderShare() {
-    renderExport();
-  }
-
-  function renderPdf() {
-    const c = content();
-    const text = fullSongText();
-    head(c, "PDF / Print", "Prepara una vista imprimible. El PDF final se guarda desde Imprimir del navegador.");
-    const card = el("section", "s936sp-card feature");
-    card.appendChild(el("h4", "", "Vista imprimible"));
-    card.appendChild(el("pre", "s936sp-preview", text));
-    actions(card, [
-      { label:"Abrir impresión", gold:true, onClick:() => openPrintable(text) },
-      { label:"Descargar fuente TXT", onClick:() => downloadText("studio936-print-source.txt", text) }
-    ]);
+  function renderExportCenter(c) {
+    title(c, "Export Center", "Centro de exportación real. Aquí deben vivir TXT, JSON, MIDI, PDF y Flow cuando movamos la UI con cuidado.");
+    const card = el("article", "s936-sp-card important");
+    card.appendChild(el("h4", "", "Exportaciones reales"));
+    line(card, "TXT", "usa el exportador completo de la app");
+    line(card, "JSON", "respaldo editable de proyecto");
+    line(card, "MIDI", "exportación musical a DAW");
+    const box = actions(card);
+    action(box, "Bajar TXT", () => callBridge("exportTxt"), "s936-sp-btn warn");
+    action(box, "Bajar JSON", () => callBridge("exportJson"), "s936-sp-btn warn");
+    action(box, "Exportar MIDI", () => callBridge("exportMidi"), "s936-sp-btn warn");
+    action(box, "Copiar canción completa", () => {
+      const api = bridge();
+      if (api?.copyFullSongText) return safe(() => api.copyFullSongText(), null);
+      return copyText(fullSongText(), "Canción copiada.");
+    }, "s936-sp-btn secondary");
     c.appendChild(card);
   }
 
-  function openPrintable(text) {
-    const win = window.open("", "_blank");
-    if (!win) {
-      showToast("Popup bloqueado. Usa Descargar TXT.");
-      return;
-    }
-    win.document.write("<!doctype html><html><head><title>Studio 936 Lead Sheet</title><style>body{font-family:Georgia,serif;padding:36px;line-height:1.45}pre{white-space:pre-wrap}</style></head><body><pre></pre></body></html>");
-    win.document.querySelector("pre").textContent = text;
-    win.document.close();
-    setTimeout(() => win.print(), 250);
+  function renderSharePdf(c) {
+    title(c, "Share / PDF", "Prepara texto completo para compartir o imprimir. PDF real puede venir como módulo futuro.");
+    const text = fullSongText();
+    const pre = el("pre", "s936-sp-preview", text);
+    c.appendChild(pre);
+    const box = actions(c);
+    action(box, "Copiar", () => copyText(text, "Texto copiado."));
+    action(box, "TXT", () => downloadText("studio936-song.txt", text), "s936-sp-btn secondary");
+    action(box, "Imprimir / PDF", () => window.print(), "s936-sp-btn warn");
   }
 
-  function renderLibrary() {
-    const c = content();
-    head(c, "Library", "Guarda snapshots reales de la canción actual en este navegador.");
-    const text = fullSongText();
-    const json = projectJson();
-
-    const saveCard = el("section", "s936sp-card feature");
-    saveCard.appendChild(el("h4", "", "Snapshot actual"));
-    line(saveCard, "Canción:", snapshot().title || "Sin título");
-    line(saveCard, "BPM:", snapshot().bpm || "—");
-    actions(saveCard, [
-      { label:"Guardar snapshot", gold:true, onClick:() => {
-        const items = loadLibrary();
-        items.unshift({
-          createdAt: new Date().toISOString(),
-          title: snapshot().title || "Untitled Song",
-          text,
-          json
-        });
-        saveLibrary(items.slice(0, 40));
-        showToast("Snapshot guardado");
-        renderLibrary();
-      }},
-      { label:"Descargar JSON", onClick:() => downloadText("studio936-project.json", json, "application/json;charset=utf-8") }
-    ]);
-    c.appendChild(saveCard);
+  function renderLibrary(c) {
+    title(c, "Library", "Guarda snapshots reales de la canción. Puedes cargar un snapshot reemplazando la canción actual con recarga controlada.");
+    const box = actions(c);
+    action(box, "Guardar snapshot real", () => {
+      const items = loadLibrary();
+      const s = snapshot();
+      items.unshift({
+        id: "snap-" + Date.now(),
+        title: s.title || "Sin título",
+        author: s.author || "",
+        bpm: s.bpm || "",
+        style: s.style || "",
+        createdAt: new Date().toISOString(),
+        snapshot: s,
+        fullText: fullSongText(),
+        projectJson: projectJson()
+      });
+      saveLibrary(items.slice(0, 40));
+      renderLibrary(c);
+      toast("Snapshot guardado.");
+    }, "s936-sp-btn warn");
 
     const items = loadLibrary();
     if (!items.length) {
-      c.appendChild(el("p", "s936sp-muted", "No hay snapshots guardados todavía."));
+      c.appendChild(el("p", "s936-sp-muted", "No hay snapshots todavía."));
       return;
     }
-
-    const grid = el("div", "s936sp-grid");
-    items.forEach((item, index) => {
-      const card = el("section", "s936sp-card");
+    const grid = el("div", "s936-sp-grid");
+    items.forEach((item) => {
+      const card = el("article", "s936-sp-card");
       card.appendChild(el("h4", "", item.title || "Snapshot"));
-      line(card, "Fecha:", new Date(item.createdAt).toLocaleString());
-      actions(card, [
-        { label:"TXT", onClick:() => downloadText("studio936-snapshot.txt", item.text || "") },
-        { label:"JSON", onClick:() => downloadText("studio936-snapshot.json", item.json || "{}", "application/json;charset=utf-8") },
-        { label:"Copiar", onClick:() => copyText(item.text || "") },
-        { label:"Borrar", danger:true, onClick:() => {
-          const next = loadLibrary();
-          next.splice(index, 1);
-          saveLibrary(next);
-          renderLibrary();
-        }}
-      ]);
+      line(card, "Fecha", new Date(item.createdAt).toLocaleString());
+      line(card, "BPM", item.bpm || "—");
+      line(card, "Estilo", item.style || "—");
+      const act = actions(card);
+      action(act, "Cargar", () => loadSnapshotIntoApp(item), "s936-sp-btn warn");
+      action(act, "TXT", () => downloadText(slug(item.title) + ".txt", item.fullText || ""), "s936-sp-btn secondary");
+      action(act, "JSON", () => downloadText(slug(item.title) + ".json", item.projectJson || "{}", "application/json;charset=utf-8"), "s936-sp-btn secondary");
+      action(act, "Borrar", () => {
+        saveLibrary(loadLibrary().filter((x) => x.id !== item.id));
+        renderLibrary(c);
+      }, "s936-sp-btn danger");
       grid.appendChild(card);
     });
     c.appendChild(grid);
   }
 
   function loadLibrary() {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-    } catch (error) {
-      return [];
-    }
+    return safe(() => JSON.parse(localStorage.getItem(LIBRARY_KEY) || "[]"), []);
   }
 
   function saveLibrary(items) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    localStorage.setItem(LIBRARY_KEY, JSON.stringify(items));
   }
 
-  function renderRecord() {
-    const c = content();
-    head(c, "REC Idea", "Captura texto rápido sin tocar permisos de micrófono ni motor de audio.");
-    const card = el("section", "s936sp-card feature");
-    const area = el("textarea", "s936sp-textarea");
-    area.placeholder = "Idea de letra, melodía, groove, arreglo, producción...";
-    card.appendChild(area);
-    actions(card, [
-      { label:"Guardar en Library", gold:true, onClick:() => {
-        const items = loadLibrary();
-        const idea = area.value.trim();
-        if (!idea) {
-          showToast("Escribe una idea primero");
-          return;
-        }
-        items.unshift({
-          createdAt: new Date().toISOString(),
-          title: "Idea rápida · " + (snapshot().title || "Studio 936"),
-          text: idea,
-          json: JSON.stringify({ type:"idea", idea, snapshot: snapshot() }, null, 2)
-        });
-        saveLibrary(items.slice(0, 40));
-        area.value = "";
-        showToast("Idea guardada");
-      }},
-      { label:"Copiar", onClick:() => copyText(area.value || "") }
-    ]);
-    c.appendChild(card);
+  function loadSnapshotIntoApp(item) {
+    if (!item.projectJson) return toast("Este snapshot no tiene JSON de proyecto.");
+    const ok = window.confirm("Cargar este snapshot reemplazará la canción actual en este navegador y recargará la app. ¿Continuar?");
+    if (!ok) return;
+    localStorage.setItem(APP_STORAGE_KEY, item.projectJson);
+    window.location.reload();
   }
 
-  function renderMidiIn() {
-    const c = content();
-    head(c, "MIDI IN", "Diagnóstico seguro de MIDI del navegador. No toca exportación ni motor musical.");
-    const card = el("section", "s936sp-card feature");
-    card.appendChild(el("h4", "", "Estado MIDI"));
-    const status = el("p", "s936sp-muted", "Pulsa detectar para consultar dispositivos MIDI disponibles.");
-    card.appendChild(status);
-    actions(card, [
-      { label:"Detectar MIDI", gold:true, onClick:async () => {
-        if (!navigator.requestMIDIAccess) {
-          status.textContent = "Este navegador no soporta Web MIDI.";
-          return;
-        }
-        try {
-          const access = await navigator.requestMIDIAccess();
-          const inputs = Array.from(access.inputs.values()).map((input) => input.name || "MIDI input");
-          status.textContent = inputs.length ? "Entradas: " + inputs.join(", ") : "No hay entradas MIDI conectadas.";
-        } catch (error) {
-          status.textContent = "Permiso MIDI denegado o no disponible.";
-        }
-      }},
-      { label:"Exportar MIDI real", onClick:exportRealMidi }
-    ]);
-    c.appendChild(card);
+  function startDrums() {
+    if (state.drum.playing) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return toast("AudioContext no disponible.");
+    if (!state.drum.ctx) state.drum.ctx = new AC();
+    state.drum.ctx.resume?.();
+    state.drum.playing = true;
+    state.drum.step = 0;
+    scheduleDrumLoop();
+    toast("Drums guía activado.");
   }
 
-  function renderLyricsAccess() {
-    const c = content();
-    head(c, "Letra / TAB", "No duplico el editor de letra: abro el módulo real que ya funciona.");
-    const card = el("section", "s936sp-card feature");
-    line(card, "Acción:", "abrir editor real de Letra/TAB.");
-    actions(card, [
-      { label:"Abrir Letra/TAB", gold:true, onClick:() => openWorkspace("lyrics") },
-      { label:"Lead Sheet", onClick:() => renderTool("lead") }
-    ]);
-    c.appendChild(card);
+  function stopDrums() {
+    state.drum.playing = false;
+    if (state.drum.timer) clearTimeout(state.drum.timer);
+    state.drum.timer = null;
+    render();
   }
 
-  function renderStructureAccess() {
-    const c = content();
-    head(c, "Estructura", "Abre el módulo real de estructura en la app principal.");
-    const card = el("section", "s936sp-card feature");
-    line(card, "Acción:", "editar estructura/arreglo real.");
-    actions(card, [
-      { label:"Abrir Estructura", gold:true, onClick:() => openWorkspace("structure") },
-      { label:"Templates", onClick:() => renderTool("templates") }
-    ]);
-    c.appendChild(card);
+  function toggleDrums() {
+    if (state.drum.playing) stopDrums(); else startDrums();
   }
 
-  function renderEditorAccess() {
-    const c = content();
-    head(c, "Editor", "Abre el editor real de progresión. Suite Pro no duplica lo que ya funciona.");
-    const card = el("section", "s936sp-card feature");
-    line(card, "Acción:", "editar acordes, bajo, notas y compases.");
-    actions(card, [
-      { label:"Abrir Editor", gold:true, onClick:() => openWorkspace("editor") },
-      { label:"Chord AI", onClick:() => renderTool("chordAI") }
-    ]);
-    c.appendChild(card);
+  function scheduleDrumLoop() {
+    if (!state.drum.playing) return;
+    const s = snapshot();
+    const bpm = Math.max(40, Math.min(220, Number(s.bpm) || 95));
+    const stepMs = (60 / bpm / 4) * 1000;
+    playDrumStep(state.drum.step);
+    state.drum.step = (state.drum.step + 1) % 16;
+    renderIfStudioDrums();
+    state.drum.timer = setTimeout(scheduleDrumLoop, stepMs);
   }
 
-  function renderTool(key) {
-    activeTool = key || "dashboard";
-    const routes = {
-      dashboard: renderDashboard,
-      templates: renderTemplates,
-      transpose: renderTranspose,
-      scales: renderScales,
-      theory: renderTheory,
-      chordAI: renderChordAI,
-      inspire: renderInspire,
-      drums: renderDrums,
-      mixer: renderMixer,
-      record: renderRecord,
-      midiIn: renderMidiIn,
-      pdf: renderPdf,
-      lead: renderLeadSheet,
-      practice: renderPractice,
-      share: renderShare,
-      export: renderExport,
-      library: renderLibrary,
-      lyrics: renderLyricsAccess,
-      structure: renderStructureAccess,
-      editor: renderEditorAccess
-    };
-    const renderer = routes[activeTool] || renderDashboard;
-    renderer();
+  function renderIfStudioDrums() {
+    if (state.open && state.area === "studio" && state.studioTool === "drums") {
+      const c = content();
+      if (c) renderStudio();
+    }
   }
 
-  function renderCurrentTool() {
-    renderTool(activeTool);
+  function playDrumStep(step) {
+    const pattern = stylePattern();
+    if (pattern.kick.includes(step)) kick();
+    if (pattern.snare.includes(step)) snare();
+    if (pattern.hat.includes(step)) hat();
+  }
+
+  function kick() {
+    const ctx = state.drum.ctx;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(110, t);
+    osc.frequency.exponentialRampToValueAtTime(45, t + 0.13);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.7 * state.drum.volume, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.2);
+  }
+
+  function snare() {
+    const ctx = state.drum.ctx;
+    const t = ctx.currentTime;
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.12, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.setValueAtTime(1800, t);
+    filter.Q.setValueAtTime(0.7, t);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.45 * state.drum.volume, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    noise.connect(filter).connect(gain).connect(ctx.destination);
+    noise.start(t);
+    noise.stop(t + 0.13);
+  }
+
+  function hat() {
+    const ctx = state.drum.ctx;
+    const t = ctx.currentTime;
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.04, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "highpass";
+    filter.frequency.setValueAtTime(6000, t);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.12 * state.drum.volume, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.035);
+    noise.connect(filter).connect(gain).connect(ctx.destination);
+    noise.start(t);
+    noise.stop(t + 0.05);
   }
 
   function open() {
     const panel = ensurePanel();
-    panel.classList.add("open");
-    renderCurrentTool();
+    state.open = true;
+    panel.classList.add("is-open");
+    render();
     return panel;
   }
 
   function close() {
     const panel = byId(PANEL_ID);
-    if (panel) panel.classList.remove("open");
-    document.querySelectorAll("#v25UxBar .v25ux-btn").forEach((btn) => {
-      if (btn.dataset.uxOpen === "suite") btn.classList.remove("active");
-    });
+    state.open = false;
+    if (panel) panel.classList.remove("is-open");
   }
 
   function toggle() {
     const panel = ensurePanel();
-    if (panel.classList.contains("open")) close();
-    else open();
+    if (panel.classList.contains("is-open")) close(); else open();
     return panel;
   }
 
   window.Studio936SuitePro = {
+    version: "professional-v3",
     open,
     close,
     toggle,
-    ensurePanel,
-    ensureMounted: ensurePanel,
-    renderTool
+    ensurePanel
   };
 
   if (document.readyState === "loading") {
