@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Professional v3.3
+// Studio 936 Composer - Suite Pro Professional v3.4
 // Product goal: professional composition cockpit, not a duplicate of the main app.
 // Scope: this file only owns #s936SuitePro. It does not use #v18Suite and does not touch app legacy.
 (function () {
@@ -130,6 +130,10 @@
     area: localStorage.getItem("s936_suite_area_v3") || "command",
     harmonicView: localStorage.getItem("s936_suite_harmonic_view_v33") || localStorage.getItem("s936_suite_harmonic_view_v32") || "auto",
     fretPosition: localStorage.getItem("s936_suite_fret_position_v33") || "open",
+    fretPositions: (() => {
+      try { return JSON.parse(localStorage.getItem("s936_suite_fret_positions_v34") || "{}"); }
+      catch (error) { return {}; }
+    })(),
     composeTool: "templates",
     arrangeTool: "lead",
     studioTool: "drums",
@@ -535,13 +539,32 @@ function normalizeNoteName(value) {
     ];
   }
 
-  function currentFretBase() {
-    const raw = state.fretPosition || "open";
+  function fretBaseFromPosition(position) {
+    const raw = position || "open";
     return raw === "open" ? 0 : Math.max(0, Number(raw) || 0);
   }
 
-  function fretPositionLabel() {
-    return state.fretPosition === "open" ? "Abierta" : "Traste " + state.fretPosition;
+  function currentFretBase() {
+    return fretBaseFromPosition(state.fretPosition || "open");
+  }
+
+  function fretPositionLabel(position=state.fretPosition) {
+    return position === "open" ? "Abierta" : "Traste " + position;
+  }
+
+  function fretCardKey(entry, instrument) {
+    return instrument + "::" + slug(entry.name || "chord");
+  }
+
+  function cardFretPosition(entry, instrument) {
+    const key = fretCardKey(entry, instrument);
+    return state.fretPositions[key] || state.fretPosition || "open";
+  }
+
+  function setCardFretPosition(entry, instrument, position) {
+    const key = fretCardKey(entry, instrument);
+    state.fretPositions[key] = position;
+    localStorage.setItem("s936_suite_fret_positions_v34", JSON.stringify(state.fretPositions));
   }
 
   function renderFretPositionControls(parent) {
@@ -584,11 +607,12 @@ function normalizeNoteName(value) {
 
   function renderFretChordGallery(parent, entries, instrument) {
     const grid = el("div", "s936-sp-harmony-gallery fret");
-    const baseFret = currentFretBase();
     entries.forEach((entry) => {
       const card = el("article", "s936-sp-harmony-card fret-card");
       card.appendChild(el("h5", "", entry.name));
 
+      const position = cardFretPosition(entry, instrument);
+      const baseFret = fretBaseFromPosition(position);
       const chart = el("div", "s936-sp-fret-mini " + instrument);
       const tuning = stringTunings(instrument);
       const stringCount = tuning.length;
@@ -633,34 +657,37 @@ function normalizeNoteName(value) {
       tuning.forEach((string) => labels.appendChild(el("span", "", string.label)));
       card.appendChild(chart);
       card.appendChild(labels);
-      card.appendChild(el("small", "", fretPositionLabel() + " · Raíz: " + (entry.root || "—") + " · Ext: " + chordExtensions(entry.name)));
+      card.appendChild(el("small", "", fretPositionLabel(position) + " · Raíz: " + (entry.root || "—") + " · Ext: " + chordExtensions(entry.name)));
       card.appendChild(el("small", "", "Notas: " + entry.notes.map(pcName).join(" · ")));
 
+      const chooser = el("label", "s936-sp-card-position-wrap");
+      chooser.appendChild(el("span", "", "Posición de este acorde"));
       const select = el("select", "s936-sp-card-position");
       [
-        ["open", "Cambiar: abierta"],
-        ["3", "Cambiar: traste 3"],
-        ["5", "Cambiar: traste 5"],
-        ["7", "Cambiar: traste 7"],
-        ["9", "Cambiar: traste 9"],
-        ["12", "Cambiar: traste 12"]
+        ["open", "Abierta"],
+        ["3", "Traste 3"],
+        ["5", "Traste 5"],
+        ["7", "Traste 7"],
+        ["9", "Traste 9"],
+        ["12", "Traste 12"]
       ].forEach(([value, label]) => {
         const option = el("option", "", label);
         option.value = value;
-        if (String(state.fretPosition || "open") === value) option.selected = true;
+        if (String(position) === value) option.selected = true;
         select.appendChild(option);
       });
       select.onchange = () => {
-        state.fretPosition = select.value;
-        localStorage.setItem("s936_suite_fret_position_v33", select.value);
+        setCardFretPosition(entry, instrument, select.value);
         render();
       };
-      card.appendChild(select);
+      chooser.appendChild(select);
+      card.appendChild(chooser);
 
       grid.appendChild(card);
     });
     parent.appendChild(grid);
   }
+
 
     async function copyText(text, message="Copiado.") {
     if (navigator.clipboard?.writeText) {
@@ -1514,6 +1541,102 @@ function normalizeNoteName(value) {
   font-weight: 800;
 }
 
+/* v3.4 Mapa Maestro refinado */
+#${PANEL_ID} .s936-sp-health {
+  gap: 6px;
+  margin-bottom: 10px;
+}
+#${PANEL_ID}.is-max .s936-sp-health {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+#${PANEL_ID} .s936-sp-health-item {
+  border-radius: 12px;
+  padding: 7px 9px;
+}
+#${PANEL_ID} .s936-sp-health-item b {
+  font-size: .98rem;
+  line-height: 1.05;
+}
+#${PANEL_ID} .s936-sp-health-item span {
+  margin-top: 2px;
+  font-size: .54rem;
+}
+#${PANEL_ID} .command-hero {
+  padding: 14px;
+}
+#${PANEL_ID}.is-max .command-hero {
+  min-height: 260px;
+}
+#${PANEL_ID} .s936-sp-song-ribbon.lyric-map {
+  gap: 10px;
+  padding: 10px 0 4px;
+}
+#${PANEL_ID} .s936-sp-song-ribbon.lyric-map .s936-sp-song-node {
+  flex: 0 0 218px;
+  min-height: 154px;
+  display: flex;
+  flex-direction: column;
+}
+#${PANEL_ID}.is-max .s936-sp-song-ribbon.lyric-map .s936-sp-song-node {
+  flex-basis: 245px;
+}
+#${PANEL_ID} .s936-sp-song-node .meta {
+  display: block;
+  margin-top: 4px;
+  color: rgba(255,255,255,.68);
+  font-size: .61rem;
+  font-weight: 800;
+}
+#${PANEL_ID} .s936-sp-song-lyric {
+  flex: 1;
+  margin: 8px 0 8px;
+  padding: 8px;
+  border-radius: 11px;
+  background: rgba(255,255,255,.065);
+  border: 1px solid rgba(255,255,255,.10);
+  color: #f4fbff;
+  font-size: .72rem;
+  line-height: 1.35;
+  text-transform: none;
+  overflow: hidden;
+}
+#${PANEL_ID} .s936-sp-song-lyric.empty {
+  color: rgba(255,255,255,.45);
+  font-style: italic;
+}
+#${PANEL_ID} .s936-sp-song-mini-chords {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+#${PANEL_ID} .s936-sp-song-mini-chords em {
+  border: 1px solid rgba(0,255,204,.24);
+  border-radius: 999px;
+  padding: 3px 6px;
+  background: rgba(0,0,0,.25);
+  color: #bfffee;
+  font-size: .56rem;
+  font-style: normal;
+  font-weight: 900;
+}
+#${PANEL_ID} .s936-sp-actions-card {
+  margin-top: 12px;
+}
+#${PANEL_ID} .s936-sp-card-position-wrap {
+  display: block;
+  margin-top: 8px;
+}
+#${PANEL_ID} .s936-sp-card-position-wrap span {
+  display: block;
+  margin-bottom: 4px;
+  color: rgba(255,216,77,.82);
+  font-size: .56rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+}
+
 @media(max-width: 760px) {
   #${PANEL_ID} {
     left: 8px;
@@ -1675,8 +1798,18 @@ function normalizeNoteName(value) {
     return items.reduce((sum, item) => sum + Math.max(1, Number(item?.bars) || 1), 0);
   }
 
+  function sectionLyric(s, key) {
+    return String((s.lyrics || {})[key] || "").trim();
+  }
+
+  function lyricExcerpt(s, key, max=135) {
+    const raw = sectionLyric(s, key).replace(/\s+/g, " ").trim();
+    if (!raw) return "Sin letra todavía";
+    return raw.length > max ? raw.slice(0, max - 1).trim() + "…" : raw;
+  }
+
   function hasSectionLyric(s, key) {
-    return String((s.lyrics || {})[key] || "").trim().length > 0;
+    return sectionLyric(s, key).length > 0;
   }
 
   function hasSectionSolo(s, key) {
@@ -1721,28 +1854,37 @@ function normalizeNoteName(value) {
 
   function renderMasterSongRibbon(parent, s) {
     const parts = commandParts(s);
-    const ribbon = el("div", "s936-sp-song-ribbon");
+    const ribbon = el("div", "s936-sp-song-ribbon lyric-map");
     if (!parts.length) {
       ribbon.appendChild(el("span", "empty", "Sin forma detectada · abre Arrange para crear estructura"));
       parent.appendChild(ribbon);
       return;
     }
 
-    parts.slice(0, state.mode === "max" ? 14 : 8).forEach((part, index) => {
+    const limit = state.mode === "max" ? 14 : 7;
+    parts.slice(0, limit).forEach((part, index) => {
       const key = sectionKey(part);
       const items = sectionItems(s, key);
-      const node = el("button", "s936-sp-song-node", "");
+      const node = el("button", "s936-sp-song-node lyric-node", "");
       node.type = "button";
       node.title = sectionDisplayName(part) + " · " + items.length + " acordes · " + sectionBars(items) + " compases";
-      node.onclick = () => { state.area = "arrange"; setArea("arrange"); };
+      node.onclick = () => { state.area = "arrange"; state.arrangeTool = "lyrics"; setArea("arrange"); };
       node.appendChild(el("small", "", String(index + 1).padStart(2, "0")));
       node.appendChild(el("b", "", sectionDisplayName(part)));
-      node.appendChild(el("span", "", items.length + " ac · " + sectionBars(items) + " c"));
+      node.appendChild(el("span", "meta", items.length + " ac · " + sectionBars(items) + " c"));
+      const lyric = el("p", "s936-sp-song-lyric", lyricExcerpt(s, key));
+      lyric.classList.toggle("empty", !hasSectionLyric(s, key));
+      node.appendChild(lyric);
+
+      const chordLine = el("div", "s936-sp-song-mini-chords");
+      items.slice(0, 3).forEach((item) => chordLine.appendChild(el("em", "", item?.name || "—")));
+      if (items.length > 3) chordLine.appendChild(el("em", "", "+" + (items.length - 3)));
+      node.appendChild(chordLine);
       ribbon.appendChild(node);
     });
 
-    if (parts.length > (state.mode === "max" ? 14 : 8)) {
-      ribbon.appendChild(el("span", "more", "+" + (parts.length - (state.mode === "max" ? 14 : 8)) + " partes"));
+    if (parts.length > limit) {
+      ribbon.appendChild(el("span", "more", "+" + (parts.length - limit) + " partes"));
     }
 
     parent.appendChild(ribbon);
@@ -1831,21 +1973,13 @@ function normalizeNoteName(value) {
     renderCommandHarmonicView(harmony, s);
     c.appendChild(harmony);
 
-    const grid = el("div", "s936-sp-grid two");
-    const next = el("article", "s936-sp-card");
-    next.appendChild(el("h4", "", "Siguiente movimiento"));
-    line(next, "Recomendación", commandRecommendation(s));
-    line(next, "Filosofía", "Command mira; Arrange edita; Compose crea; Studio produce; Export entrega.");
-    grid.appendChild(next);
-
-    const actionsCard = el("article", "s936-sp-card");
+    const actionsCard = el("article", "s936-sp-card s936-sp-actions-card");
     actionsCard.appendChild(el("h4", "", "Acciones útiles"));
     const box = actions(actionsCard);
     action(box, "Ir a Arrange", () => { state.area = "arrange"; setArea("arrange"); });
     action(box, "Lead Sheet", () => { state.area = "arrange"; state.arrangeTool = "lead"; setArea("arrange"); }, "s936-sp-btn secondary");
     action(box, "Export Center", () => { state.area = "export"; state.exportTool = "center"; setArea("export"); }, "s936-sp-btn secondary");
-    grid.appendChild(actionsCard);
-    c.appendChild(grid);
+    c.appendChild(actionsCard);
   }
 
   function toolNav(tools, active, setter) {
@@ -2509,7 +2643,7 @@ function normalizeNoteName(value) {
   }
 
   window.Studio936SuitePro = {
-    version: "professional-v3.3",
+    version: "professional-v3.4",
     open,
     close,
     toggle,
