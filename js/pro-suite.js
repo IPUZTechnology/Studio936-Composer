@@ -36,6 +36,69 @@
     minorPentatonic: [0, 3, 5, 7, 10]
   };
 
+  const SONG_TEMPLATES = [
+    {
+      key: "pop",
+      name: "Pop",
+      use: "Cancion directa, clara y facil de recordar.",
+      energy: "Media / luminosa",
+      parts: ["Intro", "Verso 1", "Pre-coro", "Coro", "Verso 2", "Pre-coro", "Coro", "Puente", "Coro final", "Outro"],
+      progression: ["I", "V", "vi", "IV"]
+    },
+    {
+      key: "worship",
+      name: "Worship",
+      use: "Construccion emocional con crecimiento hacia el coro.",
+      energy: "Contemplativa / expansiva",
+      parts: ["Intro", "Verso 1", "Verso 2", "Pre-coro", "Coro", "Interludio", "Puente", "Coro final", "Outro"],
+      progression: ["I", "V", "vi", "IV"]
+    },
+    {
+      key: "balada",
+      name: "Balada",
+      use: "Cancion emotiva para voz principal y desarrollo lirico.",
+      energy: "Intima / emocional",
+      parts: ["Intro", "Verso 1", "Coro", "Verso 2", "Coro", "Solo", "Puente", "Coro final", "Outro"],
+      progression: ["vi", "IV", "I", "V"]
+    },
+    {
+      key: "rock",
+      name: "Rock",
+      use: "Estructura con energia, riff y coro fuerte.",
+      energy: "Alta / directa",
+      parts: ["Intro riff", "Verso 1", "Coro", "Riff", "Verso 2", "Coro", "Solo", "Coro final", "Outro"],
+      progression: ["I", "IV", "V", "IV"]
+    },
+    {
+      key: "urbano",
+      name: "Urbano",
+      use: "Hook rapido, repeticion fuerte y espacio para flow.",
+      energy: "Ritmica / moderna",
+      parts: ["Intro", "Hook", "Verso 1", "Hook", "Verso 2", "Bridge", "Hook final", "Outro"],
+      progression: ["vi", "IV", "I", "V"]
+    },
+    {
+      key: "jazz",
+      name: "Jazz basico",
+      use: "Base armonica para colores suaves y rearmonizacion.",
+      energy: "Sofisticada / flexible",
+      parts: ["Intro", "Tema A", "Tema A", "Tema B", "Solo", "Tema A final", "Coda"],
+      progression: ["ii", "V", "I", "vi"]
+    }
+  ];
+
+  const ROMAN_TO_DEGREE = {
+    I: 0,
+    ii: 1,
+    iii: 2,
+    IV: 3,
+    V: 4,
+    vi: 5,
+    viio: 6,
+    vii: 6
+  };
+
+
   function byId(id) {
     return document.getElementById(id);
   }
@@ -117,6 +180,50 @@
     return notes.slice(0, 7).map((note, index) => note + quality[index]);
   }
 
+  function chordsForRomanProgression(key, progression) {
+    const majorNotes = getScaleNotes(key, "major").slice(0, 7);
+    const chords = diatonicChordsFromMajorScale(majorNotes);
+
+    return progression.map((degree) => {
+      const index = ROMAN_TO_DEGREE[degree];
+      return index === undefined ? degree : chords[index];
+    });
+  }
+
+  function formatTemplateSummary(template, key) {
+    const chords = chordsForRomanProgression(key, template.progression);
+    return [
+      "Studio 936 Composer - " + template.name,
+      "Uso: " + template.use,
+      "Energia: " + template.energy,
+      "Tonalidad: " + key,
+      "Estructura: " + template.parts.join(" / "),
+      "Progresion: " + template.progression.join(" - "),
+      "Acordes sugeridos: " + chords.join(" - ")
+    ].join("\n");
+  }
+
+  function setStatus(content, message) {
+    let status = content.querySelector(".s936-suite-status");
+    if (!status) {
+      status = make("p", "s936-suite-status");
+      content.appendChild(status);
+    }
+    status.textContent = message;
+  }
+
+  function copyText(textToCopy, content) {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      navigator.clipboard.writeText(textToCopy)
+        .then(() => setStatus(content, "Plantilla copiada al portapapeles."))
+        .catch(() => setStatus(content, "No se pudo copiar automaticamente. Selecciona el texto manualmente."));
+      return;
+    }
+
+    setStatus(content, "Portapapeles no disponible. Selecciona el texto manualmente.");
+  }
+
+
   function removeLegacySuiteNodes(panel) {
     panel.querySelectorAll("#v18SuiteClose, #v25uxSuiteClose, .legacy-suite-close").forEach((node) => {
       node.remove();
@@ -173,6 +280,40 @@
     addLine(content, "Siguiente paso:", "definir contrato, entradas, salidas y prueba minima.");
   }
 
+
+  function renderTemplates(panel) {
+    const key = detectCurrentKey();
+    const content = clearContent(panel, "templates");
+
+    content.appendChild(make("h3", "v18-suite-content-title", "Templates / Plantillas"));
+    content.appendChild(make("p", "s936-suite-muted", "Elige una estructura para empezar rapido. Por ahora no altera la cancion automaticamente: te entrega una plantilla lista para copiar y usar."));
+
+    const list = make("div", "s936-template-list");
+
+    SONG_TEMPLATES.forEach((template) => {
+      const chords = chordsForRomanProgression(key, template.progression);
+      const card = make("article", "s936-template-card");
+
+      card.appendChild(make("h4", "s936-template-title", template.name));
+      addLine(card, "Uso:", template.use);
+      addLine(card, "Energia:", template.energy);
+      addLine(card, "Estructura:", template.parts.join(" / "));
+      addLine(card, "Progresion:", template.progression.join(" - "));
+      addLine(card, "En " + key + ":", chords.join(" - "));
+
+      const copyButton = make("button", "s936-template-copy", "Copiar plantilla");
+      copyButton.type = "button";
+      copyButton.onclick = function () {
+        copyText(formatTemplateSummary(template, key), content);
+      };
+
+      card.appendChild(copyButton);
+      list.appendChild(card);
+    });
+
+    content.appendChild(list);
+  }
+
   function renderTheory(panel) {
     const key = detectCurrentKey();
     const major = getScaleNotes(key, "major").slice(0, 7);
@@ -215,6 +356,11 @@
 
         if (tool.key === "scales") {
           renderScales(currentPanel);
+          return;
+        }
+
+        if (tool.key === "templates") {
+          renderTemplates(currentPanel);
           return;
         }
 
