@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Practice Module v1
+// Studio 936 Composer - Suite Pro Practice Module v1.1
 // Scope: Practice tab only. It does not touch app legacy, audio internals, MIDI internals, editor internals or transport internals.
 // It reads from Studio936AppBridge and uses existing UI controls through safe clicks/events.
 (function () {
@@ -20,6 +20,9 @@
   }
 
   const state = loadState();
+  let followTimer = null;
+  let followCtx = null;
+  let isPracticeFollowing = false;
 
   function saveState() {
     try { localStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch (error) {}
@@ -299,10 +302,119 @@
   font-size:.7rem;
   font-weight:800;
 }
+
+#s936SuitePro .s936-pr-chord-layout {
+  display:grid;
+  grid-template-columns:minmax(0,.78fr) minmax(260px,.92fr);
+  gap:12px;
+  align-items:stretch;
+}
+#s936SuitePro .s936-pr-info-col { min-width:0; }
+#s936SuitePro .s936-pr-hero-visual {
+  border:1px solid rgba(174,230,70,.62);
+  border-radius:14px;
+  background:rgba(0,0,0,.22);
+  padding:10px;
+  min-height:150px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  overflow:auto;
+}
+#s936SuitePro .s936-pr-hero-visual h5 {
+  margin:0 0 8px;
+  color:#ffe066;
+  font-size:.62rem;
+  letter-spacing:.7px;
+  text-transform:uppercase;
+}
+#s936SuitePro .s936-pr-hero-visual .s936-pr-keyboard {
+  min-height:104px;
+  padding:8px;
+}
+#s936SuitePro .s936-pr-hero-visual .s936-pr-key {
+  min-width:18px;
+  height:72px;
+  font-size:.48rem;
+}
+#s936SuitePro .s936-pr-hero-visual .s936-pr-key.black {
+  min-width:15px;
+  height:50px;
+  margin-left:-9px;
+  margin-right:-9px;
+}
+#s936SuitePro .s936-pr-hero-visual .s936-pr-fret {
+  max-width:100%;
+  padding:8px;
+}
+#s936SuitePro .s936-pr-hero-visual .s936-pr-fret-cell,
+#s936SuitePro .s936-pr-hero-visual .s936-pr-string-label {
+  height:20px;
+}
+#s936SuitePro .s936-pr-run-badge {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  border:1px solid rgba(174,230,70,.55);
+  border-radius:999px;
+  padding:5px 9px;
+  color:#d7ff72;
+  background:rgba(174,230,70,.10);
+  font-size:.64rem;
+  font-weight:950;
+  text-transform:uppercase;
+}
+#s936SuitePro .s936-pr-karaoke {
+  border:1px solid rgba(174,230,70,.36);
+  border-radius:18px;
+  background:linear-gradient(135deg, rgba(174,230,70,.08), rgba(255,255,255,.035));
+  padding:16px;
+}
+#s936SuitePro .s936-pr-karaoke-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+#s936SuitePro .s936-pr-karaoke-title {
+  margin:0;
+  color:#8affff;
+  text-transform:uppercase;
+  font-size:.82rem;
+  letter-spacing:.8px;
+}
+#s936SuitePro .s936-pr-karaoke-body {
+  display:grid;
+  gap:8px;
+}
+#s936SuitePro .s936-pr-karaoke-line {
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:12px;
+  background:rgba(255,255,255,.045);
+  padding:10px 12px;
+  color:rgba(255,255,255,.82);
+  font-size:1rem;
+  line-height:1.45;
+}
+#s936SuitePro .s936-pr-karaoke-line.current {
+  border-color:rgba(255,216,77,.75);
+  background:rgba(255,216,77,.10);
+  color:#fff4b8;
+  box-shadow:0 0 0 1px rgba(255,216,77,.14) inset;
+}
+#s936SuitePro .s936-pr-karaoke-footer {
+  margin-top:12px;
+  color:rgba(255,255,255,.68);
+  font-size:.72rem;
+  line-height:1.45;
+}
+
 @media(max-width: 980px){
   #s936SuitePro .s936-pr-topbar,
   #s936SuitePro .s936-pr-hero,
-  #s936SuitePro .s936-pr-visual-grid { grid-template-columns:1fr; }
+  #s936SuitePro .s936-pr-visual-grid,
+  #s936SuitePro .s936-pr-chord-layout { grid-template-columns:1fr; }
 }
 `;
     document.head.appendChild(style);
@@ -310,7 +422,7 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProPractice = { version: "practice-v1", render };
+    window.Studio936SuiteProPractice = { version: "practice-v1.1", render };
     window.Studio936SuiteProModules.practice = window.Studio936SuiteProPractice;
   }
 
@@ -411,6 +523,51 @@
     return true;
   }
 
+  function startPracticeLoop(ctx) {
+    followCtx = ctx;
+    isPracticeFollowing = true;
+    setSectionInApp(ctx, selectedData(ctx).sectionKey);
+    setChordInApp(ctx, selectedData(ctx).index);
+    ctx.callBridge?.("startGroove", () => ctx.byId?.("playBtn")?.click());
+    render(ctx);
+    setTimeout(() => setStatus(ctx, "Loop de sección activo. El timeline avanza por acordes y compases."), 30);
+    scheduleNextChord(ctx);
+  }
+
+  function stopPracticeFollowOnly() {
+    isPracticeFollowing = false;
+    if (followTimer) clearTimeout(followTimer);
+    followTimer = null;
+  }
+
+  function stopPracticeLoop(ctx) {
+    stopPracticeFollowOnly();
+    ctx.callBridge?.("stopPlayback", () => ctx.byId?.("playBtn")?.click());
+    render(ctx);
+    setTimeout(() => setStatus(ctx, "Practice detenido."), 30);
+  }
+
+  function scheduleNextChord(ctx) {
+    if (followTimer) clearTimeout(followTimer);
+    if (!isPracticeFollowing) return;
+    const data = selectedData(ctx);
+    if (!data.items.length) return;
+    const bars = Math.max(1, Number(data.item?.bars) || 1);
+    const beatMs = 60000 / Math.max(40, bpmValue(ctx));
+    const delay = Math.max(900, bars * 4 * beatMs);
+    followTimer = setTimeout(() => {
+      if (!isPracticeFollowing) return;
+      const latest = selectedData(ctx);
+      const total = Math.max(1, latest.items.length);
+      state.selectedChordIndex = (latest.index + 1) % total;
+      saveState();
+      setChordInApp(ctx, state.selectedChordIndex);
+      render(ctx);
+      scheduleNextChord(ctx);
+    }, delay);
+  }
+
+
   function focusChord(ctx, sectionKey, chordIndex) {
     state.selectedSection = sectionKey;
     state.selectedChordIndex = Number(chordIndex) || 0;
@@ -418,6 +575,7 @@
     setSectionInApp(ctx, sectionKey);
     setChordInApp(ctx, state.selectedChordIndex);
     render(ctx);
+    if (isPracticeFollowing) scheduleNextChord(ctx);
   }
 
   function selectedData(ctx) {
@@ -437,6 +595,7 @@
   }
 
   function render(ctx) {
+    followCtx = ctx;
     installStyles();
     const c = ctx.clearContent();
     ctx.title(c, "Practice Pro", "Play-along modular: ve sección, acorde actual, siguiente acorde, notas, instrumento y controles de práctica sin inflar suite-pro.js.");
@@ -445,7 +604,7 @@
     renderTopbar(ctx, shell);
     renderHero(ctx, shell);
     renderChordLane(ctx, shell);
-    renderVisuals(ctx, shell);
+    renderKaraokePanel(ctx, shell);
     c.appendChild(shell);
   }
 
@@ -467,6 +626,7 @@
       state.selectedSection = sectionSelect.value;
       state.selectedChordIndex = 0;
       saveState();
+      stopPracticeFollowOnly();
       setSectionInApp(ctx, state.selectedSection);
       render(ctx);
     };
@@ -504,10 +664,8 @@
 
     const syncBox = controlBox(ctx, "Acción rápida");
     const row = ctx.el("div", "s936-pr-actions");
-    addButton(ctx, row, "Loop sección", () => {
-      setSectionInApp(ctx, data.sectionKey);
-      ctx.callBridge?.("startGroove", () => ctx.byId?.("playBtn")?.click());
-      setStatus(ctx, "Loop de sección iniciado desde Practice.");
+    addButton(ctx, row, isPracticeFollowing ? "Follow activo" : "Loop sección", () => {
+      startPracticeLoop(ctx);
     }, "s936-pr-btn warn");
     addButton(ctx, row, "Abrir Editor", () => ctx.callBridge?.("openEditor", () => false));
     syncBox.appendChild(row);
@@ -535,32 +693,67 @@
     const hero = ctx.el("div", "s936-pr-hero");
 
     const now = ctx.el("article", "s936-pr-big");
-    now.appendChild(ctx.el("h4", "s936-pr-now-title", "Ahora"));
-    now.appendChild(ctx.el("div", "s936-pr-chord", data.chordName));
-    now.appendChild(ctx.el("div", "s936-pr-sub", `${sectionLabel(data.part, data.sectionKey)} · acorde ${data.index + 1}/${Math.max(1, data.items.length)} · ${data.item?.bars || 1} compás(es)`));
-    now.appendChild(noteRow(ctx, data.notes, data.root));
+    const nowLayout = ctx.el("div", "s936-pr-chord-layout");
+    const nowInfo = ctx.el("div", "s936-pr-info-col");
+    nowInfo.appendChild(ctx.el("h4", "s936-pr-now-title", "Ahora"));
+    nowInfo.appendChild(ctx.el("div", "s936-pr-chord", data.chordName));
+    nowInfo.appendChild(ctx.el("div", "s936-pr-sub", `${sectionLabel(data.part, data.sectionKey)} · acorde ${data.index + 1}/${Math.max(1, data.items.length)} · ${data.item?.bars || 1} compás(es)`));
+    nowInfo.appendChild(noteRow(ctx, data.notes, data.root));
     const nowActions = ctx.el("div", "s936-pr-actions");
     addButton(ctx, nowActions, "Cargar en editor", () => focusChord(ctx, data.sectionKey, data.index));
     addButton(ctx, nowActions, "Escuchar acorde", () => {
       focusChord(ctx, data.sectionKey, data.index);
       setTimeout(() => ctx.byId?.("previewBtn")?.click(), 120);
     }, "s936-pr-btn warn");
-    now.appendChild(nowActions);
+    if (isPracticeFollowing) nowActions.appendChild(ctx.el("span", "s936-pr-run-badge", "Timeline activo"));
+    nowInfo.appendChild(nowActions);
+    const nowVisual = ctx.el("div", "s936-pr-hero-visual");
+    renderInstrumentMini(ctx, nowVisual, data, "Mapa de nota · ahora");
+    nowLayout.append(nowInfo, nowVisual);
+    now.appendChild(nowLayout);
 
+    const nextData = dataForItem(ctx, data, data.nextItem, data.nextName);
     const next = ctx.el("article", "s936-pr-big");
-    next.appendChild(ctx.el("h4", "s936-pr-now-title", "Siguiente"));
-    next.appendChild(ctx.el("div", "s936-pr-chord", data.nextName));
-    next.appendChild(ctx.el("div", "s936-pr-sub", "Anticipa el próximo cambio armónico antes de tocarlo."));
-    next.appendChild(noteRow(ctx, normalizeNotes(data.nextItem, ctx, data.nextName), rootOf(data.nextName, ctx)));
+    const nextLayout = ctx.el("div", "s936-pr-chord-layout");
+    const nextInfo = ctx.el("div", "s936-pr-info-col");
+    nextInfo.appendChild(ctx.el("h4", "s936-pr-now-title", "Siguiente"));
+    nextInfo.appendChild(ctx.el("div", "s936-pr-chord", data.nextName));
+    nextInfo.appendChild(ctx.el("div", "s936-pr-sub", "Anticipa el próximo cambio armónico antes de tocarlo."));
+    nextInfo.appendChild(noteRow(ctx, nextData.notes, nextData.root));
     const controls = ctx.el("div", "s936-pr-actions");
-    addButton(ctx, controls, "Start Groove", () => ctx.callBridge?.("startGroove", () => ctx.byId?.("playBtn")?.click()));
-    addButton(ctx, controls, "Canción completa", () => ctx.callBridge?.("playFullSong", () => ctx.byId?.("playSongBtn")?.click()));
-    addButton(ctx, controls, "Stop", () => ctx.callBridge?.("stopPlayback", () => ctx.byId?.("playBtn")?.click()), "s936-pr-btn danger");
-    next.appendChild(controls);
-    next.appendChild(ctx.el("div", "s936-pr-status", ""));
+    addButton(ctx, controls, isPracticeFollowing ? "Reiniciar loop" : "Start Groove", () => startPracticeLoop(ctx));
+    addButton(ctx, controls, "Canción completa", () => {
+      stopPracticeFollowOnly();
+      ctx.callBridge?.("playFullSong", () => ctx.byId?.("playSongBtn")?.click());
+      setStatus(ctx, "Canción completa enviada al motor principal.");
+    });
+    addButton(ctx, controls, "Stop", () => stopPracticeLoop(ctx), "s936-pr-btn danger");
+    nextInfo.appendChild(controls);
+    nextInfo.appendChild(ctx.el("div", "s936-pr-status", isPracticeFollowing ? "El timeline avanzará siguiendo los compases del acorde actual." : ""));
+    const nextVisual = ctx.el("div", "s936-pr-hero-visual");
+    renderInstrumentMini(ctx, nextVisual, nextData, "Mapa de nota · siguiente");
+    nextLayout.append(nextInfo, nextVisual);
+    next.appendChild(nextLayout);
 
     hero.append(now, next);
     shell.appendChild(hero);
+  }
+
+  function dataForItem(ctx, base, item, name) {
+    return Object.assign({}, base, {
+      item,
+      chordName: name,
+      notes: normalizeNotes(item, ctx, name),
+      root: rootOf(name, ctx)
+    });
+  }
+
+  function renderInstrumentMini(ctx, parent, data, title) {
+    const instrument = resolveInstrument(ctx, data.snap);
+    parent.appendChild(ctx.el("h5", "", title + " · " + instrumentLabel(instrument)));
+    if (instrument === "guitar") renderFretboard(ctx, parent, data, ["E", "A", "D", "G", "B", "E"], false);
+    else if (instrument === "ukulele") renderFretboard(ctx, parent, data, ["G", "C", "E", "A"], true);
+    else renderKeyboard(ctx, parent, data);
   }
 
   function noteRow(ctx, notes, root) {
@@ -604,31 +797,37 @@
     shell.appendChild(panel);
   }
 
-  function renderVisuals(ctx, shell) {
+  function renderKaraokePanel(ctx, shell) {
     const data = selectedData(ctx);
-    const visualGrid = ctx.el("div", "s936-pr-visual-grid");
+    const panel = ctx.el("section", "s936-pr-karaoke");
+    const head = ctx.el("div", "s936-pr-karaoke-head");
+    head.appendChild(ctx.el("h4", "s936-pr-karaoke-title", "Letra / Karaoke de práctica"));
+    head.appendChild(ctx.el("span", "s936-pr-run-badge", `${sectionLabel(data.part, data.sectionKey)} · ${data.chordName}`));
+    panel.appendChild(head);
 
-    const instrument = resolveInstrument(ctx, data.snap);
-    const visual = ctx.el("section", "s936-pr-panel");
-    visual.appendChild(ctx.el("h4", "", instrumentLabel(instrument) + " · voicing guía"));
-    if (instrument === "guitar") renderFretboard(ctx, visual, data, ["E", "A", "D", "G", "B", "E"], false);
-    else if (instrument === "ukulele") renderFretboard(ctx, visual, data, ["G", "C", "E", "A"], true);
-    else renderKeyboard(ctx, visual, data);
-    visual.appendChild(ctx.el("p", "s936-pr-sub", "Color: amarillo = raíz/bajo, verde = notas del acorde, fucsia = extensiones. Es guía visual de práctica; el editor mantiene la verdad musical."));
-
-    const detail = ctx.el("section", "s936-pr-panel");
-    detail.appendChild(ctx.el("h4", "", "Guía de ejecución"));
-    const bass = data.item?.bass || data.root || data.notes[0] || "—";
-    const right = data.notes.filter((n) => normalizeNote(n) !== normalizeNote(bass)).join(" · ") || data.notes.join(" · ");
-    detail.appendChild(lineLite(ctx, "Mano izquierda / bajo", bass));
-    detail.appendChild(lineLite(ctx, "Mano derecha / voicing", right || "—"));
-    detail.appendChild(lineLite(ctx, "Siguiente acorde", data.nextName));
     const lyric = lyricForSection(data.snap, data.sectionKey);
-    const lyricBox = ctx.el("div", "s936-pr-lyrics", lyric || "Sin letra para esta sección todavía.");
-    detail.appendChild(lyricBox);
+    const body = ctx.el("div", "s936-pr-karaoke-body");
+    const lines = splitLyricLines(lyric);
+    if (!lines.length) {
+      const empty = ctx.el("div", "s936-pr-karaoke-line current", "Sin letra para esta sección todavía.");
+      body.appendChild(empty);
+    } else {
+      const currentLine = Math.min(lines.length - 1, Math.max(0, data.index % lines.length));
+      lines.forEach((line, index) => {
+        body.appendChild(ctx.el("div", "s936-pr-karaoke-line" + (index === currentLine ? " current" : ""), line));
+      });
+    }
+    panel.appendChild(body);
+    panel.appendChild(ctx.el("div", "s936-pr-karaoke-footer", "Guía de práctica: toca el acorde activo, mira el siguiente y canta la línea resaltada. Cuando uses Loop sección, el timeline avanza por los compases del arreglo."));
+    shell.appendChild(panel);
+  }
 
-    visualGrid.append(visual, detail);
-    shell.appendChild(visualGrid);
+  function splitLyricLines(text) {
+    return String(text || "")
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 8);
   }
 
   function lineLite(ctx, label, value) {
