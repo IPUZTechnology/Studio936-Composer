@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Professional v3.5
+// Studio 936 Composer - Suite Pro Professional v3.8 Modular Core + Practice Module
 // Product goal: professional composition cockpit, not a duplicate of the main app.
 // Scope: this file only owns #s936SuitePro. It does not use #v18Suite and does not touch app legacy.
 (function () {
@@ -2603,9 +2603,57 @@ function normalizeNoteName(value) {
     c.appendChild(card);
   }
 
+  function createModuleContext() {
+    return {
+      version: "3.8",
+      state,
+      clearContent,
+      title,
+      el,
+      line,
+      action,
+      actions,
+      toolNav,
+      byId,
+      q,
+      qa,
+      bridge,
+      callBridge,
+      snapshot,
+      fullSongText,
+      projectJson,
+      currentChordName,
+      currentChordNotes,
+      normalizeKey,
+      normalizeNoteName,
+      chordRootName,
+      notesFromChordName,
+      notePitchClass,
+      majorChords,
+      allSectionItems,
+      chordCount,
+      lyricCount,
+      soloCount,
+      arrangementCount,
+      downloadText,
+      setArea,
+      render,
+      toggleDrums,
+      stateDrum: state.drum
+    };
+  }
+
   function renderPractice() {
+    const mod = window.Studio936SuiteProModules?.practice || window.Studio936SuiteProPractice;
+    if (mod && typeof mod.render === "function") {
+      return mod.render(createModuleContext());
+    }
+    return renderPracticeFallback();
+  }
+
+  function renderPracticeFallback() {
     const c = clearContent();
-    title(c, "Practice / Play Along", "Modo de práctica contextual: acordes, notas y acompañamiento. Aquí sí tienen sentido controles de reproducción.");
+    title(c, "Practice / Play Along", "Módulo Practice no cargado. Carga js/suite-pro-practice.js antes de js/suite-pro.js para activar la práctica modular.");
 
     const grid = el("div", "s936-sp-grid two");
     const now = el("article", "s936-sp-card important");
@@ -2618,15 +2666,12 @@ function normalizeNoteName(value) {
     grid.appendChild(now);
 
     const controls = el("article", "s936-sp-card");
-    controls.appendChild(el("h4", "", "Control de práctica"));
-    controls.appendChild(el("p", "s936-sp-muted", "Usa esto cuando quieres practicar encima del groove. No reemplaza el editor: acompaña tu interpretación."));
+    controls.appendChild(el("h4", "", "Control básico"));
     const box = actions(controls);
     action(box, "Start Groove", () => callBridge("startGroove", () => byId("playBtn")?.click()));
     action(box, "Canción completa", () => callBridge("playFullSong", () => byId("playSongBtn")?.click()), "s936-sp-btn secondary");
     action(box, "Stop", () => callBridge("stopPlayback", () => byId("playBtn")?.click()), "s936-sp-btn danger");
-    action(box, state.drum.playing ? "Stop Drums" : "Drums guía", () => toggleDrums(), "s936-sp-btn warn");
     grid.appendChild(controls);
-
     c.appendChild(grid);
   }
 
