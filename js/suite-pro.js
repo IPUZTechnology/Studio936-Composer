@@ -933,6 +933,12 @@ function normalizeNoteName(value) {
   background: rgba(255,216,77,.09);
   color: #ffe066;
 }
+#${PANEL_ID} .s936-sp-btn.gold {
+  border-color: rgba(255,216,77,.75);
+  background: linear-gradient(180deg, rgba(255,216,77,.18), rgba(255,216,77,.07));
+  color: #ffe066;
+  box-shadow: 0 0 16px rgba(255,216,77,.08);
+}
 #${PANEL_ID} .s936-sp-btn.danger {
   border-color: rgba(255,92,92,.55);
   background: rgba(255,92,92,.08);
@@ -2012,6 +2018,145 @@ function normalizeNoteName(value) {
     parent.appendChild(wrap);
   }
 
+
+  function printableEscape(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function printableDate() {
+    try {
+      return new Date().toLocaleString("es-CO", {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    } catch (error) {
+      return new Date().toISOString();
+    }
+  }
+
+  function printableSectionCard(part, s, index) {
+    const key = sectionKey(part);
+    const items = sectionItems(s, key);
+    const pattern = sectionPatternNames(items, 5);
+    const extra = sectionExtraEvents(items, pattern.length);
+    const lyric = lyricExcerpt(s, key, 155);
+    const hasLyric = hasSectionLyric(s, key);
+    const patternHtml = pattern.length
+      ? pattern.map((name) => "<span>" + printableEscape(name) + "</span>").join("")
+      : "<span class=\"empty\">pendiente</span>";
+    const extraHtml = extra ? "<span class=\"repeat\">repite +" + extra + "</span>" : "";
+    return [
+      "<article class=\"part-card\">",
+      "<div class=\"part-top\"><b>" + String(index + 1).padStart(2, "0") + "</b><strong>" + printableEscape(sectionDisplayName(part)) + "</strong></div>",
+      "<div class=\"part-meta\">" + printableEscape(sectionPatternSummary(items)) + "</div>",
+      "<p class=\"lyric" + (hasLyric ? "" : " empty") + "\">" + printableEscape(lyric) + "</p>",
+      "<div class=\"chords\">" + patternHtml + extraHtml + "</div>",
+      "</article>"
+    ].join("");
+  }
+
+  function printableChordCard(entry) {
+    const root = chordRootName(entry.name || "");
+    const noteNames = (entry.notes || []).map(pcName);
+    const tensionNames = noteNames.filter((note) => normalizeKey(note) !== normalizeKey(root));
+    return [
+      "<article class=\"chord-card\">",
+      "<h4>" + printableEscape(entry.name || "Acorde") + "</h4>",
+      "<div><b>Raíz:</b> " + printableEscape(root || "—") + "</div>",
+      "<div><b>Notas:</b> " + printableEscape(noteNames.join(" · ") || "—") + "</div>",
+      "<div><b>Color:</b> " + printableEscape(tensionNames.slice(0, 5).join(" · ") || "triada/base") + "</div>",
+      "</article>"
+    ].join("");
+  }
+
+  function masterMapPrintableHtml(s) {
+    const parts = commandParts(s);
+    const entries = chordEntries(s, 16);
+    const partsHtml = parts.length
+      ? parts.map((part, index) => printableSectionCard(part, s, index)).join("")
+      : "<p class=\"empty-block\">Sin forma detectada.</p>";
+    const chordsHtml = entries.length
+      ? entries.map(printableChordCard).join("")
+      : "<p class=\"empty-block\">Sin mapa armónico detectado.</p>";
+
+    return "<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"><title>Mapa Maestro - " + printableEscape(s.title || "Studio 936") + "</title>" +
+      "<style>" +
+      "@page{size:A4 landscape;margin:10mm;}" +
+      "*{box-sizing:border-box;}" +
+      "body{margin:0;background:#f6f3ea;color:#151515;font-family:Inter,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact;}" +
+      ".page{padding:18px;}" +
+      ".brand{font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:#008b76;font-weight:900;}" +
+      "header{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;align-items:end;border-bottom:3px solid #00b894;padding-bottom:10px;margin-bottom:12px;}" +
+      "h1{margin:4px 0 2px;font-size:27px;line-height:1;text-transform:uppercase;}" +
+      ".sub{font-size:12px;color:#444;line-height:1.4;}" +
+      ".metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}" +
+      ".metric{border:1px solid #bbb;border-radius:12px;padding:8px;background:#fff;}" +
+      ".metric b{display:block;font-size:19px;color:#111;}" +
+      ".metric span{display:block;font-size:8px;text-transform:uppercase;color:#666;font-weight:800;letter-spacing:.7px;}" +
+      "section{margin-top:12px;}" +
+      "h2{font-size:13px;margin:0 0 8px;text-transform:uppercase;letter-spacing:.8px;color:#006b5d;}" +
+      ".parts{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;}" +
+      ".part-card{min-height:126px;border:1px solid #009b82;border-radius:12px;background:#fff;padding:9px;overflow:hidden;}" +
+      ".part-top{display:flex;gap:6px;align-items:center;margin-bottom:5px;}" +
+      ".part-top b{font-size:9px;color:#d5a100;}" +
+      ".part-top strong{font-size:12px;text-transform:uppercase;}" +
+      ".part-meta{font-size:9px;color:#555;margin-bottom:6px;font-weight:800;}" +
+      ".lyric{min-height:39px;margin:0 0 7px;background:#eef3ef;border-radius:8px;padding:7px;font-size:9px;line-height:1.25;}" +
+      ".lyric.empty{color:#888;font-style:italic;}" +
+      ".chords{display:flex;flex-wrap:wrap;gap:4px;}" +
+      ".chords span{border:1px solid #00a98f;border-radius:999px;padding:2px 6px;font-size:8px;font-weight:900;background:#ecfffb;}" +
+      ".chords .repeat{border-color:#999;background:#f2f2f2;color:#555;}" +
+      ".chords .empty{border-color:#ccc;background:#eee;color:#777;}" +
+      ".harmonic{display:grid;grid-template-columns:repeat(8,1fr);gap:7px;}" +
+      ".chord-card{border:1px solid #b8b8b8;border-radius:10px;background:#fff;padding:8px;min-height:74px;}" +
+      ".chord-card h4{margin:0 0 5px;font-size:11px;color:#111;}" +
+      ".chord-card div{font-size:8.5px;line-height:1.28;color:#333;}" +
+      ".empty-block{padding:14px;border:1px dashed #bbb;border-radius:12px;background:#fff;color:#777;}" +
+      "footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;border-top:1px solid #ccc;padding-top:8px;font-size:9px;color:#555;}" +
+      "@media print{.no-print{display:none!important;}body{background:#fff;}.page{padding:0;}}" +
+      "</style></head><body><div class=\"page\">" +
+      "<header>" +
+      "<div><div class=\"brand\">Studio 936 · Mapa Maestro</div><h1>" + printableEscape(s.title || "Canción sin título") + "</h1><div class=\"sub\">" +
+      printableEscape(s.author || "Sin autor") + " · " + printableEscape(s.instrument || "instrumento") + " · Tonalidad " + printableEscape(s.key || "C") + " · " + printableEscape(s.style || "estilo") +
+      "</div></div>" +
+      "<div class=\"metrics\">" +
+      "<div class=\"metric\"><b>" + printableEscape(s.bpm || "—") + "</b><span>BPM</span></div>" +
+      "<div class=\"metric\"><b>" + printableEscape(chordCount(s)) + "</b><span>Eventos armónicos</span></div>" +
+      "<div class=\"metric\"><b>" + printableEscape(parts.length) + "</b><span>Partes</span></div>" +
+      "<div class=\"metric\"><b>" + printableEscape(lyricCount(s)) + "</b><span>Letras</span></div>" +
+      "<div class=\"metric\"><b>" + printableEscape(soloCount(s)) + "</b><span>Solos</span></div>" +
+      "<div class=\"metric\"><b>" + printableEscape(printableDate().replace(/,.*$/, "")) + "</b><span>Versión</span></div>" +
+      "</div>" +
+      "</header>" +
+      "<section><h2>Forma de canción · letra y patrón armónico</h2><div class=\"parts\">" + partsHtml + "</div></section>" +
+      "<section><h2>Mapa armónico resumido</h2><div class=\"harmonic\">" + chordsHtml + "</div></section>" +
+      "<footer><span>Generado desde Suite Pro · " + printableEscape(printableDate()) + "</span><span>Que todo suene luz.</span></footer>" +
+      "</div><script>setTimeout(function(){window.focus();window.print();},450);<\/script></body></html>";
+  }
+
+  function exportMasterMapPdf() {
+    const s = snapshot();
+    const html = masterMapPrintableHtml(s);
+    const printWindow = window.open("", "_blank", "noopener,noreferrer,width=1400,height=900");
+    if (!printWindow) {
+      downloadText("studio936-mapa-maestro-" + slug(s.title) + ".html", html, "text/html;charset=utf-8");
+      toast("El navegador bloqueó la ventana. Bajé un HTML imprimible; ábrelo y guarda como PDF.");
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    toast("Mapa Maestro listo para imprimir o guardar como PDF.");
+  }
+
+
   function renderCommand() {
     const s = snapshot();
     const c = clearContent();
@@ -2068,6 +2213,7 @@ function normalizeNoteName(value) {
     action(box, "Ir a Arrange", () => { state.area = "arrange"; setArea("arrange"); });
     action(box, "Lead Sheet", () => { state.area = "arrange"; state.arrangeTool = "lead"; setArea("arrange"); }, "s936-sp-btn secondary");
     action(box, "Export Center", () => { state.area = "export"; state.exportTool = "center"; setArea("export"); }, "s936-sp-btn secondary");
+    action(box, "Exportar Mapa PDF", exportMasterMapPdf, "s936-sp-btn gold");
     c.appendChild(actionsCard);
   }
 
