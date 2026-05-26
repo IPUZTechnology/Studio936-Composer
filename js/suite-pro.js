@@ -679,6 +679,149 @@
   opacity: 1;
   transform: translateY(0);
 }
+/* v3.1 Command Center visual song map */
+#${PANEL_ID} .s936-sp-command-block {
+  margin-top: 12px;
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 18px;
+  padding: 13px;
+  background: rgba(255,255,255,.035);
+}
+#${PANEL_ID} .s936-sp-command-block h4 {
+  margin: 0 0 5px;
+  color: #fff;
+  font-size: .88rem;
+  letter-spacing: .7px;
+  text-transform: uppercase;
+}
+#${PANEL_ID} .command-hero {
+  overflow: hidden;
+}
+#${PANEL_ID} .s936-sp-timeline {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(150px, 1fr);
+  gap: 10px;
+  overflow-x: auto;
+  padding: 6px 2px 4px;
+  -webkit-overflow-scrolling: touch;
+}
+#${PANEL_ID}.is-max .s936-sp-timeline {
+  grid-auto-columns: minmax(180px, 1fr);
+}
+#${PANEL_ID} .s936-sp-section-tile {
+  min-height: 124px;
+  border: 1px solid rgba(0,255,204,.22);
+  border-radius: 16px;
+  padding: 11px;
+  background: linear-gradient(180deg, rgba(0,255,204,.075), rgba(255,255,255,.028));
+}
+#${PANEL_ID} .s936-sp-section-tile.warn {
+  border-color: rgba(255,216,77,.32);
+  background: linear-gradient(180deg, rgba(255,216,77,.075), rgba(255,255,255,.025));
+}
+#${PANEL_ID} .s936-sp-section-tile.empty {
+  min-width: 260px;
+}
+#${PANEL_ID} .s936-sp-section-tile small {
+  display: inline-flex;
+  margin-bottom: 6px;
+  color: #ffd84d;
+  font-size: .58rem;
+  font-weight: 950;
+  letter-spacing: 1px;
+}
+#${PANEL_ID} .s936-sp-section-tile b {
+  display: block;
+  color: #fff;
+  font-size: .82rem;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+#${PANEL_ID} .s936-sp-section-tile span {
+  display: block;
+  margin-top: 4px;
+  color: rgba(255,255,255,.66);
+  font-size: .68rem;
+}
+#${PANEL_ID} .s936-sp-section-chords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+#${PANEL_ID} .s936-sp-section-chords em {
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 999px;
+  padding: 4px 7px;
+  background: rgba(0,0,0,.25);
+  color: #bfffee;
+  font-style: normal;
+  font-size: .62rem;
+  font-weight: 900;
+}
+#${PANEL_ID} .s936-sp-section-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+#${PANEL_ID} .s936-sp-section-flags i {
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 999px;
+  padding: 3px 6px;
+  color: rgba(255,255,255,.48);
+  font-style: normal;
+  font-size: .56rem;
+  font-weight: 800;
+}
+#${PANEL_ID} .s936-sp-section-flags i.ok {
+  border-color: rgba(0,255,204,.35);
+  color: #00ffcc;
+}
+#${PANEL_ID} .s936-sp-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 8px;
+}
+#${PANEL_ID} .s936-sp-chip {
+  border: 1px solid rgba(0,255,204,.28);
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: rgba(0,255,204,.07);
+  color: #bfffee;
+  font-size: .72rem;
+  font-weight: 950;
+}
+#${PANEL_ID} .s936-sp-keystrip {
+  display: flex;
+  gap: 5px;
+  margin-top: 12px;
+  padding: 8px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  background: rgba(0,0,0,.18);
+}
+#${PANEL_ID} .s936-sp-key {
+  flex: 1;
+  min-width: 26px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 8px;
+  padding: 9px 4px;
+  background: rgba(255,255,255,.05);
+  color: rgba(255,255,255,.48);
+  text-align: center;
+  font-size: .68rem;
+  font-weight: 950;
+}
+#${PANEL_ID} .s936-sp-key.active {
+  border-color: rgba(255,216,77,.55);
+  background: rgba(255,216,77,.12);
+  color: #ffd84d;
+  box-shadow: 0 0 18px rgba(255,216,77,.08);
+}
+
 @media(max-width: 760px) {
   #${PANEL_ID} {
     left: 8px;
@@ -820,17 +963,135 @@
     (map[state.area] || renderCommand)();
   }
 
+
+  function sectionDisplayName(part) {
+    if (!part) return "Parte";
+    return part.label || part.name || part.sectionName || part.section || "Parte";
+  }
+
+  function sectionKey(part) {
+    return part?.section || part?.key || part?.id || "";
+  }
+
+  function sectionItems(s, key) {
+    const sections = s.sections || {};
+    const list = sections[key];
+    return Array.isArray(list) ? list : [];
+  }
+
+  function sectionBars(items) {
+    return items.reduce((sum, item) => sum + Math.max(1, Number(item?.bars) || 1), 0);
+  }
+
+  function hasSectionLyric(s, key) {
+    return String((s.lyrics || {})[key] || "").trim().length > 0;
+  }
+
+  function hasSectionSolo(s, key) {
+    return String((s.sectionSolos || {})[key]?.phrase || "").trim().length > 0;
+  }
+
+  function commandParts(s) {
+    const arr = Array.isArray(s.arrangement) ? s.arrangement.filter(Boolean) : [];
+    if (arr.length) return arr;
+    const sections = s.sections || {};
+    return Object.keys(sections)
+      .filter((key) => Array.isArray(sections[key]) && sections[key].length)
+      .map((key) => ({ section:key, label:key }));
+  }
+
+  function uniqueChordNames(s, limit=18) {
+    const seen = new Set();
+    const names = [];
+    const parts = commandParts(s);
+    const source = parts.length ? parts.flatMap((part) => sectionItems(s, sectionKey(part))) : allSectionItems(s).map((x) => x.item);
+    source.forEach((item) => {
+      const name = String(item?.name || "").trim();
+      if (name && !seen.has(name)) {
+        seen.add(name);
+        names.push(name);
+      }
+    });
+    return names.slice(0, limit);
+  }
+
+  function commandRecommendation(s) {
+    const parts = commandParts(s);
+    const missingSections = parts.filter((part) => sectionItems(s, sectionKey(part)).length === 0);
+    if (!s.title || /sin título|untitled/i.test(s.title)) return "Define un título definitivo para fijar identidad.";
+    if (!parts.length) return "Crea o abre la estructura de canción.";
+    if (chordCount(s) < 4) return "Construye una progresión mínima para verso o coro.";
+    if (missingSections.length) return "Completa acordes en: " + missingSections.slice(0, 3).map(sectionDisplayName).join(", ") + ".";
+    if (lyricCount(s) === 0) return "Escribe una primera letra o guía vocal en Letra/TAB.";
+    if (soloCount(s) === 0) return "Crea una línea melódica guía para intro, solo o coro.";
+    return "Ya hay base sólida: crea Lead Sheet y exporta JSON de respaldo.";
+  }
+
+  function renderMiniChordKeyboard(parent, chordNames) {
+    const board = el("div", "s936-sp-keystrip");
+    const notes = ["C", "D", "E", "F", "G", "A", "B"];
+    notes.forEach((note) => {
+      const key = el("span", "s936-sp-key", note);
+      const active = chordNames.some((name) => String(name).toUpperCase().startsWith(note));
+      key.classList.toggle("active", active);
+      board.appendChild(key);
+    });
+    parent.appendChild(board);
+  }
+
+  function renderCommandTimeline(parent, s) {
+    const parts = commandParts(s);
+    const wrap = el("div", "s936-sp-timeline");
+    if (!parts.length) {
+      const empty = el("article", "s936-sp-section-tile empty");
+      empty.appendChild(el("b", "", "Sin estructura detectada"));
+      empty.appendChild(el("span", "", "Abre Arrange → Estructura para ordenar la canción."));
+      wrap.appendChild(empty);
+      parent.appendChild(wrap);
+      return;
+    }
+
+    parts.forEach((part, index) => {
+      const key = sectionKey(part);
+      const items = sectionItems(s, key);
+      const tile = el("article", "s936-sp-section-tile");
+      if (!items.length) tile.classList.add("warn");
+
+      tile.appendChild(el("small", "", String(index + 1).padStart(2, "0")));
+      tile.appendChild(el("b", "", sectionDisplayName(part)));
+      tile.appendChild(el("span", "", items.length + " acordes · " + sectionBars(items) + " compases"));
+
+      const chordLine = el("div", "s936-sp-section-chords");
+      items.slice(0, 4).forEach((item) => chordLine.appendChild(el("em", "", item?.name || "—")));
+      if (items.length > 4) chordLine.appendChild(el("em", "", "+" + (items.length - 4)));
+      if (!items.length) chordLine.appendChild(el("em", "", "pendiente"));
+      tile.appendChild(chordLine);
+
+      const flags = el("div", "s936-sp-section-flags");
+      flags.appendChild(el("i", hasSectionLyric(s, key) ? "ok" : "", hasSectionLyric(s, key) ? "Letra" : "Sin letra"));
+      flags.appendChild(el("i", hasSectionSolo(s, key) ? "ok" : "", hasSectionSolo(s, key) ? "Solo" : "Sin solo"));
+      tile.appendChild(flags);
+
+      wrap.appendChild(tile);
+    });
+    parent.appendChild(wrap);
+  }
+
   function renderCommand() {
     const s = snapshot();
     const c = clearContent();
-    title(c, "Command Center", "Resumen inteligente de la canción y próximos pasos. No duplica módulos: te dice qué falta y hacia dónde conviene ir.");
+    title(c, "Command Center", "Vista ejecutiva de la canción: estructura, mapa armónico, estado creativo y siguiente acción.");
 
+    const parts = commandParts(s);
+    const chords = uniqueChordNames(s, 16);
     const health = el("div", "s936-sp-health");
     [
       [s.bpm || "—", "BPM"],
       [s.style || "—", "Estilo"],
       [chordCount(s), "Acordes"],
-      [arrangementCount(s), "Partes"]
+      [parts.length, "Partes"],
+      [lyricCount(s), "Letras"],
+      [soloCount(s), "Solos"]
     ].forEach(([num, label]) => {
       const item = el("div", "s936-sp-health-item");
       item.appendChild(el("b", "", String(num)));
@@ -839,33 +1100,47 @@
     });
     c.appendChild(health);
 
-    const grid = el("div", "s936-sp-grid two");
-    const card = el("article", "s936-sp-card important");
-    card.appendChild(el("h4", "", "Canción actual"));
-    line(card, "Título", s.title || "Sin título");
-    line(card, "Autor", s.author || "Sin autor");
-    line(card, "Instrumento", s.instrument || "—");
-    line(card, "Sección", s.currentSectionName || s.currentSection || "—");
-    line(card, "Acorde en pantalla", s.chordLabel || currentChordName());
-    grid.appendChild(card);
+    const hero = el("article", "s936-sp-card important command-hero");
+    hero.appendChild(el("h4", "", s.title || "Canción sin título"));
+    line(hero, "Autor", s.author || "Sin autor");
+    line(hero, "Instrumento", s.instrument || "—");
+    line(hero, "Tonalidad guía", s.key || "C");
+    line(hero, "Sección activa", s.currentSectionName || s.currentSection || "—");
+    line(hero, "Acorde en pantalla", s.chordLabel || currentChordName());
+    renderMiniChordKeyboard(hero, chords);
+    c.appendChild(hero);
 
+    const structure = el("section", "s936-sp-command-block");
+    structure.appendChild(el("h4", "", "Estructura visual"));
+    structure.appendChild(el("p", "s936-sp-muted", "Mapa rápido para ver toda la canción sin abrir el editor profundo."));
+    renderCommandTimeline(structure, s);
+    c.appendChild(structure);
+
+    const harmony = el("section", "s936-sp-command-block");
+    harmony.appendChild(el("h4", "", "Mapa armónico"));
+    if (chords.length) {
+      const chips = el("div", "s936-sp-chip-row");
+      chords.forEach((name) => chips.appendChild(el("span", "s936-sp-chip", name)));
+      harmony.appendChild(chips);
+    } else {
+      harmony.appendChild(el("p", "s936-sp-muted", "Todavía no hay acordes detectados."));
+    }
+    c.appendChild(harmony);
+
+    const grid = el("div", "s936-sp-grid two");
     const next = el("article", "s936-sp-card");
-    next.appendChild(el("h4", "", "Diagnóstico de producción"));
-    const missing = [];
-    if (!s.title || /sin título|untitled/i.test(s.title)) missing.push("definir título");
-    if (chordCount(s) < 4) missing.push("crear progresión mínima");
-    if (arrangementCount(s) < 4) missing.push("ordenar estructura");
-    if (lyricCount(s) === 0) missing.push("escribir letra/TAB");
-    if (soloCount(s) === 0) missing.push("crear línea melódica");
-    if (!missing.length) missing.push("exportar versión y guardar snapshot");
-    line(next, "Siguiente paso", missing[0]);
-    line(next, "Pendiente", missing.join(" · "));
-    const nextActions = actions(next);
-    action(nextActions, "Compose", () => setArea("compose"));
-    action(nextActions, "Arrange", () => setArea("arrange"), "s936-sp-btn secondary");
-    action(nextActions, "Export", () => setArea("export"), "s936-sp-btn warn");
+    next.appendChild(el("h4", "", "Siguiente movimiento"));
+    line(next, "Recomendación", commandRecommendation(s));
+    line(next, "Filosofía", "Command mira; Arrange edita; Compose crea; Studio produce; Export entrega.");
     grid.appendChild(next);
 
+    const actionsCard = el("article", "s936-sp-card");
+    actionsCard.appendChild(el("h4", "", "Acciones útiles"));
+    const box = actions(actionsCard);
+    action(box, "Ir a Arrange", () => { state.area = "arrange"; setArea("arrange"); });
+    action(box, "Lead Sheet", () => { state.area = "arrange"; state.arrangeTool = "lead"; setArea("arrange"); }, "s936-sp-btn secondary");
+    action(box, "Export Center", () => { state.area = "export"; state.exportTool = "center"; setArea("export"); }, "s936-sp-btn secondary");
+    grid.appendChild(actionsCard);
     c.appendChild(grid);
   }
 
