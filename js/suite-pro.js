@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Professional v3.2
+// Studio 936 Composer - Suite Pro Professional v3.3
 // Product goal: professional composition cockpit, not a duplicate of the main app.
 // Scope: this file only owns #s936SuitePro. It does not use #v18Suite and does not touch app legacy.
 (function () {
@@ -23,7 +23,7 @@
   const ROMAN_INDEX = { I:0, ii:1, iii:2, IV:3, V:4, vi:5, vii:6 };
 
   const AREAS = [
-    ["command", "Command"],
+    ["command", "Mapa Maestro"],
     ["compose", "Compose"],
     ["arrange", "Arrange"],
     ["practice", "Practice"],
@@ -128,7 +128,8 @@
     open: false,
     mode: localStorage.getItem("s936_suite_mode_v3") || "dock",
     area: localStorage.getItem("s936_suite_area_v3") || "command",
-    harmonicView: localStorage.getItem("s936_suite_harmonic_view_v32") || "auto",
+    harmonicView: localStorage.getItem("s936_suite_harmonic_view_v33") || localStorage.getItem("s936_suite_harmonic_view_v32") || "auto",
+    fretPosition: localStorage.getItem("s936_suite_fret_position_v33") || "open",
     composeTool: "templates",
     arrangeTool: "lead",
     studioTool: "drums",
@@ -384,18 +385,18 @@ function normalizeNoteName(value) {
     if (instrument.includes("ukulele") || instrument.includes("ukelele")) return "ukulele";
     if (instrument.includes("guitar") || instrument.includes("guitarra")) return "guitar";
     if (instrument.includes("piano") || instrument.includes("epiano")) return "piano";
-    return "chips";
+    return "piano";
   }
 
   function activeHarmonicView(s) {
-    return state.harmonicView === "auto" ? instrumentViewForSnapshot(s) : state.harmonicView;
+    const selected = state.harmonicView === "auto" ? instrumentViewForSnapshot(s) : state.harmonicView;
+    return selected === "chips" ? "piano" : selected;
   }
 
   function renderHarmonicViewControls(parent, s) {
     const wrap = el("div", "s936-sp-view-toggle");
     const options = [
       ["auto", "Auto"],
-      ["chips", "Chips"],
       ["piano", "Piano"],
       ["guitar", "Guitarra"],
       ["ukulele", "Ukelele"]
@@ -408,7 +409,7 @@ function normalizeNoteName(value) {
       btn.title = key === "auto" ? "Auto usa el instrumento actual: " + (s.instrument || "—") : "Vista " + label;
       btn.onclick = () => {
         state.harmonicView = key;
-        localStorage.setItem("s936_suite_harmonic_view_v32", key);
+        localStorage.setItem("s936_suite_harmonic_view_v33", key);
         render();
       };
       wrap.appendChild(btn);
@@ -423,35 +424,68 @@ function normalizeNoteName(value) {
 
     const legend = el("p", "s936-sp-muted");
     legend.textContent = mode === "guitar"
-      ? "Vista de acordes en guitarra. Toca una tarjeta para enfocar ese acorde en el editor en una fase siguiente."
+      ? "Vista de voicings en guitarra. Cambia posición por traste para buscar colores abiertos, medios o jazz."
       : mode === "ukulele"
-        ? "Vista de acordes en ukelele para revisar digitación y color armónico."
-        : mode === "piano"
-          ? "Vista de notas en piano para ver qué notas sostienen cada acorde."
-          : "Vista rápida de acordes principales.";
+        ? "Vista de voicings en ukelele. Cambia posición por traste para encontrar digitaciones más cómodas."
+        : "Vista de notas en piano: fucsia = raíz/bajo, verde = cuerpo del acorde, dorado = extensiones sugeridas.";
     parent.appendChild(legend);
 
     if (mode === "piano") {
+      renderPianoLegend(parent);
       renderPianoChordGallery(parent, entries);
       return;
     }
 
     if (mode === "guitar" || mode === "ukulele") {
+      renderFretPositionControls(parent);
       renderFretChordGallery(parent, entries, mode);
       return;
     }
 
-    const chips = el("div", "s936-sp-chip-row");
-    entries.forEach((entry) => {
-      const chip = el("span", "s936-sp-chip", entry.name);
-      chip.title = entry.rawNotes || entry.notes.map(pcName).join(" ");
-      chips.appendChild(chip);
-    });
-    parent.appendChild(chips);
+    renderPianoLegend(parent);
+    renderPianoChordGallery(parent, entries);
   }
 
   function pcName(pc) {
     return NOTES_FLAT[(Number(pc) + 120) % 12] || "C";
+  }
+
+  function renderPianoLegend(parent) {
+    const legend = el("div", "s936-sp-piano-legend");
+    [
+      ["root", "Raíz / bajo"],
+      ["active", "Notas del acorde"],
+      ["tension", "Extensiones 7 · 9 · 11 · 13"]
+    ].forEach(([cls, label]) => {
+      const item = el("span", "");
+      item.appendChild(el("i", cls, ""));
+      item.appendChild(document.createTextNode(label));
+      legend.appendChild(item);
+    });
+    parent.appendChild(legend);
+  }
+
+  function chordExtensions(name) {
+    const text = String(name || "").toLowerCase();
+    const list = [];
+    if (/maj7|m7|[^a-z]7|7/.test(text)) list.push("7");
+    if (/9/.test(text)) list.push("9");
+    if (/11/.test(text)) list.push("11");
+    if (/13|6/.test(text)) list.push(text.includes("13") ? "13" : "6");
+    return list.length ? list.join(" · ") : "triada/base";
+  }
+
+  function noteRoleClass(entry, pc) {
+    const root = notePitchClass(entry.root);
+    if (pc === root) return "root";
+    const extensions = new Set();
+    const name = String(entry.name || "").toLowerCase();
+    const rootPc = Number.isFinite(root) ? root : 0;
+    if (/7|maj7|m7/.test(name)) extensions.add((rootPc + 10) % 12), extensions.add((rootPc + 11) % 12);
+    if (/9/.test(name)) extensions.add((rootPc + 2) % 12);
+    if (/11/.test(name)) extensions.add((rootPc + 5) % 12);
+    if (/13|6/.test(name)) extensions.add((rootPc + 9) % 12);
+    return extensions.has(pc) ? "tension" : "active";
   }
 
   function renderPianoChordGallery(parent, entries) {
@@ -466,12 +500,16 @@ function normalizeNoteName(value) {
         ["G#", 8, "black"], ["A", 9, "white"], ["A#", 10, "black"], ["B", 11, "white"]
       ];
       sequence.forEach(([label, pc, kind]) => {
+        const isActive = entry.notes.includes(pc);
+        const role = isActive ? noteRoleClass(entry, pc) : "";
         const key = el("span", "s936-sp-piano-key " + kind, label);
-        key.classList.toggle("active", entry.notes.includes(pc));
-        key.classList.toggle("root", pc === notePitchClass(entry.root));
+        key.classList.toggle("active", isActive && role === "active");
+        key.classList.toggle("root", isActive && role === "root");
+        key.classList.toggle("tension", isActive && role === "tension");
         keys.appendChild(key);
       });
       card.appendChild(keys);
+      card.appendChild(el("small", "", "Raíz: " + (entry.root || "—") + " · Ext: " + chordExtensions(entry.name)));
       card.appendChild(el("small", "", "Notas: " + entry.notes.map(pcName).join(" · ")));
       grid.appendChild(card);
     });
@@ -497,12 +535,48 @@ function normalizeNoteName(value) {
     ];
   }
 
-  function findFretForString(openPc, chordPcs) {
+  function currentFretBase() {
+    const raw = state.fretPosition || "open";
+    return raw === "open" ? 0 : Math.max(0, Number(raw) || 0);
+  }
+
+  function fretPositionLabel() {
+    return state.fretPosition === "open" ? "Abierta" : "Traste " + state.fretPosition;
+  }
+
+  function renderFretPositionControls(parent) {
+    const wrap = el("div", "s936-sp-fret-position");
+    wrap.appendChild(el("span", "", "Posición"));
+    [
+      ["open", "Abierta"],
+      ["3", "Traste 3"],
+      ["5", "Traste 5"],
+      ["7", "Traste 7"],
+      ["9", "Traste 9"],
+      ["12", "Traste 12"]
+    ].forEach(([value, label]) => {
+      const btn = el("button", "", label);
+      btn.type = "button";
+      btn.classList.toggle("active", String(state.fretPosition || "open") === value);
+      btn.onclick = () => {
+        state.fretPosition = value;
+        localStorage.setItem("s936_suite_fret_position_v33", value);
+        render();
+      };
+      wrap.appendChild(btn);
+    });
+    parent.appendChild(wrap);
+  }
+
+  function findFretForString(openPc, chordPcs, baseFret) {
     let best = null;
-    for (let fret = 0; fret <= 5; fret += 1) {
+    const from = baseFret > 0 ? baseFret : 0;
+    const to = baseFret > 0 ? baseFret + 4 : 5;
+    for (let fret = from; fret <= to; fret += 1) {
       const pc = (openPc + fret) % 12;
       if (chordPcs.includes(pc)) {
-        if (best === null || fret < best.fret) best = { fret, pc };
+        const score = chordPcs.indexOf(pc) + (baseFret > 0 ? Math.abs(fret - baseFret) * 0.25 : fret * 0.2);
+        if (best === null || score < best.score) best = { fret, pc, score };
       }
     }
     return best;
@@ -510,6 +584,7 @@ function normalizeNoteName(value) {
 
   function renderFretChordGallery(parent, entries, instrument) {
     const grid = el("div", "s936-sp-harmony-gallery fret");
+    const baseFret = currentFretBase();
     entries.forEach((entry) => {
       const card = el("article", "s936-sp-harmony-card fret-card");
       card.appendChild(el("h5", "", entry.name));
@@ -519,6 +594,11 @@ function normalizeNoteName(value) {
       const stringCount = tuning.length;
       const rootPc = notePitchClass(entry.root);
       const used = new Set();
+
+      if (baseFret > 0) {
+        const base = el("span", "base-fret", String(baseFret));
+        chart.appendChild(base);
+      }
 
       for (let fret = 0; fret <= 5; fret += 1) {
         const line = el("span", "fret-line");
@@ -531,14 +611,16 @@ function normalizeNoteName(value) {
         stringLine.style.left = (stringCount === 1 ? 50 : 8 + index * (84 / (stringCount - 1))) + "%";
         chart.appendChild(stringLine);
 
-        const choice = findFretForString(string.pc, entry.notes);
+        const choice = findFretForString(string.pc, entry.notes, baseFret);
         if (choice) {
           used.add(choice.pc);
-          const dot = el("span", "note-dot", choice.fret === 0 ? "○" : String(used.size));
+          const displayFret = baseFret > 0 ? choice.fret - baseFret + 1 : choice.fret;
+          const role = noteRoleClass(entry, choice.pc);
+          const dot = el("span", "note-dot " + role, choice.fret === 0 ? "○" : String(used.size));
           dot.classList.toggle("root", choice.pc === rootPc);
           dot.title = string.label + " string · fret " + choice.fret + " · " + pcName(choice.pc);
           dot.style.left = (stringCount === 1 ? 50 : 8 + index * (84 / (stringCount - 1))) + "%";
-          dot.style.top = (choice.fret === 0 ? 8 : 14 + (choice.fret - .5) * 17) + "%";
+          dot.style.top = (choice.fret === 0 ? 8 : 14 + (displayFret - .5) * 17) + "%";
           chart.appendChild(dot);
         } else {
           const mute = el("span", "mute-x", "×");
@@ -551,7 +633,30 @@ function normalizeNoteName(value) {
       tuning.forEach((string) => labels.appendChild(el("span", "", string.label)));
       card.appendChild(chart);
       card.appendChild(labels);
+      card.appendChild(el("small", "", fretPositionLabel() + " · Raíz: " + (entry.root || "—") + " · Ext: " + chordExtensions(entry.name)));
       card.appendChild(el("small", "", "Notas: " + entry.notes.map(pcName).join(" · ")));
+
+      const select = el("select", "s936-sp-card-position");
+      [
+        ["open", "Cambiar: abierta"],
+        ["3", "Cambiar: traste 3"],
+        ["5", "Cambiar: traste 5"],
+        ["7", "Cambiar: traste 7"],
+        ["9", "Cambiar: traste 9"],
+        ["12", "Cambiar: traste 12"]
+      ].forEach(([value, label]) => {
+        const option = el("option", "", label);
+        option.value = value;
+        if (String(state.fretPosition || "open") === value) option.selected = true;
+        select.appendChild(option);
+      });
+      select.onchange = () => {
+        state.fretPosition = select.value;
+        localStorage.setItem("s936_suite_fret_position_v33", select.value);
+        render();
+      };
+      card.appendChild(select);
+
       grid.appendChild(card);
     });
     parent.appendChild(grid);
@@ -1265,6 +1370,150 @@ function normalizeNoteName(value) {
   grid-template-columns: repeat(4, 1fr);
 }
 
+
+#${PANEL_ID} .s936-sp-subhead {
+  margin: 12px 0 8px;
+  color: #8affff;
+  font-size: .70rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+#${PANEL_ID} .s936-sp-song-ribbon {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 0 2px;
+  scrollbar-width: thin;
+}
+#${PANEL_ID} .s936-sp-song-node {
+  flex: 0 0 118px;
+  min-height: 72px;
+  border: 1px solid rgba(0,255,204,.28);
+  border-radius: 15px;
+  background: linear-gradient(180deg, rgba(0,255,204,.10), rgba(0,0,0,.22));
+  color: #eafffb;
+  padding: 9px;
+  text-align: left;
+  cursor: pointer;
+}
+#${PANEL_ID} .s936-sp-song-node small {
+  display: block;
+  color: #ffd84d;
+  font-size: .58rem;
+  font-weight: 950;
+}
+#${PANEL_ID} .s936-sp-song-node b {
+  display: block;
+  margin-top: 5px;
+  font-size: .72rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#${PANEL_ID} .s936-sp-song-node span {
+  display: block;
+  margin-top: 5px;
+  color: rgba(255,255,255,.68);
+  font-size: .61rem;
+  font-weight: 800;
+}
+#${PANEL_ID} .s936-sp-song-ribbon .more,
+#${PANEL_ID} .s936-sp-song-ribbon .empty {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  border: 1px dashed rgba(255,255,255,.18);
+  border-radius: 14px;
+  padding: 10px 12px;
+  color: rgba(255,255,255,.68);
+  font-size: .70rem;
+  font-weight: 800;
+}
+#${PANEL_ID} .s936-sp-piano-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 10px;
+  color: rgba(255,255,255,.76);
+  font-size: .66rem;
+  font-weight: 800;
+}
+#${PANEL_ID} .s936-sp-piano-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+#${PANEL_ID} .s936-sp-piano-legend i {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: #00ffcc;
+}
+#${PANEL_ID} .s936-sp-piano-legend i.root { background: #ff4dff; }
+#${PANEL_ID} .s936-sp-piano-legend i.tension { background: #ffd84d; }
+#${PANEL_ID} .s936-sp-piano-key.tension {
+  background: #ffd84d !important;
+  color: #1b1300 !important;
+  box-shadow: 0 0 10px rgba(255,216,77,.35);
+}
+#${PANEL_ID} .s936-sp-fret-position {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+#${PANEL_ID} .s936-sp-fret-position span {
+  color: #ffd84d;
+  font-size: .64rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+}
+#${PANEL_ID} .s936-sp-fret-position button {
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px;
+  background: rgba(255,255,255,.055);
+  color: rgba(255,255,255,.78);
+  padding: 6px 9px;
+  font-size: .62rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+#${PANEL_ID} .s936-sp-fret-position button.active,
+#${PANEL_ID} .s936-sp-fret-position button:hover {
+  border-color: rgba(0,255,204,.62);
+  color: #00ffcc;
+  background: rgba(0,255,204,.10);
+}
+#${PANEL_ID} .s936-sp-fret-mini .base-fret {
+  position: absolute;
+  left: 0;
+  top: 20%;
+  transform: translateX(-105%);
+  color: #ffd84d;
+  font-size: .58rem;
+  font-weight: 950;
+}
+#${PANEL_ID} .s936-sp-fret-mini .note-dot.tension {
+  background: #ffd84d !important;
+  color: #1b1300 !important;
+  box-shadow: 0 0 12px rgba(255,216,77,.38);
+}
+#${PANEL_ID} .s936-sp-card-position {
+  width: 100%;
+  margin-top: 7px;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 10px;
+  background: rgba(0,0,0,.28);
+  color: rgba(255,255,255,.82);
+  padding: 6px 7px;
+  font-size: .64rem;
+  font-weight: 800;
+}
+
 @media(max-width: 760px) {
   #${PANEL_ID} {
     left: 8px;
@@ -1470,16 +1719,33 @@ function normalizeNoteName(value) {
     return "Ya hay base sólida: crea Lead Sheet y exporta JSON de respaldo.";
   }
 
-  function renderMiniChordKeyboard(parent, chordNames) {
-    const board = el("div", "s936-sp-keystrip");
-    const notes = ["C", "D", "E", "F", "G", "A", "B"];
-    notes.forEach((note) => {
-      const key = el("span", "s936-sp-key", note);
-      const active = chordNames.some((name) => String(name).toUpperCase().startsWith(note));
-      key.classList.toggle("active", active);
-      board.appendChild(key);
+  function renderMasterSongRibbon(parent, s) {
+    const parts = commandParts(s);
+    const ribbon = el("div", "s936-sp-song-ribbon");
+    if (!parts.length) {
+      ribbon.appendChild(el("span", "empty", "Sin forma detectada · abre Arrange para crear estructura"));
+      parent.appendChild(ribbon);
+      return;
+    }
+
+    parts.slice(0, state.mode === "max" ? 14 : 8).forEach((part, index) => {
+      const key = sectionKey(part);
+      const items = sectionItems(s, key);
+      const node = el("button", "s936-sp-song-node", "");
+      node.type = "button";
+      node.title = sectionDisplayName(part) + " · " + items.length + " acordes · " + sectionBars(items) + " compases";
+      node.onclick = () => { state.area = "arrange"; setArea("arrange"); };
+      node.appendChild(el("small", "", String(index + 1).padStart(2, "0")));
+      node.appendChild(el("b", "", sectionDisplayName(part)));
+      node.appendChild(el("span", "", items.length + " ac · " + sectionBars(items) + " c"));
+      ribbon.appendChild(node);
     });
-    parent.appendChild(board);
+
+    if (parts.length > (state.mode === "max" ? 14 : 8)) {
+      ribbon.appendChild(el("span", "more", "+" + (parts.length - (state.mode === "max" ? 14 : 8)) + " partes"));
+    }
+
+    parent.appendChild(ribbon);
   }
 
   function renderCommandTimeline(parent, s) {
@@ -1523,7 +1789,7 @@ function normalizeNoteName(value) {
   function renderCommand() {
     const s = snapshot();
     const c = clearContent();
-    title(c, "Command Center", "Vista ejecutiva de la canción: estructura, mapa armónico, estado creativo y siguiente acción.");
+    title(c, "Mapa Maestro", "Vista de arreglista: forma completa, mapa armónico, instrumento y siguiente decisión musical.");
 
     const parts = commandParts(s);
     const chords = uniqueChordNames(s, 16);
@@ -1550,11 +1816,12 @@ function normalizeNoteName(value) {
     line(hero, "Tonalidad guía", s.key || "C");
     line(hero, "Sección activa", s.currentSectionName || s.currentSection || "—");
     line(hero, "Acorde en pantalla", s.chordLabel || currentChordName());
-    renderMiniChordKeyboard(hero, chords);
+    hero.appendChild(el("h5", "s936-sp-subhead", "Forma de canción"));
+    renderMasterSongRibbon(hero, s);
     c.appendChild(hero);
 
     const structure = el("section", "s936-sp-command-block");
-    structure.appendChild(el("h4", "", "Estructura visual"));
+    structure.appendChild(el("h4", "", "Estructura visual detallada"));
     structure.appendChild(el("p", "s936-sp-muted", "Mapa rápido para ver toda la canción sin abrir el editor profundo."));
     renderCommandTimeline(structure, s);
     c.appendChild(structure);
@@ -2242,7 +2509,7 @@ function normalizeNoteName(value) {
   }
 
   window.Studio936SuitePro = {
-    version: "professional-v3.2",
+    version: "professional-v3.3",
     open,
     close,
     toggle,
