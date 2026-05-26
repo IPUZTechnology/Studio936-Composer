@@ -1269,12 +1269,61 @@ function showOnboarding(){ if(localStorage.getItem(ONBOARD_KEY)) return; localSt
 */
 function buildSuiteProContent(suite){ const buttons=[['library','library'],['templates','templates'],['transpose','transpose'],['scales','scales'],['chordAI','chordAI'],['drums','drums'],['mixer','mixer'],['record','record'],['midiIn','midiIn'],['pdf','pdf'],['lead','lead'],['practice','practice'],['share','share'],['inspire','inspire'],['theory','theory']]; let close=suite.querySelector('#b25SuiteClose,#v25uxSuiteClose,#v18SuiteClose,.b25SuiteClose,.v25ux-suite-close'); if(!close){ close=document.createElement('button'); suite.appendChild(close); } close.id='b25SuiteClose'; close.type='button'; close.title='Close panel'; close.classList.add('b25SuiteClose','v25ux-suite-close'); close.textContent='×'; if(!close.dataset.v18Bound){ close.dataset.v18Bound='1'; close.addEventListener('click',()=>{ const panel=$('v18Suite'); if(panel) panel.classList.remove('v19-open'); const t=$('v19ToolsToggle'); if(t) t.classList.remove('open'); qa('#v25UxBar .v25ux-btn').forEach(x=>x.classList.remove('active')); }); } let inner=suite.querySelector('.v18-suite-inner'); if(!inner){ inner=document.createElement('div'); inner.className='v18-suite-inner'; suite.appendChild(inner); } let title=inner.querySelector('.v18-suite-title'); if(!title){ title=document.createElement('div'); title.className='v18-suite-title'; inner.prepend(title); } title.textContent='Suite Pro'; let buttonsWrap=inner.querySelector('.v18-suite-buttons'); if(!buttonsWrap){ buttonsWrap=document.createElement('div'); buttonsWrap.className='v18-suite-buttons'; inner.appendChild(buttonsWrap); } buttons.forEach(([id,label])=>{ const bid=`v18_${id}`; let b=buttonsWrap.querySelector('#'+bid); if(!b){ b=document.createElement('button'); b.id=bid; b.type='button'; b.className='v18-pill'; buttonsWrap.appendChild(b); } b.classList.add('v18-pill'); b.type='button'; b.textContent=T(label); }); let detect=inner.querySelector('.v18-detect'); if(!detect){ detect=document.createElement('div'); detect.className='v18-detect'; inner.appendChild(detect); } let out=detect.querySelector('#v18DetectOut'); if(!out){ out=document.createElement('span'); out.id='v18DetectOut'; detect.appendChild(out); } out.textContent=T('noChord'); let apply=detect.querySelector('#v18ApplyDetected'); if(!apply){ apply=document.createElement('button'); apply.id='v18ApplyDetected'; apply.className='v18-mini'; apply.type='button'; detect.appendChild(apply); } apply.textContent=T('applyDetected'); let drum=detect.querySelector('#v18DrumBtn'); if(!drum){ drum=document.createElement('button'); drum.id='v18DrumBtn'; drum.className='v18-mini'; drum.type='button'; detect.appendChild(drum); } drum.textContent=T('drumsOff'); return suite; }
 function bindSuiteProHandlers(){ $('v18_library').onclick=showLibrary; $('v18_templates').onclick=showTemplates; $('v18_transpose').onclick=showTranspose; $('v18_scales').onclick=showScales; $('v18_chordAI').onclick=showChordAI; $('v18_drums').onclick=toggleDrums; $('v18_mixer').onclick=showMixer; $('v18_record').id='v18RecBtn'; $('v18RecBtn').onclick=toggleRec; $('v18_midiIn').onclick=setupMidiIn; $('v18_pdf').onclick=exportPdf; $('v18_lead').onclick=showLeadSheet; $('v18_practice').onclick=showPractice; $('v18_share').onclick=showShare; $('v18_inspire').onclick=inspire; $('v18_theory').onclick=showTheory; $('v18ApplyDetected').onclick=applyDetectedChord; $('v18DrumBtn').onclick=toggleDrums; }
-function populateSuiteProPanel(suite){ if(!suite) return suite; if(!suite.classList.contains('v18-suite')) suite.classList.add('v18-suite'); buildSuiteProContent(suite); bindSuiteProHandlers(); return suite; }
-function addV18Ui(){ document.title='Studio 936 Composer v22 iPad Layout + Touch Fix'; const small=q('.brand small'); if(small) small.textContent='STUDIO 936 COMPOSER v20 PRODUCER UI'; const status=q('.status-bar'); if(!status||$('v18Suite')) return; const bar=document.createElement('div'); bar.id='v18Suite'; bar.className='v18-suite'; populateSuiteProPanel(bar); status.insertAdjacentElement('afterend',bar); }
+function isCleanSuiteProPanel(suite){
+    return !!(
+        suite &&
+        (
+            suite.classList?.contains('s936-suite') ||
+            suite.dataset?.s936SuiteVersion ||
+            suite.dataset?.s936SuiteClean === '1' ||
+            suite.querySelector?.('.s936-shell,.s936-suite-shell,#v18SuiteContent.s936-content')
+        )
+    );
+}
+function populateSuiteProPanel(suite){
+    if(!suite) return suite;
+
+    // If the external clean Suite Pro module is active, app.js must not inject
+    // legacy v18 buttons into #v18Suite. This prevents duplicated floating buttons.
+    if(window.Studio936SuitePro && typeof window.Studio936SuitePro.ensurePanel === 'function'){
+        return suite;
+    }
+
+    if(isCleanSuiteProPanel(suite)) return suite;
+
+    if(!suite.classList.contains('v18-suite')) suite.classList.add('v18-suite');
+    buildSuiteProContent(suite);
+    bindSuiteProHandlers();
+    return suite;
+}
+function addV18Ui(){
+    if(window.Studio936SuitePro && typeof window.Studio936SuitePro.ensurePanel === 'function'){
+        window.Studio936SuitePro.ensurePanel();
+        return;
+    }
+    document.title='Studio 936 Composer v22 iPad Layout + Touch Fix';
+    const small=q('.brand small');
+    if(small) small.textContent='STUDIO 936 COMPOSER v20 PRODUCER UI';
+    const status=q('.status-bar');
+    if(!status||$('v18Suite')) return;
+    const bar=document.createElement('div');
+    bar.id='v18Suite';
+    bar.className='v18-suite';
+    populateSuiteProPanel(bar);
+    status.insertAdjacentElement('afterend',bar);
+}
 function openModal(name,title,body){ let m=$('v18Modal'); if(!m){ m=document.createElement('div'); m.id='v18Modal'; m.className='v18-modal'; m.innerHTML='<div class="v18-modal-card"><button class="v18-x" id="v18Close">×</button><h2 id="v18ModalTitle"></h2><div id="v18ModalBody"></div></div>'; document.body.appendChild(m); $('v18Close').onclick=closeModal; m.addEventListener('click',e=>{ if(e.target===m) closeModal(); }); } $('v18ModalTitle').textContent=title; $('v18ModalBody').innerHTML=body; m.style.display='flex'; }
 function closeModal(){ const m=$('v18Modal'); if(m) m.style.display='none'; }
 function addHelp(){ const body=q('#helpModal .help-body'); if(!body||q('.v18-help-block',body)) return; body.insertAdjacentHTML('beforeend', `<div class="help-block wide v18-help-block"><h3>16. Studio 936 Pro Suite v18</h3><p><b>Biblioteca</b> guarda varias canciones dentro del navegador. <b>Plantillas</b> crea ideas por género. <b>Transponer</b> cambia tonalidad de acordes, bajo, notas y melodías. <b>Escalas</b> muestra notas recomendadas para improvisar. <b>Acordes IA</b> sugiere el siguiente acorde por intención. <b>Batería</b> agrega percusión sintética por estilo. <b>REC Idea</b> captura lo que tocas en el teclado virtual o MIDI y lo guarda como melodía de la sección. <b>PDF Lead Sheet</b> exporta un PDF simple para músicos. <b>Modo Práctica</b> muestra acorde y sección en grande.</p></div><div class="help-block v18-help-block"><h3>17. MIDI físico, detección de acordes y compartir</h3><p><b>MIDI IN</b> permite conectar un teclado físico compatible con Web MIDI. Al tocar notas, la app intenta detectar el acorde y puedes aplicarlo al editor. <b>Compartir</b> genera un enlace con el proyecto dentro del hash del navegador; para proyectos grandes sigue siendo mejor usar JSON.</p></div>`); }
-function init(){ checkHashImport(); addV18Ui(); setupKeyboardCapture(); addHelp(); setTimeout(showOnboarding,600); const help=$('helpBtn'); if(help) help.addEventListener('click',()=>setTimeout(addHelp,80)); const langBtn=$('langBtn'); if(langBtn) langBtn.addEventListener('click',()=>setTimeout(()=>{ q('#v18Suite')?.remove(); addV18Ui(); addHelp(); },140)); }
+function init(){ checkHashImport(); addV18Ui(); setupKeyboardCapture(); addHelp(); setTimeout(showOnboarding,600); const help=$('helpBtn'); if(help) help.addEventListener('click',()=>setTimeout(addHelp,80)); const langBtn=$('langBtn'); if(langBtn) langBtn.addEventListener('click',()=>setTimeout(()=>{
+        if(window.Studio936SuitePro && typeof window.Studio936SuitePro.ensurePanel === 'function'){
+            window.Studio936SuitePro.ensurePanel();
+        } else {
+            q('#v18Suite')?.remove();
+            addV18Ui();
+        }
+        addHelp();
+    },140)); }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
 })(); }
 
@@ -1995,18 +2044,29 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     $('v25UxClose').addEventListener('click',closeAll);
   }
   function ensureSuiteProMounted(){
+    if(window.Studio936SuitePro && typeof window.Studio936SuitePro.ensurePanel === 'function'){
+      return window.Studio936SuitePro.ensurePanel();
+    }
+
     let suite=document.getElementById('v18Suite');
+    if(isCleanSuiteProPanel(suite)) return suite;
     if(suite) return typeof populateSuiteProPanel==='function'?populateSuiteProPanel(suite):suite;
+
     if(typeof addV18Ui==='function'){
       addV18Ui();
       suite=document.getElementById('v18Suite');
+      if(isCleanSuiteProPanel(suite)) return suite;
       if(suite) return typeof populateSuiteProPanel==='function'?populateSuiteProPanel(suite):suite;
     }
+
     const bar=document.getElementById('v25UxBar');
     const host=bar&&bar.parentNode?bar.parentNode:document.body;
     if(!host) return null;
+
     suite=document.getElementById('v18Suite');
+    if(isCleanSuiteProPanel(suite)) return suite;
     if(suite) return typeof populateSuiteProPanel==='function'?populateSuiteProPanel(suite):suite;
+
     const fallback=document.createElement('div');
     fallback.id='v18Suite';
     fallback.className='v18-suite';
@@ -2031,7 +2091,15 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
   }
   function closeEditor(){const ed=q('.editor'); if(ed) ed.classList.remove('ux-open'); qa('#v25UxBar .v25ux-btn').forEach(b=>b.classList.remove('active'));}
   function ensureSuitePanelIntegrity(suite){
-    if(!suite || typeof populateSuiteProPanel!=='function') return suite;
+    if(!suite) return suite;
+
+    if(window.Studio936SuitePro && typeof window.Studio936SuitePro.ensurePanel === 'function'){
+      return window.Studio936SuitePro.ensurePanel();
+    }
+
+    if(isCleanSuiteProPanel(suite)) return suite;
+
+    if(typeof populateSuiteProPanel!=='function') return suite;
     const hasButtonsWrap=!!suite.querySelector('.v18-suite-buttons');
     const pillCount=suite.querySelectorAll('.v18-pill').length;
     let closeBtn=suite.querySelector('#b25SuiteClose');
@@ -2072,7 +2140,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
   function getParts(){try{ if(typeof arrangementParts==='function') return arrangementParts(); }catch(e){} try{ return (project&&Array.isArray(project.arrangement))?project.arrangement:[]; }catch(e){ return []; }}
   function secName(k){try{return sectionNames[k]||k}catch(e){return k}}
   function addPanelClose(){const ed=q('.editor'); if(!ed || $('v25uxPanelClose')) return; const b=document.createElement('button'); b.id='v25uxPanelClose'; b.type='button'; b.className='v25ux-panel-close'; b.textContent=L('Cerrar','Close'); b.addEventListener('click',()=>{ed.classList.remove('ux-open'); qa('#v25UxBar .v25ux-btn').forEach(x=>x.classList.remove('active'));}); b.addEventListener('touchend',ev=>{ev.preventDefault(); b.click();},{passive:false}); ed.insertBefore(b, ed.firstChild);}
-  function addSuiteClose(){const suite=$('v18Suite'); if(!suite || $('v25uxSuiteClose')) return; const b=document.createElement('button'); b.id='v25uxSuiteClose'; b.type='button'; b.className='v25ux-suite-close'; b.textContent=L('Cerrar','Close'); b.addEventListener('click',()=>{suite.classList.remove('v19-open'); const t=$('v19ToolsToggle'); if(t)t.classList.remove('open'); qa('#v25UxBar .v25ux-btn').forEach(x=>x.classList.remove('active'));}); b.addEventListener('touchend',ev=>{ev.preventDefault(); b.click();},{passive:false}); suite.appendChild(b);}
+  function addSuiteClose(){const suite=$('v18Suite'); if(!suite || $('v25uxSuiteClose') || suite.classList.contains('s936-suite') || suite.querySelector('.s936-shell,.s936-suite-shell')) return; const b=document.createElement('button'); b.id='v25uxSuiteClose'; b.type='button'; b.className='v25ux-suite-close'; b.textContent=L('Cerrar','Close'); b.addEventListener('click',()=>{suite.classList.remove('v19-open'); const t=$('v19ToolsToggle'); if(t)t.classList.remove('open'); qa('#v25UxBar .v25ux-btn').forEach(x=>x.classList.remove('active'));}); b.addEventListener('touchend',ev=>{ev.preventDefault(); b.click();},{passive:false}); suite.appendChild(b);}
   function addArrangementSelect(){const bar=$('v25UxBar'); if(!bar) return; let wrap=$('v25uxPartWrap'); if(!wrap){wrap=document.createElement('span'); wrap.id='v25uxPartWrap'; wrap.className='v25ux-part-wrap'; wrap.innerHTML='<label for="v25uxPartSelect">'+L('Orden actual','Current order')+'</label><select id="v25uxPartSelect" aria-label="'+L('Parte del arreglo','Arrangement part')+'"></select>'; const close=$('v25UxClose'); bar.insertBefore(wrap, close || null); $('v25uxPartSelect').addEventListener('change',ev=>{ const idx=Number(ev.target.value)||0; selectArrangementPart(idx); });} refreshArrangementSelect();}
   function refreshArrangementSelect(){const sel=$('v25uxPartSelect'); if(!sel) return; const parts=getParts(); let current=0; try{ current=Number(selectedArrangementIndex)||0; }catch(e){} if(current<0||current>=parts.length) current=0; sel.innerHTML=parts.map((p,i)=>`<option value="${i}">${i+1}. ${(p.label||secName(p.section))} · ${secName(p.section)}</option>`).join(''); sel.value=String(current);}
   function refreshLabels(){const pc=$('v25uxPanelClose'); if(pc) pc.textContent=L('Cerrar','Close'); const sc=$('v25uxSuiteClose'); if(sc) sc.textContent=L('Cerrar','Close'); const lab=q('#v25uxPartWrap label'); if(lab) lab.textContent=L('Orden actual','Current order'); const title=q('#v25UxBar .ux-title'); if(title) title.textContent=L('Workspace de composición','Composition workspace');}
