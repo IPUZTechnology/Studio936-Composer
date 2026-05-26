@@ -1660,3 +1660,46 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
     min-height: 220px;
   }
 }
+
+/* Studio 936 Suite Pro Templates */
+#v18Suite .s936-template-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+#v18Suite .s936-template-card {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+#v18Suite .s936-template-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#v18Suite .s936-template-copy {
+  margin-top: 10px;
+  border: 1px solid rgba(255, 216, 77, 0.55);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(255, 216, 77, 0.08);
+  color: #ffe066;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+#v18Suite .s936-template-copy:hover {
+  background: rgba(255, 216, 77, 0.16);
+}
+
+#v18Suite .s936-suite-status {
+  margin-top: 12px;
+  color: #94f7c5;
+  font-weight: 700;
+}
