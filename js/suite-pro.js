@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Professional v3
+// Studio 936 Composer - Suite Pro Professional v3.2
 // Product goal: professional composition cockpit, not a duplicate of the main app.
 // Scope: this file only owns #s936SuitePro. It does not use #v18Suite and does not touch app legacy.
 (function () {
@@ -128,6 +128,7 @@
     open: false,
     mode: localStorage.getItem("s936_suite_mode_v3") || "dock",
     area: localStorage.getItem("s936_suite_area_v3") || "command",
+    harmonicView: localStorage.getItem("s936_suite_harmonic_view_v32") || "auto",
     composeTool: "templates",
     arrangeTool: "lead",
     studioTool: "drums",
@@ -281,7 +282,282 @@
     return byId("chordName")?.value || snapshot().chordLabel || "Acorde actual";
   }
 
-  async function copyText(text, message="Copiado.") {
+function normalizeNoteName(value) {
+    let text = String(value || "").trim();
+    if (!text) return "";
+    text = text
+      .replace(/^Do/i, "C")
+      .replace(/^Re/i, "D")
+      .replace(/^Mi/i, "E")
+      .replace(/^Fa/i, "F")
+      .replace(/^Sol/i, "G")
+      .replace(/^La/i, "A")
+      .replace(/^Si/i, "B");
+    const match = text.match(/^([A-Ga-g])([#b]?)/);
+    if (!match) return "";
+    return match[1].toUpperCase() + (match[2] || "");
+  }
+
+  function notePitchClass(value) {
+    const note = normalizeNoteName(value);
+    return NOTE_INDEX[note];
+  }
+
+  function chordRootName(name) {
+    const match = String(name || "").trim().match(/^([A-Ga-g])([#b]?)/);
+    if (!match) return normalizeKey(snapshot().key || "C");
+    return match[1].toUpperCase() + (match[2] || "");
+  }
+
+  function chordPitchClassesFromName(name) {
+    const rootName = chordRootName(name);
+    const root = NOTE_INDEX[rootName];
+    if (root === undefined) return [0, 4, 7];
+
+    const lower = String(name || "").toLowerCase();
+    let intervals = [0, 4, 7];
+
+    if (/dim|°/.test(lower)) intervals = [0, 3, 6];
+    else if (/aug|\+5/.test(lower)) intervals = [0, 4, 8];
+    else if (/sus2/.test(lower)) intervals = [0, 2, 7];
+    else if (/sus4|sus/.test(lower)) intervals = [0, 5, 7];
+    else if (/(^|[^a-z])m(?!aj)|min|minor/.test(lower)) intervals = [0, 3, 7];
+
+    if (/maj7|ma7|Δ/.test(lower)) intervals.push(11);
+    else if (/(^|[^0-9])7|9|11|13/.test(lower)) intervals.push(10);
+    if (/6|13/.test(lower)) intervals.push(9);
+    if (/9/.test(lower)) intervals.push(2);
+    if (/11/.test(lower)) intervals.push(5);
+
+    return Array.from(new Set(intervals.map((n) => (root + n + 120) % 12)));
+  }
+
+  function itemPitchClasses(item) {
+    const raw = String(item?.notes || "").trim();
+    const pcs = raw.split(/\s+/)
+      .map((token) => token.replace(/[:].*$/, ""))
+      .map(notePitchClass)
+      .filter((pc) => pc !== undefined);
+    if (pcs.length) return Array.from(new Set(pcs));
+    return chordPitchClassesFromName(item?.name || currentChordName());
+  }
+
+  function chordEntries(s=snapshot(), limit=12) {
+    const parts = commandParts(s);
+    const source = parts.length
+      ? parts.flatMap((part) => sectionItems(s, sectionKey(part)))
+      : allSectionItems(s).map((x) => x.item);
+
+    const seen = new Set();
+    const entries = [];
+    source.forEach((item) => {
+      const name = String(item?.name || "").trim();
+      if (!name || seen.has(name)) return;
+      seen.add(name);
+      entries.push({
+        name,
+        notes: itemPitchClasses(item),
+        rawNotes: String(item?.notes || "").trim(),
+        bars: Math.max(1, Number(item?.bars) || 1),
+        bass: item?.bass || "",
+        root: chordRootName(name)
+      });
+    });
+
+    if (!entries.length) {
+      const name = currentChordName();
+      entries.push({
+        name,
+        notes: chordPitchClassesFromName(name),
+        rawNotes: currentChordNotes().join(" "),
+        bars: 1,
+        bass: "",
+        root: chordRootName(name)
+      });
+    }
+
+    return entries.slice(0, limit);
+  }
+
+  function instrumentViewForSnapshot(s) {
+    const instrument = String(s.instrument || "").toLowerCase();
+    if (instrument.includes("ukulele") || instrument.includes("ukelele")) return "ukulele";
+    if (instrument.includes("guitar") || instrument.includes("guitarra")) return "guitar";
+    if (instrument.includes("piano") || instrument.includes("epiano")) return "piano";
+    return "chips";
+  }
+
+  function activeHarmonicView(s) {
+    return state.harmonicView === "auto" ? instrumentViewForSnapshot(s) : state.harmonicView;
+  }
+
+  function renderHarmonicViewControls(parent, s) {
+    const wrap = el("div", "s936-sp-view-toggle");
+    const options = [
+      ["auto", "Auto"],
+      ["chips", "Chips"],
+      ["piano", "Piano"],
+      ["guitar", "Guitarra"],
+      ["ukulele", "Ukelele"]
+    ];
+    const active = state.harmonicView || "auto";
+    options.forEach(([key, label]) => {
+      const btn = el("button", "", label);
+      btn.type = "button";
+      btn.classList.toggle("active", key === active);
+      btn.title = key === "auto" ? "Auto usa el instrumento actual: " + (s.instrument || "—") : "Vista " + label;
+      btn.onclick = () => {
+        state.harmonicView = key;
+        localStorage.setItem("s936_suite_harmonic_view_v32", key);
+        render();
+      };
+      wrap.appendChild(btn);
+    });
+    parent.appendChild(wrap);
+  }
+
+  function renderCommandHarmonicView(parent, s) {
+    const entries = chordEntries(s, state.mode === "max" ? 14 : 8);
+    const mode = activeHarmonicView(s);
+    renderHarmonicViewControls(parent, s);
+
+    const legend = el("p", "s936-sp-muted");
+    legend.textContent = mode === "guitar"
+      ? "Vista de acordes en guitarra. Toca una tarjeta para enfocar ese acorde en el editor en una fase siguiente."
+      : mode === "ukulele"
+        ? "Vista de acordes en ukelele para revisar digitación y color armónico."
+        : mode === "piano"
+          ? "Vista de notas en piano para ver qué notas sostienen cada acorde."
+          : "Vista rápida de acordes principales.";
+    parent.appendChild(legend);
+
+    if (mode === "piano") {
+      renderPianoChordGallery(parent, entries);
+      return;
+    }
+
+    if (mode === "guitar" || mode === "ukulele") {
+      renderFretChordGallery(parent, entries, mode);
+      return;
+    }
+
+    const chips = el("div", "s936-sp-chip-row");
+    entries.forEach((entry) => {
+      const chip = el("span", "s936-sp-chip", entry.name);
+      chip.title = entry.rawNotes || entry.notes.map(pcName).join(" ");
+      chips.appendChild(chip);
+    });
+    parent.appendChild(chips);
+  }
+
+  function pcName(pc) {
+    return NOTES_FLAT[(Number(pc) + 120) % 12] || "C";
+  }
+
+  function renderPianoChordGallery(parent, entries) {
+    const grid = el("div", "s936-sp-harmony-gallery piano");
+    entries.forEach((entry) => {
+      const card = el("article", "s936-sp-harmony-card piano-card");
+      card.appendChild(el("h5", "", entry.name));
+      const keys = el("div", "s936-sp-piano-mini");
+      const sequence = [
+        ["C", 0, "white"], ["C#", 1, "black"], ["D", 2, "white"], ["D#", 3, "black"],
+        ["E", 4, "white"], ["F", 5, "white"], ["F#", 6, "black"], ["G", 7, "white"],
+        ["G#", 8, "black"], ["A", 9, "white"], ["A#", 10, "black"], ["B", 11, "white"]
+      ];
+      sequence.forEach(([label, pc, kind]) => {
+        const key = el("span", "s936-sp-piano-key " + kind, label);
+        key.classList.toggle("active", entry.notes.includes(pc));
+        key.classList.toggle("root", pc === notePitchClass(entry.root));
+        keys.appendChild(key);
+      });
+      card.appendChild(keys);
+      card.appendChild(el("small", "", "Notas: " + entry.notes.map(pcName).join(" · ")));
+      grid.appendChild(card);
+    });
+    parent.appendChild(grid);
+  }
+
+  function stringTunings(instrument) {
+    if (instrument === "ukulele") {
+      return [
+        { label:"G", pc:7 },
+        { label:"C", pc:0 },
+        { label:"E", pc:4 },
+        { label:"A", pc:9 }
+      ];
+    }
+    return [
+      { label:"E", pc:4 },
+      { label:"A", pc:9 },
+      { label:"D", pc:2 },
+      { label:"G", pc:7 },
+      { label:"B", pc:11 },
+      { label:"E", pc:4 }
+    ];
+  }
+
+  function findFretForString(openPc, chordPcs) {
+    let best = null;
+    for (let fret = 0; fret <= 5; fret += 1) {
+      const pc = (openPc + fret) % 12;
+      if (chordPcs.includes(pc)) {
+        if (best === null || fret < best.fret) best = { fret, pc };
+      }
+    }
+    return best;
+  }
+
+  function renderFretChordGallery(parent, entries, instrument) {
+    const grid = el("div", "s936-sp-harmony-gallery fret");
+    entries.forEach((entry) => {
+      const card = el("article", "s936-sp-harmony-card fret-card");
+      card.appendChild(el("h5", "", entry.name));
+
+      const chart = el("div", "s936-sp-fret-mini " + instrument);
+      const tuning = stringTunings(instrument);
+      const stringCount = tuning.length;
+      const rootPc = notePitchClass(entry.root);
+      const used = new Set();
+
+      for (let fret = 0; fret <= 5; fret += 1) {
+        const line = el("span", "fret-line");
+        line.style.top = (14 + fret * 17) + "%";
+        chart.appendChild(line);
+      }
+
+      tuning.forEach((string, index) => {
+        const stringLine = el("span", "string-line");
+        stringLine.style.left = (stringCount === 1 ? 50 : 8 + index * (84 / (stringCount - 1))) + "%";
+        chart.appendChild(stringLine);
+
+        const choice = findFretForString(string.pc, entry.notes);
+        if (choice) {
+          used.add(choice.pc);
+          const dot = el("span", "note-dot", choice.fret === 0 ? "○" : String(used.size));
+          dot.classList.toggle("root", choice.pc === rootPc);
+          dot.title = string.label + " string · fret " + choice.fret + " · " + pcName(choice.pc);
+          dot.style.left = (stringCount === 1 ? 50 : 8 + index * (84 / (stringCount - 1))) + "%";
+          dot.style.top = (choice.fret === 0 ? 8 : 14 + (choice.fret - .5) * 17) + "%";
+          chart.appendChild(dot);
+        } else {
+          const mute = el("span", "mute-x", "×");
+          mute.style.left = (stringCount === 1 ? 50 : 8 + index * (84 / (stringCount - 1))) + "%";
+          chart.appendChild(mute);
+        }
+      });
+
+      const labels = el("div", "s936-sp-fret-labels");
+      tuning.forEach((string) => labels.appendChild(el("span", "", string.label)));
+      card.appendChild(chart);
+      card.appendChild(labels);
+      card.appendChild(el("small", "", "Notas: " + entry.notes.map(pcName).join(" · ")));
+      grid.appendChild(card);
+    });
+    parent.appendChild(grid);
+  }
+
+    async function copyText(text, message="Copiado.") {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(String(text || ""));
       toast(message);
@@ -822,6 +1098,173 @@
   box-shadow: 0 0 18px rgba(255,216,77,.08);
 }
 
+
+#${PANEL_ID} .s936-sp-view-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 8px;
+}
+#${PANEL_ID} .s936-sp-view-toggle button {
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.055);
+  color: rgba(255,255,255,.76);
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: .66rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+#${PANEL_ID} .s936-sp-view-toggle button.active,
+#${PANEL_ID} .s936-sp-view-toggle button:hover {
+  border-color: rgba(0,255,204,.75);
+  background: rgba(0,255,204,.13);
+  color: #00ffcc;
+}
+#${PANEL_ID} .s936-sp-harmony-gallery {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+#${PANEL_ID} .s936-sp-harmony-gallery.fret {
+  grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
+}
+#${PANEL_ID} .s936-sp-harmony-gallery.piano {
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+}
+#${PANEL_ID} .s936-sp-harmony-card {
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(0,0,0,.18);
+  min-width: 0;
+}
+#${PANEL_ID} .s936-sp-harmony-card h5 {
+  margin: 0 0 9px;
+  color: #fff;
+  font-size: .78rem;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+#${PANEL_ID} .s936-sp-harmony-card small {
+  display: block;
+  margin-top: 8px;
+  color: rgba(255,255,255,.66);
+  font-size: .65rem;
+  line-height: 1.35;
+}
+#${PANEL_ID} .s936-sp-piano-mini {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(16px, 1fr));
+  gap: 3px;
+  align-items: end;
+  min-height: 70px;
+  padding: 8px;
+  border-radius: 12px;
+  background: rgba(0,0,0,.26);
+  border: 1px solid rgba(255,255,255,.10);
+}
+#${PANEL_ID} .s936-sp-piano-key {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: 56px;
+  padding: 4px 0;
+  border-radius: 0 0 7px 7px;
+  background: rgba(245,245,245,.88);
+  color: #111;
+  font-size: .52rem;
+  font-weight: 950;
+}
+#${PANEL_ID} .s936-sp-piano-key.black {
+  min-height: 38px;
+  background: #101010;
+  color: rgba(255,255,255,.75);
+  border: 1px solid rgba(255,255,255,.20);
+}
+#${PANEL_ID} .s936-sp-piano-key.active {
+  background: #00ffcc;
+  color: #00110d;
+  box-shadow: 0 0 16px rgba(0,255,204,.36);
+}
+#${PANEL_ID} .s936-sp-piano-key.root {
+  background: #ff4dff;
+  color: #fff;
+  box-shadow: 0 0 18px rgba(255,77,255,.42);
+}
+#${PANEL_ID} .s936-sp-fret-mini {
+  position: relative;
+  height: 124px;
+  border-radius: 13px;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.055), rgba(255,255,255,0)),
+    linear-gradient(180deg, rgba(70,45,24,.62), rgba(14,10,8,.95));
+  border: 1px solid rgba(255,216,77,.22);
+  overflow: hidden;
+}
+#${PANEL_ID} .s936-sp-fret-mini .string-line {
+  position: absolute;
+  top: 8%;
+  bottom: 10%;
+  width: 1px;
+  background: rgba(255,255,255,.43);
+  transform: translateX(-50%);
+}
+#${PANEL_ID} .s936-sp-fret-mini .fret-line {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  height: 1px;
+  background: rgba(255,255,255,.22);
+}
+#${PANEL_ID} .s936-sp-fret-mini .fret-line:first-child {
+  height: 3px;
+  background: rgba(255,240,210,.86);
+}
+#${PANEL_ID} .s936-sp-fret-mini .note-dot {
+  position: absolute;
+  width: 19px;
+  height: 19px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: #00ffcc;
+  color: #00110d;
+  font-size: .58rem;
+  font-weight: 950;
+  box-shadow: 0 0 14px rgba(0,255,204,.36);
+}
+#${PANEL_ID} .s936-sp-fret-mini .note-dot.root {
+  background: #ff4dff;
+  color: #fff;
+  box-shadow: 0 0 15px rgba(255,77,255,.44);
+}
+#${PANEL_ID} .s936-sp-fret-mini .mute-x {
+  position: absolute;
+  top: 2px;
+  color: #ff6b6b;
+  font-size: .74rem;
+  font-weight: 950;
+  transform: translateX(-50%);
+}
+#${PANEL_ID} .s936-sp-fret-labels {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+  margin-top: 5px;
+  color: rgba(255,255,255,.56);
+  font-size: .58rem;
+  font-weight: 800;
+  text-align: center;
+}
+#${PANEL_ID} .s936-sp-fret-mini.ukulele + .s936-sp-fret-labels {
+  grid-template-columns: repeat(4, 1fr);
+}
+
 @media(max-width: 760px) {
   #${PANEL_ID} {
     left: 8px;
@@ -1117,14 +1560,8 @@
     c.appendChild(structure);
 
     const harmony = el("section", "s936-sp-command-block");
-    harmony.appendChild(el("h4", "", "Mapa armónico"));
-    if (chords.length) {
-      const chips = el("div", "s936-sp-chip-row");
-      chords.forEach((name) => chips.appendChild(el("span", "s936-sp-chip", name)));
-      harmony.appendChild(chips);
-    } else {
-      harmony.appendChild(el("p", "s936-sp-muted", "Todavía no hay acordes detectados."));
-    }
+    harmony.appendChild(el("h4", "", "Mapa armónico / vista instrumental"));
+    renderCommandHarmonicView(harmony, s);
     c.appendChild(harmony);
 
     const grid = el("div", "s936-sp-grid two");
@@ -1805,7 +2242,7 @@
   }
 
   window.Studio936SuitePro = {
-    version: "professional-v3",
+    version: "professional-v3.2",
     open,
     close,
     toggle,
