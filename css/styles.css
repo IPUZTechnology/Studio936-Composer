@@ -1660,3 +1660,85 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
     min-height: 220px;
   }
 }
+
+/* ========================================================================
+   Studio 936 Suite Pro HARD FIX
+   Purpose:
+   - Hide legacy Suite Pro fragments injected by older app.js paths.
+   - Keep only the new .s936-shell Suite Pro runtime visible.
+   - Do not affect MIDI, transport, audio, arrangement, editor or exports.
+   ======================================================================== */
+
+#v18Suite.s936-suite > :not(.s936-shell) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+#v18Suite.s936-suite #v18SuiteClose,
+#v18Suite.s936-suite #v25uxSuiteClose,
+#v18Suite.s936-suite .legacy-suite-close,
+#v18Suite.s936-suite .v18-suite-title,
+#v18Suite.s936-suite .v18-suite-buttons,
+#v18Suite.s936-suite .v18-detect,
+#v18Suite.s936-suite .v18-mini,
+#v18Suite.s936-suite .v18-btn,
+#v18Suite.s936-suite .v18-card,
+#v18Suite.s936-suite .v18-pill:not(.s936-tool) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Keep only the clean Suite Pro shell visible */
+#v18Suite.s936-suite .s936-shell {
+  display: grid !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+#v18Suite.s936-suite .s936-header {
+  display: flex !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+#v18Suite.s936-suite .s936-body {
+  display: grid !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+#v18Suite.s936-suite .s936-tools {
+  display: grid !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+#v18Suite.s936-suite .s936-tools .s936-tool {
+  display: block !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+#v18Suite.s936-suite #v18SuiteContent,
+#v18Suite.s936-suite .s936-content {
+  display: block !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+/* Clean Suite Pro layout guard */
+#v18Suite.s936-suite {
+  overflow: hidden !important;
+}
+
+#v18Suite.s936-suite .s936-content {
+  overflow: auto !important;
+}
+
+#v18Suite.s936-suite .s936-close {
+  writing-mode: horizontal-tb !important;
+  transform: none !important;
+  white-space: nowrap !important;
+}
