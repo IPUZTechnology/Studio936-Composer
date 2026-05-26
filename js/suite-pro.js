@@ -2076,6 +2076,95 @@ function normalizeNoteName(value) {
     ].join("");
   }
 
+
+  function printableInstrumentModeLabel(mode) {
+    if (mode === "guitar") return "Guitarra";
+    if (mode === "ukulele") return "Ukelele";
+    return "Piano";
+  }
+
+  function printablePianoChart(entry) {
+    const sequence = [
+      ["C", 0, "white"], ["C#", 1, "black"], ["D", 2, "white"], ["D#", 3, "black"],
+      ["E", 4, "white"], ["F", 5, "white"], ["F#", 6, "black"], ["G", 7, "white"],
+      ["G#", 8, "black"], ["A", 9, "white"], ["A#", 10, "black"], ["B", 11, "white"]
+    ];
+    const keys = sequence.map(([label, pc, kind]) => {
+      const isActive = entry.notes.includes(pc);
+      const role = isActive ? noteRoleClass(entry, pc) : "";
+      const cls = "pkey " + kind + (isActive ? " on " + role : "");
+      return "<span class=\"" + cls + "\"><b>" + printableEscape(label) + "</b></span>";
+    }).join("");
+    return [
+      "<article class=\"print-chart piano-chart\">",
+      "<h4>" + printableEscape(entry.name || "Acorde") + "</h4>",
+      "<div class=\"piano-strip\">" + keys + "</div>",
+      "<div class=\"chart-meta\">Raíz: " + printableEscape(entry.root || "—") + " · Ext: " + printableEscape(chordExtensions(entry.name)) + "</div>",
+      "<div class=\"chart-notes\">Notas: " + printableEscape(entry.notes.map(pcName).join(" · ") || "—") + "</div>",
+      "</article>"
+    ].join("");
+  }
+
+  function printableFretChart(entry, instrument) {
+    const position = cardFretPosition(entry, instrument);
+    const baseFret = fretBaseFromPosition(position);
+    const tuning = stringTunings(instrument);
+    const stringCount = tuning.length;
+    const rootPc = notePitchClass(entry.root);
+    const used = new Set();
+
+    const lines = [];
+    if (baseFret > 0) {
+      lines.push("<span class=\"base-fret\">" + printableEscape(baseFret) + "</span>");
+    }
+
+    for (let fret = 0; fret <= 5; fret += 1) {
+      lines.push("<span class=\"fret-line\" style=\"top:" + (14 + fret * 17) + "%\"></span>");
+    }
+
+    tuning.forEach((string, index) => {
+      const left = stringCount === 1 ? 50 : 8 + index * (84 / (stringCount - 1));
+      lines.push("<span class=\"string-line\" style=\"left:" + left + "%\"></span>");
+
+      const choice = findFretForString(string.pc, entry.notes, baseFret);
+      if (choice) {
+        used.add(choice.pc);
+        const displayFret = baseFret > 0 ? choice.fret - baseFret + 1 : choice.fret;
+        const role = noteRoleClass(entry, choice.pc);
+        const marker = choice.fret === 0 ? "○" : String(used.size);
+        const top = choice.fret === 0 ? 8 : 14 + (displayFret - .5) * 17;
+        lines.push(
+          "<span class=\"note-dot " + role + (choice.pc === rootPc ? " root" : "") + "\" style=\"left:" + left + "%;top:" + top + "%\" title=\"" +
+          printableEscape(string.label + " · traste " + choice.fret + " · " + pcName(choice.pc)) + "\">" + printableEscape(marker) + "</span>"
+        );
+      } else {
+        lines.push("<span class=\"mute-x\" style=\"left:" + left + "%\">×</span>");
+      }
+    });
+
+    const labels = tuning.map((string) => "<span>" + printableEscape(string.label) + "</span>").join("");
+
+    return [
+      "<article class=\"print-chart fret-chart-card\">",
+      "<h4>" + printableEscape(entry.name || "Acorde") + "</h4>",
+      "<div class=\"fret-chart " + printableEscape(instrument) + "\">" + lines.join("") + "</div>",
+      "<div class=\"string-labels\">" + labels + "</div>",
+      "<div class=\"chart-meta\">" + printableEscape(fretPositionLabel(position)) + " · Raíz: " + printableEscape(entry.root || "—") + " · Ext: " + printableEscape(chordExtensions(entry.name)) + "</div>",
+      "<div class=\"chart-notes\">Notas: " + printableEscape(entry.notes.map(pcName).join(" · ") || "—") + "</div>",
+      "</article>"
+    ].join("");
+  }
+
+  function printableInstrumentMapHtml(s, entries) {
+    const mode = activeHarmonicView(s);
+    if (!entries.length) return "<p class=\"empty-block\">Sin acordes para dibujar.</p>";
+    if (mode === "guitar" || mode === "ukulele") {
+      return entries.slice(0, 12).map((entry) => printableFretChart(entry, mode)).join("");
+    }
+    return entries.slice(0, 12).map(printablePianoChart).join("");
+  }
+
+
   function masterMapPrintableHtml(s) {
     const parts = commandParts(s);
     const entries = chordEntries(s, 16);
@@ -2085,6 +2174,8 @@ function normalizeNoteName(value) {
     const chordsHtml = entries.length
       ? entries.map(printableChordCard).join("")
       : "<p class=\"empty-block\">Sin mapa armónico detectado.</p>";
+    const instrumentMode = activeHarmonicView(s);
+    const instrumentHtml = printableInstrumentMapHtml(s, entries);
 
     return "<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"><title>Mapa Maestro - " + printableEscape(s.title || "Studio 936") + "</title>" +
       "<style>" +
@@ -2118,6 +2209,28 @@ function normalizeNoteName(value) {
       ".chord-card{border:1px solid #b8b8b8;border-radius:10px;background:#fff;padding:8px;min-height:74px;}" +
       ".chord-card h4{margin:0 0 5px;font-size:11px;color:#111;}" +
       ".chord-card div{font-size:8.5px;line-height:1.28;color:#333;}" +
+      ".instrument-head{display:flex;justify-content:space-between;align-items:end;gap:12px;}" +
+      ".instrument-note{font-size:9px;color:#555;font-weight:700;}" +
+      ".instrument-map{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;}" +
+      ".print-chart{break-inside:avoid;border:1px solid #27313c;border-radius:12px;background:#111820;color:#fff;padding:8px;min-height:150px;overflow:hidden;}" +
+      ".print-chart h4{margin:0 0 6px;font-size:10px;text-transform:uppercase;color:#fff;letter-spacing:.4px;}" +
+      ".chart-meta,.chart-notes{font-size:7.5px;line-height:1.25;color:#d7e1e4;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}" +
+      ".piano-strip{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;height:72px;align-items:stretch;}" +
+      ".pkey{position:relative;display:flex;align-items:flex-end;justify-content:center;border:1px solid #4a5662;border-radius:5px;padding-bottom:4px;background:#f9f9f4;color:#20242a;font-size:6px;font-weight:900;}" +
+      ".pkey.black{height:48px;background:#151515;color:#eee;z-index:2;}" +
+      ".pkey.on.active{background:#00ffcc;color:#07100e;border-color:#00ffcc;}" +
+      ".pkey.on.root{background:#ff4fd8;color:#fff;border-color:#ff4fd8;}" +
+      ".pkey.on.tension{background:#ffd84d;color:#181300;border-color:#ffd84d;}" +
+      ".fret-chart{position:relative;height:96px;margin:2px 0 3px;background:linear-gradient(90deg,rgba(139,91,49,.42),rgba(70,45,26,.22));border:1px solid #56606a;border-radius:8px;}" +
+      ".fret-chart.ukulele{height:92px;}" +
+      ".fret-line{position:absolute;left:5%;right:5%;height:1px;background:rgba(255,255,255,.38);}" +
+      ".string-line{position:absolute;top:8%;bottom:8%;width:1px;background:rgba(255,255,255,.55);}" +
+      ".base-fret{position:absolute;left:4px;top:4px;z-index:3;color:#ffd84d;font-size:8px;font-weight:900;}" +
+      ".note-dot{position:absolute;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#00ffcc;color:#06100e;font-size:8px;font-weight:950;z-index:4;}" +
+      ".note-dot.root{background:#ff4fd8;color:#fff;}" +
+      ".note-dot.tension{background:#ffd84d;color:#151000;}" +
+      ".mute-x{position:absolute;top:2px;transform:translateX(-50%);font-size:8px;color:#b5b5b5;}" +
+      ".string-labels{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;text-align:center;font-size:7px;color:#cfd9dd;}" +
       ".empty-block{padding:14px;border:1px dashed #bbb;border-radius:12px;background:#fff;color:#777;}" +
       "footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;border-top:1px solid #ccc;padding-top:8px;font-size:9px;color:#555;}" +
       "@media print{.no-print{display:none!important;}body{background:#fff;}.page{padding:0;}}" +
@@ -2137,6 +2250,7 @@ function normalizeNoteName(value) {
       "</header>" +
       "<section><h2>Forma de canción · letra y patrón armónico</h2><div class=\"parts\">" + partsHtml + "</div></section>" +
       "<section><h2>Mapa armónico resumido</h2><div class=\"harmonic\">" + chordsHtml + "</div></section>" +
+      "<section><div class=\"instrument-head\"><h2>Mapa instrumental · " + printableEscape(printableInstrumentModeLabel(instrumentMode)) + "</h2><div class=\"instrument-note\">Imprime los voicings visibles del Mapa Maestro: raíz, extensiones, notas y posición por acorde.</div></div><div class=\"instrument-map\">" + instrumentHtml + "</div></section>" +
       "<footer><span>Generado desde Suite Pro · " + printableEscape(printableDate()) + "</span><span>Que todo suene luz.</span></footer>" +
       "</div><script>setTimeout(function(){window.focus();window.print();},450);<\/script></body></html>";
   }
