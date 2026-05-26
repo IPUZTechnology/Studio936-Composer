@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Professional v3.4
+// Studio 936 Composer - Suite Pro Professional v3.5
 // Product goal: professional composition cockpit, not a duplicate of the main app.
 // Scope: this file only owns #s936SuitePro. It does not use #v18Suite and does not touch app legacy.
 (function () {
@@ -1637,6 +1637,55 @@ function normalizeNoteName(value) {
   letter-spacing: .6px;
 }
 
+/* v3.5 Mapa Maestro limpio */
+#${PANEL_ID} .command-hero-v35 {
+  padding: 12px 14px 14px;
+}
+#${PANEL_ID}.is-max .command-hero-v35 {
+  min-height: 0;
+}
+#${PANEL_ID} .command-hero-v35 h4 {
+  margin: 0;
+  text-align: center;
+  color: #8affff;
+  font-size: 1.02rem;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+}
+#${PANEL_ID} .s936-sp-master-meta {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2px 7px;
+  margin: 8px auto 4px;
+  color: rgba(255,255,255,.78);
+  font-size: .70rem;
+  line-height: 1.35;
+  text-align: center;
+}
+#${PANEL_ID} .s936-sp-master-meta strong {
+  color: #ffd84d;
+}
+#${PANEL_ID} .command-hero-v35 .s936-sp-subhead {
+  text-align: center;
+  margin-top: 12px;
+}
+#${PANEL_ID} .command-hero-v35 .s936-sp-song-ribbon.lyric-map .s936-sp-song-node {
+  flex-basis: 240px;
+  min-height: 162px;
+}
+#${PANEL_ID}.is-max .command-hero-v35 .s936-sp-song-ribbon.lyric-map .s936-sp-song-node {
+  flex-basis: 276px;
+}
+#${PANEL_ID} .s936-sp-song-mini-chords em.repeat {
+  border-color: rgba(255,216,77,.28);
+  color: #ffe066;
+  background: rgba(255,216,77,.08);
+}
+#${PANEL_ID} .command-harmony-v35 {
+  margin-top: 14px;
+}
+
 @media(max-width: 760px) {
   #${PANEL_ID} {
     left: 8px;
@@ -1798,6 +1847,33 @@ function normalizeNoteName(value) {
     return items.reduce((sum, item) => sum + Math.max(1, Number(item?.bars) || 1), 0);
   }
 
+  function sectionPatternNames(items, limit=4) {
+    const seen = new Set();
+    const names = [];
+    (items || []).forEach((item) => {
+      const name = String(item?.name || "").trim();
+      if (name && !seen.has(name)) {
+        seen.add(name);
+        names.push(name);
+      }
+    });
+    return names.slice(0, limit);
+  }
+
+  function sectionPatternSummary(items) {
+    const pattern = sectionPatternNames(items, 4);
+    const bars = sectionBars(items);
+    if (!items || !items.length) return "Pendiente";
+    if (!pattern.length) return bars + " compases";
+    return bars + " compases · patrón de " + pattern.length + " acorde" + (pattern.length === 1 ? "" : "s");
+  }
+
+  function sectionExtraEvents(items, visibleCount) {
+    const total = Array.isArray(items) ? items.length : 0;
+    const extra = total - visibleCount;
+    return extra > 0 ? extra : 0;
+  }
+
   function sectionLyric(s, key) {
     return String((s.lyrics || {})[key] || "").trim();
   }
@@ -1865,20 +1941,28 @@ function normalizeNoteName(value) {
     parts.slice(0, limit).forEach((part, index) => {
       const key = sectionKey(part);
       const items = sectionItems(s, key);
+      const pattern = sectionPatternNames(items, 4);
+      const extra = sectionExtraEvents(items, pattern.length);
       const node = el("button", "s936-sp-song-node lyric-node", "");
       node.type = "button";
-      node.title = sectionDisplayName(part) + " · " + items.length + " acordes · " + sectionBars(items) + " compases";
+      node.title = [
+        sectionDisplayName(part),
+        sectionBars(items) + " compases",
+        items.length + " eventos armónicos guardados",
+        pattern.length ? "Patrón: " + pattern.join(" → ") : "Sin patrón"
+      ].join(" · ");
       node.onclick = () => { state.area = "arrange"; state.arrangeTool = "lyrics"; setArea("arrange"); };
       node.appendChild(el("small", "", String(index + 1).padStart(2, "0")));
       node.appendChild(el("b", "", sectionDisplayName(part)));
-      node.appendChild(el("span", "meta", items.length + " ac · " + sectionBars(items) + " c"));
+      node.appendChild(el("span", "meta", sectionPatternSummary(items)));
       const lyric = el("p", "s936-sp-song-lyric", lyricExcerpt(s, key));
       lyric.classList.toggle("empty", !hasSectionLyric(s, key));
       node.appendChild(lyric);
 
       const chordLine = el("div", "s936-sp-song-mini-chords");
-      items.slice(0, 3).forEach((item) => chordLine.appendChild(el("em", "", item?.name || "—")));
-      if (items.length > 3) chordLine.appendChild(el("em", "", "+" + (items.length - 3)));
+      pattern.forEach((name) => chordLine.appendChild(el("em", "", name || "—")));
+      if (extra > 0) chordLine.appendChild(el("em", "repeat", "repite +" + extra));
+      if (!pattern.length) chordLine.appendChild(el("em", "", "pendiente"));
       node.appendChild(chordLine);
       ribbon.appendChild(node);
     });
@@ -1931,15 +2015,14 @@ function normalizeNoteName(value) {
   function renderCommand() {
     const s = snapshot();
     const c = clearContent();
-    title(c, "Mapa Maestro", "Vista de arreglista: forma completa, mapa armónico, instrumento y siguiente decisión musical.");
+    title(c, "Mapa Maestro", "Vista de arreglista: forma, letra, patrón armónico e instrumento. SYNC actualiza esta lectura con la canción real.");
 
     const parts = commandParts(s);
-    const chords = uniqueChordNames(s, 16);
     const health = el("div", "s936-sp-health");
     [
       [s.bpm || "—", "BPM"],
       [s.style || "—", "Estilo"],
-      [chordCount(s), "Acordes"],
+      [chordCount(s), "Eventos armónicos"],
       [parts.length, "Partes"],
       [lyricCount(s), "Letras"],
       [soloCount(s), "Solos"]
@@ -1951,24 +2034,30 @@ function normalizeNoteName(value) {
     });
     c.appendChild(health);
 
-    const hero = el("article", "s936-sp-card important command-hero");
+    const hero = el("article", "s936-sp-card important command-hero command-hero-v35");
     hero.appendChild(el("h4", "", s.title || "Canción sin título"));
-    line(hero, "Autor", s.author || "Sin autor");
-    line(hero, "Instrumento", s.instrument || "—");
-    line(hero, "Tonalidad guía", s.key || "C");
-    line(hero, "Sección activa", s.currentSectionName || s.currentSection || "—");
-    line(hero, "Acorde en pantalla", s.chordLabel || currentChordName());
-    hero.appendChild(el("h5", "s936-sp-subhead", "Forma de canción"));
+
+    const meta = el("p", "s936-sp-master-meta", "");
+    [
+      ["Autor", s.author || "Sin autor"],
+      ["Instrumento", s.instrument || "—"],
+      ["Tonalidad", s.key || "C"],
+      ["BPM", s.bpm || "—"],
+      ["Estilo", s.style || "—"],
+      ["Sección", s.currentSectionName || s.currentSection || "—"]
+    ].forEach(([label, value], index) => {
+      if (index) meta.appendChild(document.createTextNode(" · "));
+      const strong = el("strong", "", label + ":");
+      meta.appendChild(strong);
+      meta.appendChild(document.createTextNode(" " + value));
+    });
+    hero.appendChild(meta);
+
+    hero.appendChild(el("h5", "s936-sp-subhead", "Forma de canción · letra y patrón armónico"));
     renderMasterSongRibbon(hero, s);
     c.appendChild(hero);
 
-    const structure = el("section", "s936-sp-command-block");
-    structure.appendChild(el("h4", "", "Estructura visual detallada"));
-    structure.appendChild(el("p", "s936-sp-muted", "Mapa rápido para ver toda la canción sin abrir el editor profundo."));
-    renderCommandTimeline(structure, s);
-    c.appendChild(structure);
-
-    const harmony = el("section", "s936-sp-command-block");
+    const harmony = el("section", "s936-sp-command-block command-harmony-v35");
     harmony.appendChild(el("h4", "", "Mapa armónico / vista instrumental"));
     renderCommandHarmonicView(harmony, s);
     c.appendChild(harmony);
