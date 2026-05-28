@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Practice Module v1.1
+// Studio 936 Composer - Suite Pro Practice Module v1.2
 // Scope: Practice tab only. It does not touch app legacy, audio internals, MIDI internals, editor internals or transport internals.
 // It reads from Studio936AppBridge and uses existing UI controls through safe clicks/events.
 (function () {
@@ -410,6 +410,97 @@
   line-height:1.45;
 }
 
+
+/* Practice Pro v1.2: rehearsal-first layout */
+#s936SuitePro .s936-pr-topbar {
+  grid-template-columns: minmax(190px, 1.2fr) minmax(150px, .7fr) minmax(210px, .9fr) minmax(230px, 1fr);
+  gap:8px;
+}
+#s936SuitePro .s936-pr-control {
+  padding:8px 10px;
+  min-height:0;
+}
+#s936SuitePro .s936-pr-label {
+  margin-bottom:4px;
+  font-size:.56rem;
+}
+#s936SuitePro .s936-pr-select {
+  padding:7px 9px;
+  font-size:.74rem;
+}
+#s936SuitePro .s936-pr-karaoke {
+  order:1;
+  padding:18px;
+  border-color:rgba(174,230,70,.55);
+}
+#s936SuitePro .s936-pr-karaoke-title {
+  font-size:.92rem;
+}
+#s936SuitePro .s936-pr-karaoke-body {
+  grid-template-columns:1fr;
+}
+#s936SuitePro .s936-pr-karaoke-line {
+  font-size:1.2rem;
+  line-height:1.5;
+  padding:12px 14px;
+}
+#s936SuitePro .s936-pr-karaoke-line.current {
+  font-size:1.35rem;
+  border-color:rgba(255,216,77,.9);
+  background:linear-gradient(135deg, rgba(255,216,77,.16), rgba(0,255,204,.06));
+}
+#s936SuitePro .s936-pr-hero { order:2; }
+#s936SuitePro .s936-pr-panel { order:3; }
+#s936SuitePro .s936-pr-chord-card.active {
+  transform:translateY(-2px);
+}
+#s936SuitePro .s936-pr-chord-card.active .num::before {
+  content:"▶ ";
+  color:#d7ff72;
+}
+#s936SuitePro .s936-pr-hero-visual {
+  min-height:132px;
+}
+#s936SuitePro .s936-pr-fret-grid.clean-voicing .s936-pr-fret-cell {
+  height:24px;
+}
+#s936SuitePro .s936-pr-fret-meta {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:8px;
+  color:rgba(255,255,255,.68);
+  font-size:.62rem;
+  font-weight:800;
+}
+#s936SuitePro .s936-pr-legend {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:8px;
+  color:rgba(255,255,255,.68);
+  font-size:.62rem;
+}
+#s936SuitePro .s936-pr-legend span {
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+}
+#s936SuitePro .s936-pr-swatch {
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  display:inline-block;
+  background:#00ffcc;
+}
+#s936SuitePro .s936-pr-swatch.root { background:#ffe066; }
+#s936SuitePro .s936-pr-swatch.ext { background:#ff5bea; }
+#s936SuitePro .s936-pr-lite-actions {
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+}
+
 @media(max-width: 980px){
   #s936SuitePro .s936-pr-topbar,
   #s936SuitePro .s936-pr-hero,
@@ -422,7 +513,7 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProPractice = { version: "practice-v1.1", render };
+    window.Studio936SuiteProPractice = { version: "practice-v1.2", render };
     window.Studio936SuiteProModules.practice = window.Studio936SuiteProPractice;
   }
 
@@ -598,14 +689,18 @@
     followCtx = ctx;
     installStyles();
     const c = ctx.clearContent();
-    ctx.title(c, "Practice Pro", "Play-along modular: ve sección, acorde actual, siguiente acorde, notas, instrumento y controles de práctica sin inflar suite-pro.js.");
+    ctx.title(c, "Practice Pro", "Play-along modular: letra arriba, acordes en movimiento, timeline activo e instrumento limpio para tocar y cantar.");
 
     const shell = ctx.el("div", "s936-pr-shell");
     renderTopbar(ctx, shell);
+    renderKaraokePanel(ctx, shell);
     renderHero(ctx, shell);
     renderChordLane(ctx, shell);
-    renderKaraokePanel(ctx, shell);
     c.appendChild(shell);
+    setTimeout(() => {
+      const active = c.querySelector(".s936-pr-chord-card.active");
+      if (active && typeof active.scrollIntoView === "function") active.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }, 60);
   }
 
   function renderTopbar(ctx, shell) {
@@ -614,7 +709,7 @@
     const parts = orderedParts(snap);
     const topbar = ctx.el("div", "s936-pr-topbar");
 
-    const sectionBox = controlBox(ctx, "Sección para practicar");
+    const sectionBox = controlBox(ctx, "Sección");
     const sectionSelect = ctx.el("select", "s936-pr-select");
     parts.forEach((part) => {
       const option = ctx.el("option", "", sectionLabel(part, part.section));
@@ -632,12 +727,13 @@
     };
     sectionBox.appendChild(sectionSelect);
 
-    const viewBox = controlBox(ctx, "Vista instrumento");
+    const viewBox = controlBox(ctx, "Instrumento");
     const viewSelect = ctx.el("select", "s936-pr-select");
-    [["auto", "Auto"], ["piano", "Piano"], ["guitar", "Guitarra"], ["ukulele", "Ukelele"]].forEach(([value, label]) => {
+    const resolved = resolveInstrument(ctx, snap);
+    [["piano", "Piano"], ["guitar", "Guitarra"], ["ukulele", "Ukelele"]].forEach(([value, label]) => {
       const option = ctx.el("option", "", label);
       option.value = value;
-      if (state.instrumentView === value) option.selected = true;
+      if ((state.instrumentView === value) || (state.instrumentView === "auto" && resolved === value)) option.selected = true;
       viewSelect.appendChild(option);
     });
     viewSelect.onchange = () => {
@@ -647,9 +743,9 @@
     };
     viewBox.appendChild(viewSelect);
 
-    const bpmBox = controlBox(ctx, "Tempo práctica");
+    const bpmBox = controlBox(ctx, "Tempo");
     const bpm = bpmValue(ctx);
-    const bpmRow = ctx.el("div", "s936-pr-actions");
+    const bpmRow = ctx.el("div", "s936-pr-lite-actions");
     [[-10, "-10"], [-5, "-5"], [5, "+5"], [10, "+10"]].forEach(([delta, label]) => {
       const btn = ctx.el("button", "s936-pr-btn", label);
       btn.type = "button";
@@ -662,15 +758,16 @@
     bpmBox.appendChild(ctx.el("div", "s936-pr-sub", bpm + " BPM"));
     bpmBox.appendChild(bpmRow);
 
-    const syncBox = controlBox(ctx, "Acción rápida");
-    const row = ctx.el("div", "s936-pr-actions");
-    addButton(ctx, row, isPracticeFollowing ? "Follow activo" : "Loop sección", () => {
+    const actionBox = controlBox(ctx, "Práctica");
+    const row = ctx.el("div", "s936-pr-lite-actions");
+    addButton(ctx, row, isPracticeFollowing ? "Loop activo" : "Loop sección", () => {
       startPracticeLoop(ctx);
     }, "s936-pr-btn warn");
-    addButton(ctx, row, "Abrir Editor", () => ctx.callBridge?.("openEditor", () => false));
-    syncBox.appendChild(row);
+    addButton(ctx, row, "Stop", () => stopPracticeLoop(ctx), "s936-pr-btn danger");
+    addButton(ctx, row, "Editor", () => ctx.callBridge?.("openEditor", () => false));
+    actionBox.appendChild(row);
 
-    topbar.append(sectionBox, viewBox, bpmBox, syncBox);
+    topbar.append(sectionBox, viewBox, bpmBox, actionBox);
     shell.appendChild(topbar);
   }
 
@@ -897,23 +994,44 @@
     parent.appendChild(keyboard);
   }
 
+  function findVoicingCandidate(openMidi, pcs, rootPc, stringIndex, isUkulele) {
+    const maxFret = isUkulele ? 7 : 8;
+    const candidates = [];
+    for (let fret = 0; fret <= maxFret; fret++) {
+      const pc = (openMidi + fret) % 12;
+      const toneIndex = pcs.indexOf(pc);
+      if (toneIndex !== -1) {
+        const isRoot = pc === rootPc;
+        const lowString = stringIndex <= (isUkulele ? 1 : 2);
+        const score = fret + (isRoot && lowString ? -2.5 : 0) + (toneIndex > 2 ? 0.8 : 0);
+        candidates.push({ fret, pc, toneIndex, isRoot, score });
+      }
+    }
+    candidates.sort((a, b) => a.score - b.score);
+    return candidates[0] || null;
+  }
+
   function renderFretboard(ctx, parent, data, strings, isUkulele) {
     const board = ctx.el("div", "s936-pr-fret " + (isUkulele ? "s936-pr-uke" : ""));
-    const grid = ctx.el("div", "s936-pr-fret-grid");
+    const grid = ctx.el("div", "s936-pr-fret-grid clean-voicing");
     const pcs = data.notes.map(pitchClass).filter((n) => n !== undefined);
     const rootPc = pitchClass(data.root);
+    const tuning = OPEN_PITCH[isUkulele ? "ukulele" : "guitar"];
+    const maxFret = isUkulele ? 7 : 8;
+    const choices = strings.map((stringName, stringIndex) => {
+      const base = tuning[stringName] ?? 40;
+      return findVoicingCandidate(base, pcs, rootPc, stringIndex, isUkulele);
+    });
 
-    strings.forEach((stringName) => {
+    strings.forEach((stringName, stringIndex) => {
       grid.appendChild(ctx.el("div", "s936-pr-string-label", stringName));
-      for (let fret = 0; fret <= (isUkulele ? 5 : 6); fret++) {
+      for (let fret = 0; fret <= maxFret; fret++) {
         const cell = ctx.el("div", "s936-pr-fret-cell");
-        const base = OPEN_PITCH[isUkulele ? "ukulele" : "guitar"][stringName] ?? 40;
-        const pc = (base + fret) % 12;
-        const noteIndex = pcs.indexOf(pc);
-        if (noteIndex !== -1) {
+        const choice = choices[stringIndex];
+        if (choice && choice.fret === fret) {
           const dot = ctx.el("span", "s936-pr-dot", String(fret));
-          if (pc === rootPc || noteIndex === 0) dot.classList.add("root");
-          else if (noteIndex > 2) dot.classList.add("ext");
+          if (choice.isRoot || choice.toneIndex === 0) dot.classList.add("root");
+          else if (choice.toneIndex > 2) dot.classList.add("ext");
           cell.appendChild(dot);
         }
         grid.appendChild(cell);
@@ -921,8 +1039,32 @@
     });
 
     board.appendChild(grid);
+
+    const meta = ctx.el("div", "s936-pr-fret-meta");
+    const frets = choices.filter(Boolean).map((choice) => choice.fret);
+    const minFret = frets.length ? Math.min.apply(null, frets) : 0;
+    const maxUsed = frets.length ? Math.max.apply(null, frets) : 0;
+    meta.appendChild(ctx.el("span", "", (isUkulele ? "Ukelele" : "Guitarra") + " · voicing limpio"));
+    meta.appendChild(ctx.el("span", "", "Posición aprox. " + minFret + "-" + maxUsed));
+    meta.appendChild(ctx.el("span", "", "Raíz: " + (data.root || "—")));
+    board.appendChild(meta);
+
+    const legend = ctx.el("div", "s936-pr-legend");
+    legend.appendChild(legendItem(ctx, "root", "raíz/bajo"));
+    legend.appendChild(legendItem(ctx, "", "notas acorde"));
+    legend.appendChild(legendItem(ctx, "ext", "extensiones"));
+    board.appendChild(legend);
+
     parent.appendChild(board);
   }
+
+  function legendItem(ctx, toneClass, label) {
+    const item = ctx.el("span", "", "");
+    item.appendChild(ctx.el("i", "s936-pr-swatch " + toneClass, ""));
+    item.appendChild(document.createTextNode(label));
+    return item;
+  }
+
 
   register();
 })();
