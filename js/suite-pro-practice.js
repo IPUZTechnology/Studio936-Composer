@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Practice Module v1.3
+// Studio 936 Composer - Suite Pro Practice Module v1.4
 // Scope: Practice tab only. It does not touch app legacy, audio internals, MIDI internals, editor internals or transport internals.
 // It reads from Studio936AppBridge and uses existing UI controls through safe clicks/events.
 (function () {
@@ -10,7 +10,9 @@
   const DEFAULT_STATE = {
     selectedSection: "",
     selectedChordIndex: 0,
-    instrumentView: "auto",
+    soundInstrument: "",
+    instrumentView: "guitar",
+    selectedPartIndex: 0,
     followEditor: true
   };
 
@@ -23,6 +25,7 @@
   let followTimer = null;
   let followCtx = null;
   let isPracticeFollowing = false;
+  let followMode = "section";
 
   function saveState() {
     try { localStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch (error) {}
@@ -719,6 +722,67 @@
   #s936SuitePro .s936-pr-chord-layout { grid-template-columns:1fr; }
 }
 
+/* Practice Pro v1.4: sound vs visual instrument + full-song visual follow */
+#s936SuitePro .s936-pr-topbar {
+  grid-template-columns: minmax(180px, 1fr) minmax(160px, .72fr) minmax(180px, .70fr) minmax(260px, .95fr);
+}
+#s936SuitePro .s936-pr-control { padding:5px 8px; }
+#s936SuitePro .s936-pr-karaoke-line.current { font-size:1.85rem; }
+#s936SuitePro .s936-pr-viewbar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:14px;
+  background:rgba(255,255,255,.035);
+  padding:7px 10px;
+}
+#s936SuitePro .s936-pr-viewbar-title {
+  color:#ffe066;
+  font-size:.58rem;
+  font-weight:950;
+  text-transform:uppercase;
+  letter-spacing:.7px;
+}
+#s936SuitePro .s936-pr-viewbar-buttons {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+#s936SuitePro .s936-pr-viewbtn {
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:999px;
+  background:rgba(255,255,255,.055);
+  color:#fff;
+  padding:6px 10px;
+  font-size:.60rem;
+  font-weight:950;
+  cursor:pointer;
+  text-transform:uppercase;
+}
+#s936SuitePro .s936-pr-viewbtn.active {
+  border-color:rgba(0,255,204,.75);
+  color:#00ffcc;
+  background:rgba(0,255,204,.12);
+}
+#s936SuitePro .s936-pr-mode-pill {
+  display:inline-flex;
+  align-items:center;
+  border:1px solid rgba(255,216,77,.55);
+  border-radius:999px;
+  padding:4px 8px;
+  color:#ffe066;
+  background:rgba(255,216,77,.08);
+  font-size:.58rem;
+  font-weight:950;
+  text-transform:uppercase;
+  margin-left:6px;
+}
+#s936SuitePro .s936-pr-lane {
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+}
+
 `;
     document.head.appendChild(style);
   }
@@ -805,6 +869,40 @@
     return true;
   }
 
+  function soundInstrumentValue(ctx, snap) {
+    const select = ctx.byId?.("instrumentSelect");
+    return String(state.soundInstrument || select?.value || snap.instrument || "piano");
+  }
+
+  function setSoundInstrument(ctx, value) {
+    const select = ctx.byId?.("instrumentSelect");
+    state.soundInstrument = value || "";
+    saveState();
+    if (!select || !value) return false;
+    select.value = value;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+  }
+
+  function instrumentOptions(ctx, snap) {
+    const select = ctx.byId?.("instrumentSelect");
+    if (select && select.options && select.options.length) {
+      return Array.from(select.options).map((option) => ({
+        value: option.value,
+        label: option.textContent || option.value
+      }));
+    }
+    return [
+      { value: "piano", label: "Piano" },
+      { value: "epiano", label: "Piano eléctrico" },
+      { value: "guitar", label: "Guitarra" },
+      { value: "ukulele", label: "Ukelele" },
+      { value: "organ", label: "Órgano" },
+      { value: "sax", label: "Saxo guía" },
+      { value: "synth", label: "Synth" }
+    ];
+  }
+
   function bpmValue(ctx) {
     return Number(ctx.byId?.("bpmSlider")?.value || ctx.byId?.("bpmDisplay")?.textContent || getSnapshot(ctx).bpm || 95);
   }
@@ -828,17 +926,40 @@
 
   function startPracticeLoop(ctx) {
     followCtx = ctx;
+    followMode = "section";
     isPracticeFollowing = true;
-    setSectionInApp(ctx, selectedData(ctx).sectionKey);
-    setChordInApp(ctx, selectedData(ctx).index);
+    const data = selectedData(ctx);
+    setSectionInApp(ctx, data.sectionKey);
+    setChordInApp(ctx, data.index);
     ctx.callBridge?.("startGroove", () => ctx.byId?.("playBtn")?.click());
     render(ctx);
     setTimeout(() => setStatus(ctx, "Loop de sección activo. El timeline avanza por acordes y compases."), 30);
     scheduleNextChord(ctx);
   }
 
+  function startFullSongPractice(ctx) {
+    followCtx = ctx;
+    followMode = "song";
+    isPracticeFollowing = true;
+    const snap = getSnapshot(ctx);
+    const parts = orderedParts(snap).filter((part) => sectionItems(snap, part.section).length);
+    const currentSection = selectedData(ctx).sectionKey;
+    const currentPartIndex = Math.max(0, parts.findIndex((part) => part.section === currentSection));
+    state.selectedPartIndex = currentPartIndex >= 0 ? currentPartIndex : 0;
+    state.selectedSection = parts[state.selectedPartIndex]?.section || currentSection;
+    state.selectedChordIndex = 0;
+    saveState();
+    setSectionInApp(ctx, state.selectedSection);
+    setChordInApp(ctx, 0);
+    ctx.callBridge?.("playFullSong", () => ctx.byId?.("playSongBtn")?.click());
+    render(ctx);
+    setTimeout(() => setStatus(ctx, "Canción completa activa. Practice rota secciones y acordes visualmente."), 30);
+    scheduleNextChord(ctx);
+  }
+
   function stopPracticeFollowOnly() {
     isPracticeFollowing = false;
+    followMode = "section";
     if (followTimer) clearTimeout(followTimer);
     followTimer = null;
   }
@@ -857,12 +978,36 @@
     if (!data.items.length) return;
     const bars = Math.max(1, Number(data.item?.bars) || 1);
     const beatMs = 60000 / Math.max(40, bpmValue(ctx));
-    const delay = Math.max(900, bars * 4 * beatMs);
+    const delay = Math.max(850, bars * 4 * beatMs);
     followTimer = setTimeout(() => {
       if (!isPracticeFollowing) return;
       const latest = selectedData(ctx);
       const total = Math.max(1, latest.items.length);
-      state.selectedChordIndex = (latest.index + 1) % total;
+      const nextIndex = latest.index + 1;
+
+      if (nextIndex < total) {
+        state.selectedChordIndex = nextIndex;
+      } else if (followMode === "song") {
+        const snap = getSnapshot(ctx);
+        const parts = orderedParts(snap).filter((part) => sectionItems(snap, part.section).length);
+        const currentPartIndex = Math.max(0, Number(state.selectedPartIndex) || 0);
+        const nextPartIndex = currentPartIndex + 1;
+
+        if (nextPartIndex >= parts.length) {
+          stopPracticeFollowOnly();
+          render(ctx);
+          setTimeout(() => setStatus(ctx, "Canción completa terminada en Practice."), 30);
+          return;
+        }
+
+        state.selectedPartIndex = nextPartIndex;
+        state.selectedSection = parts[nextPartIndex].section;
+        state.selectedChordIndex = 0;
+        setSectionInApp(ctx, state.selectedSection);
+      } else {
+        state.selectedChordIndex = 0;
+      }
+
       saveState();
       setChordInApp(ctx, state.selectedChordIndex);
       render(ctx);
@@ -870,9 +1015,9 @@
     }, delay);
   }
 
-
   function focusChord(ctx, sectionKey, chordIndex) {
     state.selectedSection = sectionKey;
+    state.selectedPartIndex = Math.max(0, orderedParts(getSnapshot(ctx)).findIndex((part) => part.section === sectionKey));
     state.selectedChordIndex = Number(chordIndex) || 0;
     saveState();
     setSectionInApp(ctx, sectionKey);
@@ -889,7 +1034,8 @@
     const item = items[safeIndex] || {};
     const nextItem = items[(safeIndex + 1) % Math.max(1, items.length)] || {};
     const parts = orderedParts(snap);
-    const part = parts.find((p) => p.section === sectionKey) || { section: sectionKey, label: sectionKey };
+    const indexedPart = parts[Math.max(0, Number(state.selectedPartIndex) || 0)];
+    const part = (indexedPart && indexedPart.section === sectionKey) ? indexedPart : (parts.find((p) => p.section === sectionKey) || { section: sectionKey, label: sectionKey });
     const chordName = normalizeChordName(item, ctx, snap);
     const nextName = normalizeChordName(nextItem, ctx, snap);
     const notes = normalizeNotes(item, ctx, chordName);
@@ -901,11 +1047,12 @@
     followCtx = ctx;
     installStyles();
     const c = ctx.clearContent();
-    ctx.title(c, "Practice Pro", "Play-along modular: letra arriba, acordes en movimiento, timeline activo e instrumento limpio para tocar y cantar.");
+    ctx.title(c, "Practice Pro", "Play-along modular: sonido separado de vista de notas, karaoke arriba y timeline que rota secciones en canción completa.");
 
     const shell = ctx.el("div", "s936-pr-shell");
     renderTopbar(ctx, shell);
     renderKaraokePanel(ctx, shell);
+    renderViewbar(ctx, shell);
     renderHero(ctx, shell);
     renderChordLane(ctx, shell);
     c.appendChild(shell);
@@ -939,21 +1086,21 @@
     };
     sectionBox.appendChild(sectionSelect);
 
-    const viewBox = controlBox(ctx, "Instrumento");
-    const viewSelect = ctx.el("select", "s936-pr-select");
-    const resolved = resolveInstrument(ctx, snap);
-    [["piano", "Piano"], ["guitar", "Guitarra"], ["ukulele", "Ukelele"]].forEach(([value, label]) => {
-      const option = ctx.el("option", "", label);
-      option.value = value;
-      if ((state.instrumentView === value) || (state.instrumentView === "auto" && resolved === value)) option.selected = true;
-      viewSelect.appendChild(option);
+    const soundBox = controlBox(ctx, "Sonido que escucho");
+    const soundSelect = ctx.el("select", "s936-pr-select");
+    const currentSound = soundInstrumentValue(ctx, snap);
+    instrumentOptions(ctx, snap).forEach((item) => {
+      const option = ctx.el("option", "", item.label);
+      option.value = item.value;
+      if (item.value === currentSound) option.selected = true;
+      soundSelect.appendChild(option);
     });
-    viewSelect.onchange = () => {
-      state.instrumentView = viewSelect.value;
-      saveState();
+    soundSelect.onchange = () => {
+      setSoundInstrument(ctx, soundSelect.value);
       render(ctx);
+      setTimeout(() => setStatus(ctx, "Sonido de práctica: " + (soundSelect.options[soundSelect.selectedIndex]?.textContent || soundSelect.value)), 30);
     };
-    viewBox.appendChild(viewSelect);
+    soundBox.appendChild(soundSelect);
 
     const bpmBox = controlBox(ctx, "Tempo");
     const bpm = bpmValue(ctx);
@@ -976,15 +1123,13 @@
       startPracticeLoop(ctx);
     }, "s936-pr-btn warn");
     addButton(ctx, row, "Canción completa", () => {
-      stopPracticeFollowOnly();
-      ctx.callBridge?.("playFullSong", () => ctx.byId?.("playSongBtn")?.click());
-      setStatus(ctx, "Canción completa enviada al motor principal.");
+      startFullSongPractice(ctx);
     });
     addButton(ctx, row, "Stop", () => stopPracticeLoop(ctx), "s936-pr-btn danger");
     addButton(ctx, row, "Editor", () => ctx.callBridge?.("openEditor", () => false));
     actionBox.appendChild(row);
 
-    topbar.append(sectionBox, viewBox, bpmBox, actionBox);
+    topbar.append(sectionBox, soundBox, bpmBox, actionBox);
     shell.appendChild(topbar);
   }
 
