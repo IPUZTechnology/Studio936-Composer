@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Practice Module v1.2
+// Studio 936 Composer - Suite Pro Practice Module v1.3
 // Scope: Practice tab only. It does not touch app legacy, audio internals, MIDI internals, editor internals or transport internals.
 // It reads from Studio936AppBridge and uses existing UI controls through safe clicks/events.
 (function () {
@@ -507,6 +507,218 @@
   #s936SuitePro .s936-pr-visual-grid,
   #s936SuitePro .s936-pr-chord-layout { grid-template-columns:1fr; }
 }
+
+/* Practice Pro v1.3: compact rehearsal screen */
+#s936SuitePro .s936-pr-shell { gap:8px; }
+#s936SuitePro .s936-pr-topbar {
+  grid-template-columns: minmax(170px, 1fr) minmax(145px, .72fr) minmax(190px, .75fr) minmax(260px, 1.05fr);
+  gap:6px;
+}
+#s936SuitePro .s936-pr-control {
+  padding:6px 8px;
+  border-radius:12px;
+}
+#s936SuitePro .s936-pr-label {
+  font-size:.52rem;
+  margin-bottom:3px;
+}
+#s936SuitePro .s936-pr-select {
+  padding:6px 8px;
+  font-size:.72rem;
+}
+#s936SuitePro .s936-pr-btn {
+  padding:6px 9px;
+  font-size:.62rem;
+}
+#s936SuitePro .s936-pr-sub {
+  font-size:.68rem;
+}
+#s936SuitePro .s936-pr-karaoke {
+  padding:12px 14px;
+}
+#s936SuitePro .s936-pr-karaoke-head {
+  margin-bottom:8px;
+}
+#s936SuitePro .s936-pr-karaoke-body {
+  gap:6px;
+}
+#s936SuitePro .s936-pr-karaoke-line {
+  font-size:1.32rem;
+  line-height:1.32;
+  padding:11px 13px;
+}
+#s936SuitePro .s936-pr-karaoke-line.current {
+  font-size:1.65rem;
+  line-height:1.28;
+}
+#s936SuitePro .s936-pr-karaoke-footer {
+  display:none;
+}
+#s936SuitePro .s936-pr-hero {
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+  gap:8px;
+}
+#s936SuitePro .s936-pr-big {
+  padding:10px;
+  border-radius:16px;
+}
+#s936SuitePro .s936-pr-chord-layout {
+  grid-template-columns:minmax(0,.52fr) minmax(230px,.48fr);
+  gap:9px;
+}
+#s936SuitePro .s936-pr-chord {
+  font-size:1.72rem;
+  margin:3px 0 4px;
+}
+#s936SuitePro .s936-pr-now-title {
+  font-size:.74rem;
+  margin-bottom:4px;
+}
+#s936SuitePro .s936-pr-note-row {
+  gap:5px;
+  margin-top:7px;
+}
+#s936SuitePro .s936-pr-note {
+  padding:4px 7px;
+  font-size:.64rem;
+}
+#s936SuitePro .s936-pr-actions {
+  margin-top:8px;
+  gap:6px;
+}
+#s936SuitePro .s936-pr-hero-visual {
+  min-height:112px;
+  padding:7px;
+  justify-content:flex-start;
+  overflow:hidden;
+}
+#s936SuitePro .s936-pr-hero-visual h5 {
+  font-size:.56rem;
+  margin-bottom:6px;
+}
+#s936SuitePro .s936-pr-keyboard {
+  min-height:96px;
+  padding:6px;
+}
+#s936SuitePro .s936-pr-hero-visual .s936-pr-keyboard {
+  min-height:82px;
+}
+#s936SuitePro .s936-pr-hero-visual .s936-pr-key {
+  min-width:15px;
+  height:58px;
+  font-size:.42rem;
+}
+#s936SuitePro .s936-pr-hero-visual .s936-pr-key.black {
+  min-width:12px;
+  height:40px;
+  margin-left:-7px;
+  margin-right:-7px;
+}
+#s936SuitePro .s936-pr-lane {
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
+  gap:7px;
+  overflow:visible;
+  padding:4px 0 2px;
+}
+#s936SuitePro .s936-pr-chord-card {
+  min-width:0;
+  padding:8px;
+}
+#s936SuitePro .s936-pr-chord-card .name {
+  font-size:.92rem;
+}
+#s936SuitePro .s936-pr-chord-card .meta {
+  font-size:.60rem;
+}
+#s936SuitePro .s936-pr-chord-card .s936-pr-note-row {
+  justify-content:space-between;
+}
+#s936SuitePro .s936-pr-panel {
+  padding:10px;
+  border-radius:16px;
+}
+#s936SuitePro .s936-pr-fret {
+  max-width:220px;
+  padding:7px;
+}
+#s936SuitePro .s936-pr-chord-diagram {
+  display:grid;
+  grid-template-columns: 26px repeat(var(--strings), 1fr);
+  grid-template-rows: 16px repeat(5, 22px);
+  gap:0;
+  border-radius:10px;
+  background:rgba(0,0,0,.22);
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.10);
+}
+#s936SuitePro .s936-pr-diag-corner,
+#s936SuitePro .s936-pr-diag-string,
+#s936SuitePro .s936-pr-diag-fret-num,
+#s936SuitePro .s936-pr-diag-cell {
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+#s936SuitePro .s936-pr-diag-string {
+  color:rgba(255,255,255,.65);
+  font-size:.5rem;
+  font-weight:950;
+  border-bottom:1px solid rgba(255,255,255,.18);
+}
+#s936SuitePro .s936-pr-diag-fret-num {
+  color:rgba(255,255,255,.58);
+  font-size:.48rem;
+  font-weight:950;
+  border-right:1px solid rgba(255,255,255,.16);
+}
+#s936SuitePro .s936-pr-diag-cell {
+  border-right:1px solid rgba(255,255,255,.16);
+  border-bottom:1px solid rgba(255,255,255,.14);
+}
+#s936SuitePro .s936-pr-diag-cell::before {
+  content:"";
+  position:absolute;
+  top:0;
+  bottom:0;
+  left:50%;
+  width:1px;
+  background:rgba(255,255,255,.18);
+}
+#s936SuitePro .s936-pr-diag-dot {
+  position:relative;
+  z-index:2;
+  width:15px;
+  height:15px;
+  border-radius:999px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:.48rem;
+  font-weight:950;
+  background:#00ffcc;
+  color:#002c25;
+  box-shadow:0 0 0 1px rgba(0,0,0,.3);
+}
+#s936SuitePro .s936-pr-diag-dot.root { background:#ffe066; color:#141000; }
+#s936SuitePro .s936-pr-diag-dot.ext { background:#ff5bea; color:#26001e; }
+#s936SuitePro .s936-pr-fret-meta {
+  margin-top:5px;
+  font-size:.55rem;
+  gap:5px;
+}
+#s936SuitePro .s936-pr-legend {
+  margin-top:5px;
+  font-size:.55rem;
+  gap:6px;
+}
+@media(max-width: 1180px){
+  #s936SuitePro .s936-pr-topbar,
+  #s936SuitePro .s936-pr-hero,
+  #s936SuitePro .s936-pr-chord-layout { grid-template-columns:1fr; }
+}
+
 `;
     document.head.appendChild(style);
   }
@@ -763,6 +975,11 @@
     addButton(ctx, row, isPracticeFollowing ? "Loop activo" : "Loop sección", () => {
       startPracticeLoop(ctx);
     }, "s936-pr-btn warn");
+    addButton(ctx, row, "Canción completa", () => {
+      stopPracticeFollowOnly();
+      ctx.callBridge?.("playFullSong", () => ctx.byId?.("playSongBtn")?.click());
+      setStatus(ctx, "Canción completa enviada al motor principal.");
+    });
     addButton(ctx, row, "Stop", () => stopPracticeLoop(ctx), "s936-pr-btn danger");
     addButton(ctx, row, "Editor", () => ctx.callBridge?.("openEditor", () => false));
     actionBox.appendChild(row);
@@ -817,16 +1034,7 @@
     nextInfo.appendChild(ctx.el("div", "s936-pr-chord", data.nextName));
     nextInfo.appendChild(ctx.el("div", "s936-pr-sub", "Anticipa el próximo cambio armónico antes de tocarlo."));
     nextInfo.appendChild(noteRow(ctx, nextData.notes, nextData.root));
-    const controls = ctx.el("div", "s936-pr-actions");
-    addButton(ctx, controls, isPracticeFollowing ? "Reiniciar loop" : "Start Groove", () => startPracticeLoop(ctx));
-    addButton(ctx, controls, "Canción completa", () => {
-      stopPracticeFollowOnly();
-      ctx.callBridge?.("playFullSong", () => ctx.byId?.("playSongBtn")?.click());
-      setStatus(ctx, "Canción completa enviada al motor principal.");
-    });
-    addButton(ctx, controls, "Stop", () => stopPracticeLoop(ctx), "s936-pr-btn danger");
-    nextInfo.appendChild(controls);
-    nextInfo.appendChild(ctx.el("div", "s936-pr-status", isPracticeFollowing ? "El timeline avanzará siguiendo los compases del acorde actual." : ""));
+    nextInfo.appendChild(ctx.el("div", "s936-pr-status", isPracticeFollowing ? "Timeline activo: prepara este acorde antes del cambio." : "Usa Loop sección para avanzar visualmente por la práctica."));
     const nextVisual = ctx.el("div", "s936-pr-hero-visual");
     renderInstrumentMini(ctx, nextVisual, nextData, "Mapa de nota · siguiente");
     nextLayout.append(nextInfo, nextVisual);
@@ -910,8 +1118,10 @@
       body.appendChild(empty);
     } else {
       const currentLine = Math.min(lines.length - 1, Math.max(0, data.index % lines.length));
-      lines.forEach((line, index) => {
-        body.appendChild(ctx.el("div", "s936-pr-karaoke-line" + (index === currentLine ? " current" : ""), line));
+      const visible = [currentLine, currentLine + 1, currentLine + 2]
+        .filter((lineIndex) => lineIndex < lines.length);
+      visible.forEach((lineIndex, visibleIndex) => {
+        body.appendChild(ctx.el("div", "s936-pr-karaoke-line" + (visibleIndex === 0 ? " current" : ""), lines[lineIndex]));
       });
     }
     panel.appendChild(body);
@@ -924,7 +1134,7 @@
       .split(/\n+/)
       .map((line) => line.trim())
       .filter(Boolean)
-      .slice(0, 8);
+      .slice(0, 32);
   }
 
   function lineLite(ctx, label, value) {
@@ -1013,39 +1223,74 @@
 
   function renderFretboard(ctx, parent, data, strings, isUkulele) {
     const board = ctx.el("div", "s936-pr-fret " + (isUkulele ? "s936-pr-uke" : ""));
-    const grid = ctx.el("div", "s936-pr-fret-grid clean-voicing");
     const pcs = data.notes.map(pitchClass).filter((n) => n !== undefined);
     const rootPc = pitchClass(data.root);
-    const tuning = OPEN_PITCH[isUkulele ? "ukulele" : "guitar"];
-    const maxFret = isUkulele ? 7 : 8;
-    const choices = strings.map((stringName, stringIndex) => {
-      const base = tuning[stringName] ?? 40;
-      return findVoicingCandidate(base, pcs, rootPc, stringIndex, isUkulele);
+    const stringLabels = isUkulele ? ["G", "C", "E", "A"] : ["E", "A", "D", "G", "B", "E"];
+    const stringMidis = isUkulele ? [67, 60, 64, 69] : [40, 45, 50, 55, 59, 64];
+    const maxSearchFret = isUkulele ? 12 : 14;
+
+    const choices = stringMidis.map((openMidi, stringIndex) => {
+      const candidates = [];
+      for (let fret = 0; fret <= maxSearchFret; fret++) {
+        const pc = (openMidi + fret) % 12;
+        const toneIndex = pcs.indexOf(pc);
+        if (toneIndex !== -1) {
+          const isRoot = pc === rootPc;
+          const lowString = stringIndex <= (isUkulele ? 1 : 2);
+          const highString = stringIndex >= (isUkulele ? 2 : 3);
+          const extension = toneIndex > 2;
+          const score =
+            Math.abs(fret - 3) +
+            (isRoot && lowString ? -2.2 : 0) +
+            (extension && highString ? -0.7 : 0) +
+            (extension && lowString ? 1.0 : 0) +
+            (toneIndex > 4 ? 0.4 : 0);
+          candidates.push({ fret, pc, toneIndex, isRoot, extension, score });
+        }
+      }
+      candidates.sort((a, b) => a.score - b.score);
+      return candidates[0] || null;
     });
 
-    strings.forEach((stringName, stringIndex) => {
-      grid.appendChild(ctx.el("div", "s936-pr-string-label", stringName));
-      for (let fret = 0; fret <= maxFret; fret++) {
-        const cell = ctx.el("div", "s936-pr-fret-cell");
+    const used = choices.filter(Boolean);
+    const frets = used.map((choice) => choice.fret);
+    let baseFret = 0;
+    if (frets.length) {
+      const positive = frets.filter((fret) => fret > 0);
+      const minPositive = positive.length ? Math.min.apply(null, positive) : 0;
+      const maxFret = Math.max.apply(null, frets);
+      baseFret = Math.max(0, Math.min(minPositive || 0, maxFret - 4));
+      if (maxFret - baseFret > 4) baseFret = Math.max(0, maxFret - 4);
+    }
+
+    const diagram = ctx.el("div", "s936-pr-chord-diagram");
+    diagram.style.setProperty("--strings", String(stringLabels.length));
+    diagram.appendChild(ctx.el("div", "s936-pr-diag-corner", baseFret === 0 ? "0" : String(baseFret)));
+    stringLabels.forEach((label) => diagram.appendChild(ctx.el("div", "s936-pr-diag-string", label)));
+
+    for (let row = 0; row < 5; row++) {
+      const fret = baseFret + row;
+      diagram.appendChild(ctx.el("div", "s936-pr-diag-fret-num", String(fret)));
+      stringLabels.forEach((label, stringIndex) => {
+        const cell = ctx.el("div", "s936-pr-diag-cell");
         const choice = choices[stringIndex];
         if (choice && choice.fret === fret) {
-          const dot = ctx.el("span", "s936-pr-dot", String(fret));
+          const noteName = NOTE_NAMES[choice.pc] || "";
+          const dot = ctx.el("span", "s936-pr-diag-dot", noteName.replace("#", "♯"));
           if (choice.isRoot || choice.toneIndex === 0) dot.classList.add("root");
-          else if (choice.toneIndex > 2) dot.classList.add("ext");
+          else if (choice.extension) dot.classList.add("ext");
           cell.appendChild(dot);
         }
-        grid.appendChild(cell);
-      }
-    });
+        diagram.appendChild(cell);
+      });
+    }
 
-    board.appendChild(grid);
+    board.appendChild(diagram);
 
     const meta = ctx.el("div", "s936-pr-fret-meta");
-    const frets = choices.filter(Boolean).map((choice) => choice.fret);
-    const minFret = frets.length ? Math.min.apply(null, frets) : 0;
     const maxUsed = frets.length ? Math.max.apply(null, frets) : 0;
-    meta.appendChild(ctx.el("span", "", (isUkulele ? "Ukelele" : "Guitarra") + " · voicing limpio"));
-    meta.appendChild(ctx.el("span", "", "Posición aprox. " + minFret + "-" + maxUsed));
+    meta.appendChild(ctx.el("span", "", (isUkulele ? "Ukelele" : "Guitarra") + " · voicing compacto"));
+    meta.appendChild(ctx.el("span", "", "Trastes " + baseFret + "-" + (baseFret + 4)));
     meta.appendChild(ctx.el("span", "", "Raíz: " + (data.root || "—")));
     board.appendChild(meta);
 
