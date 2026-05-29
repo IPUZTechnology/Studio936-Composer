@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Practice Module v1.7
+// Studio 936 Composer - Suite Pro Practice Module v1.8
 // Scope: Practice tab only. It does not touch app legacy, audio internals, MIDI internals, editor internals or transport internals.
 // It reads from Studio936AppBridge and uses existing UI controls through safe clicks/events.
 (function () {
@@ -967,13 +967,44 @@
   }
 }
 
+/* Practice Pro v1.8: tighter chord-map section and clean map cards */
+#s936SuitePro .s936-pr-chord-head {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+#s936SuitePro .s936-pr-chord-head .s936-pr-chord {
+  margin:0;
+}
+#s936SuitePro .s936-pr-listen-inline {
+  padding:7px 12px;
+  transform:translateY(-1px);
+}
+#s936SuitePro .s936-pr-hero-visual.is-fret {
+  padding:8px;
+}
+#s936SuitePro .s936-pr-hero-visual.is-fret .s936-pr-master-board {
+  max-width:230px;
+}
+#s936SuitePro .s936-pr-hero-visual.is-fret .s936-pr-master-chart {
+  height:154px;
+}
+#s936SuitePro .s936-pr-hero-visual.is-fret .s936-pr-master-labels {
+  padding-top:3px;
+}
+#s936SuitePro .s936-pr-hero-visual .s936-pr-fret-meta,
+#s936SuitePro .s936-pr-hero-visual .s936-pr-legend {
+  display:none !important;
+}
+
 `;
     document.head.appendChild(style);
   }
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProPractice = { version: "practice-v1.6", render };
+    window.Studio936SuiteProPractice = { version: "practice-v1.8", render };
     window.Studio936SuiteProModules.practice = window.Studio936SuiteProPractice;
   }
 
@@ -1417,15 +1448,17 @@
     const nowLayout = ctx.el("div", "s936-pr-chord-layout");
     const nowInfo = ctx.el("div", "s936-pr-info-col");
     nowInfo.appendChild(ctx.el("h4", "s936-pr-now-title", "Ahora"));
-    nowInfo.appendChild(ctx.el("div", "s936-pr-chord", data.chordName));
+    const nowHead = ctx.el("div", "s936-pr-chord-head");
+    nowHead.appendChild(ctx.el("div", "s936-pr-chord", data.chordName));
+    addButton(ctx, nowHead, "Escuchar acorde", () => {
+      focusChord(ctx, data.sectionKey, data.index);
+      setTimeout(() => ctx.byId?.("previewBtn")?.click(), 120);
+    }, "s936-pr-btn warn s936-pr-listen-inline");
+    nowInfo.appendChild(nowHead);
     nowInfo.appendChild(ctx.el("div", "s936-pr-sub", `${sectionLabel(data.part, data.sectionKey)} · acorde ${data.index + 1}/${Math.max(1, data.items.length)} · ${data.item?.bars || 1} compás(es)`));
     const nowInline = ctx.el("div", "s936-pr-note-action-row");
     nowInline.appendChild(noteRow(ctx, data.notes, data.root));
     const nowActions = ctx.el("div", "s936-pr-actions");
-    addButton(ctx, nowActions, "Escuchar acorde", () => {
-      focusChord(ctx, data.sectionKey, data.index);
-      setTimeout(() => ctx.byId?.("previewBtn")?.click(), 120);
-    }, "s936-pr-btn warn");
     renderInlineViewSelector(ctx, nowActions);
     if (isPracticeFollowing) nowActions.appendChild(ctx.el("span", "s936-pr-run-badge", "Timeline activo"));
     nowInline.appendChild(nowActions);
@@ -1691,18 +1724,6 @@
     tuning.forEach((string) => labels.appendChild(ctx.el("span", "", string.label)));
     board.appendChild(chart);
     board.appendChild(labels);
-
-    const meta = ctx.el("div", "s936-pr-fret-meta");
-    meta.appendChild(ctx.el("span", "", (isUkulele ? "Ukelele" : "Guitarra") + " · mapa de acorde grabado"));
-    meta.appendChild(ctx.el("span", "", fretPositionLabel(position)));
-    meta.appendChild(ctx.el("span", "", "Raíz: " + (data.root || "—")));
-    board.appendChild(meta);
-
-    const legend = ctx.el("div", "s936-pr-legend");
-    legend.appendChild(legendItem(ctx, "root", "raíz/bajo"));
-    legend.appendChild(legendItem(ctx, "", "notas acorde"));
-    legend.appendChild(legendItem(ctx, "ext", "extensiones"));
-    board.appendChild(legend);
 
     parent.appendChild(board);
   }
