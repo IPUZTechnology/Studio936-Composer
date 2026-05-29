@@ -789,7 +789,7 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProPractice = { version: "practice-v1.2", render };
+    window.Studio936SuiteProPractice = { version: "practice-v1.4.1", render };
     window.Studio936SuiteProModules.practice = window.Studio936SuiteProPractice;
   }
 
@@ -1145,6 +1145,41 @@
     btn.onclick = fn;
     parent.appendChild(btn);
     return btn;
+  }
+
+
+  function renderViewbar(ctx, shell) {
+    const data = selectedData(ctx);
+    const bar = ctx.el("section", "s936-pr-viewbar");
+
+    const left = ctx.el("div", "", "");
+    left.appendChild(ctx.el("div", "s936-pr-viewbar-title", "Vista de notas para tocar"));
+    const resolved = resolveInstrument(ctx, data.snap);
+    const desc = ctx.el("div", "s936-pr-sub", "Esto controla solo el mapa visual. El sonido se elige arriba.");
+    left.appendChild(desc);
+
+    const buttons = ctx.el("div", "s936-pr-viewbar-buttons");
+    [
+      ["piano", "Piano"],
+      ["guitar", "Guitarra"],
+      ["ukulele", "Ukelele"]
+    ].forEach(([value, label]) => {
+      const btn = ctx.el("button", "s936-pr-viewbtn" + (resolved === value ? " active" : ""), label);
+      btn.type = "button";
+      btn.onclick = () => {
+        state.instrumentView = value;
+        saveState();
+        render(ctx);
+      };
+      buttons.appendChild(btn);
+    });
+
+    const mode = ctx.el("span", "s936-pr-mode-pill", "Vista: " + instrumentLabel(resolved));
+    buttons.appendChild(mode);
+
+    bar.appendChild(left);
+    bar.appendChild(buttons);
+    shell.appendChild(bar);
   }
 
   function renderHero(ctx, shell) {
