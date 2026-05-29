@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Practice Module v1.4
+// Studio 936 Composer - Suite Pro Practice Module v1.5
 // Scope: Practice tab only. It does not touch app legacy, audio internals, MIDI internals, editor internals or transport internals.
 // It reads from Studio936AppBridge and uses existing UI controls through safe clicks/events.
 (function () {
@@ -1052,7 +1052,6 @@
     const shell = ctx.el("div", "s936-pr-shell");
     renderTopbar(ctx, shell);
     renderKaraokePanel(ctx, shell);
-    renderViewbar(ctx, shell);
     renderHero(ctx, shell);
     renderChordLane(ctx, shell);
     c.appendChild(shell);
@@ -1125,9 +1124,11 @@
     addButton(ctx, row, "Canción completa", () => {
       startFullSongPractice(ctx);
     });
+    addButton(ctx, row, metronomeLabel(ctx), () => toggleMetronome(ctx), metronomeClass(ctx));
     addButton(ctx, row, "Stop", () => stopPracticeLoop(ctx), "s936-pr-btn danger");
     addButton(ctx, row, "Editor", () => ctx.callBridge?.("openEditor", () => false));
     actionBox.appendChild(row);
+    renderInlineViewSelector(ctx, actionBox);
 
     topbar.append(sectionBox, soundBox, bpmBox, actionBox);
     shell.appendChild(topbar);
@@ -1145,6 +1146,52 @@
     btn.onclick = fn;
     parent.appendChild(btn);
     return btn;
+  }
+
+  function metronomeIsOn(ctx) {
+    const btn = ctx.byId?.("metroBtn");
+    if (!btn) return false;
+    return btn.classList.contains("active") || /ON/i.test(btn.textContent || "");
+  }
+
+  function metronomeLabel(ctx) {
+    return metronomeIsOn(ctx) ? "Metrónomo ON" : "Metrónomo OFF";
+  }
+
+  function metronomeClass(ctx) {
+    return "s936-pr-btn" + (metronomeIsOn(ctx) ? " s936-pr-metronome-on" : "");
+  }
+
+  function toggleMetronome(ctx) {
+    const btn = ctx.byId?.("metroBtn");
+    if (btn) btn.click();
+    setTimeout(() => render(ctx), 80);
+  }
+
+  function renderInlineViewSelector(ctx, parent) {
+    const data = selectedData(ctx);
+    const resolved = resolveInstrument(ctx, data.snap);
+    const box = ctx.el("div", "s936-pr-view-inline");
+    const buttons = ctx.el("div", "s936-pr-viewbar-buttons");
+    buttons.appendChild(ctx.el("span", "s936-pr-view-inline-label", "Vista para tocar"));
+    [
+      ["piano", "Piano"],
+      ["guitar", "Guitarra"],
+      ["ukulele", "Ukelele"]
+    ].forEach(([value, label]) => {
+      const btn = ctx.el("button", "s936-pr-viewbtn" + (resolved === value ? " active" : ""), label);
+      btn.type = "button";
+      btn.onclick = () => {
+        state.instrumentView = value;
+        saveState();
+        render(ctx);
+      };
+      buttons.appendChild(btn);
+    });
+    const mode = ctx.el("span", "s936-pr-mode-pill", "Vista: " + instrumentLabel(resolved));
+    buttons.appendChild(mode);
+    box.appendChild(buttons);
+    parent.appendChild(box);
   }
 
 
@@ -1194,7 +1241,6 @@
     nowInfo.appendChild(ctx.el("div", "s936-pr-sub", `${sectionLabel(data.part, data.sectionKey)} · acorde ${data.index + 1}/${Math.max(1, data.items.length)} · ${data.item?.bars || 1} compás(es)`));
     nowInfo.appendChild(noteRow(ctx, data.notes, data.root));
     const nowActions = ctx.el("div", "s936-pr-actions");
-    addButton(ctx, nowActions, "Cargar en editor", () => focusChord(ctx, data.sectionKey, data.index));
     addButton(ctx, nowActions, "Escuchar acorde", () => {
       focusChord(ctx, data.sectionKey, data.index);
       setTimeout(() => ctx.byId?.("previewBtn")?.click(), 120);
@@ -1239,6 +1285,9 @@
     if (instrument === "guitar") renderFretboard(ctx, parent, data, ["E", "A", "D", "G", "B", "E"], false);
     else if (instrument === "ukulele") renderFretboard(ctx, parent, data, ["G", "C", "E", "A"], true);
     else renderKeyboard(ctx, parent, data);
+
+    const recorded = String(data.item?.notes || "").trim();
+    if (recorded) parent.appendChild(ctx.el("div", "s936-pr-recorded-note", "Notas grabadas: " + recorded));
   }
 
   function noteRow(ctx, notes, root) {
@@ -1403,37 +1452,20 @@
 
   function renderFretboard(ctx, parent, data, strings, isUkulele) {
     const board = ctx.el("div", "s936-pr-fret " + (isUkulele ? "s936-pr-uke" : ""));
-    const pcs = data.notes.map(pitchClass).filter((n) => n !== undefined);
-    const rootPc = pitchClass(data.root);
     const stringLabels = isUkulele ? ["G", "C", "E", "A"] : ["E", "A", "D", "G", "B", "E"];
     const stringMidis = isUkulele ? [67, 60, 64, 69] : [40, 45, 50, 55, 59, 64];
-    const maxSearchFret = isUkulele ? 12 : 14;
 
-    const choices = stringMidis.map((openMidi, stringIndex) => {
-      const candidates = [];
-      for (let fret = 0; fret <= maxSearchFret; fret++) {
-        const pc = (openMidi + fret) % 12;
-        const toneIndex = pcs.indexOf(pc);
-        if (toneIndex !== -1) {
-          const isRoot = pc === rootPc;
-          const lowString = stringIndex <= (isUkulele ? 1 : 2);
-          const highString = stringIndex >= (isUkulele ? 2 : 3);
-          const extension = toneIndex > 2;
-          const score =
-            Math.abs(fret - 3) +
-            (isRoot && lowString ? -2.2 : 0) +
-            (extension && highString ? -0.7 : 0) +
-            (extension && lowString ? 1.0 : 0) +
-            (toneIndex > 4 ? 0.4 : 0);
-          candidates.push({ fret, pc, toneIndex, isRoot, extension, score });
-        }
-      }
-      candidates.sort((a, b) => a.score - b.score);
-      return candidates[0] || null;
-    });
+    const targetNotes = uniqueChordNotes(data.notes);
+    const targetPcs = targetNotes.map((note, index) => ({
+      note,
+      pc: pitchClass(note),
+      toneIndex: index,
+      isRoot: normalizeNote(note) === data.root || index === 0,
+      extension: isExtension(note, data.root, index)
+    })).filter((item) => item.pc !== undefined);
 
-    const used = choices.filter(Boolean);
-    const frets = used.map((choice) => choice.fret);
+    const choices = assignRecordedChordToStrings(stringMidis, targetPcs, isUkulele);
+    const frets = choices.filter(Boolean).map((choice) => choice.fret);
     let baseFret = 0;
     if (frets.length) {
       const positive = frets.filter((fret) => fret > 0);
@@ -1455,7 +1487,7 @@
         const cell = ctx.el("div", "s936-pr-diag-cell");
         const choice = choices[stringIndex];
         if (choice && choice.fret === fret) {
-          const noteName = NOTE_NAMES[choice.pc] || "";
+          const noteName = NOTE_NAMES[choice.pc] || normalizeNote(choice.note) || "";
           const dot = ctx.el("span", "s936-pr-diag-dot", noteName.replace("#", "♯"));
           if (choice.isRoot || choice.toneIndex === 0) dot.classList.add("root");
           else if (choice.extension) dot.classList.add("ext");
@@ -1469,7 +1501,7 @@
 
     const meta = ctx.el("div", "s936-pr-fret-meta");
     const maxUsed = frets.length ? Math.max.apply(null, frets) : 0;
-    meta.appendChild(ctx.el("span", "", (isUkulele ? "Ukelele" : "Guitarra") + " · voicing compacto"));
+    meta.appendChild(ctx.el("span", "", (isUkulele ? "Ukelele" : "Guitarra") + " · acorde grabado"));
     meta.appendChild(ctx.el("span", "", "Trastes " + baseFret + "-" + (baseFret + 4)));
     meta.appendChild(ctx.el("span", "", "Raíz: " + (data.root || "—")));
     board.appendChild(meta);
@@ -1481,6 +1513,50 @@
     board.appendChild(legend);
 
     parent.appendChild(board);
+  }
+
+  function uniqueChordNotes(notes) {
+    const seen = new Set();
+    return (notes || []).filter((note) => {
+      const pc = pitchClass(note);
+      if (pc === undefined || seen.has(pc)) return false;
+      seen.add(pc);
+      return true;
+    }).slice(0, 6);
+  }
+
+  function assignRecordedChordToStrings(stringMidis, targetPcs, isUkulele) {
+    const choices = new Array(stringMidis.length).fill(null);
+    const usedStrings = new Set();
+
+    targetPcs.forEach((target, targetIndex) => {
+      const candidates = [];
+      stringMidis.forEach((openMidi, stringIndex) => {
+        if (usedStrings.has(stringIndex)) return;
+        const maxFret = isUkulele ? 12 : 14;
+        for (let fret = 0; fret <= maxFret; fret++) {
+          const pc = (openMidi + fret) % 12;
+          if (pc !== target.pc) continue;
+          const lowString = stringIndex <= (isUkulele ? 1 : 2);
+          const highString = stringIndex >= (isUkulele ? 2 : 3);
+          const score =
+            Math.abs(fret - 3) +
+            (target.isRoot && lowString ? -2.2 : 0) +
+            (target.extension && highString ? -0.9 : 0) +
+            (target.extension && lowString ? 1.2 : 0) +
+            (targetIndex * 0.08);
+          candidates.push(Object.assign({}, target, { fret, stringIndex, score }));
+        }
+      });
+      candidates.sort((a, b) => a.score - b.score);
+      const choice = candidates[0];
+      if (choice) {
+        choices[choice.stringIndex] = choice;
+        usedStrings.add(choice.stringIndex);
+      }
+    });
+
+    return choices;
   }
 
   function legendItem(ctx, toneClass, label) {
