@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Practice Module v1.5
+// Studio 936 Composer - Suite Pro Practice Module v1.6
 // Scope: Practice tab only. It does not touch app legacy, audio internals, MIDI internals, editor internals or transport internals.
 // It reads from Studio936AppBridge and uses existing UI controls through safe clicks/events.
 (function () {
@@ -782,6 +782,131 @@
 #s936SuitePro .s936-pr-lane {
   grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
 }
+/* Practice Pro v1.6: map selector lives beside Now/Next, master-map chord diagrams */
+#s936SuitePro .s936-pr-map-selector {
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  flex-wrap:wrap;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:999px;
+  padding:4px 6px;
+  background:rgba(255,255,255,.035);
+}
+#s936SuitePro .s936-pr-map-label {
+  color:#ffe066;
+  font-size:.55rem;
+  font-weight:950;
+  text-transform:uppercase;
+  letter-spacing:.6px;
+  margin-right:2px;
+}
+#s936SuitePro .s936-pr-map-selector .s936-pr-viewbtn {
+  padding:5px 8px;
+  font-size:.55rem;
+}
+#s936SuitePro .s936-pr-view-inline,
+#s936SuitePro .s936-pr-viewbar {
+  display:none !important;
+}
+#s936SuitePro .s936-pr-master-board {
+  width:100%;
+  max-width:260px;
+  margin:0 auto;
+}
+#s936SuitePro .s936-pr-master-chart {
+  position:relative;
+  width:100%;
+  height:135px;
+  border-radius:12px;
+  background:linear-gradient(180deg, rgba(80,58,35,.70), rgba(10,12,14,.92));
+  border:1px solid rgba(255,255,255,.12);
+  overflow:hidden;
+  box-shadow:inset 0 0 20px rgba(255,216,77,.08);
+}
+#s936SuitePro .s936-pr-master-chart.ukulele {
+  height:128px;
+}
+#s936SuitePro .s936-pr-master-chart .fret-line {
+  position:absolute;
+  left:8%;
+  right:8%;
+  height:1px;
+  background:rgba(255,255,255,.36);
+}
+#s936SuitePro .s936-pr-master-chart .string-line {
+  position:absolute;
+  top:12%;
+  bottom:10%;
+  width:1px;
+  background:rgba(255,255,255,.36);
+}
+#s936SuitePro .s936-pr-master-chart .base-fret {
+  position:absolute;
+  left:4px;
+  top:4px;
+  color:#fff;
+  font-weight:950;
+  font-size:.62rem;
+  z-index:4;
+}
+#s936SuitePro .s936-pr-master-chart .note-dot {
+  position:absolute;
+  transform:translate(-50%,-50%);
+  z-index:5;
+  width:18px;
+  height:18px;
+  border-radius:999px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:.55rem;
+  font-weight:950;
+  color:#002c25;
+  background:#00ffcc;
+  box-shadow:0 0 10px rgba(0,255,204,.22), 0 0 0 1px rgba(0,0,0,.25);
+}
+#s936SuitePro .s936-pr-master-chart .note-dot.root {
+  background:#ffe066;
+  color:#141000;
+  box-shadow:0 0 12px rgba(255,216,77,.24), 0 0 0 1px rgba(0,0,0,.25);
+}
+#s936SuitePro .s936-pr-master-chart .note-dot.tension {
+  background:#ff5bea;
+  color:#26001e;
+  box-shadow:0 0 12px rgba(255,91,234,.22), 0 0 0 1px rgba(0,0,0,.25);
+}
+#s936SuitePro .s936-pr-master-chart .mute-x {
+  position:absolute;
+  top:2px;
+  transform:translateX(-50%);
+  color:rgba(255,255,255,.70);
+  font-size:.65rem;
+  font-weight:950;
+  z-index:5;
+}
+#s936SuitePro .s936-pr-master-labels {
+  display:grid;
+  grid-template-columns:repeat(6, 1fr);
+  gap:0;
+  padding:4px 8% 0;
+  color:rgba(255,255,255,.65);
+  font-size:.55rem;
+  font-weight:950;
+  text-align:center;
+}
+#s936SuitePro .s936-pr-master-board .s936-pr-master-chart.ukulele + .s936-pr-master-labels {
+  grid-template-columns:repeat(4, 1fr);
+  padding-left:8%;
+  padding-right:8%;
+}
+#s936SuitePro .s936-pr-recorded-note {
+  margin-top:6px;
+  color:rgba(255,255,255,.76);
+  font-size:.62rem;
+  font-weight:800;
+}
+
 
 `;
     document.head.appendChild(style);
@@ -789,7 +914,7 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProPractice = { version: "practice-v1.4.1", render };
+    window.Studio936SuiteProPractice = { version: "practice-v1.6", render };
     window.Studio936SuiteProModules.practice = window.Studio936SuiteProPractice;
   }
 
@@ -1128,8 +1253,6 @@
     addButton(ctx, row, "Stop", () => stopPracticeLoop(ctx), "s936-pr-btn danger");
     addButton(ctx, row, "Editor", () => ctx.callBridge?.("openEditor", () => false));
     actionBox.appendChild(row);
-    renderInlineViewSelector(ctx, actionBox);
-
     topbar.append(sectionBox, soundBox, bpmBox, actionBox);
     shell.appendChild(topbar);
   }
@@ -1171,9 +1294,8 @@
   function renderInlineViewSelector(ctx, parent) {
     const data = selectedData(ctx);
     const resolved = resolveInstrument(ctx, data.snap);
-    const box = ctx.el("div", "s936-pr-view-inline");
-    const buttons = ctx.el("div", "s936-pr-viewbar-buttons");
-    buttons.appendChild(ctx.el("span", "s936-pr-view-inline-label", "Vista para tocar"));
+    const wrap = ctx.el("div", "s936-pr-map-selector");
+    wrap.appendChild(ctx.el("span", "s936-pr-map-label", "Vista"));
     [
       ["piano", "Piano"],
       ["guitar", "Guitarra"],
@@ -1181,17 +1303,15 @@
     ].forEach(([value, label]) => {
       const btn = ctx.el("button", "s936-pr-viewbtn" + (resolved === value ? " active" : ""), label);
       btn.type = "button";
+      btn.title = "Mostrar mapa de notas en " + label;
       btn.onclick = () => {
         state.instrumentView = value;
         saveState();
         render(ctx);
       };
-      buttons.appendChild(btn);
+      wrap.appendChild(btn);
     });
-    const mode = ctx.el("span", "s936-pr-mode-pill", "Vista: " + instrumentLabel(resolved));
-    buttons.appendChild(mode);
-    box.appendChild(buttons);
-    parent.appendChild(box);
+    parent.appendChild(wrap);
   }
 
 
@@ -1245,6 +1365,7 @@
       focusChord(ctx, data.sectionKey, data.index);
       setTimeout(() => ctx.byId?.("previewBtn")?.click(), 120);
     }, "s936-pr-btn warn");
+    renderInlineViewSelector(ctx, nowActions);
     if (isPracticeFollowing) nowActions.appendChild(ctx.el("span", "s936-pr-run-badge", "Timeline activo"));
     nowInfo.appendChild(nowActions);
     const nowVisual = ctx.el("div", "s936-pr-hero-visual");
@@ -1451,60 +1572,74 @@
   }
 
   function renderFretboard(ctx, parent, data, strings, isUkulele) {
-    const board = ctx.el("div", "s936-pr-fret " + (isUkulele ? "s936-pr-uke" : ""));
-    const stringLabels = isUkulele ? ["G", "C", "E", "A"] : ["E", "A", "D", "G", "B", "E"];
-    const stringMidis = isUkulele ? [67, 60, 64, 69] : [40, 45, 50, 55, 59, 64];
-
+    const instrument = isUkulele ? "ukulele" : "guitar";
+    const tuning = stringTuningsForPractice(instrument);
+    const position = practiceChordPosition(data, instrument);
+    const baseFret = fretBaseFromPosition(position);
     const targetNotes = uniqueChordNotes(data.notes);
-    const targetPcs = targetNotes.map((note, index) => ({
-      note,
-      pc: pitchClass(note),
-      toneIndex: index,
-      isRoot: normalizeNote(note) === data.root || index === 0,
-      extension: isExtension(note, data.root, index)
-    })).filter((item) => item.pc !== undefined);
+    const targetPcs = targetNotes
+      .map((note, index) => ({
+        note,
+        pc: pitchClass(note),
+        toneIndex: index,
+        isRoot: normalizeNote(note) === data.root || index === 0,
+        extension: isExtension(note, data.root, index)
+      }))
+      .filter((item) => item.pc !== undefined);
 
-    const choices = assignRecordedChordToStrings(stringMidis, targetPcs, isUkulele);
-    const frets = choices.filter(Boolean).map((choice) => choice.fret);
-    let baseFret = 0;
-    if (frets.length) {
-      const positive = frets.filter((fret) => fret > 0);
-      const minPositive = positive.length ? Math.min.apply(null, positive) : 0;
-      const maxFret = Math.max.apply(null, frets);
-      baseFret = Math.max(0, Math.min(minPositive || 0, maxFret - 4));
-      if (maxFret - baseFret > 4) baseFret = Math.max(0, maxFret - 4);
+    const board = ctx.el("div", "s936-pr-master-board");
+    const chart = ctx.el("div", "s936-pr-master-chart " + instrument);
+
+    if (baseFret > 0) {
+      chart.appendChild(ctx.el("span", "base-fret", String(baseFret)));
     }
 
-    const diagram = ctx.el("div", "s936-pr-chord-diagram");
-    diagram.style.setProperty("--strings", String(stringLabels.length));
-    diagram.appendChild(ctx.el("div", "s936-pr-diag-corner", baseFret === 0 ? "0" : String(baseFret)));
-    stringLabels.forEach((label) => diagram.appendChild(ctx.el("div", "s936-pr-diag-string", label)));
-
-    for (let row = 0; row < 5; row++) {
-      const fret = baseFret + row;
-      diagram.appendChild(ctx.el("div", "s936-pr-diag-fret-num", String(fret)));
-      stringLabels.forEach((label, stringIndex) => {
-        const cell = ctx.el("div", "s936-pr-diag-cell");
-        const choice = choices[stringIndex];
-        if (choice && choice.fret === fret) {
-          const noteName = NOTE_NAMES[choice.pc] || normalizeNote(choice.note) || "";
-          const dot = ctx.el("span", "s936-pr-diag-dot", noteName.replace("#", "♯"));
-          if (choice.isRoot || choice.toneIndex === 0) dot.classList.add("root");
-          else if (choice.extension) dot.classList.add("ext");
-          cell.appendChild(dot);
-        }
-        diagram.appendChild(cell);
-      });
+    for (let fret = 0; fret <= 5; fret += 1) {
+      const line = ctx.el("span", "fret-line");
+      line.style.top = (14 + fret * 17) + "%";
+      chart.appendChild(line);
     }
 
-    board.appendChild(diagram);
+    const rootPc = pitchClass(data.root || targetNotes[0] || "");
+    const used = new Set();
+
+    tuning.forEach((string, index) => {
+      const x = tuning.length === 1 ? 50 : 8 + index * (84 / (tuning.length - 1));
+      const stringLine = ctx.el("span", "string-line");
+      stringLine.style.left = x + "%";
+      chart.appendChild(stringLine);
+
+      const choice = findPracticeFretForString(string.pc, targetPcs, baseFret, index, tuning.length);
+      if (choice) {
+        used.add(choice.pc);
+        const displayFret = baseFret > 0 ? choice.fret - baseFret + 1 : choice.fret;
+        const role = choice.pc === rootPc || choice.isRoot ? "root" : (choice.extension ? "tension" : "active");
+        const dot = ctx.el("span", "note-dot " + role, choice.fret === 0 ? "○" : String(used.size));
+        dot.title = string.label + " string · fret " + choice.fret + " · " + (NOTE_NAMES[choice.pc] || choice.note || "");
+        dot.style.left = x + "%";
+        dot.style.top = (choice.fret === 0 ? 8 : 14 + (displayFret - .5) * 17) + "%";
+        chart.appendChild(dot);
+      } else {
+        const mute = ctx.el("span", "mute-x", "×");
+        mute.style.left = x + "%";
+        chart.appendChild(mute);
+      }
+    });
+
+    const labels = ctx.el("div", "s936-pr-master-labels");
+    tuning.forEach((string) => labels.appendChild(ctx.el("span", "", string.label)));
+    board.appendChild(chart);
+    board.appendChild(labels);
 
     const meta = ctx.el("div", "s936-pr-fret-meta");
-    const maxUsed = frets.length ? Math.max.apply(null, frets) : 0;
-    meta.appendChild(ctx.el("span", "", (isUkulele ? "Ukelele" : "Guitarra") + " · acorde grabado"));
-    meta.appendChild(ctx.el("span", "", "Trastes " + baseFret + "-" + (baseFret + 4)));
+    meta.appendChild(ctx.el("span", "", (isUkulele ? "Ukelele" : "Guitarra") + " · mapa de acorde grabado"));
+    meta.appendChild(ctx.el("span", "", fretPositionLabel(position)));
     meta.appendChild(ctx.el("span", "", "Raíz: " + (data.root || "—")));
     board.appendChild(meta);
+
+    if (targetNotes.length) {
+      board.appendChild(ctx.el("div", "s936-pr-recorded-note", "Notas grabadas: " + targetNotes.join(" · ")));
+    }
 
     const legend = ctx.el("div", "s936-pr-legend");
     legend.appendChild(legendItem(ctx, "root", "raíz/bajo"));
@@ -1513,6 +1648,76 @@
     board.appendChild(legend);
 
     parent.appendChild(board);
+  }
+
+  function slug(text) {
+    return String(text || "studio936").toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "studio936";
+  }
+
+  function fretBaseFromPosition(position) {
+    const raw = String(position || "open");
+    return raw === "open" ? 0 : Math.max(0, Number(raw) || 0);
+  }
+
+  function fretPositionLabel(position) {
+    const raw = String(position || "open");
+    return raw === "open" ? "Abierta" : "Traste " + raw;
+  }
+
+  function practiceChordPosition(data, instrument) {
+    let positions = {};
+    try { positions = JSON.parse(localStorage.getItem("s936_suite_fret_positions_v34") || "{}") || {}; }
+    catch (error) { positions = {}; }
+
+    const key = instrument + "::" + slug(data.chordName || data.name || "chord");
+    return positions[key] || localStorage.getItem("s936_suite_fret_position_v33") || "open";
+  }
+
+  function stringTuningsForPractice(instrument) {
+    if (instrument === "ukulele") {
+      return [
+        { label:"G", pc:7 },
+        { label:"C", pc:0 },
+        { label:"E", pc:4 },
+        { label:"A", pc:9 }
+      ];
+    }
+    return [
+      { label:"E", pc:4 },
+      { label:"A", pc:9 },
+      { label:"D", pc:2 },
+      { label:"G", pc:7 },
+      { label:"B", pc:11 },
+      { label:"E", pc:4 }
+    ];
+  }
+
+  function findPracticeFretForString(openPc, targetPcs, baseFret, stringIndex, stringCount) {
+    let best = null;
+    const from = baseFret > 0 ? baseFret : 0;
+    const to = baseFret > 0 ? baseFret + 4 : 5;
+
+    for (let fret = from; fret <= to; fret += 1) {
+      const pc = (openPc + fret) % 12;
+      const target = targetPcs.find((item) => item.pc === pc);
+      if (!target) continue;
+
+      const lowString = stringIndex <= Math.floor((stringCount - 1) / 2);
+      const highString = stringIndex >= Math.ceil((stringCount - 1) / 2);
+      const score =
+        target.toneIndex +
+        (baseFret > 0 ? Math.abs(fret - baseFret) * 0.25 : fret * 0.2) +
+        (target.isRoot && lowString ? -1.5 : 0) +
+        (target.extension && highString ? -0.7 : 0) +
+        (target.extension && lowString ? 1.0 : 0);
+
+      if (!best || score < best.score) best = Object.assign({}, target, { fret, score });
+    }
+
+    return best;
   }
 
   function uniqueChordNotes(notes) {
