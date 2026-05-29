@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Practice Module v1.6
+// Studio 936 Composer - Suite Pro Practice Module v1.7
 // Scope: Practice tab only. It does not touch app legacy, audio internals, MIDI internals, editor internals or transport internals.
 // It reads from Studio936AppBridge and uses existing UI controls through safe clicks/events.
 (function () {
@@ -39,14 +39,15 @@
 #s936SuitePro .s936-pr-shell { display:grid; gap:12px; }
 #s936SuitePro .s936-pr-topbar {
   display:grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap:10px;
+  grid-template-columns:minmax(150px,.75fr) minmax(150px,.75fr) minmax(210px,.72fr) minmax(430px,1.65fr);
+  gap:8px;
+  align-items:stretch;
 }
 #s936SuitePro .s936-pr-control {
   border:1px solid rgba(255,255,255,.12);
-  border-radius:14px;
+  border-radius:13px;
   background:rgba(255,255,255,.045);
-  padding:10px;
+  padding:8px 9px;
 }
 #s936SuitePro .s936-pr-label {
   display:block;
@@ -63,7 +64,7 @@
   border-radius:10px;
   background:rgba(0,0,0,.32);
   color:#fff;
-  padding:9px;
+  padding:7px 9px;
   font-weight:800;
 }
 #s936SuitePro .s936-pr-hero {
@@ -908,6 +909,64 @@
 }
 
 
+
+/* Practice Pro v1.7: tighter topbar, view selector inline with chord notes, true compact chord-card maps */
+#s936SuitePro .s936-pr-actions-control .s936-pr-lite-actions {
+  align-items:center;
+  gap:7px;
+}
+#s936SuitePro .s936-pr-actions-control .s936-pr-btn {
+  padding:7px 10px;
+  font-size:.64rem;
+}
+#s936SuitePro .s936-pr-note-action-row {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  flex-wrap:wrap;
+  margin-top:9px;
+}
+#s936SuitePro .s936-pr-note-action-row .s936-pr-note-row {
+  margin-top:0;
+}
+#s936SuitePro .s936-pr-note-action-row .s936-pr-actions {
+  margin-top:0;
+}
+#s936SuitePro .s936-pr-hero-visual.is-fret {
+  align-items:center;
+  justify-content:center;
+}
+#s936SuitePro .s936-pr-hero-visual.is-fret h5 {
+  align-self:stretch;
+}
+#s936SuitePro .s936-pr-hero-visual.is-fret .s936-pr-master-board {
+  max-width:190px;
+}
+#s936SuitePro .s936-pr-hero-visual.is-fret .s936-pr-master-chart {
+  height:150px;
+}
+#s936SuitePro .s936-pr-hero-visual.is-fret .s936-pr-recorded-note {
+  display:none;
+}
+#s936SuitePro .s936-pr-hero-visual.is-piano .s936-pr-keyboard {
+  min-height:116px;
+}
+#s936SuitePro .s936-pr-hero-visual.is-piano .s936-pr-key {
+  min-width:24px;
+  height:86px;
+}
+#s936SuitePro .s936-pr-hero-visual.is-piano .s936-pr-key.black {
+  min-width:18px;
+  height:58px;
+  margin-left:-11px;
+  margin-right:-11px;
+}
+@media(max-width:1100px){
+  #s936SuitePro .s936-pr-topbar {
+    grid-template-columns:minmax(120px,1fr) minmax(120px,1fr);
+  }
+}
+
 `;
     document.head.appendChild(style);
   }
@@ -1172,7 +1231,7 @@
     followCtx = ctx;
     installStyles();
     const c = ctx.clearContent();
-    ctx.title(c, "Practice Pro", "Play-along modular: sonido separado de vista de notas, karaoke arriba y timeline que rota secciones en canción completa.");
+    ctx.title(c, "Practice Pro", "");
 
     const shell = ctx.el("div", "s936-pr-shell");
     renderTopbar(ctx, shell);
@@ -1242,6 +1301,7 @@
     bpmBox.appendChild(bpmRow);
 
     const actionBox = controlBox(ctx, "Práctica");
+    actionBox.classList.add("s936-pr-actions-control");
     const row = ctx.el("div", "s936-pr-lite-actions");
     addButton(ctx, row, isPracticeFollowing ? "Loop activo" : "Loop sección", () => {
       startPracticeLoop(ctx);
@@ -1359,7 +1419,8 @@
     nowInfo.appendChild(ctx.el("h4", "s936-pr-now-title", "Ahora"));
     nowInfo.appendChild(ctx.el("div", "s936-pr-chord", data.chordName));
     nowInfo.appendChild(ctx.el("div", "s936-pr-sub", `${sectionLabel(data.part, data.sectionKey)} · acorde ${data.index + 1}/${Math.max(1, data.items.length)} · ${data.item?.bars || 1} compás(es)`));
-    nowInfo.appendChild(noteRow(ctx, data.notes, data.root));
+    const nowInline = ctx.el("div", "s936-pr-note-action-row");
+    nowInline.appendChild(noteRow(ctx, data.notes, data.root));
     const nowActions = ctx.el("div", "s936-pr-actions");
     addButton(ctx, nowActions, "Escuchar acorde", () => {
       focusChord(ctx, data.sectionKey, data.index);
@@ -1367,7 +1428,8 @@
     }, "s936-pr-btn warn");
     renderInlineViewSelector(ctx, nowActions);
     if (isPracticeFollowing) nowActions.appendChild(ctx.el("span", "s936-pr-run-badge", "Timeline activo"));
-    nowInfo.appendChild(nowActions);
+    nowInline.appendChild(nowActions);
+    nowInfo.appendChild(nowInline);
     const nowVisual = ctx.el("div", "s936-pr-hero-visual");
     renderInstrumentMini(ctx, nowVisual, data, "Mapa de nota · ahora");
     nowLayout.append(nowInfo, nowVisual);
@@ -1402,13 +1464,12 @@
 
   function renderInstrumentMini(ctx, parent, data, title) {
     const instrument = resolveInstrument(ctx, data.snap);
+    parent.classList.toggle("is-fret", instrument === "guitar" || instrument === "ukulele");
+    parent.classList.toggle("is-piano", instrument === "piano");
     parent.appendChild(ctx.el("h5", "", title + " · " + instrumentLabel(instrument)));
     if (instrument === "guitar") renderFretboard(ctx, parent, data, ["E", "A", "D", "G", "B", "E"], false);
     else if (instrument === "ukulele") renderFretboard(ctx, parent, data, ["G", "C", "E", "A"], true);
     else renderKeyboard(ctx, parent, data);
-
-    const recorded = String(data.item?.notes || "").trim();
-    if (recorded) parent.appendChild(ctx.el("div", "s936-pr-recorded-note", "Notas grabadas: " + recorded));
   }
 
   function noteRow(ctx, notes, root) {
@@ -1636,10 +1697,6 @@
     meta.appendChild(ctx.el("span", "", fretPositionLabel(position)));
     meta.appendChild(ctx.el("span", "", "Raíz: " + (data.root || "—")));
     board.appendChild(meta);
-
-    if (targetNotes.length) {
-      board.appendChild(ctx.el("div", "s936-pr-recorded-note", "Notas grabadas: " + targetNotes.join(" · ")));
-    }
 
     const legend = ctx.el("div", "s936-pr-legend");
     legend.appendChild(legendItem(ctx, "root", "raíz/bajo"));
