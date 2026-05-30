@@ -2694,6 +2694,11 @@ function normalizeNoteName(value) {
     if (state.studioTool === "mixer") return renderMixer(c);
     if (state.studioTool === "record") return renderRecord(c);
     if (state.studioTool === "midi") return renderMidi(c);
+
+    const mod = window.Studio936SuiteProModules?.drums || window.Studio936SuiteProDrums;
+    if (mod && typeof mod.render === "function") {
+      return mod.render(createModuleContext(), c);
+    }
     return renderDrums(c);
   }
 
@@ -3044,7 +3049,7 @@ function normalizeNoteName(value) {
   }
 
   window.Studio936SuitePro = {
-    version: "professional-v3.4",
+    version: "professional-v3.9-drums-modular",
     open,
     close,
     toggle,

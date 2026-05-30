@@ -1,0 +1,592 @@
+// Studio 936 Composer - Suite Pro Drums Module v1.0
+// Scope: Studio > Drums Pro only. It does not touch app.js, Practice, CSS, MIDI, editor or transport internals.
+// Loaded before js/suite-pro.js and rendered through Studio936SuiteProModules.drums.
+(function () {
+  "use strict";
+
+  const STYLE_ID = "s936SuiteProDrumsStyles";
+  const STATE_KEY = "s936_suitepro_drums_v1";
+
+  const DEFAULT_STATE = {
+    style: "auto",
+    pattern: "groove",
+    volume: 0.55,
+    swing: 0,
+    humanize: 0,
+    playing: false,
+    step: 0
+  };
+
+  const PATTERNS = {
+    funk: {
+      basic:  { label: "Funk básico", kick:[0, 6, 10], snare:[4, 12], hat:[0,2,4,6,8,10,12,14] },
+      groove: { label: "Funk groove", kick:[0, 3, 8, 10, 14], snare:[4, 12], hat:[0,2,3,6,8,10,11,14] },
+      chorus: { label: "Funk coro", kick:[0, 3, 8, 10, 13], snare:[4, 12], hat:[0,1,2,3,4,6,8,9,10,11,12,14] },
+      build:  { label: "Funk build", kick:[0, 3, 6, 8, 10, 14], snare:[4, 12, 15], hat:[0,2,4,6,8,10,12,14,15] },
+      break:  { label: "Funk break", kick:[0, 10], snare:[4, 7, 12, 15], hat:[0,2,6,8,10,14] }
+    },
+    rock: {
+      basic:  { label: "Rock básico", kick:[0, 8], snare:[4, 12], hat:[0,2,4,6,8,10,12,14] },
+      groove: { label: "Rock medio", kick:[0, 7, 8, 10], snare:[4, 12], hat:[0,2,4,6,8,10,12,14] },
+      chorus: { label: "Rock coro", kick:[0, 3, 8, 10], snare:[4, 12], hat:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15] },
+      build:  { label: "Rock build", kick:[0, 6, 8, 10], snare:[4, 12, 14, 15], hat:[0,2,4,6,8,10,12,14] },
+      break:  { label: "Rock break", kick:[0, 8, 11], snare:[4, 7, 12, 15], hat:[0,4,8,12] }
+    },
+    pop: {
+      basic:  { label: "Pop básico", kick:[0, 8], snare:[4, 12], hat:[0,2,4,6,8,10,12,14] },
+      groove: { label: "Pop groove", kick:[0, 8, 11], snare:[4, 12], hat:[0,2,4,6,8,10,12,14] },
+      chorus: { label: "Pop coro", kick:[0, 3, 8, 11], snare:[4, 12], hat:[0,2,4,6,8,10,12,14] },
+      build:  { label: "Pop build", kick:[0, 6, 8, 10, 14], snare:[4, 12, 15], hat:[0,2,4,6,8,10,12,14,15] },
+      break:  { label: "Pop break", kick:[0, 8], snare:[4, 7, 12], hat:[0,4,8,12,14] }
+    },
+    ballad: {
+      basic:  { label: "Balada básica", kick:[0, 8], snare:[4, 12], hat:[0,4,8,12] },
+      groove: { label: "Balada suave", kick:[0, 10], snare:[4, 12], hat:[0,4,8,12,14] },
+      chorus: { label: "Balada coro", kick:[0, 6, 10], snare:[4, 12], hat:[0,2,4,6,8,10,12,14] },
+      build:  { label: "Balada build", kick:[0, 8, 10], snare:[4, 12, 14, 15], hat:[0,2,4,6,8,10,12,14,15] },
+      break:  { label: "Balada break", kick:[0], snare:[4, 12, 15], hat:[0,8,14] }
+    },
+    jazz: {
+      basic:  { label: "Jazz básico", kick:[0, 10], snare:[4, 12], hat:[0,3,6,9,12,15] },
+      groove: { label: "Jazz ride", kick:[0, 10], snare:[4, 7, 12], hat:[0,3,6,9,12,15] },
+      chorus: { label: "Jazz chorus", kick:[0, 8, 10], snare:[4, 7, 12, 15], hat:[0,3,6,9,12,15] },
+      build:  { label: "Jazz build", kick:[0, 6, 10], snare:[4, 7, 12, 14], hat:[0,2,3,6,8,9,12,14,15] },
+      break:  { label: "Jazz break", kick:[0], snare:[3, 7, 12, 15], hat:[0,6,12] }
+    },
+    bossa: {
+      basic:  { label: "Bossa básica", kick:[0, 6, 10], snare:[4, 12, 14], hat:[0,2,4,6,8,10,12,14] },
+      groove: { label: "Bossa groove", kick:[0, 6, 10, 14], snare:[4, 7, 12], hat:[0,2,4,6,8,10,12,14] },
+      chorus: { label: "Bossa coro", kick:[0, 6, 8, 10, 14], snare:[4, 7, 12, 15], hat:[0,2,4,6,8,10,12,14] },
+      build:  { label: "Bossa build", kick:[0, 6, 10, 14], snare:[4, 7, 11, 12, 15], hat:[0,2,4,6,8,10,12,14,15] },
+      break:  { label: "Bossa break", kick:[0, 10], snare:[4, 7, 12], hat:[0,4,8,12] }
+    },
+    salsa: {
+      basic:  { label: "Salsa guía", kick:[0, 8], snare:[4, 7, 12, 15], hat:[0,2,4,6,8,10,12,14] },
+      groove: { label: "Salsa groove", kick:[0, 6, 8], snare:[4, 7, 12, 15], hat:[0,2,4,6,8,10,12,14] },
+      chorus: { label: "Salsa coro", kick:[0, 6, 8, 10], snare:[4, 7, 11, 12, 15], hat:[0,2,4,6,8,10,12,14] },
+      build:  { label: "Salsa build", kick:[0, 6, 8, 10], snare:[4, 7, 11, 12, 14, 15], hat:[0,2,4,6,8,10,12,14,15] },
+      break:  { label: "Salsa break", kick:[0, 8], snare:[3, 4, 7, 12, 15], hat:[0,4,8,12] }
+    },
+    cumbia: {
+      basic:  { label: "Cumbia básica", kick:[0, 8], snare:[4, 12], hat:[0,2,4,6,8,10,12,14] },
+      groove: { label: "Cumbia groove", kick:[0, 7, 8], snare:[4, 12], hat:[0,2,4,6,8,10,12,14] },
+      chorus: { label: "Cumbia coro", kick:[0, 7, 8, 10], snare:[4, 12], hat:[0,2,4,6,8,10,12,14] },
+      build:  { label: "Cumbia build", kick:[0, 6, 8, 10], snare:[4, 12, 15], hat:[0,2,4,6,8,10,12,14,15] },
+      break:  { label: "Cumbia break", kick:[0, 8], snare:[4, 7, 12], hat:[0,4,8,12] }
+    },
+    reggae: {
+      basic:  { label: "Reggae offbeat", kick:[8], snare:[4, 12], hat:[2,6,10,14] },
+      groove: { label: "Reggae groove", kick:[0, 8], snare:[4, 12], hat:[2,6,10,14] },
+      chorus: { label: "Reggae coro", kick:[0, 8, 10], snare:[4, 12], hat:[2,6,8,10,14] },
+      build:  { label: "Reggae build", kick:[0, 8, 10], snare:[4, 7, 12, 15], hat:[2,4,6,8,10,12,14] },
+      break:  { label: "Reggae break", kick:[8], snare:[4, 7, 12], hat:[2,6,10,14] }
+    }
+  };
+
+  let state = loadState();
+  let audioCtx = null;
+  let timer = null;
+
+  function loadState() {
+    try { return Object.assign({}, DEFAULT_STATE, JSON.parse(localStorage.getItem(STATE_KEY) || "{}")); }
+    catch (error) { return Object.assign({}, DEFAULT_STATE); }
+  }
+
+  function saveState() {
+    try {
+      const saved = Object.assign({}, state, { playing: false, step: 0 });
+      localStorage.setItem(STATE_KEY, JSON.stringify(saved));
+    } catch (error) {}
+  }
+
+  function installStyles() {
+    if (document.getElementById(STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = STYLE_ID;
+    style.textContent = `
+#s936SuitePro .s936-dr-shell { display:grid; gap:12px; }
+#s936SuitePro .s936-dr-grid { display:grid; grid-template-columns:minmax(260px,.7fr) minmax(0,1.3fr); gap:12px; align-items:start; }
+#s936SuitePro .s936-dr-card {
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:18px;
+  background:linear-gradient(135deg, rgba(0,255,204,.08), rgba(255,255,255,.035));
+  padding:14px;
+}
+#s936SuitePro .s936-dr-card.important { border-color:rgba(0,255,204,.34); background:linear-gradient(135deg, rgba(0,255,204,.13), rgba(255,255,255,.035)); }
+#s936SuitePro .s936-dr-card h4 {
+  margin:0 0 10px;
+  color:#8affff;
+  text-transform:uppercase;
+  font-size:.82rem;
+  letter-spacing:.8px;
+}
+#s936SuitePro .s936-dr-muted { color:rgba(255,255,255,.72); font-size:.78rem; line-height:1.45; margin:7px 0; }
+#s936SuitePro .s936-dr-line { margin:8px 0; color:rgba(255,255,255,.86); font-size:.78rem; line-height:1.45; }
+#s936SuitePro .s936-dr-line strong { color:#bfffee; }
+#s936SuitePro .s936-dr-form { display:grid; gap:9px; }
+#s936SuitePro .s936-dr-field label {
+  display:block;
+  color:#ffe066;
+  font-size:.60rem;
+  font-weight:950;
+  text-transform:uppercase;
+  letter-spacing:.7px;
+  margin-bottom:5px;
+}
+#s936SuitePro .s936-dr-select, #s936SuitePro .s936-dr-range {
+  width:100%;
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:10px;
+  background:rgba(0,0,0,.32);
+  color:#fff;
+  padding:8px 9px;
+  font-weight:850;
+}
+#s936SuitePro .s936-dr-range { accent-color:#00ffcc; padding:0; }
+#s936SuitePro .s936-dr-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+#s936SuitePro .s936-dr-btn {
+  border:1px solid rgba(0,255,204,.45);
+  border-radius:999px;
+  background:rgba(0,255,204,.08);
+  color:#bfffee;
+  padding:8px 12px;
+  font-size:.68rem;
+  font-weight:950;
+  cursor:pointer;
+}
+#s936SuitePro .s936-dr-btn:hover { background:rgba(0,255,204,.15); }
+#s936SuitePro .s936-dr-btn.warn { border-color:rgba(255,216,77,.72); color:#ffe066; background:rgba(255,216,77,.10); }
+#s936SuitePro .s936-dr-btn.danger { border-color:rgba(255,90,90,.7); color:#ffb5b5; background:rgba(255,90,90,.10); }
+#s936SuitePro .s936-dr-btn.active { border-color:#00ffcc; color:#001a15; background:#00ffcc; }
+#s936SuitePro .s936-dr-status {
+  display:inline-flex; align-items:center; gap:7px;
+  border:1px solid rgba(174,230,70,.45);
+  border-radius:999px;
+  padding:6px 10px;
+  color:#d7ff72;
+  background:rgba(174,230,70,.08);
+  font-size:.66rem;
+  font-weight:950;
+  text-transform:uppercase;
+}
+#s936SuitePro .s936-dr-led { width:9px; height:9px; border-radius:999px; background:#333; box-shadow:none; }
+#s936SuitePro .s936-dr-status.playing .s936-dr-led { background:#00ffcc; box-shadow:0 0 13px rgba(0,255,204,.8); }
+#s936SuitePro .s936-dr-sequencer { display:grid; gap:8px; overflow:auto; padding-bottom:4px; }
+#s936SuitePro .s936-dr-row { display:grid; grid-template-columns:76px repeat(16, minmax(20px, 1fr)); gap:5px; align-items:center; min-width:720px; }
+#s936SuitePro .s936-dr-label {
+  color:#ffe066;
+  font-size:.68rem;
+  font-weight:950;
+  text-transform:uppercase;
+}
+#s936SuitePro .s936-dr-step {
+  height:30px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:8px;
+  background:rgba(255,255,255,.045);
+  position:relative;
+  overflow:hidden;
+}
+#s936SuitePro .s936-dr-step:nth-child(4n+2) { border-left-color:rgba(255,216,77,.45); }
+#s936SuitePro .s936-dr-step.on.kick { background:rgba(0,255,204,.20); border-color:rgba(0,255,204,.62); }
+#s936SuitePro .s936-dr-step.on.snare { background:rgba(255,216,77,.19); border-color:rgba(255,216,77,.62); }
+#s936SuitePro .s936-dr-step.on.hat { background:rgba(255,91,234,.14); border-color:rgba(255,91,234,.45); }
+#s936SuitePro .s936-dr-step.play {
+  outline:2px solid #fff;
+  box-shadow:0 0 18px rgba(255,255,255,.22);
+}
+#s936SuitePro .s936-dr-step.play::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  background:rgba(255,255,255,.18);
+}
+#s936SuitePro .s936-dr-numbers { display:grid; grid-template-columns:76px repeat(16, minmax(20px, 1fr)); gap:5px; min-width:720px; color:rgba(255,255,255,.55); font-size:.56rem; font-weight:900; text-align:center; }
+#s936SuitePro .s936-dr-numbers span:first-child { text-align:left; }
+#s936SuitePro .s936-dr-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:10px; }
+#s936SuitePro .s936-dr-mini {
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:12px;
+  padding:9px;
+  background:rgba(0,0,0,.16);
+}
+#s936SuitePro .s936-dr-mini strong { display:block; color:#fff; font-size:1.1rem; line-height:1; }
+#s936SuitePro .s936-dr-mini span { display:block; color:rgba(255,255,255,.65); font-size:.62rem; font-weight:850; text-transform:uppercase; margin-top:3px; }
+@media(max-width: 980px){
+  #s936SuitePro .s936-dr-grid { grid-template-columns:1fr; }
+  #s936SuitePro .s936-dr-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+`;
+    document.head.appendChild(style);
+  }
+
+  function getBpm(ctx) {
+    const snap = ctx.snapshot?.() || {};
+    const raw = snap.bpm || ctx.byId?.("bpmDisplay")?.textContent || ctx.byId?.("bpmSlider")?.value || 95;
+    return Math.max(40, Math.min(220, Number(raw) || 95));
+  }
+
+  function appStyle(ctx) {
+    const snap = ctx.snapshot?.() || {};
+    const value = String(snap.style || ctx.byId?.("styleSelect")?.value || "funk").toLowerCase();
+    return PATTERNS[value] ? value : "pop";
+  }
+
+  function selectedStyle(ctx) {
+    return state.style === "auto" ? appStyle(ctx) : (PATTERNS[state.style] ? state.style : "pop");
+  }
+
+  function selectedPattern(ctx) {
+    const style = selectedStyle(ctx);
+    const group = PATTERNS[style] || PATTERNS.pop;
+    return group[state.pattern] || group.groove || group.basic;
+  }
+
+  function setStatus(text) {
+    const node = document.querySelector("#s936SuitePro .s936-dr-live-text");
+    if (node) node.textContent = text;
+  }
+
+  function render(ctx, container) {
+    installStyles();
+    const c = container || ctx.clearContent?.();
+    if (!c) return;
+
+    ctx.title(c, "Drums Pro", "Batería guía modular para componer, practicar y producir sin inflar Suite Pro.");
+    const shell = ctx.el("div", "s936-dr-shell");
+    const grid = ctx.el("div", "s936-dr-grid");
+
+    renderControls(ctx, grid);
+    renderSequencer(ctx, grid);
+
+    shell.appendChild(grid);
+    renderPerformanceSummary(ctx, shell);
+    c.appendChild(shell);
+    paintActiveStep();
+  }
+
+  function renderControls(ctx, parent) {
+    const card = ctx.el("article", "s936-dr-card important");
+    card.appendChild(ctx.el("h4", "", "Control de batería"));
+
+    const status = ctx.el("div", "s936-dr-status" + (state.playing ? " playing" : ""));
+    status.appendChild(ctx.el("span", "s936-dr-led"));
+    status.appendChild(ctx.el("span", "s936-dr-live-text", state.playing ? "Drums sonando" : "Drums detenido"));
+    card.appendChild(status);
+
+    const form = ctx.el("div", "s936-dr-form");
+    form.appendChild(selectField(ctx, "Estilo batería", state.style, [
+      ["auto", "Auto: " + appStyle(ctx)],
+      ["funk", "Funk"],
+      ["rock", "Rock"],
+      ["pop", "Pop"],
+      ["ballad", "Balada"],
+      ["jazz", "Jazz"],
+      ["bossa", "Bossa"],
+      ["salsa", "Salsa"],
+      ["cumbia", "Cumbia"],
+      ["reggae", "Reggae"]
+    ], (value) => {
+      state.style = value;
+      saveState();
+      render(ctx, ctx.clearContent());
+    }));
+
+    form.appendChild(selectField(ctx, "Patrón", state.pattern, [
+      ["basic", "Basic"],
+      ["groove", "Groove"],
+      ["chorus", "Chorus"],
+      ["build", "Build"],
+      ["break", "Break"]
+    ], (value) => {
+      state.pattern = value;
+      saveState();
+      render(ctx, ctx.clearContent());
+    }));
+
+    form.appendChild(rangeField(ctx, "Volumen drums", state.volume, 0, 1, 0.01, (value) => {
+      state.volume = Number(value);
+      saveState();
+      updateSummary();
+    }));
+
+    form.appendChild(rangeField(ctx, "Swing", state.swing, 0, 0.35, 0.01, (value) => {
+      state.swing = Number(value);
+      saveState();
+      updateSummary();
+    }));
+
+    form.appendChild(rangeField(ctx, "Humanize", state.humanize, 0, 0.20, 0.01, (value) => {
+      state.humanize = Number(value);
+      saveState();
+      updateSummary();
+    }));
+
+    card.appendChild(form);
+
+    const actions = ctx.el("div", "s936-dr-actions");
+    button(ctx, actions, state.playing ? "Stop Drums" : "Start Drums", () => {
+      state.playing ? stop(ctx) : start(ctx);
+    }, state.playing ? "s936-dr-btn danger" : "s936-dr-btn warn");
+
+    button(ctx, actions, "Groove + Drums", () => {
+      ctx.callBridge?.("startGroove", () => ctx.byId?.("playBtn")?.click());
+      start(ctx);
+    });
+
+    button(ctx, actions, "Stop todo", () => {
+      stop(ctx);
+      ctx.callBridge?.("stopPlayback", () => ctx.byId?.("playBtn")?.click());
+    }, "s936-dr-btn danger");
+
+    card.appendChild(actions);
+    card.appendChild(ctx.el("p", "s936-dr-muted", "V1 no toca app.js: toma BPM/estilo de la app y genera una batería guía propia del módulo."));
+
+    parent.appendChild(card);
+  }
+
+  function selectField(ctx, label, value, options, onchange) {
+    const field = ctx.el("label", "s936-dr-field");
+    field.appendChild(ctx.el("span", "", label));
+    const select = ctx.el("select", "s936-dr-select");
+    options.forEach(([v, text]) => {
+      const option = ctx.el("option", "", text);
+      option.value = v;
+      option.selected = String(v) === String(value);
+      select.appendChild(option);
+    });
+    select.onchange = () => onchange(select.value);
+    field.appendChild(select);
+    return field;
+  }
+
+  function rangeField(ctx, label, value, min, max, step, onchange) {
+    const field = ctx.el("label", "s936-dr-field");
+    const display = ctx.el("span", "", label + " · " + formatRange(value, max));
+    field.appendChild(display);
+    const input = ctx.el("input", "s936-dr-range");
+    input.type = "range";
+    input.min = min;
+    input.max = max;
+    input.step = step;
+    input.value = value;
+    input.oninput = () => {
+      display.textContent = label + " · " + formatRange(input.value, max);
+      onchange(input.value);
+    };
+    field.appendChild(input);
+    return field;
+  }
+
+  function formatRange(value, max) {
+    if (Number(max) <= 1) return Math.round(Number(value) * 100) + "%";
+    return String(value);
+  }
+
+  function button(ctx, parent, label, onclick, className = "s936-dr-btn") {
+    const btn = ctx.el("button", className, label);
+    btn.type = "button";
+    btn.onclick = onclick;
+    parent.appendChild(btn);
+    return btn;
+  }
+
+  function renderSequencer(ctx, parent) {
+    const card = ctx.el("article", "s936-dr-card");
+    const style = selectedStyle(ctx);
+    const pattern = selectedPattern(ctx);
+
+    card.appendChild(ctx.el("h4", "", pattern.label));
+    card.appendChild(ctx.el("p", "s936-dr-muted", "Matriz de 16 pasos: Kick, Snare y Hat. El cursor blanco muestra el paso activo."));
+
+    const seq = ctx.el("div", "s936-dr-sequencer");
+    const nums = ctx.el("div", "s936-dr-numbers");
+    nums.appendChild(ctx.el("span", "", style.toUpperCase()));
+    for (let i = 0; i < 16; i++) nums.appendChild(ctx.el("span", "", String(i + 1)));
+    seq.appendChild(nums);
+
+    [
+      ["kick", "Kick"],
+      ["snare", "Snare"],
+      ["hat", "Hi-Hat"]
+    ].forEach(([lane, label]) => {
+      const row = ctx.el("div", "s936-dr-row");
+      row.appendChild(ctx.el("div", "s936-dr-label", label));
+      for (let i = 0; i < 16; i++) {
+        const cell = ctx.el("button", "s936-dr-step " + lane + (pattern[lane].includes(i) ? " on" : ""));
+        cell.type = "button";
+        cell.dataset.step = String(i);
+        cell.dataset.lane = lane;
+        cell.title = label + " paso " + (i + 1);
+        row.appendChild(cell);
+      }
+      seq.appendChild(row);
+    });
+
+    card.appendChild(seq);
+    parent.appendChild(card);
+  }
+
+  function renderPerformanceSummary(ctx, shell) {
+    const s = ctx.snapshot?.() || {};
+    const pattern = selectedPattern(ctx);
+    const summary = ctx.el("div", "s936-dr-summary");
+
+    [
+      [getBpm(ctx), "BPM actual"],
+      [selectedStyle(ctx), "Estilo drums"],
+      [pattern.label, "Patrón"],
+      [state.playing ? "ON" : "OFF", "Estado"]
+    ].forEach(([big, small]) => {
+      const item = ctx.el("div", "s936-dr-mini");
+      item.appendChild(ctx.el("strong", "", String(big || "—")));
+      item.appendChild(ctx.el("span", "", small));
+      summary.appendChild(item);
+    });
+
+    const note = ctx.el("article", "s936-dr-card");
+    note.appendChild(ctx.el("h4", "", "Uso musical"));
+    note.appendChild(ctx.el("p", "s936-dr-muted", "Empieza con Groove para verso, Chorus para coro y Build antes de cambios. Para practicar, usa Drums junto con Practice y el Mapa Maestro."));
+    note.appendChild(summary);
+    shell.appendChild(note);
+  }
+
+  function updateSummary() {
+    const text = document.querySelector("#s936SuitePro .s936-dr-live-text");
+    if (text) text.textContent = state.playing ? "Drums sonando" : "Drums detenido";
+  }
+
+  function ensureAudio() {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (!audioCtx) audioCtx = new AC();
+    audioCtx.resume?.();
+    return audioCtx;
+  }
+
+  function start(ctx) {
+    if (state.playing) return;
+    if (!ensureAudio()) {
+      setStatus("AudioContext no disponible");
+      return;
+    }
+    state.playing = true;
+    state.step = 0;
+    schedule(ctx);
+    setStatus("Drums sonando");
+    paintActiveStep();
+  }
+
+  function stop(ctx) {
+    state.playing = false;
+    if (timer) clearTimeout(timer);
+    timer = null;
+    paintActiveStep();
+    setStatus("Drums detenido");
+  }
+
+  function schedule(ctx) {
+    if (!state.playing) return;
+    const bpm = getBpm(ctx);
+    const stepMs = (60 / bpm / 4) * 1000;
+    playStep(ctx, state.step);
+    state.step = (state.step + 1) % 16;
+    paintActiveStep();
+
+    const swing = (state.step % 2 ? state.swing : 0) * stepMs;
+    const human = (Math.random() * 2 - 1) * state.humanize * stepMs;
+    timer = setTimeout(() => schedule(ctx), Math.max(20, stepMs + swing + human));
+  }
+
+  function playStep(ctx, step) {
+    const pattern = selectedPattern(ctx);
+    if (pattern.kick.includes(step)) kick();
+    if (pattern.snare.includes(step)) snare();
+    if (pattern.hat.includes(step)) hat(step % 4 === 0);
+  }
+
+  function paintActiveStep() {
+    document.querySelectorAll("#s936SuitePro .s936-dr-step").forEach((cell) => {
+      cell.classList.toggle("play", state.playing && Number(cell.dataset.step) === state.step);
+    });
+  }
+
+  function outGain(amount) {
+    const ctx = audioCtx;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(Math.max(0.0001, amount * state.volume), ctx.currentTime);
+    gain.connect(ctx.destination);
+    return gain;
+  }
+
+  function kick() {
+    const ctx = audioCtx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(115, t);
+    osc.frequency.exponentialRampToValueAtTime(42, t + 0.15);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.72 * state.volume, t + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.20);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.22);
+  }
+
+  function snare() {
+    const ctx = audioCtx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.13), ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.setValueAtTime(1850, t);
+    filter.Q.setValueAtTime(0.85, t);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.42 * state.volume, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+    noise.connect(filter).connect(gain).connect(ctx.destination);
+    noise.start(t);
+    noise.stop(t + 0.14);
+  }
+
+  function hat(accent) {
+    const ctx = audioCtx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.045), ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "highpass";
+    filter.frequency.setValueAtTime(accent ? 5200 : 6500, t);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime((accent ? 0.12 : 0.08) * state.volume, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+    noise.connect(filter).connect(gain).connect(ctx.destination);
+    noise.start(t);
+    noise.stop(t + 0.05);
+  }
+
+  function register() {
+    window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
+    window.Studio936SuiteProDrums = {
+      version: "drums-v1.0",
+      render,
+      start,
+      stop
+    };
+    window.Studio936SuiteProModules.drums = window.Studio936SuiteProDrums;
+  }
+
+  register();
+})();
