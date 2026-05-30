@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Practice Module v1.10
+// Studio 936 Composer - Suite Pro Practice Module v1.11
 // Scope: Practice tab only. It does not touch app legacy, audio internals, MIDI internals, editor internals or transport internals.
 // It reads from Studio936AppBridge and uses existing UI controls through safe clicks/events.
 (function () {
@@ -242,6 +242,27 @@
 #s936SuitePro .s936-pr-key.on { background:#00ffcc; color:#00221d; box-shadow:0 0 0 2px rgba(0,255,204,.35) inset; }
 #s936SuitePro .s936-pr-key.root { background:#ffe066; color:#161000; }
 #s936SuitePro .s936-pr-key.ext { background:#ff5bea; color:#220018; }
+#s936SuitePro .s936-pr-key.lh { box-shadow:0 0 0 2px rgba(255,216,77,.42) inset, 0 0 16px rgba(255,216,77,.22); }
+#s936SuitePro .s936-pr-key.rh { box-shadow:0 0 0 2px rgba(0,255,204,.34) inset, 0 0 14px rgba(0,255,204,.18); }
+#s936SuitePro .s936-pr-key.playing { animation:s936PrKeyPulse .72s ease-in-out infinite alternate; }
+@keyframes s936PrKeyPulse { from { filter:brightness(1); transform:translateY(0); } to { filter:brightness(1.22); transform:translateY(3px); } }
+#s936SuitePro .s936-pr-piano-guide {
+  margin-top:8px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  color:rgba(255,255,255,.76);
+  font-size:.64rem;
+  font-weight:800;
+}
+#s936SuitePro .s936-pr-piano-guide span {
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:999px;
+  padding:4px 7px;
+  background:rgba(255,255,255,.045);
+}
+#s936SuitePro .s936-pr-piano-guide .bass { color:#ffe066; border-color:rgba(255,216,77,.45); }
+#s936SuitePro .s936-pr-piano-guide .right { color:#8affff; border-color:rgba(0,255,204,.35); }
 #s936SuitePro .s936-pr-fret {
   width:100%;
   max-width:340px;
@@ -967,168 +988,13 @@
   }
 }
 
-
-/* Practice Pro v1.9: one ticket fix - chord row alignment + real neck map */
-#s936SuitePro .s936-pr-chord-heading {
-  display:flex;
-  align-items:center;
-  justify-content:flex-start;
-  gap:12px;
-  flex-wrap:wrap;
-}
-#s936SuitePro .s936-pr-chord-heading .s936-pr-chord {
-  margin:0;
-}
-#s936SuitePro .s936-pr-chord-heading .s936-pr-btn {
-  margin-top:2px;
-  padding:7px 12px;
-}
-#s936SuitePro .s936-pr-view-row {
-  display:flex;
-  align-items:center;
-  gap:7px;
-  flex-wrap:wrap;
-  margin-top:8px;
-}
-#s936SuitePro .s936-pr-view-row .s936-pr-map-selector {
-  margin-left:0;
-}
-#s936SuitePro .s936-pr-note-action-row {
-  display:block;
-  margin-top:8px;
-}
-#s936SuitePro .s936-pr-hero-visual {
-  min-height:138px;
-}
-#s936SuitePro .s936-pr-hero-visual h5 {
-  margin-bottom:6px;
-}
-#s936SuitePro .s936-pr-neck-board {
-  width:100%;
-  max-width:520px;
-  margin:0 auto;
-  background:rgba(0,0,0,.25);
-  border-radius:12px;
-  padding:6px 8px 8px;
-}
-#s936SuitePro .s936-pr-neck-grid {
-  display:grid;
-  grid-template-columns:22px repeat(13, minmax(18px, 1fr));
-  gap:0;
-  border-left:3px solid rgba(255,255,255,.62);
-}
-#s936SuitePro .s936-pr-neck-fret,
-#s936SuitePro .s936-pr-neck-string {
-  height:16px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:rgba(255,255,255,.62);
-  font-size:.50rem;
-  font-weight:950;
-}
-#s936SuitePro .s936-pr-neck-string {
-  color:#ffe7a0;
-}
-#s936SuitePro .s936-pr-neck-cell {
-  position:relative;
-  height:18px;
-  border-top:1px solid rgba(255,255,255,.18);
-  border-right:1px solid rgba(255,216,77,.24);
-}
-#s936SuitePro .s936-pr-neck-dot {
-  position:absolute;
-  left:50%;
-  top:50%;
-  transform:translate(-50%,-50%);
-  min-width:18px;
-  height:16px;
-  padding:0 4px;
-  border-radius:999px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:#00ffcc;
-  color:#002a24;
-  font-size:.50rem;
-  font-weight:950;
-  box-shadow:0 0 9px rgba(0,255,204,.25);
-}
-#s936SuitePro .s936-pr-neck-dot.root {
-  background:#ffe066;
-  color:#161000;
-}
-#s936SuitePro .s936-pr-neck-dot.tension {
-  background:#ff5bea;
-  color:#25001d;
-}
-#s936SuitePro .s936-pr-master-board .s936-pr-fret-meta,
-#s936SuitePro .s936-pr-master-board .s936-pr-legend {
-  display:none !important;
-}
-#s936SuitePro .s936-pr-hero-visual.is-fret .s936-pr-master-board {
-  max-width:520px;
-}
-@media(max-width:1100px){
-  #s936SuitePro .s936-pr-neck-grid {
-    grid-template-columns:20px repeat(13, minmax(14px, 1fr));
-  }
-  #s936SuitePro .s936-pr-neck-cell { height:16px; }
-  #s936SuitePro .s936-pr-neck-dot { min-width:16px; height:14px; font-size:.45rem; }
-}
-
-
-/* Practice Pro v1.10: map-note polish and playable fret-window constraint */
-#s936SuitePro .s936-pr-chord-heading {
-  gap:8px;
-}
-#s936SuitePro .s936-pr-chord-heading .s936-pr-btn {
-  display:none !important;
-}
-#s936SuitePro .s936-pr-note-action-row {
-  display:flex !important;
-  align-items:center !important;
-  gap:8px !important;
-  flex-wrap:wrap !important;
-  margin-top:9px !important;
-}
-#s936SuitePro .s936-pr-note-action-row .s936-pr-note-row {
-  margin-top:0 !important;
-}
-#s936SuitePro .s936-pr-note-action-row > .s936-pr-btn.warn {
-  margin-top:0 !important;
-  padding:7px 11px !important;
-}
-#s936SuitePro .s936-pr-view-row {
-  margin-top:0 !important;
-}
-#s936SuitePro .s936-pr-run-badge {
-  display:none !important;
-}
-#s936SuitePro .s936-pr-neck-board {
-  max-width:500px !important;
-}
-#s936SuitePro .s936-pr-neck-cell.outside-window {
-  opacity:.34;
-  background:rgba(255,255,255,.015);
-}
-#s936SuitePro .s936-pr-neck-cell.window-edge {
-  border-left:1px solid rgba(255,216,77,.45);
-}
-#s936SuitePro .s936-pr-neck-dot.muted {
-  background:rgba(255,255,255,.14);
-  color:rgba(255,255,255,.55);
-}
-#s936SuitePro .s936-pr-status:empty {
-  display:none !important;
-}
 `;
     document.head.appendChild(style);
   }
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProPractice = { version: "practice-v1.9", render };
+    window.Studio936SuiteProPractice = { version: "practice-v1.6", render };
     window.Studio936SuiteProModules.practice = window.Studio936SuiteProPractice;
   }
 
@@ -1572,23 +1438,18 @@
     const nowLayout = ctx.el("div", "s936-pr-chord-layout");
     const nowInfo = ctx.el("div", "s936-pr-info-col");
     nowInfo.appendChild(ctx.el("h4", "s936-pr-now-title", "Ahora"));
-
-    const nowHeading = ctx.el("div", "s936-pr-chord-heading");
-    nowHeading.appendChild(ctx.el("div", "s936-pr-chord", data.chordName));
-    nowInfo.appendChild(nowHeading);
-
+    nowInfo.appendChild(ctx.el("div", "s936-pr-chord", data.chordName));
     nowInfo.appendChild(ctx.el("div", "s936-pr-sub", `${sectionLabel(data.part, data.sectionKey)} · acorde ${data.index + 1}/${Math.max(1, data.items.length)} · ${data.item?.bars || 1} compás(es)`));
     const nowInline = ctx.el("div", "s936-pr-note-action-row");
     nowInline.appendChild(noteRow(ctx, data.notes, data.root));
-    addButton(ctx, nowInline, "Escuchar acorde", () => {
+    const nowActions = ctx.el("div", "s936-pr-actions");
+    addButton(ctx, nowActions, "Escuchar acorde", () => {
       focusChord(ctx, data.sectionKey, data.index);
       setTimeout(() => ctx.byId?.("previewBtn")?.click(), 120);
     }, "s936-pr-btn warn");
-    const viewRow = ctx.el("div", "s936-pr-view-row");
-    renderInlineViewSelector(ctx, viewRow);
-    nowInline.appendChild(viewRow);
+    renderInlineViewSelector(ctx, nowActions);
+    nowInline.appendChild(nowActions);
     nowInfo.appendChild(nowInline);
-
     const nowVisual = ctx.el("div", "s936-pr-hero-visual");
     renderInstrumentMini(ctx, nowVisual, data, "Mapa de nota · ahora");
     nowLayout.append(nowInfo, nowVisual);
@@ -1602,7 +1463,7 @@
     nextInfo.appendChild(ctx.el("div", "s936-pr-chord", data.nextName));
     nextInfo.appendChild(ctx.el("div", "s936-pr-sub", "Anticipa el próximo cambio armónico antes de tocarlo."));
     nextInfo.appendChild(noteRow(ctx, nextData.notes, nextData.root));
-    nextInfo.appendChild(ctx.el("div", "s936-pr-status", isPracticeFollowing ? "" : "Usa Loop sección para avanzar visualmente por la práctica."));
+    nextInfo.appendChild(ctx.el("div", "s936-pr-status", isPracticeFollowing ? "Timeline activo: prepara este acorde antes del cambio." : "Usa Loop sección para avanzar visualmente por la práctica."));
     const nextVisual = ctx.el("div", "s936-pr-hero-visual");
     renderInstrumentMini(ctx, nextVisual, nextData, "Mapa de nota · siguiente");
     nextLayout.append(nextInfo, nextVisual);
@@ -1752,26 +1613,155 @@
   }
 
   function renderKeyboard(ctx, parent, data) {
-    const keyboard = ctx.el("div", "s936-pr-keyboard");
-    const active = new Map();
-    data.notes.forEach((note, index) => {
-      const pc = pitchClass(note);
-      if (pc !== undefined) active.set(pc, index);
-    });
-    const start = 48; // C3
-    const end = 72;   // C5
+    const keyboard = ctx.el("div", "s936-pr-keyboard s936-pr-keyboard-performance");
+    const voicing = pianoPerformanceVoicing(data);
+    const activeByMidi = new Map();
+    voicing.forEach((voice) => activeByMidi.set(voice.midi, voice));
+
+    const activeMidis = voicing.map((voice) => voice.midi);
+    const minActive = activeMidis.length ? Math.min(...activeMidis) : 48;
+    const maxActive = activeMidis.length ? Math.max(...activeMidis) : 72;
+    const start = Math.min(36, Math.max(24, minActive - 5)); // C2 by default, but allow lower bass if needed
+    const end = Math.max(72, Math.min(84, maxActive + 5));   // C5 by default, but allow a little higher
+
     for (let midi = start; midi <= end; midi++) {
       const name = NOTE_NAMES[midi % 12];
       const key = ctx.el("div", "s936-pr-key" + (name.includes("#") ? " black" : ""), name.replace("#", "♯"));
-      const idx = active.get(midi % 12);
-      if (idx !== undefined) {
+      const voice = activeByMidi.get(midi);
+      if (voice) {
         key.classList.add("on");
-        if (idx === 0 || normalizeNote(data.notes[idx]) === data.root) key.classList.add("root");
-        else if (idx > 2) key.classList.add("ext");
+        key.classList.add(voice.hand === "left" ? "lh" : "rh");
+        if (voice.role === "bass" || voice.role === "root") key.classList.add("root");
+        if (voice.role === "extension") key.classList.add("ext");
+        if (isPracticeFollowing) key.classList.add("playing");
+        key.title = (voice.hand === "left" ? "Mano izquierda / bajo" : "Mano derecha / voicing") + " · " + midiToNoteName(midi);
       }
       keyboard.appendChild(key);
     }
+
     parent.appendChild(keyboard);
+
+    const guide = ctx.el("div", "s936-pr-piano-guide");
+    const left = voicing.filter((voice) => voice.hand === "left").map((voice) => midiToNoteName(voice.midi));
+    const right = voicing.filter((voice) => voice.hand === "right").map((voice) => midiToNoteName(voice.midi));
+    if (left.length) guide.appendChild(ctx.el("span", "bass", "Bajo / mano izquierda: " + left.join(" · ")));
+    if (right.length) guide.appendChild(ctx.el("span", "right", "Voicing / mano derecha: " + right.join(" · ")));
+    if (guide.children.length) parent.appendChild(guide);
+  }
+
+  function pianoPerformanceVoicing(data) {
+    const rawNotes = Array.isArray(data.notes) ? data.notes : [];
+    const parsed = rawNotes
+      .map((note, index) => {
+        const midi = noteToMidiNumber(note);
+        const pc = pitchClass(note);
+        return { note, index, midi, pc, root: normalizeNote(note) === data.root, ext: isExtension(note, data.root, index) };
+      })
+      .filter((item) => item.pc !== undefined);
+
+    const chordBass = bassFromChordName(data.chordName);
+    const bassPc = pitchClass(chordBass || data.root || parsed[0]?.note || "C");
+    const voicing = [];
+
+    if (bassPc !== undefined) {
+      voicing.push({
+        midi: midiForPcInRange(bassPc, 36, 47, 40),
+        hand: "left",
+        role: "bass"
+      });
+    }
+
+    const seen = new Set();
+    parsed.forEach((item) => {
+      if (item.pc === undefined) return;
+      const key = String(item.pc);
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      let midi = Number.isFinite(item.midi) ? item.midi : midiForPcInRange(item.pc, 52, 72, 60);
+      while (midi < 52) midi += 12;
+      while (midi > 76) midi -= 12;
+      if (midi < 48 || midi > 80) midi = midiForPcInRange(item.pc, 52, 76, 60);
+
+      voicing.push({
+        midi,
+        hand: "right",
+        role: item.ext ? "extension" : (item.root ? "root" : "chord")
+      });
+    });
+
+    // If the recorded editor notes are empty, build a simple right-hand voicing from the chord name.
+    if (voicing.filter((voice) => voice.hand === "right").length === 0) {
+      const pcs = chordNameToPitchClasses(data.chordName, data.root);
+      pcs.forEach((pc, index) => {
+        voicing.push({
+          midi: midiForPcInRange(pc, 52, 76, 60 + index * 2),
+          hand: "right",
+          role: index === 0 ? "root" : (index > 2 ? "extension" : "chord")
+        });
+      });
+    }
+
+    // Avoid exact duplicate keys.
+    const used = new Set();
+    return voicing.filter((voice) => {
+      if (!Number.isFinite(voice.midi) || used.has(voice.midi)) return false;
+      used.add(voice.midi);
+      return true;
+    }).sort((a, b) => a.midi - b.midi);
+  }
+
+  function noteToMidiNumber(note) {
+    const text = String(note || "").trim()
+      .replace(/^Do/i, "C").replace(/^Re/i, "D").replace(/^Mi/i, "E").replace(/^Fa/i, "F")
+      .replace(/^Sol/i, "G").replace(/^La/i, "A").replace(/^Si/i, "B");
+    const match = text.match(/^([A-Ga-g])([#b]?)(-?\d+)?$/);
+    if (!match) return null;
+    const pc = NOTE_INDEX[match[1].toUpperCase() + (match[2] || "")];
+    if (pc === undefined || match[3] === undefined) return null;
+    const octave = Number(match[3]);
+    return (octave + 1) * 12 + pc;
+  }
+
+  function midiToNoteName(midi) {
+    const pc = ((midi % 12) + 12) % 12;
+    const octave = Math.floor(midi / 12) - 1;
+    return NOTE_NAMES[pc] + octave;
+  }
+
+  function midiForPcInRange(pc, min, max, prefer) {
+    let best = null;
+    for (let midi = min; midi <= max; midi += 1) {
+      if (midi % 12 !== pc) continue;
+      const score = Math.abs(midi - prefer);
+      if (!best || score < best.score) best = { midi, score };
+    }
+    return best ? best.midi : min + pc;
+  }
+
+  function bassFromChordName(chordName) {
+    const match = String(chordName || "").match(/\/\s*([A-Ga-g])([#b]?)/);
+    return match ? match[1].toUpperCase() + (match[2] || "") : "";
+  }
+
+  function chordNameToPitchClasses(chordName, root) {
+    const rootPc = pitchClass(root || chordName || "C");
+    if (rootPc === undefined) return [];
+    const name = String(chordName || "");
+    let intervals = [0, 4, 7];
+    if (/m(?!aj)/i.test(name)) intervals = [0, 3, 7];
+    if (/dim/i.test(name)) intervals = [0, 3, 6];
+    if (/aug/i.test(name)) intervals = [0, 4, 8];
+    if (/7|maj7|M7/i.test(name)) intervals.push(/maj7|M7/i.test(name) ? 11 : 10);
+    if (/9/i.test(name)) intervals.push(14);
+    if (/11/i.test(name)) intervals.push(17);
+    if (/13|6/i.test(name)) intervals.push(/13/i.test(name) ? 21 : 9);
+    const seen = new Set();
+    return intervals.map((interval) => (rootPc + interval) % 12).filter((pc) => {
+      if (seen.has(pc)) return false;
+      seen.add(pc);
+      return true;
+    }).slice(0, 5);
   }
 
   function findVoicingCandidate(openMidi, pcs, rootPc, stringIndex, isUkulele) {
@@ -1807,102 +1797,64 @@
       }))
       .filter((item) => item.pc !== undefined);
 
-    const board = ctx.el("div", "s936-pr-neck-board");
-    const neck = ctx.el("div", "s936-pr-neck-grid " + instrument);
+    const board = ctx.el("div", "s936-pr-master-board");
+    const chart = ctx.el("div", "s936-pr-master-chart " + instrument);
 
-    neck.appendChild(ctx.el("div", "s936-pr-neck-fret", ""));
-    for (let fret = 0; fret <= 12; fret += 1) {
-      neck.appendChild(ctx.el("div", "s936-pr-neck-fret", String(fret)));
+    if (baseFret > 0) {
+      chart.appendChild(ctx.el("span", "base-fret", String(baseFret)));
     }
 
-    const choices = choosePracticeNeckVoicing(tuning, targetPcs, baseFret, data.root, isUkulele);
-    const windowStart = fretWindowStart(baseFret);
-    const windowEnd = fretWindowEnd(baseFret, isUkulele);
+    for (let fret = 0; fret <= 5; fret += 1) {
+      const line = ctx.el("span", "fret-line");
+      line.style.top = (14 + fret * 17) + "%";
+      chart.appendChild(line);
+    }
 
-    tuning.forEach((string, rowIndex) => {
-      neck.appendChild(ctx.el("div", "s936-pr-neck-string", string.label));
-      for (let fret = 0; fret <= 12; fret += 1) {
-        const outside = fret < windowStart || fret > windowEnd;
-        const edge = fret === windowStart || fret === windowEnd;
-        const cell = ctx.el("div", "s936-pr-neck-cell" + (outside ? " outside-window" : "") + (edge ? " window-edge" : ""));
-        const choice = choices[rowIndex];
-        if (choice && choice.fret === fret) {
-          const role = choice.isRoot ? "root" : (choice.extension ? "tension" : "active");
-          const dot = ctx.el("span", "s936-pr-neck-dot " + role, pcName(choice.pc));
-          dot.title = string.label + " · fret " + choice.fret + " · " + pcName(choice.pc);
-          cell.appendChild(dot);
-        }
-        neck.appendChild(cell);
+    const rootPc = pitchClass(data.root || targetNotes[0] || "");
+    const used = new Set();
+
+    tuning.forEach((string, index) => {
+      const x = tuning.length === 1 ? 50 : 8 + index * (84 / (tuning.length - 1));
+      const stringLine = ctx.el("span", "string-line");
+      stringLine.style.left = x + "%";
+      chart.appendChild(stringLine);
+
+      const choice = findPracticeFretForString(string.pc, targetPcs, baseFret, index, tuning.length);
+      if (choice) {
+        used.add(choice.pc);
+        const displayFret = baseFret > 0 ? choice.fret - baseFret + 1 : choice.fret;
+        const role = choice.pc === rootPc || choice.isRoot ? "root" : (choice.extension ? "tension" : "active");
+        const dot = ctx.el("span", "note-dot " + role, choice.fret === 0 ? "○" : String(used.size));
+        dot.title = string.label + " string · fret " + choice.fret + " · " + (NOTE_NAMES[choice.pc] || choice.note || "");
+        dot.style.left = x + "%";
+        dot.style.top = (choice.fret === 0 ? 8 : 14 + (displayFret - .5) * 17) + "%";
+        chart.appendChild(dot);
+      } else {
+        const mute = ctx.el("span", "mute-x", "×");
+        mute.style.left = x + "%";
+        chart.appendChild(mute);
       }
     });
 
-    board.appendChild(neck);
+    const labels = ctx.el("div", "s936-pr-master-labels");
+    tuning.forEach((string) => labels.appendChild(ctx.el("span", "", string.label)));
+    board.appendChild(chart);
+    board.appendChild(labels);
+
+    const meta = ctx.el("div", "s936-pr-fret-meta");
+    meta.appendChild(ctx.el("span", "", (isUkulele ? "Ukelele" : "Guitarra") + " · mapa de acorde grabado"));
+    meta.appendChild(ctx.el("span", "", fretPositionLabel(position)));
+    meta.appendChild(ctx.el("span", "", "Raíz: " + (data.root || "—")));
+    board.appendChild(meta);
+
+    const legend = ctx.el("div", "s936-pr-legend");
+    legend.appendChild(legendItem(ctx, "root", "raíz/bajo"));
+    legend.appendChild(legendItem(ctx, "", "notas acorde"));
+    legend.appendChild(legendItem(ctx, "ext", "extensiones"));
+    board.appendChild(legend);
+
     parent.appendChild(board);
   }
-
-  function pcName(pc) {
-    return NOTE_NAMES[((Number(pc) % 12) + 12) % 12] || "";
-  }
-
-  function choosePracticeNeckVoicing(tuning, targetPcs, baseFret, root, isUkulele) {
-    const choices = new Array(tuning.length).fill(null);
-    const pcs = Array.isArray(targetPcs) ? targetPcs.filter((item) => item && item.pc !== undefined) : [];
-    if (!pcs.length) return choices;
-
-    const rootPc = pitchClass(root || pcs[0]?.note || "");
-    const from = fretWindowStart(baseFret);
-    const to = fretWindowEnd(baseFret, isUkulele);
-    const midString = Math.floor((tuning.length - 1) / 2);
-    const usedPcs = new Map();
-
-    tuning.forEach((string, stringIndex) => {
-      const candidates = [];
-      for (let fret = from; fret <= to; fret += 1) {
-        const pc = (string.pc + fret) % 12;
-        const target = pcs.find((item) => item.pc === pc);
-        if (!target) continue;
-
-        const lowString = stringIndex <= midString;
-        const highString = stringIndex > midString;
-        const nearBase = baseFret === 0 ? fret * 0.32 : Math.abs(fret - baseFret) * 0.35;
-        const rootLowBonus = (pc === rootPc || target.isRoot) && lowString ? -2.0 : 0;
-        const rootHighPenalty = (pc === rootPc || target.isRoot) && highString ? 0.7 : 0;
-        const extensionLowPenalty = target.extension && lowString ? 0.9 : 0;
-        const extensionHighBonus = target.extension && highString ? -0.45 : 0;
-        const duplicatePenalty = usedPcs.has(pc) ? 0.45 + usedPcs.get(pc) * 0.18 : 0;
-        const openBonus = fret === 0 ? -0.18 : 0;
-        const score = nearBase + rootLowBonus + rootHighPenalty + extensionLowPenalty + extensionHighBonus + duplicatePenalty + openBonus + target.toneIndex * 0.08;
-
-        candidates.push(Object.assign({}, target, {
-          fret,
-          pc,
-          stringIndex,
-          isRoot: pc === rootPc || target.isRoot,
-          score
-        }));
-      }
-
-      candidates.sort((a, b) => a.score - b.score);
-      const best = candidates[0] || null;
-      choices[stringIndex] = best;
-      if (best) usedPcs.set(best.pc, (usedPcs.get(best.pc) || 0) + 1);
-    });
-
-    return choices;
-  }
-
-  function fretWindowStart(baseFret) {
-    const base = Math.max(0, Number(baseFret) || 0);
-    if (base <= 1) return 0;
-    return Math.min(9, base);
-  }
-
-  function fretWindowEnd(baseFret, isUkulele) {
-    const start = fretWindowStart(baseFret);
-    const span = isUkulele ? 4 : 4;
-    return Math.min(12, start + span);
-  }
-
 
   function slug(text) {
     return String(text || "studio936").toLowerCase()
