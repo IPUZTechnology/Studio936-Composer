@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Practice Module v1.10
+// Studio 936 Composer - Suite Pro Practice Module v1.10.2
 // Scope: Practice tab only. It does not touch app legacy, audio internals, MIDI internals, editor internals or transport internals.
 // It reads from Studio936AppBridge and uses existing UI controls through safe clicks/events.
 (function () {
@@ -1122,13 +1122,68 @@
 #s936SuitePro .s936-pr-status:empty {
   display:none !important;
 }
+
+
+/* Practice Pro v1.10.2: topbar width balance only.
+   Goal: shorten Section/Sound/Tempo blocks and keep Practice buttons on one row on smaller screens. */
+#s936SuitePro .s936-pr-topbar {
+  grid-template-columns:
+    minmax(130px, .58fr)
+    minmax(130px, .58fr)
+    minmax(160px, .52fr)
+    minmax(520px, 2.05fr) !important;
+  gap:7px !important;
+}
+#s936SuitePro .s936-pr-control {
+  padding:6px 8px !important;
+}
+#s936SuitePro .s936-pr-select {
+  padding:6px 8px !important;
+}
+#s936SuitePro .s936-pr-actions-control .s936-pr-lite-actions {
+  flex-wrap:nowrap !important;
+  overflow-x:auto;
+  overflow-y:hidden;
+  gap:6px !important;
+  padding-bottom:1px;
+}
+#s936SuitePro .s936-pr-actions-control .s936-pr-btn {
+  white-space:nowrap;
+  flex:0 0 auto;
+  padding:6px 9px !important;
+  font-size:.60rem !important;
+}
+
+@media(max-width:1180px){
+  #s936SuitePro .s936-pr-topbar {
+    grid-template-columns:
+      minmax(105px, .48fr)
+      minmax(110px, .50fr)
+      minmax(135px, .48fr)
+      minmax(420px, 1.75fr) !important;
+  }
+}
+
+@media(max-width:980px){
+  #s936SuitePro .s936-pr-topbar {
+    grid-template-columns:
+      minmax(95px, .45fr)
+      minmax(100px, .48fr)
+      minmax(120px, .45fr)
+      minmax(360px, 1.65fr) !important;
+  }
+  #s936SuitePro .s936-pr-actions-control .s936-pr-btn {
+    padding:5px 8px !important;
+    font-size:.56rem !important;
+  }
+}
 `;
     document.head.appendChild(style);
   }
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProPractice = { version: "practice-v1.9", render };
+    window.Studio936SuiteProPractice = { version: "practice-v1.10.2", render };
     window.Studio936SuiteProModules.practice = window.Studio936SuiteProPractice;
   }
 
