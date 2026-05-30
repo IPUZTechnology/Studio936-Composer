@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Practice Module v1.8
+// Studio 936 Composer - Suite Pro Practice Module v1.9
 // Scope: Practice tab only. It does not touch app legacy, audio internals, MIDI internals, editor internals or transport internals.
 // It reads from Studio936AppBridge and uses existing UI controls through safe clicks/events.
 (function () {
@@ -967,35 +967,114 @@
   }
 }
 
-/* Practice Pro v1.8: tighter chord-map section and clean map cards */
-#s936SuitePro .s936-pr-chord-head {
+
+/* Practice Pro v1.9: one ticket fix - chord row alignment + real neck map */
+#s936SuitePro .s936-pr-chord-heading {
   display:flex;
   align-items:center;
-  gap:10px;
+  justify-content:flex-start;
+  gap:12px;
   flex-wrap:wrap;
 }
-#s936SuitePro .s936-pr-chord-head .s936-pr-chord {
+#s936SuitePro .s936-pr-chord-heading .s936-pr-chord {
   margin:0;
 }
-#s936SuitePro .s936-pr-listen-inline {
+#s936SuitePro .s936-pr-chord-heading .s936-pr-btn {
+  margin-top:2px;
   padding:7px 12px;
-  transform:translateY(-1px);
 }
-#s936SuitePro .s936-pr-hero-visual.is-fret {
-  padding:8px;
+#s936SuitePro .s936-pr-view-row {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  flex-wrap:wrap;
+  margin-top:8px;
+}
+#s936SuitePro .s936-pr-view-row .s936-pr-map-selector {
+  margin-left:0;
+}
+#s936SuitePro .s936-pr-note-action-row {
+  display:block;
+  margin-top:8px;
+}
+#s936SuitePro .s936-pr-hero-visual {
+  min-height:138px;
+}
+#s936SuitePro .s936-pr-hero-visual h5 {
+  margin-bottom:6px;
+}
+#s936SuitePro .s936-pr-neck-board {
+  width:100%;
+  max-width:520px;
+  margin:0 auto;
+  background:rgba(0,0,0,.25);
+  border-radius:12px;
+  padding:6px 8px 8px;
+}
+#s936SuitePro .s936-pr-neck-grid {
+  display:grid;
+  grid-template-columns:22px repeat(13, minmax(18px, 1fr));
+  gap:0;
+  border-left:3px solid rgba(255,255,255,.62);
+}
+#s936SuitePro .s936-pr-neck-fret,
+#s936SuitePro .s936-pr-neck-string {
+  height:16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:rgba(255,255,255,.62);
+  font-size:.50rem;
+  font-weight:950;
+}
+#s936SuitePro .s936-pr-neck-string {
+  color:#ffe7a0;
+}
+#s936SuitePro .s936-pr-neck-cell {
+  position:relative;
+  height:18px;
+  border-top:1px solid rgba(255,255,255,.18);
+  border-right:1px solid rgba(255,216,77,.24);
+}
+#s936SuitePro .s936-pr-neck-dot {
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  min-width:18px;
+  height:16px;
+  padding:0 4px;
+  border-radius:999px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#00ffcc;
+  color:#002a24;
+  font-size:.50rem;
+  font-weight:950;
+  box-shadow:0 0 9px rgba(0,255,204,.25);
+}
+#s936SuitePro .s936-pr-neck-dot.root {
+  background:#ffe066;
+  color:#161000;
+}
+#s936SuitePro .s936-pr-neck-dot.tension {
+  background:#ff5bea;
+  color:#25001d;
+}
+#s936SuitePro .s936-pr-master-board .s936-pr-fret-meta,
+#s936SuitePro .s936-pr-master-board .s936-pr-legend {
+  display:none !important;
 }
 #s936SuitePro .s936-pr-hero-visual.is-fret .s936-pr-master-board {
-  max-width:230px;
+  max-width:520px;
 }
-#s936SuitePro .s936-pr-hero-visual.is-fret .s936-pr-master-chart {
-  height:154px;
-}
-#s936SuitePro .s936-pr-hero-visual.is-fret .s936-pr-master-labels {
-  padding-top:3px;
-}
-#s936SuitePro .s936-pr-hero-visual .s936-pr-fret-meta,
-#s936SuitePro .s936-pr-hero-visual .s936-pr-legend {
-  display:none !important;
+@media(max-width:1100px){
+  #s936SuitePro .s936-pr-neck-grid {
+    grid-template-columns:20px repeat(13, minmax(14px, 1fr));
+  }
+  #s936SuitePro .s936-pr-neck-cell { height:16px; }
+  #s936SuitePro .s936-pr-neck-dot { min-width:16px; height:14px; font-size:.45rem; }
 }
 
 `;
@@ -1004,7 +1083,7 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProPractice = { version: "practice-v1.8", render };
+    window.Studio936SuiteProPractice = { version: "practice-v1.9", render };
     window.Studio936SuiteProModules.practice = window.Studio936SuiteProPractice;
   }
 
@@ -1448,21 +1527,24 @@
     const nowLayout = ctx.el("div", "s936-pr-chord-layout");
     const nowInfo = ctx.el("div", "s936-pr-info-col");
     nowInfo.appendChild(ctx.el("h4", "s936-pr-now-title", "Ahora"));
-    const nowHead = ctx.el("div", "s936-pr-chord-head");
-    nowHead.appendChild(ctx.el("div", "s936-pr-chord", data.chordName));
-    addButton(ctx, nowHead, "Escuchar acorde", () => {
+
+    const nowHeading = ctx.el("div", "s936-pr-chord-heading");
+    nowHeading.appendChild(ctx.el("div", "s936-pr-chord", data.chordName));
+    addButton(ctx, nowHeading, "Escuchar acorde", () => {
       focusChord(ctx, data.sectionKey, data.index);
       setTimeout(() => ctx.byId?.("previewBtn")?.click(), 120);
-    }, "s936-pr-btn warn s936-pr-listen-inline");
-    nowInfo.appendChild(nowHead);
+    }, "s936-pr-btn warn");
+    nowInfo.appendChild(nowHeading);
+
     nowInfo.appendChild(ctx.el("div", "s936-pr-sub", `${sectionLabel(data.part, data.sectionKey)} · acorde ${data.index + 1}/${Math.max(1, data.items.length)} · ${data.item?.bars || 1} compás(es)`));
     const nowInline = ctx.el("div", "s936-pr-note-action-row");
     nowInline.appendChild(noteRow(ctx, data.notes, data.root));
-    const nowActions = ctx.el("div", "s936-pr-actions");
-    renderInlineViewSelector(ctx, nowActions);
-    if (isPracticeFollowing) nowActions.appendChild(ctx.el("span", "s936-pr-run-badge", "Timeline activo"));
-    nowInline.appendChild(nowActions);
+    const viewRow = ctx.el("div", "s936-pr-view-row");
+    renderInlineViewSelector(ctx, viewRow);
+    if (isPracticeFollowing) viewRow.appendChild(ctx.el("span", "s936-pr-run-badge", "Timeline activo"));
+    nowInline.appendChild(viewRow);
     nowInfo.appendChild(nowInline);
+
     const nowVisual = ctx.el("div", "s936-pr-hero-visual");
     renderInstrumentMini(ctx, nowVisual, data, "Mapa de nota · ahora");
     nowLayout.append(nowInfo, nowVisual);
@@ -1681,52 +1763,72 @@
       }))
       .filter((item) => item.pc !== undefined);
 
-    const board = ctx.el("div", "s936-pr-master-board");
-    const chart = ctx.el("div", "s936-pr-master-chart " + instrument);
+    const board = ctx.el("div", "s936-pr-neck-board");
+    const neck = ctx.el("div", "s936-pr-neck-grid " + instrument);
 
-    if (baseFret > 0) {
-      chart.appendChild(ctx.el("span", "base-fret", String(baseFret)));
+    neck.appendChild(ctx.el("div", "s936-pr-neck-fret", ""));
+    for (let fret = 0; fret <= 12; fret += 1) {
+      neck.appendChild(ctx.el("div", "s936-pr-neck-fret", String(fret)));
     }
 
-    for (let fret = 0; fret <= 5; fret += 1) {
-      const line = ctx.el("span", "fret-line");
-      line.style.top = (14 + fret * 17) + "%";
-      chart.appendChild(line);
-    }
+    const choices = choosePracticeNeckVoicing(tuning, targetPcs, baseFret, data.root, isUkulele);
 
-    const rootPc = pitchClass(data.root || targetNotes[0] || "");
-    const used = new Set();
-
-    tuning.forEach((string, index) => {
-      const x = tuning.length === 1 ? 50 : 8 + index * (84 / (tuning.length - 1));
-      const stringLine = ctx.el("span", "string-line");
-      stringLine.style.left = x + "%";
-      chart.appendChild(stringLine);
-
-      const choice = findPracticeFretForString(string.pc, targetPcs, baseFret, index, tuning.length);
-      if (choice) {
-        used.add(choice.pc);
-        const displayFret = baseFret > 0 ? choice.fret - baseFret + 1 : choice.fret;
-        const role = choice.pc === rootPc || choice.isRoot ? "root" : (choice.extension ? "tension" : "active");
-        const dot = ctx.el("span", "note-dot " + role, choice.fret === 0 ? "○" : String(used.size));
-        dot.title = string.label + " string · fret " + choice.fret + " · " + (NOTE_NAMES[choice.pc] || choice.note || "");
-        dot.style.left = x + "%";
-        dot.style.top = (choice.fret === 0 ? 8 : 14 + (displayFret - .5) * 17) + "%";
-        chart.appendChild(dot);
-      } else {
-        const mute = ctx.el("span", "mute-x", "×");
-        mute.style.left = x + "%";
-        chart.appendChild(mute);
+    tuning.forEach((string, rowIndex) => {
+      neck.appendChild(ctx.el("div", "s936-pr-neck-string", string.label));
+      for (let fret = 0; fret <= 12; fret += 1) {
+        const cell = ctx.el("div", "s936-pr-neck-cell");
+        const choice = choices[rowIndex];
+        if (choice && choice.fret === fret) {
+          const role = choice.isRoot ? "root" : (choice.extension ? "tension" : "active");
+          const dot = ctx.el("span", "s936-pr-neck-dot " + role, pcName(choice.pc));
+          dot.title = string.label + " · fret " + choice.fret + " · " + pcName(choice.pc);
+          cell.appendChild(dot);
+        }
+        neck.appendChild(cell);
       }
     });
 
-    const labels = ctx.el("div", "s936-pr-master-labels");
-    tuning.forEach((string) => labels.appendChild(ctx.el("span", "", string.label)));
-    board.appendChild(chart);
-    board.appendChild(labels);
-
+    board.appendChild(neck);
     parent.appendChild(board);
   }
+
+  function pcName(pc) {
+    return NOTE_NAMES[((Number(pc) % 12) + 12) % 12] || "";
+  }
+
+  function choosePracticeNeckVoicing(tuning, targetPcs, baseFret, root, isUkulele) {
+    const choices = new Array(tuning.length).fill(null);
+    const rootPc = pitchClass(root || targetPcs[0]?.note || "");
+    const pcs = Array.isArray(targetPcs) ? targetPcs : [];
+    if (!pcs.length) return choices;
+
+    tuning.forEach((string, stringIndex) => {
+      let best = null;
+      for (let fret = 0; fret <= 12; fret += 1) {
+        const pc = (string.pc + fret) % 12;
+        const target = pcs.find((item) => item.pc === pc);
+        if (!target) continue;
+
+        const lowString = stringIndex >= Math.ceil((tuning.length - 1) / 2);
+        const highString = stringIndex <= Math.floor((tuning.length - 1) / 2);
+        const nearOpen = baseFret === 0 ? fret * 0.24 : Math.abs(fret - baseFret) * 0.45;
+        const openBonus = fret === 0 ? -0.35 : 0;
+        const rootBassBonus = (target.pc === rootPc || target.isRoot) && lowString ? -2.0 : 0;
+        const extensionHighBonus = target.extension && highString ? -0.7 : 0;
+        const extensionLowPenalty = target.extension && lowString ? 1.0 : 0;
+        const tooWidePenalty = baseFret > 0 && Math.abs(fret - baseFret) > 5 ? 2.0 : 0;
+        const score = nearOpen + openBonus + rootBassBonus + extensionHighBonus + extensionLowPenalty + tooWidePenalty + target.toneIndex * 0.08;
+
+        if (!best || score < best.score) {
+          best = Object.assign({}, target, { fret, stringIndex, isRoot: target.pc === rootPc || target.isRoot, score });
+        }
+      }
+      choices[stringIndex] = best;
+    });
+
+    return choices;
+  }
+
 
   function slug(text) {
     return String(text || "studio936").toLowerCase()
