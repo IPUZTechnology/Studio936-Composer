@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Practice Module v1.9
+// Studio 936 Composer - Suite Pro Practice Module v1.10
 // Scope: Practice tab only. It does not touch app legacy, audio internals, MIDI internals, editor internals or transport internals.
 // It reads from Studio936AppBridge and uses existing UI controls through safe clicks/events.
 (function () {
@@ -1077,6 +1077,51 @@
   #s936SuitePro .s936-pr-neck-dot { min-width:16px; height:14px; font-size:.45rem; }
 }
 
+
+/* Practice Pro v1.10: map-note polish and playable fret-window constraint */
+#s936SuitePro .s936-pr-chord-heading {
+  gap:8px;
+}
+#s936SuitePro .s936-pr-chord-heading .s936-pr-btn {
+  display:none !important;
+}
+#s936SuitePro .s936-pr-note-action-row {
+  display:flex !important;
+  align-items:center !important;
+  gap:8px !important;
+  flex-wrap:wrap !important;
+  margin-top:9px !important;
+}
+#s936SuitePro .s936-pr-note-action-row .s936-pr-note-row {
+  margin-top:0 !important;
+}
+#s936SuitePro .s936-pr-note-action-row > .s936-pr-btn.warn {
+  margin-top:0 !important;
+  padding:7px 11px !important;
+}
+#s936SuitePro .s936-pr-view-row {
+  margin-top:0 !important;
+}
+#s936SuitePro .s936-pr-run-badge {
+  display:none !important;
+}
+#s936SuitePro .s936-pr-neck-board {
+  max-width:500px !important;
+}
+#s936SuitePro .s936-pr-neck-cell.outside-window {
+  opacity:.34;
+  background:rgba(255,255,255,.015);
+}
+#s936SuitePro .s936-pr-neck-cell.window-edge {
+  border-left:1px solid rgba(255,216,77,.45);
+}
+#s936SuitePro .s936-pr-neck-dot.muted {
+  background:rgba(255,255,255,.14);
+  color:rgba(255,255,255,.55);
+}
+#s936SuitePro .s936-pr-status:empty {
+  display:none !important;
+}
 `;
     document.head.appendChild(style);
   }
@@ -1530,18 +1575,17 @@
 
     const nowHeading = ctx.el("div", "s936-pr-chord-heading");
     nowHeading.appendChild(ctx.el("div", "s936-pr-chord", data.chordName));
-    addButton(ctx, nowHeading, "Escuchar acorde", () => {
-      focusChord(ctx, data.sectionKey, data.index);
-      setTimeout(() => ctx.byId?.("previewBtn")?.click(), 120);
-    }, "s936-pr-btn warn");
     nowInfo.appendChild(nowHeading);
 
     nowInfo.appendChild(ctx.el("div", "s936-pr-sub", `${sectionLabel(data.part, data.sectionKey)} · acorde ${data.index + 1}/${Math.max(1, data.items.length)} · ${data.item?.bars || 1} compás(es)`));
     const nowInline = ctx.el("div", "s936-pr-note-action-row");
     nowInline.appendChild(noteRow(ctx, data.notes, data.root));
+    addButton(ctx, nowInline, "Escuchar acorde", () => {
+      focusChord(ctx, data.sectionKey, data.index);
+      setTimeout(() => ctx.byId?.("previewBtn")?.click(), 120);
+    }, "s936-pr-btn warn");
     const viewRow = ctx.el("div", "s936-pr-view-row");
     renderInlineViewSelector(ctx, viewRow);
-    if (isPracticeFollowing) viewRow.appendChild(ctx.el("span", "s936-pr-run-badge", "Timeline activo"));
     nowInline.appendChild(viewRow);
     nowInfo.appendChild(nowInline);
 
@@ -1558,7 +1602,7 @@
     nextInfo.appendChild(ctx.el("div", "s936-pr-chord", data.nextName));
     nextInfo.appendChild(ctx.el("div", "s936-pr-sub", "Anticipa el próximo cambio armónico antes de tocarlo."));
     nextInfo.appendChild(noteRow(ctx, nextData.notes, nextData.root));
-    nextInfo.appendChild(ctx.el("div", "s936-pr-status", isPracticeFollowing ? "Timeline activo: prepara este acorde antes del cambio." : "Usa Loop sección para avanzar visualmente por la práctica."));
+    nextInfo.appendChild(ctx.el("div", "s936-pr-status", isPracticeFollowing ? "" : "Usa Loop sección para avanzar visualmente por la práctica."));
     const nextVisual = ctx.el("div", "s936-pr-hero-visual");
     renderInstrumentMini(ctx, nextVisual, nextData, "Mapa de nota · siguiente");
     nextLayout.append(nextInfo, nextVisual);
@@ -1772,11 +1816,15 @@
     }
 
     const choices = choosePracticeNeckVoicing(tuning, targetPcs, baseFret, data.root, isUkulele);
+    const windowStart = fretWindowStart(baseFret);
+    const windowEnd = fretWindowEnd(baseFret, isUkulele);
 
     tuning.forEach((string, rowIndex) => {
       neck.appendChild(ctx.el("div", "s936-pr-neck-string", string.label));
       for (let fret = 0; fret <= 12; fret += 1) {
-        const cell = ctx.el("div", "s936-pr-neck-cell");
+        const outside = fret < windowStart || fret > windowEnd;
+        const edge = fret === windowStart || fret === windowEnd;
+        const cell = ctx.el("div", "s936-pr-neck-cell" + (outside ? " outside-window" : "") + (edge ? " window-edge" : ""));
         const choice = choices[rowIndex];
         if (choice && choice.fret === fret) {
           const role = choice.isRoot ? "root" : (choice.extension ? "tension" : "active");
@@ -1798,35 +1846,61 @@
 
   function choosePracticeNeckVoicing(tuning, targetPcs, baseFret, root, isUkulele) {
     const choices = new Array(tuning.length).fill(null);
-    const rootPc = pitchClass(root || targetPcs[0]?.note || "");
-    const pcs = Array.isArray(targetPcs) ? targetPcs : [];
+    const pcs = Array.isArray(targetPcs) ? targetPcs.filter((item) => item && item.pc !== undefined) : [];
     if (!pcs.length) return choices;
 
+    const rootPc = pitchClass(root || pcs[0]?.note || "");
+    const from = fretWindowStart(baseFret);
+    const to = fretWindowEnd(baseFret, isUkulele);
+    const midString = Math.floor((tuning.length - 1) / 2);
+    const usedPcs = new Map();
+
     tuning.forEach((string, stringIndex) => {
-      let best = null;
-      for (let fret = 0; fret <= 12; fret += 1) {
+      const candidates = [];
+      for (let fret = from; fret <= to; fret += 1) {
         const pc = (string.pc + fret) % 12;
         const target = pcs.find((item) => item.pc === pc);
         if (!target) continue;
 
-        const lowString = stringIndex >= Math.ceil((tuning.length - 1) / 2);
-        const highString = stringIndex <= Math.floor((tuning.length - 1) / 2);
-        const nearOpen = baseFret === 0 ? fret * 0.24 : Math.abs(fret - baseFret) * 0.45;
-        const openBonus = fret === 0 ? -0.35 : 0;
-        const rootBassBonus = (target.pc === rootPc || target.isRoot) && lowString ? -2.0 : 0;
-        const extensionHighBonus = target.extension && highString ? -0.7 : 0;
-        const extensionLowPenalty = target.extension && lowString ? 1.0 : 0;
-        const tooWidePenalty = baseFret > 0 && Math.abs(fret - baseFret) > 5 ? 2.0 : 0;
-        const score = nearOpen + openBonus + rootBassBonus + extensionHighBonus + extensionLowPenalty + tooWidePenalty + target.toneIndex * 0.08;
+        const lowString = stringIndex <= midString;
+        const highString = stringIndex > midString;
+        const nearBase = baseFret === 0 ? fret * 0.32 : Math.abs(fret - baseFret) * 0.35;
+        const rootLowBonus = (pc === rootPc || target.isRoot) && lowString ? -2.0 : 0;
+        const rootHighPenalty = (pc === rootPc || target.isRoot) && highString ? 0.7 : 0;
+        const extensionLowPenalty = target.extension && lowString ? 0.9 : 0;
+        const extensionHighBonus = target.extension && highString ? -0.45 : 0;
+        const duplicatePenalty = usedPcs.has(pc) ? 0.45 + usedPcs.get(pc) * 0.18 : 0;
+        const openBonus = fret === 0 ? -0.18 : 0;
+        const score = nearBase + rootLowBonus + rootHighPenalty + extensionLowPenalty + extensionHighBonus + duplicatePenalty + openBonus + target.toneIndex * 0.08;
 
-        if (!best || score < best.score) {
-          best = Object.assign({}, target, { fret, stringIndex, isRoot: target.pc === rootPc || target.isRoot, score });
-        }
+        candidates.push(Object.assign({}, target, {
+          fret,
+          pc,
+          stringIndex,
+          isRoot: pc === rootPc || target.isRoot,
+          score
+        }));
       }
+
+      candidates.sort((a, b) => a.score - b.score);
+      const best = candidates[0] || null;
       choices[stringIndex] = best;
+      if (best) usedPcs.set(best.pc, (usedPcs.get(best.pc) || 0) + 1);
     });
 
     return choices;
+  }
+
+  function fretWindowStart(baseFret) {
+    const base = Math.max(0, Number(baseFret) || 0);
+    if (base <= 1) return 0;
+    return Math.min(9, base);
+  }
+
+  function fretWindowEnd(baseFret, isUkulele) {
+    const start = fretWindowStart(baseFret);
+    const span = isUkulele ? 4 : 4;
+    return Math.min(12, start + span);
   }
 
 
