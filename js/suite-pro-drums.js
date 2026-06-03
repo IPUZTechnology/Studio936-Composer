@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Drums Module v1.2.1
+// Studio 936 Composer - Suite Pro Drums Module v1.2.2
 // Scope: Studio > Drums Pro only. It does not touch app.js, Practice, CSS, MIDI, editor or transport internals.
 // Loaded before js/suite-pro.js and rendered through Studio936SuiteProModules.drums.
 (function () {
@@ -88,6 +88,7 @@
   let state = loadState();
   let audioCtx = null;
   let timer = null;
+  let lastStructureRenderKey = "";
 
   function loadState() {
     try { return Object.assign({}, DEFAULT_STATE, JSON.parse(localStorage.getItem(STATE_KEY) || "{}")); }
@@ -363,6 +364,29 @@
     return group[key] || group[state.pattern] || group.groove || group.basic;
   }
 
+  function drumViewSignature(ctx) {
+    return [
+      selectedStyle(ctx),
+      activePatternKey(ctx),
+      structureModeLabel(ctx),
+      state.followStructure === false ? "manual" : "auto"
+    ].join("|");
+  }
+
+  function refreshStructureViewIfNeeded(ctx) {
+    if (state.followStructure === false) return;
+    const nextSignature = drumViewSignature(ctx);
+    if (!lastStructureRenderKey) {
+      lastStructureRenderKey = nextSignature;
+      return;
+    }
+    if (nextSignature === lastStructureRenderKey) return;
+
+    lastStructureRenderKey = nextSignature;
+    const content = ctx.clearContent?.();
+    if (content) render(ctx, content);
+  }
+
   function setStatus(text) {
     const node = document.querySelector("#s936SuitePro .s936-dr-live-text");
     if (node) node.textContent = text;
@@ -381,8 +405,8 @@
     renderSequencer(ctx, grid);
 
     shell.appendChild(grid);
-    renderPerformanceSummary(ctx, shell);
     c.appendChild(shell);
+    lastStructureRenderKey = drumViewSignature(ctx);
     paintActiveStep();
   }
 
@@ -575,28 +599,7 @@
   }
 
   function renderPerformanceSummary(ctx, shell) {
-    const s = ctx.snapshot?.() || {};
-    const pattern = selectedPattern(ctx);
-    const summary = ctx.el("div", "s936-dr-summary");
-
-    [
-      [getBpm(ctx), "BPM actual"],
-      [selectedStyle(ctx), "Estilo drums"],
-      [state.syncStyle === false ? "Manual" : "Sync", "Modo estilo"],
-      [structureModeLabel(ctx), "Estructura"],
-      [pattern.label, "Patrón"],
-      [state.playing ? "ON" : "OFF", "Estado"]
-    ].forEach(([big, small]) => {
-      const item = ctx.el("div", "s936-dr-mini");
-      item.appendChild(ctx.el("strong", "", String(big || "—")));
-      item.appendChild(ctx.el("span", "", small));
-      summary.appendChild(item);
-    });
-
-    const note = ctx.el("article", "s936-dr-card");
-    note.appendChild(ctx.el("h4", "", "Uso musical"));
-    note.appendChild(summary);
-    shell.appendChild(note);
+    // Removed in v1.2.2: the lower Uso Musical summary duplicated information already visible above.
   }
 
   function updateSummary() {
@@ -636,6 +639,7 @@
 
   function schedule(ctx) {
     if (!state.playing) return;
+    if (state.step === 0 || state.step === 4 || state.step === 8 || state.step === 12) refreshStructureViewIfNeeded(ctx);
     const bpm = getBpm(ctx);
     const stepMs = (60 / bpm / 4) * 1000;
     playStep(ctx, state.step);
@@ -729,7 +733,7 @@
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
     window.Studio936SuiteProDrums = {
-      version: "drums-v1.2.1",
+      version: "drums-v1.2.2",
       render,
       start,
       stop
