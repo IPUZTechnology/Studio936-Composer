@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Drums Module v1.0
+// Studio 936 Composer - Suite Pro Drums Module v1.1
 // Scope: Studio > Drums Pro only. It does not touch app.js, Practice, CSS, MIDI, editor or transport internals.
 // Loaded before js/suite-pro.js and rendered through Studio936SuiteProModules.drums.
 (function () {
@@ -9,6 +9,7 @@
 
   const DEFAULT_STATE = {
     style: "auto",
+    syncStyle: true,
     pattern: "groove",
     volume: 0.55,
     swing: 0,
@@ -124,6 +125,28 @@
 #s936SuitePro .s936-dr-line { margin:8px 0; color:rgba(255,255,255,.86); font-size:.78rem; line-height:1.45; }
 #s936SuitePro .s936-dr-line strong { color:#bfffee; }
 #s936SuitePro .s936-dr-form { display:grid; gap:9px; }
+#s936SuitePro .s936-dr-toggle {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  border:1px solid rgba(255,216,77,.28);
+  border-radius:12px;
+  padding:9px 10px;
+  background:rgba(255,216,77,.06);
+  color:#ffe066;
+  font-size:.68rem;
+  font-weight:950;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  cursor:pointer;
+}
+#s936SuitePro .s936-dr-toggle input { accent-color:#00ffcc; transform:scale(1.08); }
+#s936SuitePro .s936-dr-sync-note {
+  margin:6px 0 0;
+  color:rgba(255,255,255,.68);
+  font-size:.68rem;
+  line-height:1.35;
+}
 #s936SuitePro .s936-dr-field label {
   display:block;
   color:#ffe066;
@@ -232,6 +255,31 @@
     return PATTERNS[value] ? value : "pop";
   }
 
+  function appStyleLabel(ctx) {
+    const select = ctx.byId?.("styleSelect") || document.getElementById("styleSelect");
+    const value = appStyle(ctx);
+    const option = select ? Array.from(select.options || []).find((item) => item.value === value) : null;
+    return option?.textContent || value;
+  }
+
+  function setAppStyle(ctx, style) {
+    if (!PATTERNS[style]) return false;
+    const select = ctx.byId?.("styleSelect") || document.getElementById("styleSelect");
+    if (!select) return false;
+    if (select.value !== style) {
+      select.value = style;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    return true;
+  }
+
+  function syncStyleToApp(ctx) {
+    if (state.syncStyle === false) return false;
+    const style = selectedStyle(ctx);
+    if (!style || !PATTERNS[style]) return false;
+    return setAppStyle(ctx, style);
+  }
+
   function selectedStyle(ctx) {
     return state.style === "auto" ? appStyle(ctx) : (PATTERNS[state.style] ? state.style : "pop");
   }
@@ -276,7 +324,7 @@
 
     const form = ctx.el("div", "s936-dr-form");
     form.appendChild(selectField(ctx, "Estilo batería", state.style, [
-      ["auto", "Auto: " + appStyle(ctx)],
+      ["auto", "Auto: " + appStyleLabel(ctx)],
       ["funk", "Funk"],
       ["rock", "Rock"],
       ["pop", "Pop"],
@@ -288,9 +336,20 @@
       ["reggae", "Reggae"]
     ], (value) => {
       state.style = value;
+      if (state.syncStyle !== false) syncStyleToApp(ctx);
       saveState();
       render(ctx, ctx.clearContent());
     }));
+
+    form.appendChild(toggleField(ctx, "Sync estilo canción", state.syncStyle !== false, (checked) => {
+      state.syncStyle = checked;
+      if (checked) syncStyleToApp(ctx);
+      saveState();
+      render(ctx, ctx.clearContent());
+    }));
+    form.appendChild(ctx.el("p", "s936-dr-sync-note", state.syncStyle === false
+      ? "Manual: Drums puede sonar en otro estilo distinto al groove principal."
+      : "Sync ON: al elegir estilo en Drums, también cambia el estilo principal del groove."));
 
     form.appendChild(selectField(ctx, "Patrón", state.pattern, [
       ["basic", "Basic"],
@@ -330,6 +389,7 @@
     }, state.playing ? "s936-dr-btn danger" : "s936-dr-btn warn");
 
     button(ctx, actions, "Groove + Drums", () => {
+      syncStyleToApp(ctx);
       ctx.callBridge?.("startGroove", () => ctx.byId?.("playBtn")?.click());
       start(ctx);
     });
@@ -340,7 +400,7 @@
     }, "s936-dr-btn danger");
 
     card.appendChild(actions);
-    card.appendChild(ctx.el("p", "s936-dr-muted", "V1 no toca app.js: toma BPM/estilo de la app y genera una batería guía propia del módulo."));
+    card.appendChild(ctx.el("p", "s936-dr-muted", "V1.1 no toca app.js: sincroniza el estilo del groove principal por DOM seguro y mantiene la batería modular."));
 
     parent.appendChild(card);
   }
@@ -357,6 +417,17 @@
     });
     select.onchange = () => onchange(select.value);
     field.appendChild(select);
+    return field;
+  }
+
+  function toggleField(ctx, label, checked, onchange) {
+    const field = ctx.el("label", "s936-dr-toggle");
+    const input = ctx.el("input", "");
+    input.type = "checkbox";
+    input.checked = !!checked;
+    input.onchange = () => onchange(input.checked);
+    field.appendChild(input);
+    field.appendChild(ctx.el("span", "", label));
     return field;
   }
 
@@ -435,6 +506,7 @@
     [
       [getBpm(ctx), "BPM actual"],
       [selectedStyle(ctx), "Estilo drums"],
+      [state.syncStyle === false ? "Manual" : "Sync", "Modo estilo"],
       [pattern.label, "Patrón"],
       [state.playing ? "ON" : "OFF", "Estado"]
     ].forEach(([big, small]) => {
@@ -465,6 +537,7 @@
   }
 
   function start(ctx) {
+    syncStyleToApp(ctx);
     if (state.playing) return;
     if (!ensureAudio()) {
       setStatus("AudioContext no disponible");
@@ -580,7 +653,7 @@
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
     window.Studio936SuiteProDrums = {
-      version: "drums-v1.0",
+      version: "drums-v1.1",
       render,
       start,
       stop
