@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Professional v3.10 Modular Core + Practice + Drums + Mixer
+// Studio 936 Composer - Suite Pro Professional v3.11 Modular Core + Practice + Drums + Mixer + Recorder
 // Product goal: professional composition cockpit, not a duplicate of the main app.
 // Scope: this file only owns #s936SuitePro. It does not use #v18Suite and does not touch app legacy.
 (function () {
@@ -2698,7 +2698,13 @@ function normalizeNoteName(value) {
       }
       return renderMixer(c);
     }
-    if (state.studioTool === "record") return renderRecord(c);
+    if (state.studioTool === "record") {
+      const mod = window.Studio936SuiteProModules?.recorder || window.Studio936SuiteProRecorder;
+      if (mod && typeof mod.render === "function") {
+        return mod.render(createModuleContext(), c);
+      }
+      return renderRecord(c);
+    }
     if (state.studioTool === "midi") return renderMidi(c);
 
     const mod = window.Studio936SuiteProModules?.drums || window.Studio936SuiteProDrums;
@@ -3055,7 +3061,7 @@ function normalizeNoteName(value) {
   }
 
   window.Studio936SuitePro = {
-    version: "professional-v3.9-drums-modular",
+    version: "professional-v3.11-recorder-modular",
     open,
     close,
     toggle,
