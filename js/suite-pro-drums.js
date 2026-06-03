@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Drums Module v1.2
+// Studio 936 Composer - Suite Pro Drums Module v1.2.1
 // Scope: Studio > Drums Pro only. It does not touch app.js, Practice, CSS, MIDI, editor or transport internals.
 // Loaded before js/suite-pro.js and rendered through Studio936SuiteProModules.drums.
 (function () {
@@ -252,6 +252,16 @@
   #s936SuitePro .s936-dr-grid { grid-template-columns:1fr; }
   #s936SuitePro .s936-dr-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
+
+#s936SuitePro .s936-dr-select-disabled select {
+  opacity: .78;
+  pointer-events: none;
+}
+#s936SuitePro .s936-dr-select-disabled span::after {
+  content: " · auto";
+  color: #d7ff72;
+  font-weight: 950;
+}
 `;
     document.head.appendChild(style);
   }
@@ -410,26 +420,20 @@
       saveState();
       render(ctx, ctx.clearContent());
     }));
-    form.appendChild(ctx.el("p", "s936-dr-sync-note", state.syncStyle === false
-      ? "Manual: Drums puede sonar en otro estilo distinto al groove principal."
-      : "Sync ON: al elegir estilo en Drums, también cambia el estilo principal del groove."));
-
     form.appendChild(toggleField(ctx, "Follow Structure", state.followStructure !== false, (checked) => {
       state.followStructure = checked;
       saveState();
       render(ctx, ctx.clearContent());
     }));
-    form.appendChild(ctx.el("p", "s936-dr-structure-note", state.followStructure === false
-      ? "Manual: el patrón queda fijo en el selector de abajo."
-      : "Auto: Intro=Basic · Verso=Groove · Pre-coro=Build · Coro=Chorus · Puente/Outro=Break."));
-
-    const patternField = selectField(ctx, state.followStructure === false ? "Patrón" : "Patrón manual", state.pattern, [
+    const effectivePatternKey = activePatternKey(ctx);
+    const patternField = selectField(ctx, state.followStructure === false ? "Patrón manual" : "Patrón actual", state.followStructure === false ? state.pattern : effectivePatternKey, [
       ["basic", "Basic"],
       ["groove", "Groove"],
       ["chorus", "Chorus"],
       ["build", "Build"],
       ["break", "Break"]
     ], (value) => {
+      if (state.followStructure !== false) return;
       state.pattern = value;
       saveState();
       render(ctx, ctx.clearContent());
@@ -474,8 +478,6 @@
     }, "s936-dr-btn danger");
 
     card.appendChild(actions);
-    card.appendChild(ctx.el("p", "s936-dr-muted", "V1.1 no toca app.js: sincroniza el estilo del groove principal por DOM seguro y mantiene la batería modular."));
-
     parent.appendChild(card);
   }
 
@@ -593,7 +595,6 @@
 
     const note = ctx.el("article", "s936-dr-card");
     note.appendChild(ctx.el("h4", "", "Uso musical"));
-    note.appendChild(ctx.el("p", "s936-dr-muted", "Con Follow Structure, Drums adapta el patrón a la sección: versos más estables, pre-coros con build y coros con más energía. Usa Groove + Drums para tocar todo alineado con el estilo principal."));
     note.appendChild(summary);
     shell.appendChild(note);
   }
@@ -728,7 +729,7 @@
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
     window.Studio936SuiteProDrums = {
-      version: "drums-v1.2",
+      version: "drums-v1.2.1",
       render,
       start,
       stop
