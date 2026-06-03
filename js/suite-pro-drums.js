@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Drums Module v1.1
+// Studio 936 Composer - Suite Pro Drums Module v1.2
 // Scope: Studio > Drums Pro only. It does not touch app.js, Practice, CSS, MIDI, editor or transport internals.
 // Loaded before js/suite-pro.js and rendered through Studio936SuiteProModules.drums.
 (function () {
@@ -11,6 +11,7 @@
     style: "auto",
     syncStyle: true,
     pattern: "groove",
+    followStructure: true,
     volume: 0.55,
     swing: 0,
     humanize: 0,
@@ -235,6 +236,18 @@
 }
 #s936SuitePro .s936-dr-mini strong { display:block; color:#fff; font-size:1.1rem; line-height:1; }
 #s936SuitePro .s936-dr-mini span { display:block; color:rgba(255,255,255,.65); font-size:.62rem; font-weight:850; text-transform:uppercase; margin-top:3px; }
+
+#s936SuitePro .s936-dr-structure-note {
+  margin:8px 0 0;
+  color:#d7ff72;
+  font-size:.66rem;
+  line-height:1.35;
+  font-weight:850;
+}
+#s936SuitePro .s936-dr-select-disabled {
+  opacity:.58;
+}
+
 @media(max-width: 980px){
   #s936SuitePro .s936-dr-grid { grid-template-columns:1fr; }
   #s936SuitePro .s936-dr-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -284,10 +297,60 @@
     return state.style === "auto" ? appStyle(ctx) : (PATTERNS[state.style] ? state.style : "pop");
   }
 
+
+  function normalizeStructureText(value) {
+    return String(value || "")
+      .toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
+
+  function currentStructureLabel(ctx) {
+    const snap = ctx.snapshot?.() || {};
+    const sectionSelect = ctx.byId?.("sectionSelect") || document.getElementById("sectionSelect");
+    const parts = [
+      snap.currentSection,
+      snap.currentSectionName,
+      snap.currentPart,
+      sectionSelect?.value,
+      sectionSelect?.selectedOptions?.[0]?.textContent,
+      document.getElementById("sectionLabel")?.textContent,
+      document.getElementById("currentPartTag")?.textContent
+    ].filter(Boolean);
+    return parts.join(" ");
+  }
+
+  function patternKeyForStructure(ctx) {
+    const text = normalizeStructureText(currentStructureLabel(ctx));
+
+    if (/pre\s*coro|prechorus|pre chorus|precoro/.test(text)) return "build";
+    if (/coro|chorus|hook/.test(text)) return "chorus";
+    if (/intro|introduccion|entrada/.test(text)) return "basic";
+    if (/puente|bridge|interludio|interlude|break|fill/.test(text)) return "break";
+    if (/solo/.test(text)) return "groove";
+    if (/outro|final|coda|salida/.test(text)) return "break";
+    if (/verso|verse|estrofa|tema a/.test(text)) return "groove";
+
+    return state.pattern || "groove";
+  }
+
+  function activePatternKey(ctx) {
+    return state.followStructure === false ? (state.pattern || "groove") : patternKeyForStructure(ctx);
+  }
+
+  function structureModeLabel(ctx) {
+    if (state.followStructure === false) return "Manual";
+    const key = activePatternKey(ctx);
+    const labels = { basic:"Intro/Basic", groove:"Verso/Groove", chorus:"Coro", build:"Pre-coro/Build", break:"Puente/Break" };
+    return labels[key] || key;
+  }
+
   function selectedPattern(ctx) {
     const style = selectedStyle(ctx);
     const group = PATTERNS[style] || PATTERNS.pop;
-    return group[state.pattern] || group.groove || group.basic;
+    const key = activePatternKey(ctx);
+    return group[key] || group[state.pattern] || group.groove || group.basic;
   }
 
   function setStatus(text) {
@@ -351,7 +414,16 @@
       ? "Manual: Drums puede sonar en otro estilo distinto al groove principal."
       : "Sync ON: al elegir estilo en Drums, también cambia el estilo principal del groove."));
 
-    form.appendChild(selectField(ctx, "Patrón", state.pattern, [
+    form.appendChild(toggleField(ctx, "Follow Structure", state.followStructure !== false, (checked) => {
+      state.followStructure = checked;
+      saveState();
+      render(ctx, ctx.clearContent());
+    }));
+    form.appendChild(ctx.el("p", "s936-dr-structure-note", state.followStructure === false
+      ? "Manual: el patrón queda fijo en el selector de abajo."
+      : "Auto: Intro=Basic · Verso=Groove · Pre-coro=Build · Coro=Chorus · Puente/Outro=Break."));
+
+    const patternField = selectField(ctx, state.followStructure === false ? "Patrón" : "Patrón manual", state.pattern, [
       ["basic", "Basic"],
       ["groove", "Groove"],
       ["chorus", "Chorus"],
@@ -361,7 +433,9 @@
       state.pattern = value;
       saveState();
       render(ctx, ctx.clearContent());
-    }));
+    });
+    if (state.followStructure !== false) patternField.classList.add("s936-dr-select-disabled");
+    form.appendChild(patternField);
 
     form.appendChild(rangeField(ctx, "Volumen drums", state.volume, 0, 1, 0.01, (value) => {
       state.volume = Number(value);
@@ -467,7 +541,7 @@
     const style = selectedStyle(ctx);
     const pattern = selectedPattern(ctx);
 
-    card.appendChild(ctx.el("h4", "", pattern.label));
+    card.appendChild(ctx.el("h4", "", state.followStructure === false ? pattern.label : pattern.label + " · " + structureModeLabel(ctx)));
     card.appendChild(ctx.el("p", "s936-dr-muted", "Matriz de 16 pasos: Kick, Snare y Hat. El cursor blanco muestra el paso activo."));
 
     const seq = ctx.el("div", "s936-dr-sequencer");
@@ -507,6 +581,7 @@
       [getBpm(ctx), "BPM actual"],
       [selectedStyle(ctx), "Estilo drums"],
       [state.syncStyle === false ? "Manual" : "Sync", "Modo estilo"],
+      [structureModeLabel(ctx), "Estructura"],
       [pattern.label, "Patrón"],
       [state.playing ? "ON" : "OFF", "Estado"]
     ].forEach(([big, small]) => {
@@ -518,7 +593,7 @@
 
     const note = ctx.el("article", "s936-dr-card");
     note.appendChild(ctx.el("h4", "", "Uso musical"));
-    note.appendChild(ctx.el("p", "s936-dr-muted", "Empieza con Groove para verso, Chorus para coro y Build antes de cambios. Para practicar, usa Drums junto con Practice y el Mapa Maestro."));
+    note.appendChild(ctx.el("p", "s936-dr-muted", "Con Follow Structure, Drums adapta el patrón a la sección: versos más estables, pre-coros con build y coros con más energía. Usa Groove + Drums para tocar todo alineado con el estilo principal."));
     note.appendChild(summary);
     shell.appendChild(note);
   }
@@ -546,7 +621,7 @@
     state.playing = true;
     state.step = 0;
     schedule(ctx);
-    setStatus("Drums sonando");
+    setStatus(state.followStructure === false ? "Drums sonando" : "Drums sonando · Follow Structure ON");
     paintActiveStep();
   }
 
@@ -653,7 +728,7 @@
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
     window.Studio936SuiteProDrums = {
-      version: "drums-v1.1",
+      version: "drums-v1.2",
       render,
       start,
       stop
