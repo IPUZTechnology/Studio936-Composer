@@ -2875,13 +2875,14 @@ function normalizeNoteName(value) {
   }
 
   function renderLibrary(c) {
-    title(c, "Library", "Guarda snapshots reales de la canción. Puedes cargar un snapshot reemplazando la canción actual con recarga controlada.");
+    title(c, "Library", "Guarda snapshots reales de la canción e ideas REC vinculadas a canción/sección.");
     const box = actions(c);
     action(box, "Guardar snapshot real", () => {
       const items = loadLibrary();
       const s = snapshot();
       items.unshift({
         id: "snap-" + Date.now(),
+        kind: "snapshot",
         title: s.title || "Sin título",
         author: s.author || "",
         bpm: s.bpm || "",
@@ -2891,27 +2892,48 @@ function normalizeNoteName(value) {
         fullText: fullSongText(),
         projectJson: projectJson()
       });
-      saveLibrary(items.slice(0, 40));
+      saveLibrary(items.slice(0, 80));
       renderLibrary(c);
       toast("Snapshot guardado.");
     }, "s936-sp-btn warn");
 
     const items = loadLibrary();
     if (!items.length) {
-      c.appendChild(el("p", "s936-sp-muted", "No hay snapshots todavía."));
+      c.appendChild(el("p", "s936-sp-muted", "No hay snapshots ni ideas todavía."));
       return;
     }
     const grid = el("div", "s936-sp-grid");
     items.forEach((item) => {
       const card = el("article", "s936-sp-card");
-      card.appendChild(el("h4", "", item.title || "Snapshot"));
+      const isRecIdea = item.kind === "recIdea";
+      card.appendChild(el("h4", "", item.title || (isRecIdea ? "REC Idea" : "Snapshot")));
+      line(card, "Tipo", isRecIdea ? "REC Idea" : "Snapshot canción");
       line(card, "Fecha", new Date(item.createdAt).toLocaleString());
-      line(card, "BPM", item.bpm || "—");
-      line(card, "Estilo", item.style || "—");
+      if (isRecIdea) {
+        line(card, "Canción", item.recIdea?.songTitle || "—");
+        line(card, "Sección", item.recIdea?.sectionLabel || "—");
+        line(card, "Tags", item.recIdea?.tags || "—");
+        if (item.recIdea?.audioId) line(card, "Audio", "Disponible");
+        const preview = el("div", "s936-sp-muted");
+        preview.style.marginTop = "8px";
+        preview.textContent = (item.recIdea?.text || "").slice(0, 180) || "Idea de audio sin texto.";
+        card.appendChild(preview);
+      } else {
+        line(card, "BPM", item.bpm || "—");
+        line(card, "Estilo", item.style || "—");
+      }
+
       const act = actions(card);
-      action(act, "Cargar", () => loadSnapshotIntoApp(item), "s936-sp-btn warn");
-      action(act, "TXT", () => downloadText(slug(item.title) + ".txt", item.fullText || ""), "s936-sp-btn secondary");
-      action(act, "JSON", () => downloadText(slug(item.title) + ".json", item.projectJson || "{}", "application/json;charset=utf-8"), "s936-sp-btn secondary");
+      if (!isRecIdea) {
+        action(act, "Cargar", () => loadSnapshotIntoApp(item), "s936-sp-btn warn");
+        action(act, "TXT", () => downloadText(slug(item.title) + ".txt", item.fullText || ""), "s936-sp-btn secondary");
+        action(act, "JSON", () => downloadText(slug(item.title) + ".json", item.projectJson || "{}", "application/json;charset=utf-8"), "s936-sp-btn secondary");
+      } else {
+        action(act, "TXT", () => downloadText(slug(item.recIdea?.title || item.title || "rec-idea") + ".txt", item.fullText || recIdeaLibraryText(item)), "s936-sp-btn secondary");
+        if (item.recIdea?.audioId) {
+          action(act, "Bajar audio", () => downloadLibraryRecAudio(item), "s936-sp-btn warn");
+        }
+      }
       action(act, "Borrar", () => {
         saveLibrary(loadLibrary().filter((x) => x.id !== item.id));
         renderLibrary(c);
@@ -2919,6 +2941,31 @@ function normalizeNoteName(value) {
       grid.appendChild(card);
     });
     c.appendChild(grid);
+  }
+
+  function recIdeaLibraryText(item) {
+    const idea = item.recIdea || {};
+    return [
+      "Studio 936 · REC Idea",
+      "Título: " + (idea.title || item.title || ""),
+      "Tipo: " + (idea.type || ""),
+      "Canción: " + (idea.songTitle || ""),
+      "Sección: " + (idea.sectionLabel || ""),
+      "Tags: " + (idea.tags || ""),
+      "Fecha: " + new Date(item.createdAt || Date.now()).toLocaleString(),
+      "",
+      idea.text || ""
+    ].join("\n");
+  }
+
+  function downloadLibraryRecAudio(item) {
+    const api = window.Studio936SuiteProRecorder;
+    const audioId = item.recIdea?.audioId;
+    if (api && typeof api.downloadAudioById === "function" && audioId) {
+      return api.downloadAudioById(audioId, item.recIdea?.title || item.title || "rec-idea");
+    }
+    toast("Audio no disponible. Abre REC Idea para descargarlo desde el banco local.");
+    return false;
   }
 
   function loadLibrary() {
@@ -3061,7 +3108,7 @@ function normalizeNoteName(value) {
   }
 
   window.Studio936SuitePro = {
-    version: "professional-v3.11-recorder-modular",
+    version: "professional-v3.12-recorder-library",
     open,
     close,
     toggle,

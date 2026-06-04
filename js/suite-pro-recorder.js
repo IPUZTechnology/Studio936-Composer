@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Recorder Module v1
+// Studio 936 Composer - Suite Pro Recorder Module v1.1 Library Link
 // Scope: Studio > REC Idea only. It does not touch app.js, Practice, Drums, Mixer, CSS, MIDI, editor or transport internals.
 // Loaded before js/suite-pro.js and rendered through Studio936SuiteProModules.recorder.
 (function () {
@@ -6,6 +6,7 @@
 
   const STYLE_ID = "s936SuiteProRecorderStyles";
   const META_KEY = "s936_suitepro_recorder_ideas_v1";
+  const SUITE_LIBRARY_KEY = "studio936_suitepro_library_v3";
   const DRAFT_KEY = "s936_suitepro_recorder_draft_v1";
   const DB_NAME = "s936_suitepro_recorder_db_v1";
   const DB_STORE = "takes";
@@ -30,7 +31,12 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProRecorder = { version: "recorder-v1", render };
+    window.Studio936SuiteProRecorder = {
+      version: "recorder-v1.1-library",
+      render,
+      getAudioById: getAudio,
+      downloadAudioById
+    };
     window.Studio936SuiteProModules.recorder = window.Studio936SuiteProRecorder;
   }
 
@@ -52,6 +58,59 @@
 
   function saveIdeas(items) {
     safe(() => localStorage.setItem(META_KEY, JSON.stringify((items || []).slice(0, 80))));
+  }
+
+  function loadSuiteLibrary() {
+    return safe(() => JSON.parse(localStorage.getItem(SUITE_LIBRARY_KEY) || "[]"), []);
+  }
+
+  function saveSuiteLibrary(items) {
+    safe(() => localStorage.setItem(SUITE_LIBRARY_KEY, JSON.stringify((items || []).slice(0, 160))));
+  }
+
+  function ideaInSuiteLibrary(ideaId) {
+    return loadSuiteLibrary().some((item) => item && item.kind === "recIdea" && item.recIdeaId === ideaId);
+  }
+
+  function ideaLibraryPayload(idea) {
+    return {
+      id: "lib-rec-" + (idea.id || Date.now()),
+      kind: "recIdea",
+      recIdeaId: idea.id,
+      title: "REC · " + (idea.title || typeLabel(idea.type) || "Idea"),
+      author: idea.songAuthor || "",
+      bpm: idea.bpm || "",
+      style: idea.style || "",
+      createdAt: idea.createdAt || new Date().toISOString(),
+      fullText: ideaToText(idea),
+      projectJson: "",
+      recIdea: {
+        id: idea.id,
+        title: idea.title || "",
+        type: idea.type || "idea",
+        sectionKey: idea.sectionKey || "",
+        sectionLabel: idea.sectionLabel || "",
+        tags: idea.tags || "",
+        html: idea.html || "",
+        text: idea.text || "",
+        songTitle: idea.songTitle || "",
+        songAuthor: idea.songAuthor || "",
+        bpm: idea.bpm || "",
+        style: idea.style || "",
+        audioId: idea.audioId || "",
+        audioMime: idea.audioMime || "",
+        createdAt: idea.createdAt || new Date().toISOString()
+      }
+    };
+  }
+
+  function sendIdeaToSuiteLibrary(ctx, idea) {
+    if (!idea || !idea.id) return toast("Idea no válida.");
+    const items = loadSuiteLibrary().filter((item) => !(item.kind === "recIdea" && item.recIdeaId === idea.id));
+    items.unshift(ideaLibraryPayload(idea));
+    saveSuiteLibrary(items);
+    toast("Idea enviada a Library.");
+    render(ctx, ctx.clearContent());
   }
 
   function installStyles() {
@@ -496,6 +555,8 @@
       addButton(ctx, actions, "Copiar texto", () => copyIdeaText(ctx, idea), "s936-rec-btn secondary");
       addButton(ctx, actions, "TXT", () => downloadIdeaTxt(ctx, idea), "s936-rec-btn secondary");
       if (idea.audioId) addButton(ctx, actions, "Bajar audio", () => downloadAudio(idea), "s936-rec-btn");
+      addButton(ctx, actions, ideaInSuiteLibrary(idea.id) ? "En Library" : "Enviar a Library", () => sendIdeaToSuiteLibrary(ctx, idea), ideaInSuiteLibrary(idea.id) ? "s936-rec-btn secondary" : "s936-rec-btn warn");
+      addButton(ctx, actions, "Pack", () => downloadIdeaPack(ctx, idea), "s936-rec-btn secondary");
       addButton(ctx, actions, "Borrar", () => deleteIdea(ctx, idea.id), "s936-rec-btn danger");
       item.appendChild(actions);
 
@@ -707,6 +768,22 @@
 
   function downloadIdeaTxt(ctx, idea) {
     ctx.downloadText?.(slug(idea.title || "idea") + ".txt", ideaToText(idea));
+  }
+
+  function downloadIdeaPack(ctx, idea) {
+    downloadIdeaTxt(ctx, idea);
+    if (idea.audioId) {
+      setTimeout(() => downloadAudio(idea), 250);
+      toast("Pack descargando: TXT + audio.");
+    } else {
+      toast("Pack descargado: TXT. Esta idea no tiene audio.");
+    }
+  }
+
+  async function downloadAudioById(audioId, title = "take") {
+    if (!audioId) return toast("Audio no encontrado.");
+    const idea = { audioId, title };
+    return downloadAudio(idea);
   }
 
   function exportIdeasTxt(ctx) {
