@@ -1,6 +1,6 @@
-// Studio 936 Composer - Suite Pro Compose Pro Module v1.1
+// Studio 936 Composer - Suite Pro Compose Coordinator v1.2
 // Scope: Compose tab only. It does not write to app.js, editor, transport, drums, practice or studio modules.
-// Product goal: creative cockpit for Templates, Inspire, Transpose, Song DNA/Estructura, Editor, Chord AI, Theory and Scales.
+// Product goal: coordinador modular de Composición: Plantillas, Inspiración, Transponer, Estructura, Editor, Acordes IA, Teoría y Escalas.
 (function () {
   "use strict";
 
@@ -189,7 +189,7 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProCompose = { version: "compose-v1.1", render };
+    window.Studio936SuiteProCompose = { version: "compose-v1.2-coordinator", render };
     window.Studio936SuiteProModules.compose = window.Studio936SuiteProCompose;
   }
 
@@ -260,18 +260,18 @@
   function render(ctx) {
     installStyles();
     const c = ctx.clearContent();
-    ctx.title(c, "Compose Pro", "Centro creativo: crear, estructurar, editar, transformar y analizar la canción.");
+    ctx.title(c, "Composición Pro", "Centro creativo modular: crear, estructurar, editar, transformar y analizar la canción.");
     const shell = ctx.el("div", "s936-cmp-shell");
 
     const tools = [
-      ["templates","Templates"],
-      ["inspire","Inspire"],
-      ["transpose","Transpose"],
-      ["songDNA","Estructura DNA"],
+      ["templates","Plantillas"],
+      ["inspire","Inspiración"],
+      ["transpose","Transponer"],
+      ["structure","Estructura"],
       ["editor","Editor"],
-      ["chordAI","Chord AI"],
-      ["theory","Theory"],
-      ["scales","Scales"]
+      ["chordAI","Acordes IA"],
+      ["theory","Teoría"],
+      ["scales","Escalas"]
     ];
 
     const nav = ctx.toolNav(tools, ctx.state.composeTool || state.tool, (v) => {
@@ -281,12 +281,13 @@
     });
     shell.appendChild(nav);
 
-    const active = ctx.state.composeTool || state.tool || "templates";
+    let active = ctx.state.composeTool || state.tool || "templates";
+    if (active === "songDNA") active = "structure";
     const map = {
       templates: renderTemplates,
       inspire: renderInspire,
       transpose: renderTranspose,
-      songDNA: renderSongDNA,
+      structure: renderStructureModule,
       editor: renderEditorGateway,
       chordAI: renderChordAI,
       theory: renderTheory,
@@ -651,10 +652,10 @@
     const s = snap(ctx);
     const key = keyOf(ctx);
     const top = ctx.el("section", "s936-cmp-card important");
-    top.appendChild(ctx.el("h4", "", "Inspire · idea inmediata"));
+    top.appendChild(ctx.el("h4", "", "Inspiración · idea inmediata"));
     const toolbar = ctx.el("div", "s936-cmp-toolbar");
 
-    const mood = field(ctx, "Mood");
+    const mood = field(ctx, "Ambiente");
     const moodSelect = select(ctx, [["luminosa","Luminosa"],["intima","Íntima"],["energia","Energía"]], state.inspireMood);
     moodSelect.onchange = () => { state.inspireMood = moodSelect.value; saveState(); render(ctx); };
     mood.appendChild(moodSelect);
@@ -784,6 +785,15 @@
     return next + (match[3] || "");
   }
 
+
+  function renderStructureModule(ctx, shell) {
+    const mod = window.Studio936SuiteProStructure || window.Studio936SuiteProModules?.structure;
+    if (mod && typeof mod.render === "function") {
+      return mod.render(ctx, shell);
+    }
+    return renderSongDNA(ctx, shell);
+  }
+
   function renderSongDNA(ctx, shell) {
     const s = snap(ctx);
     const sections = sectionSummary(ctx);
@@ -807,7 +817,7 @@
     const topActions = actions(ctx, card);
     btn(ctx, topActions, "Abrir estructura", () => ctx.callBridge?.("openStructure", () => false), "s936-cmp-btn warn");
     btn(ctx, topActions, "Abrir editor", () => ctx.callBridge?.("openEditor", () => false), "s936-cmp-btn secondary");
-    btn(ctx, topActions, "Ir a Templates", () => { ctx.state.composeTool = "templates"; state.tool = "templates"; saveState(); render(ctx); }, "s936-cmp-btn secondary");
+    btn(ctx, topActions, "Ir a Plantillas", () => { ctx.state.composeTool = "templates"; state.tool = "templates"; saveState(); render(ctx); }, "s936-cmp-btn secondary");
     shell.appendChild(card);
 
     const grid = ctx.el("div", "s936-cmp-grid two");
