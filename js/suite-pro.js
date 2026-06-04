@@ -2351,6 +2351,11 @@ function normalizeNoteName(value) {
   }
 
   function renderCompose() {
+    const mod = window.Studio936SuiteProModules?.compose || window.Studio936SuiteProCompose;
+    if (mod && typeof mod.render === "function") {
+      return mod.render(createModuleContext());
+    }
+
     const tools = [
       ["templates", "Templates"],
       ["inspire", "Inspire"],
@@ -2612,7 +2617,7 @@ function normalizeNoteName(value) {
 
   function createModuleContext() {
     return {
-      version: "3.13",
+      version: "3.14",
       state,
       clearContent,
       title,
