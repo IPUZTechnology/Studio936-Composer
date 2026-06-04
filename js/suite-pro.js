@@ -2612,7 +2612,7 @@ function normalizeNoteName(value) {
 
   function createModuleContext() {
     return {
-      version: "3.8",
+      version: "3.13",
       state,
       clearContent,
       title,
@@ -2705,7 +2705,13 @@ function normalizeNoteName(value) {
       }
       return renderRecord(c);
     }
-    if (state.studioTool === "midi") return renderMidi(c);
+    if (state.studioTool === "midi") {
+      const mod = window.Studio936SuiteProModules?.midi || window.Studio936SuiteProMidi;
+      if (mod && typeof mod.render === "function") {
+        return mod.render(createModuleContext(), c);
+      }
+      return renderMidi(c);
+    }
 
     const mod = window.Studio936SuiteProModules?.drums || window.Studio936SuiteProDrums;
     if (mod && typeof mod.render === "function") {
