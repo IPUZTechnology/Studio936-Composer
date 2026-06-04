@@ -1,6 +1,6 @@
-// Studio 936 Composer - Suite Pro Compose Pro Module v1
+// Studio 936 Composer - Suite Pro Compose Pro Module v1.1
 // Scope: Compose tab only. It does not write to app.js, editor, transport, drums, practice or studio modules.
-// Product goal: creative cockpit for Templates, Inspire, Transpose, Song DNA, Chord AI, Theory and Scales.
+// Product goal: creative cockpit for Templates, Inspire, Transpose, Song DNA/Estructura, Editor, Chord AI, Theory and Scales.
 (function () {
   "use strict";
 
@@ -26,6 +26,7 @@
     tool: "templates",
     targetKey: "G",
     selectedTemplate: "Studio Pop",
+    previewTemplate: "studio-pop",
     inspireMood: "luminosa",
     inspireEnergy: "crecimiento",
     chordGoal: "coro",
@@ -188,7 +189,7 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProCompose = { version: "compose-v1", render };
+    window.Studio936SuiteProCompose = { version: "compose-v1.1", render };
     window.Studio936SuiteProModules.compose = window.Studio936SuiteProCompose;
   }
 
@@ -236,6 +237,15 @@
 #s936SuitePro .s936-cmp-key.on{background:#00ffcc;color:#00221d;box-shadow:0 0 0 2px rgba(0,255,204,.30) inset}
 #s936SuitePro .s936-cmp-key.root{background:#ffe066;color:#151000}
 #s936SuitePro .s936-cmp-key.tension{background:#ff5bea;color:#270020}
+
+#s936SuitePro .s936-cmp-btn.danger{border-color:rgba(255,90,90,.70);background:rgba(255,90,90,.10);color:#ffb9b9}
+#s936SuitePro .s936-cmp-preview{border:1px solid rgba(255,216,77,.34);border-radius:16px;background:rgba(255,216,77,.07);padding:12px;margin-top:10px}
+#s936SuitePro .s936-cmp-preview pre{white-space:pre-wrap;margin:8px 0 0;color:#f8fbff;background:rgba(0,0,0,.22);border-radius:12px;padding:10px;font-size:.70rem;line-height:1.42;max-height:260px;overflow:auto}
+#s936SuitePro .s936-cmp-structure-table{display:grid;gap:7px;margin-top:10px}
+#s936SuitePro .s936-cmp-structure-row{display:grid;grid-template-columns:34px minmax(80px,.8fr) minmax(140px,1.2fr) minmax(80px,.55fr);gap:7px;align-items:center;border:1px solid rgba(255,255,255,.11);border-radius:12px;background:rgba(0,0,0,.18);padding:8px}
+#s936SuitePro .s936-cmp-structure-row b{color:#ffe066;font-size:.62rem}
+#s936SuitePro .s936-cmp-structure-row span{color:rgba(255,255,255,.82);font-size:.65rem;line-height:1.35}
+
 #s936SuitePro .s936-cmp-toast{position:absolute;left:18px;right:18px;bottom:18px;border:1px solid rgba(0,255,204,.35);border-radius:14px;background:rgba(0,0,0,.80);color:#bfffee;padding:10px 12px;font-size:.72rem;font-weight:900;opacity:0;pointer-events:none;transform:translateY(8px);transition:.16s ease;z-index:5}
 #s936SuitePro .s936-cmp-toast.show{opacity:1;transform:translateY(0)}
 @media(max-width:1100px){#s936SuitePro .s936-cmp-hero,#s936SuitePro .s936-cmp-grid.two{grid-template-columns:1fr}#s936SuitePro .s936-cmp-score{grid-template-columns:repeat(2,1fr)}}
@@ -250,14 +260,15 @@
   function render(ctx) {
     installStyles();
     const c = ctx.clearContent();
-    ctx.title(c, "Compose Pro", "Centro creativo: plantilla, inspiración, transposición, ADN, acordes, teoría y escalas.");
+    ctx.title(c, "Compose Pro", "Centro creativo: crear, estructurar, editar, transformar y analizar la canción.");
     const shell = ctx.el("div", "s936-cmp-shell");
 
     const tools = [
       ["templates","Templates"],
       ["inspire","Inspire"],
       ["transpose","Transpose"],
-      ["songDNA","Song DNA"],
+      ["songDNA","Estructura DNA"],
+      ["editor","Editor"],
       ["chordAI","Chord AI"],
       ["theory","Theory"],
       ["scales","Scales"]
@@ -276,6 +287,7 @@
       inspire: renderInspire,
       transpose: renderTranspose,
       songDNA: renderSongDNA,
+      editor: renderEditorGateway,
       chordAI: renderChordAI,
       theory: renderTheory,
       scales: renderScales
@@ -425,28 +437,28 @@
     const summary = ctx.el("article", "s936-cmp-card important");
     summary.appendChild(ctx.el("h4", "", "Template cockpit"));
     line(ctx, summary, "Tonalidad actual", key);
-    line(ctx, summary, "Uso", "elige estructura + progresión; copia/descarga; aplicar directo queda para bridge seguro.");
-    const flow = ctx.el("div", "s936-cmp-flow");
-    ["Intro","Verso","Pre-coro","Coro","Puente","Outro"].forEach((p) => {
-      const part = ctx.el("div", "s936-cmp-part");
-      part.appendChild(ctx.el("b", "", p));
-      part.appendChild(ctx.el("span", "", p === "Coro" ? "hook + resolución" : p === "Pre-coro" ? "tensión" : "color/forma"));
-      flow.appendChild(part);
-    });
-    summary.appendChild(flow);
+    line(ctx, summary, "Uso real", "elige plantilla, revisa preview y aplícala con respaldo automático.");
+    line(ctx, summary, "Seguridad", "antes de reemplazar la canción, Compose guarda un backup local.");
+    const box = actions(ctx, summary);
+    btn(ctx, box, "Abrir Estructura", () => ctx.callBridge?.("openStructure", () => false), "s936-cmp-btn secondary");
+    btn(ctx, box, "Abrir Editor", () => ctx.callBridge?.("openEditor", () => false), "s936-cmp-btn secondary");
+    head.appendChild(summary);
 
     const current = ctx.el("article", "s936-cmp-card gold");
     current.appendChild(ctx.el("h4", "", "Canción actual"));
     const sections = sectionSummary(ctx);
     line(ctx, current, "Partes detectadas", sections.length || "—");
     line(ctx, current, "Acordes únicos", uniqueChords(ctx).map((c) => c.name).slice(0, 6).join(" · "));
-    line(ctx, current, "Siguiente acción", "escoge template y úsalo como mapa de arreglo o coro.");
+    line(ctx, current, "Aplicar template", "reemplaza forma + secciones + progresiones; conserva título, autor, instrumento y ajustes.");
     head.append(summary, current);
     shell.appendChild(head);
 
+    const selected = TEMPLATES.find((tpl) => tpl.id === state.previewTemplate) || TEMPLATES[0];
+    renderTemplatePreview(ctx, shell, selected, key);
+
     const grid = ctx.el("div", "s936-cmp-grid");
     TEMPLATES.forEach((tpl) => {
-      const card = ctx.el("article", "s936-cmp-card");
+      const card = ctx.el("article", "s936-cmp-card" + (selected.id === tpl.id ? " gold" : ""));
       card.appendChild(ctx.el("h4", "", tpl.name));
       line(ctx, card, "Vibe", tpl.vibe);
       line(ctx, card, "Estilo/BPM", `${tpl.style} · ${tpl.bpm} BPM`);
@@ -456,11 +468,17 @@
       const chips = ctx.el("div", "s936-cmp-chips");
       chorus.forEach((ch, i) => chips.appendChild(ctx.el("span", "s936-cmp-chip " + (i === 0 ? "root" : ""), ch)));
       card.appendChild(chips);
-      const box = actions(ctx, card);
       const text = templateText(tpl, key);
-      btn(ctx, box, "Copiar", () => copyText(ctx, text, "Template copiado."));
-      btn(ctx, box, "TXT", () => downloadTxt(ctx, "studio936-template-" + slug(tpl.name) + ".txt", text), "s936-cmp-btn secondary");
-      btn(ctx, box, "Preview", () => toast(ctx, tpl.name + " listo como guía. Aplicación directa será fase segura."), "s936-cmp-btn warn");
+      const actionBox = actions(ctx, card);
+      btn(ctx, actionBox, "Preview", () => {
+        state.previewTemplate = tpl.id;
+        state.selectedTemplate = tpl.name;
+        saveState();
+        render(ctx);
+      }, "s936-cmp-btn warn");
+      btn(ctx, actionBox, "Copiar", () => copyText(ctx, text, "Template copiado."));
+      btn(ctx, actionBox, "TXT", () => downloadTxt(ctx, "studio936-template-" + slug(tpl.name) + ".txt", text), "s936-cmp-btn secondary");
+      btn(ctx, actionBox, "Aplicar", () => applyTemplateToSong(ctx, tpl, key), "s936-cmp-btn danger");
       grid.appendChild(card);
     });
     shell.appendChild(grid);
@@ -486,6 +504,148 @@
     lines.push("", "LYRIC/ARRANGE:", tpl.lyric);
     return lines.join("\n");
   }
+
+  function renderTemplatePreview(ctx, shell, tpl, key) {
+    const preview = ctx.el("section", "s936-cmp-card important");
+    preview.appendChild(ctx.el("h4", "", "Preview aplicable · " + tpl.name));
+    line(ctx, preview, "Resultado", `${tpl.style} · ${tpl.bpm} BPM · ${tpl.form.length} partes`);
+    line(ctx, preview, "Intención", tpl.lyric);
+    const table = ctx.el("div", "s936-cmp-structure-table");
+    tpl.form.forEach((part, index) => {
+      const section = part[0];
+      const label = part[1];
+      const progression = romanListToChords(key, templateSectionRomans(tpl, section));
+      const row = ctx.el("div", "s936-cmp-structure-row");
+      row.appendChild(ctx.el("b", "", String(index + 1).padStart(2, "0")));
+      row.appendChild(ctx.el("span", "", label));
+      row.appendChild(ctx.el("span", "", progression.join(" → ")));
+      row.appendChild(ctx.el("span", "", suggestedBarsForSection(section) + " compases"));
+      table.appendChild(row);
+    });
+    preview.appendChild(table);
+    const actionBox = actions(ctx, preview);
+    btn(ctx, actionBox, "Copiar preview", () => copyText(ctx, templateText(tpl, key), "Preview copiado."));
+    btn(ctx, actionBox, "Aplicar con backup", () => applyTemplateToSong(ctx, tpl, key), "s936-cmp-btn danger");
+    shell.appendChild(preview);
+  }
+
+  function templateSectionRomans(tpl, sectionKey) {
+    if (tpl.sections[sectionKey]) return tpl.sections[sectionKey];
+    if (/verse/i.test(sectionKey)) return tpl.sections.verse || tpl.sections.chorus || ["I","V","vi","IV"];
+    if (/pre/i.test(sectionKey)) return tpl.sections.prechorus || tpl.sections.verse || ["IV","V","vi","V"];
+    if (/chorus|hook/i.test(sectionKey)) return tpl.sections.chorus || tpl.sections.verse || ["I","V","vi","IV"];
+    if (/bridge|puente/i.test(sectionKey)) return tpl.sections.bridge || tpl.sections.prechorus || ["vi","IV","I","V"];
+    if (/solo|interlude|intro|outro/i.test(sectionKey)) return tpl.sections.intro || tpl.sections.chorus || tpl.sections.verse || ["I","V"];
+    return tpl.sections.verse || tpl.sections.chorus || ["I","V","vi","IV"];
+  }
+
+  function suggestedBarsForSection(sectionKey) {
+    if (/intro|outro|interlude/i.test(sectionKey)) return 4;
+    if (/prechorus|bridge|solo/i.test(sectionKey)) return 8;
+    return 8;
+  }
+
+  function chordBassForName(name) {
+    const slash = String(name || "").match(/\/\s*([A-Ga-g])([#b]?)/);
+    const root = slash ? slash[1].toUpperCase() + (slash[2] || "") : normalizeKey(name);
+    return root + "2";
+  }
+
+  function chordNotesForName(name, key) {
+    const rootName = normalizeKey(name);
+    const root = NOTE_INDEX[rootName];
+    if (root === undefined) return ["C3","E3","G3"];
+    const lower = String(name || "").toLowerCase();
+    let intervals = [0, 4, 7];
+    if (/dim|°/.test(lower)) intervals = [0, 3, 6];
+    else if (/aug|\+5/.test(lower)) intervals = [0, 4, 8];
+    else if (/sus2/.test(lower)) intervals = [0, 2, 7];
+    else if (/sus4|sus/.test(lower)) intervals = [0, 5, 7];
+    else if (/(^|[^a-z])m(?!aj)|min|minor/.test(lower)) intervals = [0, 3, 7];
+    if (/maj7|ma7|Δ/.test(lower)) intervals.push(11);
+    else if (/(^|[^0-9])7|9|11|13/.test(lower)) intervals.push(10);
+    if (/6|13/.test(lower)) intervals.push(9);
+    if (/9/.test(lower)) intervals.push(2);
+    if (/11/.test(lower)) intervals.push(5);
+
+    const pcs = Array.from(new Set(intervals.map((n) => (root + n + 120) % 12))).slice(0, 5);
+    const names = namesFor(key || rootName);
+    return pcs.map((pc, index) => {
+      const octave = index < 3 ? 3 : 4;
+      return names[((pc % 12) + 12) % 12] + octave;
+    });
+  }
+
+  function buildTemplateProject(ctx, tpl, key) {
+    const s = snap(ctx);
+    const current = safe(() => JSON.parse(JSON.stringify(s.project || {})), {}) || {};
+    const sections = {};
+    const lyrics = {};
+    const sectionSolos = {};
+    const sectionSeen = new Set();
+
+    tpl.form.forEach(([sectionKey, label]) => {
+      if (sectionSeen.has(sectionKey)) return;
+      sectionSeen.add(sectionKey);
+      const chords = romanListToChords(key, templateSectionRomans(tpl, sectionKey));
+      const bars = suggestedBarsForSection(sectionKey);
+      sections[sectionKey] = chords.map((name) => ({
+        name,
+        bass: chordBassForName(name),
+        notes: chordNotesForName(name, key).join(" "),
+        bars: Math.max(1, Math.round(bars / Math.max(1, chords.length)))
+      }));
+      lyrics[sectionKey] = "";
+      sectionSolos[sectionKey] = { key, scale: "major", phrase: "" };
+    });
+
+    return Object.assign({}, current, {
+      title: s.title || current.title || "Canción sin nombre",
+      author: s.author || current.author || "Autor no definido",
+      style: tpl.style,
+      bpm: tpl.bpm,
+      instrument: current.instrument || s.instrument || "piano",
+      soloKey: key,
+      key,
+      sections,
+      arrangement: tpl.form.map(([section, label]) => ({ section, label })),
+      lyrics: Object.assign({}, lyrics),
+      sectionSolos: Object.assign({}, current.sectionSolos || {}, sectionSolos),
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  function backupCurrentProject(ctx, reason) {
+    const s = snap(ctx);
+    const key = "studio936_compose_template_backups_v1";
+    const list = safe(() => JSON.parse(localStorage.getItem(key) || "[]"), []) || [];
+    list.unshift({
+      id: "backup_" + Date.now(),
+      reason,
+      title: s.title || "Canción",
+      createdAt: new Date().toISOString(),
+      project: s.project || s
+    });
+    localStorage.setItem(key, JSON.stringify(list.slice(0, 20)));
+  }
+
+  function applyTemplateToSong(ctx, tpl, key) {
+    const msg = [
+      "Esto reemplazará estructura, secciones y progresiones de la canción actual.",
+      "",
+      "Se guardará un backup local antes de aplicar.",
+      "",
+      "¿Aplicar template " + tpl.name + "?"
+    ].join("\n");
+    if (!window.confirm(msg)) return;
+    const project = buildTemplateProject(ctx, tpl, key);
+    backupCurrentProject(ctx, "Antes de aplicar template " + tpl.name);
+    localStorage.setItem("studio936ComposerV25SongStructure", JSON.stringify(project));
+    toast(ctx, "Template aplicado. Recargando canción...");
+    setTimeout(() => window.location.reload(), 450);
+  }
+
+
 
   function renderInspire(ctx, shell) {
     const s = snap(ctx);
@@ -631,8 +791,9 @@
     const totalBars = sections.reduce((sum, x) => sum + x.bars, 0);
     const hasLyrics = Object.values(s.lyrics || {}).filter((x) => String(x || "").trim()).length;
     const repeated = mostCommonChord(chords);
+
     const card = ctx.el("section", "s936-cmp-card important");
-    card.appendChild(ctx.el("h4", "", "Song DNA · identidad musical"));
+    card.appendChild(ctx.el("h4", "", "Estructura DNA · constructor de canción"));
     const score = ctx.el("div", "s936-cmp-score");
     metric(ctx, score, sections.length || "—", "partes");
     metric(ctx, score, chords.length || "—", "acordes");
@@ -641,31 +802,39 @@
     card.appendChild(score);
     line(ctx, card, "Centro tonal", keyOf(ctx));
     line(ctx, card, "Estilo", s.style || "—");
-    line(ctx, card, "Instrumento guía", s.instrument || "—");
     line(ctx, card, "Acorde dominante visual", repeated || "—");
     line(ctx, card, "Diagnóstico", dnaDiagnosis(ctx));
+    const topActions = actions(ctx, card);
+    btn(ctx, topActions, "Abrir estructura", () => ctx.callBridge?.("openStructure", () => false), "s936-cmp-btn warn");
+    btn(ctx, topActions, "Abrir editor", () => ctx.callBridge?.("openEditor", () => false), "s936-cmp-btn secondary");
+    btn(ctx, topActions, "Ir a Templates", () => { ctx.state.composeTool = "templates"; state.tool = "templates"; saveState(); render(ctx); }, "s936-cmp-btn secondary");
     shell.appendChild(card);
 
     const grid = ctx.el("div", "s936-cmp-grid two");
     const form = ctx.el("article", "s936-cmp-card");
-    form.appendChild(ctx.el("h4", "", "Forma detectada"));
-    const flow = ctx.el("div", "s936-cmp-flow");
-    sections.slice(0, 12).forEach((p) => {
-      const part = ctx.el("div", "s936-cmp-part");
-      part.appendChild(ctx.el("b", "", p.label));
-      part.appendChild(ctx.el("span", "", `${p.bars} compases`));
-      part.appendChild(ctx.el("span", "", p.chords.slice(0,3).join(" → ")));
-      flow.appendChild(part);
-    });
-    form.appendChild(flow);
+    form.appendChild(ctx.el("h4", "", "Forma actual"));
+    if (!sections.length) {
+      form.appendChild(ctx.el("p", "s936-cmp-muted", "No hay estructura útil todavía. Empieza por Templates o abre Estructura."));
+    } else {
+      const table = ctx.el("div", "s936-cmp-structure-table");
+      sections.slice(0, 16).forEach((p, i) => {
+        const row = ctx.el("div", "s936-cmp-structure-row");
+        row.appendChild(ctx.el("b", "", String(i + 1).padStart(2, "0")));
+        row.appendChild(ctx.el("span", "", p.label));
+        row.appendChild(ctx.el("span", "", p.chords.slice(0, 4).join(" → ") || "—"));
+        row.appendChild(ctx.el("span", "", p.bars + " compases"));
+        table.appendChild(row);
+      });
+      form.appendChild(table);
+    }
     grid.appendChild(form);
 
     const next = ctx.el("article", "s936-cmp-card gold");
-    next.appendChild(ctx.el("h4", "", "Próximo movimiento"));
-    line(ctx, next, "Si falta letra", "abre REC Idea o Letra/TAB y captura una frase real");
-    line(ctx, next, "Si falta impacto", "usa Chord AI: coro abierto o pre-coro con tensión");
-    line(ctx, next, "Si falta comodidad vocal", "usa Transpose preview");
-    line(ctx, next, "Si falta color", "usa Scales sobre el acorde activo");
+    next.appendChild(ctx.el("h4", "", "Qué construir ahora"));
+    line(ctx, next, "Si empiezas de cero", "usa Templates y aplica una forma base con backup.");
+    line(ctx, next, "Si falta sección", "abre Estructura para ordenar intro, verso, coro y puente.");
+    line(ctx, next, "Si faltan acordes", "abre Editor o usa Chord AI para generar una progresión.");
+    line(ctx, next, "Si falta interpretación", "usa Practice y Studio para probar con voz, piano, guitarra y drums.");
     grid.appendChild(next);
     shell.appendChild(grid);
   }
@@ -689,7 +858,47 @@
     return "Canción con estructura utilizable. Trabaja letras, dinámica y arreglo.";
   }
 
-  function renderChordAI(ctx, shell) {
+  
+  function renderEditorGateway(ctx, shell) {
+    const s = snap(ctx);
+    const sectionName = s.currentSectionName || s.currentSection || "Sección actual";
+    const chordName = ctx.currentChordName?.() || s.chordLabel || "Acorde actual";
+    const notes = typeof ctx.currentChordNotes === "function" ? ctx.currentChordNotes() : [];
+
+    const card = ctx.el("section", "s936-cmp-card important");
+    card.appendChild(ctx.el("h4", "", "Editor de composición"));
+    line(ctx, card, "Objetivo", "crear y corregir acordes, bajo, notas y compases sin salir del flujo creativo.");
+    line(ctx, card, "Sección activa", sectionName);
+    line(ctx, card, "Acorde activo", chordName);
+    const chips = ctx.el("div", "s936-cmp-chips");
+    notes.forEach((n, i) => chips.appendChild(ctx.el("span", "s936-cmp-chip " + (i === 0 ? "root" : ""), n)));
+    card.appendChild(chips);
+    const box = actions(ctx, card);
+    btn(ctx, box, "Abrir Editor real", () => ctx.callBridge?.("openEditor", () => false), "s936-cmp-btn warn");
+    btn(ctx, box, "Abrir Estructura", () => ctx.callBridge?.("openStructure", () => false), "s936-cmp-btn secondary");
+    btn(ctx, box, "Letra / TAB", () => ctx.callBridge?.("openLyrics", () => false), "s936-cmp-btn secondary");
+    shell.appendChild(card);
+
+    const grid = ctx.el("div", "s936-cmp-grid two");
+    const workflow = ctx.el("article", "s936-cmp-card");
+    workflow.appendChild(ctx.el("h4", "", "Flujo recomendado"));
+    line(ctx, workflow, "1", "define forma en Estructura DNA o Templates.");
+    line(ctx, workflow, "2", "entra al Editor y ajusta acordes/bajo/notas por sección.");
+    line(ctx, workflow, "3", "valida en Practice con letra, instrumento y timeline.");
+    line(ctx, workflow, "4", "produce en Studio con drums, mixer y REC Idea.");
+    grid.appendChild(workflow);
+
+    const why = ctx.el("article", "s936-cmp-card gold");
+    why.appendChild(ctx.el("h4", "", "Por qué vive en Compose"));
+    line(ctx, why, "Estructura", "decide la forma musical.");
+    line(ctx, why, "Editor", "escribe la armonía real.");
+    line(ctx, why, "Chord AI", "propone opciones si te falta color.");
+    line(ctx, why, "Scales", "te da material melódico sobre lo que escribes.");
+    grid.appendChild(why);
+    shell.appendChild(grid);
+  }
+
+function renderChordAI(ctx, shell) {
     const key = keyOf(ctx);
     const card = ctx.el("section", "s936-cmp-card important");
     card.appendChild(ctx.el("h4", "", "Chord AI · sugeridor armónico"));
