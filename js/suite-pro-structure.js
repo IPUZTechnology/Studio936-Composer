@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Structure / ADN Module v4.0
+// Studio 936 Composer - Suite Pro Structure / ADN Module v4.0.1
 // Scope: Compose > Estructura only. No toca app.js, Practice, Drums, Mixer, Recorder ni MIDI.
 // Product goal: constructor claro de forma musical, sin controles repetidos y con edición segura sobre el proyecto central.
 (function () {
@@ -777,6 +777,14 @@
   }
 
 
+
+  function structureDiagnosis(parts, hasVerse, hasChorus, hasBridge) {
+    if (!parts.length) return "Todavía no hay forma definida.";
+    if (!hasVerse || !hasChorus) return "La forma necesita al menos verso y coro para funcionar como canción.";
+    if (parts.length < 5) return "Hay una base funcional; puede necesitar intro, repetición o cierre.";
+    if (!hasBridge) return "Forma sólida; un puente o interludio puede aportar contraste.";
+    return "Forma completa y lista para trabajar acordes, letra y arreglo.";
+  }
 
   function structureStatus(parts) {
     const hasChorus = parts.some((p) => /chorus|coro/i.test((p.section || "") + " " + (p.label || "")));
