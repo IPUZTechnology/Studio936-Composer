@@ -1,13 +1,13 @@
-// Studio 936 Composer - Suite Pro Structure / ADN Module v3.0
+// Studio 936 Composer - Suite Pro Structure / ADN Module v4.0
 // Scope: Compose > Estructura only. No toca app.js, Practice, Drums, Mixer, Recorder ni MIDI.
 // Product goal: constructor claro de forma musical, sin controles repetidos y con edición segura sobre el proyecto central.
 (function () {
   "use strict";
 
-  const STYLE_ID = "s936SuiteProStructureStylesV3";
-  const STATE_KEY = "s936_suitepro_structure_v3";
+  const STYLE_ID = "s936SuiteProStructureStylesV4";
+  const STATE_KEY = "s936_suitepro_structure_v4";
   const APP_STORAGE_KEY = "studio936ComposerV25SongStructure";
-  const BACKUP_KEY = "studio936_structure_backups_v3";
+  const BACKUP_KEY = "studio936_structure_backups_v4";
 
   const PART_OPTIONS = [
     ["intro", "Intro"],
@@ -27,14 +27,10 @@
 
   const DEFAULT_STATE = {
     draft: null,
-    addMode: "existing",
-    addExistingSection: "",
-    existingLabel: "",
-    variationSource: "",
-    variationLabel: "",
     newType: "verse",
     newLabel: "",
-    newBars: 8
+    newBars: 8,
+    editingIndex: -1
   };
 
   const state = loadState();
@@ -50,7 +46,7 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProStructure = { version: "structure-v3.0", render };
+    window.Studio936SuiteProStructure = { version: "structure-v4.0", render };
     window.Studio936SuiteProModules.structure = window.Studio936SuiteProStructure;
   }
 
@@ -118,6 +114,69 @@
 #s936SuitePro .s936-struct-advanced-body{padding:0 13px 13px;border-top:1px solid rgba(255,255,255,.08)}
 @media(max-width:760px){#s936SuitePro .s936-struct-mode-tabs{grid-template-columns:1fr}}
 
+
+/* Structure v4: songwriter workbench */
+#s936SuitePro .s936-struct-v4{gap:14px}
+#s936SuitePro .s936-struct-workbench{padding:16px}
+#s936SuitePro .s936-struct-headline{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+#s936SuitePro .s936-struct-meta-form{display:grid;grid-template-columns:minmax(240px,1.35fr) minmax(170px,.75fr) minmax(220px,.9fr);gap:10px;align-items:end;margin:12px 0}
+#s936SuitePro .s936-struct-bpm-wrap{display:grid;grid-template-columns:minmax(130px,1fr) 72px auto;gap:8px;align-items:center}
+#s936SuitePro .s936-struct-bpm-range{width:100%;accent-color:#00ffcc}
+#s936SuitePro .s936-struct-bpm-number{padding-left:8px!important;padding-right:8px!important}
+#s936SuitePro .s936-struct-bpm-unit{color:#ffe066;font-size:.62rem;font-weight:950}
+#s936SuitePro .s936-struct-score-three{grid-template-columns:repeat(3,1fr)}
+#s936SuitePro .s936-struct-create-strip{margin-top:12px;border:1px solid rgba(255,216,77,.26);border-radius:16px;background:rgba(255,216,77,.055);padding:11px}
+#s936SuitePro .s936-struct-create-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px}
+#s936SuitePro .s936-struct-create-head h5{margin:0;color:#ffe066;text-transform:uppercase;font-size:.72rem;letter-spacing:.7px}
+#s936SuitePro .s936-struct-create-form{display:grid;grid-template-columns:minmax(150px,.75fr) minmax(230px,1.25fr) minmax(90px,.45fr) auto;gap:8px;align-items:end}
+#s936SuitePro .s936-struct-create-action{display:flex;align-items:flex-end}
+#s936SuitePro .s936-struct-create-action .s936-struct-btn{min-height:35px;white-space:nowrap}
+#s936SuitePro .s936-struct-main-actions{border-top:1px solid rgba(255,255,255,.09);padding-top:11px;margin-top:12px}
+#s936SuitePro .s936-struct-hidden-file{display:none!important}
+#s936SuitePro .s936-struct-arrangement-full{width:100%;padding:14px}
+#s936SuitePro .s936-struct-section-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+#s936SuitePro .s936-struct-arrangement-count{border:1px solid rgba(0,255,204,.30);border-radius:999px;background:rgba(0,255,204,.08);color:#9fffea;padding:5px 9px;font-size:.62rem;font-weight:950;text-transform:uppercase}
+#s936SuitePro .s936-struct-list-wide{gap:9px}
+#s936SuitePro .s936-struct-part-wide{display:block;padding:0;overflow:hidden}
+#s936SuitePro .s936-struct-part-wide.is-editing{border-color:rgba(255,216,77,.58);box-shadow:0 0 0 1px rgba(255,216,77,.10) inset}
+#s936SuitePro .s936-struct-part-top{display:grid;grid-template-columns:38px minmax(180px,1fr) auto;gap:10px;align-items:center;padding:10px 11px}
+#s936SuitePro .s936-struct-part-info{min-width:0}
+#s936SuitePro .s936-struct-part-titleline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#s936SuitePro .s936-struct-part-titleline b{font-size:.84rem}
+#s936SuitePro .s936-struct-part-type{display:inline-flex!important;margin:0!important;border:1px solid rgba(0,255,204,.24);border-radius:999px;background:rgba(0,255,204,.065);color:#9fffea!important;padding:3px 7px;font-size:.52rem!important;font-weight:950;text-transform:uppercase}
+#s936SuitePro .s936-struct-part-meta{font-size:.60rem!important}
+#s936SuitePro .s936-struct-chords{display:flex;flex-wrap:wrap;gap:6px;padding:0 11px 11px 59px}
+#s936SuitePro .s936-struct-chord-chip{display:inline-flex!important;align-items:center;margin:0!important;border:1px solid rgba(0,255,204,.34);border-radius:999px;background:rgba(0,255,204,.075);color:#c9fff3!important;padding:5px 9px;font-size:.62rem!important;font-weight:950}
+#s936SuitePro .s936-struct-chord-chip.root{border-color:rgba(255,216,77,.58);background:rgba(255,216,77,.09);color:#ffe889!important}
+#s936SuitePro .s936-struct-no-chords{color:rgba(255,255,255,.48)!important;font-style:italic}
+#s936SuitePro .s936-struct-mini.edit{border-color:rgba(0,255,204,.48);color:#8affff;background:rgba(0,255,204,.08)}
+#s936SuitePro .s936-struct-part-editor{border-top:1px solid rgba(255,255,255,.09);background:linear-gradient(135deg,rgba(255,216,77,.055),rgba(0,255,204,.035));padding:12px 14px}
+#s936SuitePro .s936-struct-editor-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:9px}
+#s936SuitePro .s936-struct-editor-head b{color:#ffe066;text-transform:uppercase;font-size:.72rem}
+#s936SuitePro .s936-struct-editor-head span{color:rgba(255,255,255,.58);font-size:.62rem}
+#s936SuitePro .s936-struct-editor-form{display:grid;grid-template-columns:minmax(180px,.8fr) minmax(90px,.35fr) minmax(300px,1.85fr);gap:9px;align-items:end}
+#s936SuitePro .s936-struct-chord-editor{min-height:64px;resize:vertical;font-family:inherit;line-height:1.4}
+@media(max-width:1100px){
+  #s936SuitePro .s936-struct-meta-form{grid-template-columns:1fr 1fr}
+  #s936SuitePro .s936-struct-meta-form .s936-struct-field:first-child{grid-column:1/-1}
+  #s936SuitePro .s936-struct-create-form{grid-template-columns:1fr 1fr}
+  #s936SuitePro .s936-struct-create-action{align-items:stretch}
+  #s936SuitePro .s936-struct-part-top{grid-template-columns:34px minmax(0,1fr)}
+  #s936SuitePro .s936-struct-part-top .s936-struct-mini-actions{grid-column:1/-1;padding-left:44px}
+  #s936SuitePro .s936-struct-chords{padding-left:54px}
+  #s936SuitePro .s936-struct-editor-form{grid-template-columns:1fr 120px}
+  #s936SuitePro .s936-struct-editor-form .wide{grid-column:1/-1}
+}
+@media(max-width:700px){
+  #s936SuitePro .s936-struct-meta-form,#s936SuitePro .s936-struct-create-form,#s936SuitePro .s936-struct-editor-form{grid-template-columns:1fr}
+  #s936SuitePro .s936-struct-meta-form .s936-struct-field:first-child,#s936SuitePro .s936-struct-editor-form .wide{grid-column:auto}
+  #s936SuitePro .s936-struct-score-three{grid-template-columns:repeat(3,1fr)}
+  #s936SuitePro .s936-struct-create-head,#s936SuitePro .s936-struct-section-heading,#s936SuitePro .s936-struct-editor-head{display:block}
+  #s936SuitePro .s936-struct-create-head .s936-struct-muted{display:block;margin-top:4px}
+  #s936SuitePro .s936-struct-part-top .s936-struct-mini-actions{padding-left:0}
+  #s936SuitePro .s936-struct-chords{padding-left:11px}
+}
+
 `;
     document.head.appendChild(style);
   }
@@ -160,11 +219,32 @@
     const s = snap(ctx);
     const current = readArrangement(s);
     if (!state.draft || !Array.isArray(state.draft.parts)) {
-      state.draft = { createdAt: new Date().toISOString(), parts: current.length ? current : defaultParts(), clones: {}, notes: {} };
+      state.draft = {
+        createdAt: new Date().toISOString(),
+        parts: current.length ? current : defaultParts(),
+        clones: {},
+        notes: {},
+        meta: {
+          title: s.title || s.project?.title || document.getElementById("songTitle")?.value || "Canción sin nombre",
+          style: s.style || s.project?.style || document.getElementById("styleSelect")?.value || "pop",
+          bpm: Number(s.bpm || s.project?.bpm || document.getElementById("bpmSlider")?.value || 95)
+        },
+        importedLyrics: {},
+        importedSolos: {}
+      };
       saveState();
     }
     if (!state.draft.clones) state.draft.clones = {};
     if (!state.draft.notes) state.draft.notes = {};
+    if (!state.draft.meta) {
+      state.draft.meta = {
+        title: s.title || s.project?.title || document.getElementById("songTitle")?.value || "Canción sin nombre",
+        style: s.style || s.project?.style || document.getElementById("styleSelect")?.value || "pop",
+        bpm: Number(s.bpm || s.project?.bpm || document.getElementById("bpmSlider")?.value || 95)
+      };
+    }
+    if (!state.draft.importedLyrics) state.draft.importedLyrics = {};
+    if (!state.draft.importedSolos) state.draft.importedSolos = {};
     return state.draft.parts;
   }
 
@@ -221,406 +301,482 @@
 
   function render(ctx, shell) {
     installStyles();
-    const root = ctx.el("div", "s936-struct-shell");
+    const root = ctx.el("div", "s936-struct-shell s936-struct-v4");
     const s = snap(ctx);
     const parts = ensureDraft(ctx);
 
     renderHeader(ctx, root, s, parts);
     renderBuilder(ctx, root, s, parts);
-    renderDiagnosis(ctx, root, s, parts);
 
     shell.appendChild(root);
   }
 
   function renderHeader(ctx, root, s, parts) {
-    const card = ctx.el("section", "s936-struct-card main");
-    card.appendChild(ctx.el("h4", "", "ADN de la canción"));
-    card.appendChild(ctx.el("p", "s936-struct-muted", "La franja muestra la forma completa en orden, incluidas las secciones repetidas. Edita abajo y aplica cuando estés conforme."));
+    const card = ctx.el("section", "s936-struct-card main s936-struct-workbench");
+    const head = ctx.el("div", "s936-struct-headline");
+    const headText = ctx.el("div", "");
+    headText.appendChild(ctx.el("h4", "", "ADN de la canción"));
+    headText.appendChild(ctx.el("p", "s936-struct-muted", "Aquí nace la canción: define identidad, ritmo, tempo, forma y crea nuevas partes antes de editar el arreglo."));
+    head.appendChild(headText);
+    card.appendChild(head);
 
-    const score = ctx.el("div", "s936-struct-score");
+    const meta = state.draft.meta || {};
+    const metaForm = ctx.el("div", "s936-struct-meta-form");
+
+    const titleField = field(ctx, "Título de la canción");
+    const titleInput = ctx.el("input", "s936-struct-input");
+    titleInput.value = meta.title || "";
+    titleInput.placeholder = "Nombre de la canción";
+    titleInput.oninput = () => {
+      state.draft.meta.title = titleInput.value;
+      saveState();
+    };
+    titleField.appendChild(titleInput);
+
+    const styleField = field(ctx, "Ritmo / estilo");
+    const styleSelect = ctx.el("select", "s936-struct-select");
+    styleOptions(ctx, s).forEach((item) => {
+      const option = ctx.el("option", "", item.label);
+      option.value = item.value;
+      if (String(item.value) === String(meta.style || "pop")) option.selected = true;
+      styleSelect.appendChild(option);
+    });
+    styleSelect.onchange = () => {
+      state.draft.meta.style = styleSelect.value;
+      saveState();
+    };
+    styleField.appendChild(styleSelect);
+
+    const bpmField = field(ctx, "Tempo");
+    const bpmWrap = ctx.el("div", "s936-struct-bpm-wrap");
+    const bpmRange = ctx.el("input", "s936-struct-bpm-range");
+    bpmRange.type = "range";
+    bpmRange.min = "50";
+    bpmRange.max = "180";
+    bpmRange.step = "1";
+    bpmRange.value = String(Math.max(50, Math.min(180, Number(meta.bpm) || 95)));
+    const bpmNumber = ctx.el("input", "s936-struct-input s936-struct-bpm-number");
+    bpmNumber.type = "number";
+    bpmNumber.min = "50";
+    bpmNumber.max = "180";
+    bpmNumber.value = bpmRange.value;
+    const setBpmDraft = (value) => {
+      const bpm = Math.max(50, Math.min(180, Number(value) || 95));
+      bpmRange.value = String(bpm);
+      bpmNumber.value = String(bpm);
+      state.draft.meta.bpm = bpm;
+      saveState();
+    };
+    bpmRange.oninput = () => setBpmDraft(bpmRange.value);
+    bpmNumber.oninput = () => setBpmDraft(bpmNumber.value);
+    bpmWrap.append(bpmRange, bpmNumber, ctx.el("span", "s936-struct-bpm-unit", "BPM"));
+    bpmField.appendChild(bpmWrap);
+
+    metaForm.append(titleField, styleField, bpmField);
+    card.appendChild(metaForm);
+
+    const score = ctx.el("div", "s936-struct-score s936-struct-score-three");
     metric(ctx, score, parts.length || "0", "partes");
     metric(ctx, score, totalBars(parts) || "0", "compases");
     metric(ctx, score, uniqueSectionCount(parts) || "0", "secciones");
-    metric(ctx, score, cloneCount() || "0", "variaciones");
     card.appendChild(score);
 
     const flow = ctx.el("div", "s936-struct-flow");
     if (!parts.length) {
-      flow.appendChild(ctx.el("span", "s936-struct-chip", "Estructura vacía · usa Añadir parte"));
+      flow.appendChild(ctx.el("span", "s936-struct-chip", "Estructura vacía · crea la primera parte"));
     } else {
       parts.forEach((p, i) => {
-        const linked = parts.filter((x) => x.section === p.section).length > 1 && !hasClone(p.section);
-        const cls = p.independent || hasClone(p.section) ? "gold" : "";
-        const suffix = hasClone(p.section) ? " · variación" : linked ? " · repetida" : "";
-        flow.appendChild(ctx.el("span", "s936-struct-chip " + cls, `${String(i + 1).padStart(2, "0")} · ${p.label}${suffix}`));
+        flow.appendChild(ctx.el("span", "s936-struct-chip", `${String(i + 1).padStart(2, "0")} · ${p.label || labelFor(p.section)}`));
       });
     }
     card.appendChild(flow);
 
-    const actions = ctx.el("div", "s936-struct-actions");
-    button(ctx, actions, "Aplicar estructura", () => applyDraft(ctx), "s936-struct-btn warn");
-    const reread = button(ctx, actions, "Releer canción", () => {
-      if (!window.confirm("¿Descartar los cambios del borrador y volver a leer la estructura actual de la canción?")) return;
-      state.draft = { createdAt: new Date().toISOString(), parts: readArrangement(snap(ctx)), clones: {}, notes: {} };
-      saveState();
-      renderAgain(ctx);
-    }, "s936-struct-btn secondary");
-    reread.title = "Descarta cambios todavía no aplicados y vuelve a leer el proyecto central.";
-    card.appendChild(actions);
+    const creator = ctx.el("div", "s936-struct-create-strip");
+    const creatorHead = ctx.el("div", "s936-struct-create-head");
+    creatorHead.appendChild(ctx.el("h5", "", "Crear nueva parte"));
+    creatorHead.appendChild(ctx.el("span", "s936-struct-muted", "Elige tipo, nombre y compases. Se añadirá al final del arreglo con acordes guía editables."));
+    creator.appendChild(creatorHead);
 
-    const status = structureStatus(parts);
-    card.appendChild(ctx.el("p", "s936-struct-diagnosis", status));
-    root.appendChild(card);
-  }
-
-  function renderBuilder(ctx, root, s, parts) {
-    const grid = ctx.el("div", "s936-struct-grid");
-
-    const listCard = ctx.el("section", "s936-struct-card");
-    listCard.appendChild(ctx.el("h4", "", "Arreglo de la canción"));
-    listCard.appendChild(ctx.el("p", "s936-struct-muted", "Cada fila es una aparición dentro de la canción. Repetir reutiliza la misma sección; Variación crea una copia independiente para editar después."));
-    const list = ctx.el("div", "s936-struct-list");
-    if (!parts.length) {
-      list.appendChild(ctx.el("div", "s936-struct-empty", "Todavía no hay partes. Usa “Añadir parte” para comenzar."));
-    } else {
-      parts.forEach((part, index) => list.appendChild(partRow(ctx, s, parts, part, index)));
-    }
-    listCard.appendChild(list);
-    grid.appendChild(listCard);
-
-    const toolCard = ctx.el("section", "s936-struct-card gold");
-    toolCard.appendChild(ctx.el("h4", "", "Añadir parte"));
-    toolCard.appendChild(ctx.el("p", "s936-struct-muted", "Elige una sola acción: insertar una sección existente, crear una nueva o crear una variación independiente."));
-    toolCard.appendChild(renderAddPart(ctx, s, parts));
-    grid.appendChild(toolCard);
-
-    root.appendChild(grid);
-  }
-
-  function renderAddPart(ctx, s, parts) {
-    const wrap = ctx.el("div", "s936-struct-add");
-
-    const modes = ctx.el("div", "s936-struct-mode-tabs");
-    [
-      ["existing", "Insertar existente"],
-      ["new", "Crear nueva"],
-      ["variation", "Crear variación"]
-    ].forEach(([value, label]) => {
-      const btn = ctx.el("button", "s936-struct-mode" + (state.addMode === value ? " active" : ""), label);
-      btn.type = "button";
-      btn.onclick = () => {
-        state.addMode = value;
-        saveState();
-        renderAgain(ctx);
-      };
-      modes.appendChild(btn);
-    });
-    wrap.appendChild(modes);
-
-    const keys = allKnownSections(s, parts);
-    const panel = ctx.el("div", "s936-struct-add-panel");
-
-    if (state.addMode === "new") {
-      const form = ctx.el("div", "s936-struct-form");
-      const typeField = field(ctx, "Tipo musical");
-      const typeSelect = ctx.el("select", "s936-struct-select");
-      PART_OPTIONS.forEach(([value, label]) => {
-        const option = ctx.el("option", "", label);
-        option.value = value;
-        if (value === state.newType) option.selected = true;
-        typeSelect.appendChild(option);
-      });
-      typeSelect.onchange = () => {
-        state.newType = typeSelect.value;
-        if (!state.newLabel || state.newLabel === labelFor(state.newType)) state.newLabel = "";
-        state.newBars = suggestedBars(typeSelect.value);
-        saveState();
-      };
-      typeField.appendChild(typeSelect);
-
-      const nameField = field(ctx, "Nombre visible");
-      const nameInput = ctx.el("input", "s936-struct-input");
-      nameInput.value = state.newLabel || "";
-      nameInput.placeholder = typeSelect.value === "custom" ? "Ej. Nube instrumental" : "Ej. Coro final";
-      nameInput.oninput = () => { state.newLabel = nameInput.value; saveState(); };
-      nameField.appendChild(nameInput);
-
-      const barsField = field(ctx, "Compases");
-      const barsInput = ctx.el("input", "s936-struct-input");
-      barsInput.type = "number";
-      barsInput.min = "1";
-      barsInput.max = "32";
-      barsInput.value = String(state.newBars || suggestedBars(state.newType));
-      barsInput.oninput = () => { state.newBars = Math.max(1, Number(barsInput.value) || 8); saveState(); };
-      barsField.appendChild(barsInput);
-      form.append(typeField, nameField, barsField);
-      panel.appendChild(form);
-
-      panel.appendChild(ctx.el("p", "s936-struct-help", "Crea una sección musical nueva con acordes guía y la inserta al final del arreglo."));
-      const actions = ctx.el("div", "s936-struct-actions");
-      button(ctx, actions, "Crear y añadir", () => {
-        const type = typeSelect.value || "verse";
-        const visible = (nameInput.value || (type === "custom" ? "Sección nueva" : labelFor(type))).trim();
-        const keyBase = type === "custom" ? visible : type;
-        const section = uniqueSectionKey(s, parts, keyBase);
-        const bars = Math.max(1, Number(barsInput.value) || suggestedBars(type));
-        parts.push({ section, label: visible, bars, independent:true });
-        state.draft.parts = parts;
-        state.draft.clones = state.draft.clones || {};
-        state.draft.clones[section] = { source:"", items:defaultChordsFor(type, projectKey(s), bars), createdAt:new Date().toISOString() };
-        state.newLabel = "";
-        saveState();
-        renderAgain(ctx);
-      }, "s936-struct-btn warn");
-      panel.appendChild(actions);
-    } else {
-      if (!keys.length) {
-        panel.appendChild(ctx.el("div", "s936-struct-empty", "No hay secciones disponibles. Primero crea una sección nueva."));
-        wrap.appendChild(panel);
-        return wrap;
-      }
-
-      const sourceField = field(ctx, state.addMode === "variation" ? "Sección de origen" : "Sección existente");
-      const select = ctx.el("select", "s936-struct-select");
-      const selectedKey = state.addMode === "variation"
-        ? (state.variationSource || keys[0])
-        : (state.addExistingSection || keys[0]);
-      keys.forEach((key) => {
-        const option = ctx.el("option", "", displaySectionLabel(s, parts, key));
-        option.value = key;
-        if (key === selectedKey) option.selected = true;
-        select.appendChild(option);
-      });
-      select.onchange = () => {
-        if (state.addMode === "variation") state.variationSource = select.value;
-        else state.addExistingSection = select.value;
-        saveState();
-      };
-      sourceField.appendChild(select);
-
-      const nameField = field(ctx, "Nombre visible");
-      const nameInput = ctx.el("input", "s936-struct-input");
-      const defaultName = state.addMode === "variation"
-        ? (state.variationLabel || variationLabel(displaySectionLabel(s, parts, selectedKey)))
-        : (state.existingLabel || displaySectionLabel(s, parts, selectedKey));
-      nameInput.value = defaultName;
-      nameInput.placeholder = state.addMode === "variation" ? "Ej. Coro final" : "Ej. Coro 2";
-      nameInput.oninput = () => {
-        if (state.addMode === "variation") state.variationLabel = nameInput.value;
-        else state.existingLabel = nameInput.value;
-        saveState();
-      };
-      nameField.appendChild(nameInput);
-
-      const barsField = field(ctx, "Compases");
-      const barsInput = ctx.el("input", "s936-struct-input");
-      barsInput.type = "number";
-      barsInput.min = "1";
-      barsInput.max = "32";
-      barsInput.value = String(inferredBars(s, selectedKey));
-      barsField.appendChild(barsInput);
-
-      const form = ctx.el("div", "s936-struct-form");
-      form.append(sourceField, nameField, barsField);
-      panel.appendChild(form);
-
-      const help = state.addMode === "variation"
-        ? "Copia los acordes de la sección de origen a una sección nueva. Luego podrás editarla sin cambiar la original."
-        : "Inserta otra aparición de una sección existente. Ambas apariciones comparten acordes y letra.";
-      panel.appendChild(ctx.el("p", "s936-struct-help", help));
-
-      const chips = ctx.el("div", "s936-struct-available");
-      keys.slice(0, 12).forEach((key) => chips.appendChild(ctx.el("span", "s936-struct-chip", displaySectionLabel(s, parts, key))));
-      panel.appendChild(chips);
-
-      const actions = ctx.el("div", "s936-struct-actions");
-      if (state.addMode === "variation") {
-        button(ctx, actions, "Crear variación y añadir", () => {
-          const source = select.value || keys[0];
-          const originalPart = parts.find((p) => p.section === source);
-          const newKey = uniqueSectionKey(s, parts, source);
-          const visible = (nameInput.value || variationLabel(displaySectionLabel(s, parts, source))).trim();
-          const bars = Math.max(1, Number(barsInput.value) || inferredBars(s, source));
-          const sourceItems = draftOrLiveItems(s, source);
-          state.draft.clones = state.draft.clones || {};
-          state.draft.clones[newKey] = {
-            source,
-            items: cloneItems(sourceItems.length ? sourceItems : defaultChordsFor(source, projectKey(s), bars)),
-            createdAt: new Date().toISOString()
-          };
-          parts.push({ section:newKey, label:visible, bars, independent:true });
-          state.draft.parts = parts;
-          state.variationLabel = "";
-          saveState();
-          renderAgain(ctx);
-        }, "s936-struct-btn warn");
-      } else {
-        button(ctx, actions, "Insertar en el arreglo", () => {
-          const section = select.value || keys[0];
-          const label = (nameInput.value || displaySectionLabel(s, parts, section)).trim();
-          const bars = Math.max(1, Number(barsInput.value) || inferredBars(s, section));
-          parts.push({ section, label, bars, independent:hasClone(section) });
-          state.draft.parts = parts;
-          state.existingLabel = "";
-          saveState();
-          renderAgain(ctx);
-        }, "s936-struct-btn warn");
-      }
-      panel.appendChild(actions);
-    }
-
-    wrap.appendChild(panel);
-    return wrap;
-  }
-
-  function renderCreateNew(ctx, s, parts) {
-    const card = ctx.el("section", "s936-struct-card");
-    card.appendChild(ctx.el("h4", "", "Crear sección nueva"));
-    card.appendChild(ctx.el("p", "s936-struct-muted", "Crea una sección musical nueva con acordes propios. No es lo mismo que añadir una sección existente al arreglo."));
-    const form = ctx.el("div", "s936-struct-form");
-    const sectionField = field(ctx, "Tipo");
-    const sectionSelect = ctx.el("select", "s936-struct-select");
+    const createForm = ctx.el("div", "s936-struct-create-form");
+    const typeField = field(ctx, "Tipo");
+    const typeSelect = ctx.el("select", "s936-struct-select");
     PART_OPTIONS.forEach(([value, label]) => {
       const option = ctx.el("option", "", label);
       option.value = value;
       if (value === state.newType) option.selected = true;
-      sectionSelect.appendChild(option);
+      typeSelect.appendChild(option);
     });
-    sectionSelect.onchange = () => {
-      state.newType = sectionSelect.value;
-      if (!state.newLabel) state.newLabel = labelFor(sectionSelect.value);
-      state.newBars = suggestedBars(sectionSelect.value);
+    typeSelect.onchange = () => {
+      state.newType = typeSelect.value;
+      state.newBars = suggestedBars(typeSelect.value);
+      barsInput.value = String(state.newBars);
       saveState();
-      renderAgain(ctx);
     };
-    sectionField.appendChild(sectionSelect);
+    typeField.appendChild(typeSelect);
 
-    const labelField = field(ctx, "Nombre visible");
-    const labelInput = ctx.el("input", "s936-struct-input");
-    labelInput.value = state.newLabel || labelFor(state.newType);
-    labelInput.placeholder = "Verso 3, Coro final...";
-    labelInput.oninput = () => { state.newLabel = labelInput.value; saveState(); };
-    labelField.appendChild(labelInput);
+    const nameField = field(ctx, "Nombre visible");
+    const nameInput = ctx.el("input", "s936-struct-input");
+    nameInput.value = state.newLabel || "";
+    nameInput.placeholder = "Ej. Coro final, Puente instrumental";
+    nameInput.oninput = () => {
+      state.newLabel = nameInput.value;
+      saveState();
+    };
+    nameField.appendChild(nameInput);
 
     const barsField = field(ctx, "Compases");
     const barsInput = ctx.el("input", "s936-struct-input");
     barsInput.type = "number";
     barsInput.min = "1";
-    barsInput.max = "32";
+    barsInput.max = "64";
     barsInput.value = String(state.newBars || suggestedBars(state.newType));
-    barsInput.oninput = () => { state.newBars = Math.max(1, Number(barsInput.value) || 8); saveState(); };
+    barsInput.oninput = () => {
+      state.newBars = Math.max(1, Number(barsInput.value) || 8);
+      saveState();
+    };
     barsField.appendChild(barsInput);
 
-    form.append(sectionField, labelField, barsField);
-    card.appendChild(form);
-
-    const actions = ctx.el("div", "s936-struct-actions");
-    button(ctx, actions, "Crear y añadir", () => {
-      const base = sectionSelect.value || "verse";
-      const section = uniqueSectionKey(s, parts, base);
-      const label = (labelInput.value || labelFor(section)).trim();
-      const bars = Math.max(1, Number(barsInput.value) || suggestedBars(base));
-      parts.push({ section, label, bars, independent:true });
+    const createAction = ctx.el("div", "s936-struct-create-action");
+    button(ctx, createAction, "Añadir parte", () => {
+      const type = typeSelect.value || "verse";
+      const visible = (nameInput.value || (type === "custom" ? "Parte nueva" : labelFor(type))).trim();
+      const section = uniqueSectionKey(s, parts, type === "custom" ? visible : type);
+      const bars = Math.max(1, Number(barsInput.value) || suggestedBars(type));
+      parts.push({ section, label: visible, bars, independent:true, type });
       state.draft.parts = parts;
-      state.draft.clones = state.draft.clones || {};
-      state.draft.clones[section] = { source: "", items: defaultChordsFor(base, projectKey(s), bars), createdAt: new Date().toISOString() };
+      state.draft.clones[section] = {
+        source: "",
+        items: defaultChordsFor(type, projectKey(s), bars),
+        createdAt: new Date().toISOString()
+      };
       state.newLabel = "";
+      state.editingIndex = parts.length - 1;
       saveState();
       renderAgain(ctx);
     }, "s936-struct-btn warn");
-    button(ctx, actions, "Exportar borrador TXT", () => downloadDraft(ctx, parts), "s936-struct-btn secondary");
+    createForm.append(typeField, nameField, barsField, createAction);
+    creator.appendChild(createForm);
+    card.appendChild(creator);
+
+    const actions = ctx.el("div", "s936-struct-actions s936-struct-main-actions");
+    button(ctx, actions, "Aplicar estructura", () => applyDraft(ctx), "s936-struct-btn warn");
+    const reread = button(ctx, actions, "Releer canción", () => {
+      if (!window.confirm("¿Descartar los cambios del tablero y volver a leer la estructura actual de la canción?")) return;
+      const fresh = snap(ctx);
+      state.draft = {
+        createdAt: new Date().toISOString(),
+        parts: readArrangement(fresh),
+        clones: {},
+        notes: {},
+        meta: {
+          title: fresh.title || fresh.project?.title || document.getElementById("songTitle")?.value || "Canción sin nombre",
+          style: fresh.style || fresh.project?.style || document.getElementById("styleSelect")?.value || "pop",
+          bpm: Number(fresh.bpm || fresh.project?.bpm || document.getElementById("bpmSlider")?.value || 95)
+        },
+        importedLyrics: {},
+        importedSolos: {}
+      };
+      state.editingIndex = -1;
+      saveState();
+      renderAgain(ctx);
+    }, "s936-struct-btn secondary");
+    reread.title = "Descarta cambios todavía no aplicados y vuelve a leer el proyecto central.";
+    button(ctx, actions, "Guardar estructura", () => saveStructureFile(ctx, s, parts), "s936-struct-btn secondary");
+
+    const fileInput = ctx.el("input", "s936-struct-hidden-file");
+    fileInput.type = "file";
+    fileInput.accept = "application/json,.json";
+    fileInput.onchange = () => {
+      const file = fileInput.files?.[0];
+      if (file) loadStructureFile(ctx, file);
+      fileInput.value = "";
+    };
+    actions.appendChild(fileInput);
+    button(ctx, actions, "Cargar estructura", () => fileInput.click(), "s936-struct-btn secondary");
     card.appendChild(actions);
-    return card;
+
+    card.appendChild(ctx.el("p", "s936-struct-diagnosis", structureStatus(parts)));
+    root.appendChild(card);
   }
 
-  function renderCompositionRules(ctx) {
-    const card = ctx.el("section", "s936-struct-card");
-    card.appendChild(ctx.el("h4", "", "Regla de composición"));
-    line(ctx, card, "Añadir", "pone una sección existente en la forma.");
-    line(ctx, card, "Repetir", "duplica el bloque usando la misma sección y los mismos acordes.");
-    line(ctx, card, "Variación", "copia los acordes a una sección nueva editable sin dañar la original.");
-    line(ctx, card, "Nombre visible", "cambia cómo se ve la parte sin cambiar la clave interna.");
-    return card;
+  function renderBuilder(ctx, root, s, parts) {
+    const listCard = ctx.el("section", "s936-struct-card s936-struct-arrangement-full");
+    const titleRow = ctx.el("div", "s936-struct-section-heading");
+    const left = ctx.el("div", "");
+    left.appendChild(ctx.el("h4", "", "Arreglo de la canción"));
+    left.appendChild(ctx.el("p", "s936-struct-muted", "Ordena, duplica, renombra y edita cada parte. Duplicar crea una copia independiente para que puedas convertirla en Verso 2, Coro final o cualquier nueva sección."));
+    titleRow.appendChild(left);
+    titleRow.appendChild(ctx.el("span", "s936-struct-arrangement-count", `${parts.length} parte${parts.length === 1 ? "" : "s"}`));
+    listCard.appendChild(titleRow);
+
+    const list = ctx.el("div", "s936-struct-list s936-struct-list-wide");
+    if (!parts.length) {
+      list.appendChild(ctx.el("div", "s936-struct-empty", "Todavía no hay partes. Créala en el tablero ADN de la canción."));
+    } else {
+      parts.forEach((part, index) => list.appendChild(partRow(ctx, s, parts, part, index)));
+    }
+    listCard.appendChild(list);
+    root.appendChild(listCard);
   }
+
+
+
 
   function partRow(ctx, s, parts, part, index) {
-    const row = ctx.el("div", "s936-struct-part" + (part.independent || hasClone(part.section) ? " independent" : ""));
-    row.appendChild(ctx.el("div", "s936-struct-num", String(index + 1).padStart(2, "0")));
+    const row = ctx.el("article", "s936-struct-part s936-struct-part-wide" + (state.editingIndex === index ? " is-editing" : ""));
+    const top = ctx.el("div", "s936-struct-part-top");
+    top.appendChild(ctx.el("div", "s936-struct-num", String(index + 1).padStart(2, "0")));
 
-    const info = ctx.el("div", "");
-    info.appendChild(ctx.el("b", "", part.label || labelFor(part.section)));
-    const items = draftOrLiveItems(s, part.section);
-    const chords = items.map((i) => String(i?.name || i?.chord || "").trim()).filter(Boolean);
-    const occurrences = parts.filter((p) => p.section === part.section).length;
-    const relation = hasClone(part.section)
-      ? "variación independiente"
-      : occurrences > 1 ? "sección reutilizada" : "sección única";
-    info.appendChild(ctx.el("span", "", `${part.bars || inferredBars(s, part.section)} compases · ${chords.slice(0, 4).join(" → ") || "sin acordes"} · ${relation}`));
-    row.appendChild(info);
+    const info = ctx.el("div", "s936-struct-part-info");
+    const titleLine = ctx.el("div", "s936-struct-part-titleline");
+    titleLine.appendChild(ctx.el("b", "", part.label || labelFor(part.section)));
+    titleLine.appendChild(ctx.el("span", "s936-struct-part-type", humanizeKey(part.type || baseType(part.section))));
+    info.appendChild(titleLine);
+    info.appendChild(ctx.el("span", "s936-struct-part-meta", `${Math.max(1, Number(part.bars) || inferredBars(s, part.section))} compases · ${part.section}`));
+    top.appendChild(info);
 
     const actions = ctx.el("div", "s936-struct-mini-actions");
     mini(ctx, actions, "↑", () => move(parts, index, -1, ctx));
     mini(ctx, actions, "↓", () => move(parts, index, 1, ctx));
-    const repeat = mini(ctx, actions, "Repetir", () => repeatBlock(parts, index, ctx), false, "warn");
-    repeat.title = "Inserta otra aparición vinculada a la misma sección.";
-    const variation = mini(ctx, actions, "Variación", () => createIndependentVariation(ctx, s, parts, index), false, "warn");
-    variation.title = "Crea una sección nueva copiando los acordes para editarla de forma independiente.";
+    const duplicate = mini(ctx, actions, "Duplicar", () => duplicatePart(ctx, s, parts, index), false, "warn");
+    duplicate.title = "Crea una copia independiente con sus propios acordes.";
     mini(ctx, actions, "Renombrar", () => renameVisible(ctx, parts, index));
+    const edit = mini(ctx, actions, state.editingIndex === index ? "Cerrar edición" : "Editar parte", () => {
+      state.editingIndex = state.editingIndex === index ? -1 : index;
+      saveState();
+      renderAgain(ctx);
+    }, false, "edit");
+    edit.title = "Edita nombre, compases y progresión de acordes dentro de Compose.";
     mini(ctx, actions, "Quitar", () => deleteFromArrangement(ctx, parts, index), true, "danger");
-    row.appendChild(actions);
+    top.appendChild(actions);
+    row.appendChild(top);
+
+    const items = draftOrLiveItems(s, part.section);
+    const chords = items.map((item) => String(item?.name || item?.chord || "").trim()).filter(Boolean);
+    const chordWrap = ctx.el("div", "s936-struct-chords");
+    if (chords.length) {
+      chords.forEach((name, chordIndex) => {
+        const chip = ctx.el("span", "s936-struct-chord-chip" + (chordIndex === 0 ? " root" : ""), name);
+        chordWrap.appendChild(chip);
+      });
+    } else {
+      chordWrap.appendChild(ctx.el("span", "s936-struct-no-chords", "Sin acordes · usa Editar parte"));
+    }
+    row.appendChild(chordWrap);
+
+    if (state.editingIndex === index) {
+      row.appendChild(renderPartEditor(ctx, s, parts, part, index, items));
+    }
     return row;
   }
 
-  function renderSectionBank(ctx, root, s, parts) {
-    const card = ctx.el("section", "s936-struct-card");
-    card.appendChild(ctx.el("h4", "", "Banco de secciones"));
-    card.appendChild(ctx.el("p", "s936-struct-muted", "Secciones disponibles para añadir al arreglo. Las variaciones independientes aparecen marcadas en dorado."));
-    const grid = ctx.el("div", "s936-struct-section-list");
-    allKnownSections(s, parts).forEach((key) => {
-      const items = draftOrLiveItems(s, key);
-      const p = parts.find((part) => part.section === key);
-      const box = ctx.el("article", "s936-struct-section-card");
-      box.appendChild(ctx.el("b", "", displaySectionLabel(s, parts, key)));
-      box.appendChild(ctx.el("span", "", `${key} · ${items.length} acorde(s)${hasClone(key) ? " · variación" : ""}`));
-      const actions = ctx.el("div", "s936-struct-actions");
-      button(ctx, actions, "Añadir", () => {
-        parts.push({ section:key, label:displaySectionLabel(s, parts, key), bars:p?.bars || inferredBars(s, key), independent:hasClone(key) });
-        state.draft.parts = parts;
-        saveState();
-        renderAgain(ctx);
-      }, "s936-struct-btn secondary");
-      box.appendChild(actions);
-      grid.appendChild(box);
-    });
-    card.appendChild(grid);
-    root.appendChild(card);
+
+  function styleOptions(ctx, s) {
+    const select = document.getElementById("styleSelect");
+    if (select?.options?.length) {
+      return Array.from(select.options).map((option) => ({
+        value: option.value,
+        label: option.textContent || option.value
+      }));
+    }
+    return [
+      { value:"funk", label:"Funk" },
+      { value:"pop", label:"Pop" },
+      { value:"rock", label:"Rock" },
+      { value:"ballad", label:"Balada" },
+      { value:"worship", label:"Worship" },
+      { value:"jazz", label:"Jazz" },
+      { value:"bossa", label:"Bossa Nova" },
+      { value:"reggae", label:"Reggae" },
+      { value:"salsa", label:"Salsa" },
+      { value:"cumbia", label:"Cumbia" }
+    ];
   }
 
-  function renderDiagnosis(ctx, root, s, parts) {
-    const details = ctx.el("details", "s936-struct-advanced");
-    const summary = ctx.el("summary", "", "Herramientas avanzadas");
-    details.appendChild(summary);
+  function duplicatePart(ctx, s, parts, index) {
+    const sourcePart = parts[index];
+    if (!sourcePart) return;
+    const sourceItems = draftOrLiveItems(s, sourcePart.section);
+    const newSection = uniqueSectionKey(s, parts, sourcePart.section + "copy");
+    const visible = (sourcePart.label || labelFor(sourcePart.section)) + " copia";
+    state.draft.clones[newSection] = {
+      source: sourcePart.section,
+      items: cloneItems(sourceItems.length ? sourceItems : defaultChordsFor(sourcePart.type || sourcePart.section, projectKey(s), sourcePart.bars)),
+      createdAt: new Date().toISOString()
+    };
+    parts.splice(index + 1, 0, {
+      section: newSection,
+      label: visible,
+      bars: Math.max(1, Number(sourcePart.bars) || inferredBars(s, sourcePart.section)),
+      independent: true,
+      type: sourcePart.type || baseType(sourcePart.section)
+    });
+    state.draft.parts = parts;
+    state.editingIndex = index + 1;
+    saveState();
+    renderAgain(ctx);
+  }
 
-    const body = ctx.el("div", "s936-struct-advanced-body");
-    body.appendChild(ctx.el("p", "s936-struct-muted", "Estas acciones no son necesarias para ordenar normalmente la canción. Úsalas solo para diagnóstico, respaldo o comenzar un borrador desde cero."));
-    line(ctx, body, "Diagnóstico", structureStatus(parts));
+  function renderPartEditor(ctx, s, parts, part, index, items) {
+    const editor = ctx.el("div", "s936-struct-part-editor");
+    const title = ctx.el("div", "s936-struct-editor-head");
+    title.appendChild(ctx.el("b", "", "Editor de parte"));
+    title.appendChild(ctx.el("span", "", "Los cambios quedan en el borrador hasta pulsar Aplicar estructura."));
+    editor.appendChild(title);
+
+    const form = ctx.el("div", "s936-struct-editor-form");
+    const nameField = field(ctx, "Nombre visible");
+    const nameInput = ctx.el("input", "s936-struct-input");
+    nameInput.value = part.label || labelFor(part.section);
+    nameField.appendChild(nameInput);
+
+    const barsField = field(ctx, "Compases");
+    const barsInput = ctx.el("input", "s936-struct-input");
+    barsInput.type = "number";
+    barsInput.min = "1";
+    barsInput.max = "64";
+    barsInput.value = String(Math.max(1, Number(part.bars) || inferredBars(s, part.section)));
+    barsField.appendChild(barsInput);
+
+    const chordField = field(ctx, "Progresión de acordes");
+    chordField.classList.add("wide");
+    const chordInput = ctx.el("textarea", "s936-struct-input s936-struct-chord-editor");
+    chordInput.value = (items || []).map((item) => String(item?.name || item?.chord || "").trim()).filter(Boolean).join(" · ");
+    chordInput.placeholder = "Ej. Fmaj7 · Cmaj7 · Am7 · G6/9";
+    chordField.appendChild(chordInput);
+
+    form.append(nameField, barsField, chordField);
+    editor.appendChild(form);
 
     const actions = ctx.el("div", "s936-struct-actions");
-    button(ctx, actions, "Verificar borrador", () => verifyDraft(ctx, s, parts), "s936-struct-btn secondary");
-    button(ctx, actions, "Exportar borrador TXT", () => downloadDraft(ctx, parts), "s936-struct-btn secondary");
-    button(ctx, actions, "Vaciar solo el borrador", () => clearDraft(ctx), "s936-struct-btn danger");
-    body.appendChild(actions);
-    details.appendChild(body);
-    root.appendChild(details);
+    button(ctx, actions, "Guardar cambios", () => {
+      const label = (nameInput.value || part.label || labelFor(part.section)).trim();
+      const bars = Math.max(1, Number(barsInput.value) || 8);
+      const names = parseChordNames(chordInput.value);
+      part.label = label;
+      part.bars = bars;
+      state.draft.parts[index] = part;
+
+      if (names.length) {
+        const oldItems = Array.isArray(items) ? items : [];
+        state.draft.clones[part.section] = {
+          source: part.section,
+          items: names.map((name, chordIndex) => {
+            const existing = oldItems[chordIndex] || {};
+            return Object.assign({}, existing, {
+              name,
+              bass: existing.bass || chordBass(name),
+              notes: existing.notes || chordNotes(name, projectKey(s)).join(" "),
+              bars: Math.max(1, Number(existing.bars) || Math.max(1, Math.round(bars / names.length)))
+            });
+          }),
+          createdAt: state.draft.clones?.[part.section]?.createdAt || new Date().toISOString()
+        };
+      }
+      state.editingIndex = -1;
+      saveState();
+      renderAgain(ctx);
+      toast(ctx, "Parte actualizada en el borrador.");
+    }, "s936-struct-btn warn");
+    button(ctx, actions, "Cancelar", () => {
+      state.editingIndex = -1;
+      saveState();
+      renderAgain(ctx);
+    }, "s936-struct-btn secondary");
+    editor.appendChild(actions);
+    return editor;
   }
 
-  function structureDiagnosis(parts, hasVerse, hasChorus, hasBridge) {
-    if (!parts.length) return "Todavía no hay forma definida.";
-    if (!hasVerse || !hasChorus) return "La forma necesita al menos verso y coro para funcionar como canción.";
-    if (parts.length < 5) return "Hay una base funcional; puede necesitar intro, repetición o cierre.";
-    if (!hasBridge) return "Forma sólida; un puente o interludio puede aportar contraste.";
-    return "Forma completa y lista para trabajar acordes, letra y arreglo.";
+  function parseChordNames(value) {
+    return String(value || "")
+      .split(/[\n,;|·]+/)
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .slice(0, 32);
   }
+
+  function structurePayload(ctx, s, parts) {
+    const sections = {};
+    Array.from(new Set(parts.map((part) => part.section))).forEach((section) => {
+      sections[section] = cloneItems(draftOrLiveItems(s, section));
+    });
+    const lyrics = {};
+    const solos = {};
+    const liveLyrics = Object.assign({}, s.lyrics || {}, state.draft?.importedLyrics || {});
+    const liveSolos = Object.assign({}, s.sectionSolos || {}, state.draft?.importedSolos || {});
+    Object.keys(sections).forEach((section) => {
+      if (liveLyrics[section] !== undefined) lyrics[section] = liveLyrics[section];
+      if (liveSolos[section] !== undefined) solos[section] = liveSolos[section];
+    });
+    return {
+      format: "studio936-structure",
+      version: 4,
+      savedAt: new Date().toISOString(),
+      meta: Object.assign({}, state.draft?.meta || {}),
+      parts: cloneItems(parts),
+      sections,
+      lyrics,
+      sectionSolos: solos
+    };
+  }
+
+  function saveStructureFile(ctx, s, parts) {
+    const payload = structurePayload(ctx, s, parts);
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type:"application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const name = String(payload.meta?.title || "estructura")
+      .toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "estructura";
+    a.href = url;
+    a.download = `studio936-${name}-estructura.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast(ctx, "Estructura guardada en JSON.");
+  }
+
+  function loadStructureFile(ctx, file) {
+    const reader = new FileReader();
+    reader.onerror = () => toast(ctx, "No se pudo leer el archivo.");
+    reader.onload = () => {
+      const data = safe(() => JSON.parse(String(reader.result || "{}")), null);
+      if (!data || data.format !== "studio936-structure" || !Array.isArray(data.parts)) {
+        return toast(ctx, "El archivo no es una estructura válida de Studio 936.");
+      }
+      if (!window.confirm(`¿Cargar la estructura “${data.meta?.title || file.name}” en el tablero? La canción central no cambia hasta pulsar Aplicar estructura.`)) return;
+      const clones = {};
+      Object.keys(data.sections || {}).forEach((section) => {
+        clones[section] = {
+          source: "archivo",
+          items: cloneItems(data.sections[section]),
+          createdAt: new Date().toISOString()
+        };
+      });
+      state.draft = {
+        createdAt: new Date().toISOString(),
+        parts: cloneItems(data.parts),
+        clones,
+        notes: {},
+        meta: {
+          title: data.meta?.title || "Canción sin nombre",
+          style: data.meta?.style || "pop",
+          bpm: Math.max(50, Math.min(180, Number(data.meta?.bpm) || 95))
+        },
+        importedLyrics: Object.assign({}, data.lyrics || {}),
+        importedSolos: Object.assign({}, data.sectionSolos || {})
+      };
+      state.editingIndex = -1;
+      saveState();
+      renderAgain(ctx);
+      toast(ctx, "Estructura cargada en el tablero.");
+    };
+    reader.readAsText(file);
+  }
+
+
 
   function structureStatus(parts) {
     const hasChorus = parts.some((p) => /chorus|coro/i.test((p.section || "") + " " + (p.label || "")));
@@ -629,63 +785,9 @@
     return structureDiagnosis(parts, hasVerse, hasChorus, hasBridge);
   }
 
-  function verifyDraft(ctx, s, parts) {
-    const issues = [];
-    if (!parts.length) issues.push("El borrador no tiene partes.");
-    parts.forEach((part, index) => {
-      if (!part.section) issues.push(`Parte ${index + 1}: falta la clave de sección.`);
-      if (!String(part.label || "").trim()) issues.push(`Parte ${index + 1}: falta nombre visible.`);
-      if (!Number(part.bars) || Number(part.bars) < 1) issues.push(`Parte ${index + 1}: compases inválidos.`);
-      const items = draftOrLiveItems(s, part.section);
-      if (!items.length) issues.push(`${part.label || part.section}: todavía no tiene acordes.`);
-    });
-    if (!issues.length) {
-      toast(ctx, "Verificación correcta: no se encontraron problemas básicos.");
-      return;
-    }
-    window.alert("Verificación del borrador:\n\n• " + issues.join("\n• "));
-  }
 
-  function repeatBlock(parts, index, ctx) {
-    const original = parts[index];
-    if (!original) return;
-    parts.splice(index + 1, 0, Object.assign({}, original, { independent:hasClone(original.section) }));
-    state.draft.parts = parts;
-    saveState();
-    renderAgain(ctx);
-  }
 
-  function createIndependentVariation(ctx, s, parts, index) {
-    const original = parts[index];
-    if (!original) return;
-    const baseSection = original.section || "verse";
-    const suggested = variationLabel(original.label || labelFor(baseSection));
-    const name = window.prompt(
-      "Nombre visible de la variación independiente:\n\nSe copiarán los acordes actuales a una sección nueva. Luego podrás editarla sin modificar la original.",
-      suggested
-    );
-    if (name === null) return;
-    const newKey = uniqueSectionKey(s, parts, baseSection);
-    const sourceItems = draftOrLiveItems(s, baseSection);
-    const clonedItems = cloneItems(sourceItems.length ? sourceItems : defaultChordsFor(baseSection, projectKey(s), original.bars));
-    state.draft.clones = state.draft.clones || {};
-    state.draft.clones[newKey] = { source:baseSection, items:clonedItems, createdAt:new Date().toISOString() };
-    parts.splice(index + 1, 0, {
-      section:newKey,
-      label:(name || suggested).trim(),
-      bars:original.bars || inferredBars(s, baseSection),
-      independent:true
-    });
-    state.draft.parts = parts;
-    saveState();
-    renderAgain(ctx);
-  }
 
-  function variationLabel(label) {
-    const clean = String(label || "Sección").trim();
-    if (/variación/i.test(clean)) return clean;
-    return clean + " variación";
-  }
 
   function renameVisible(ctx, parts, index) {
     const part = parts[index];
@@ -708,19 +810,6 @@
     renderAgain(ctx);
   }
 
-  function clearDraft(ctx) {
-    const message = [
-      "¿Vaciar solo el borrador de estructura?",
-      "",
-      "Esta acción quita todas las partes del borrador para comenzar desde cero.",
-      "No borra acordes, letras ni secciones del proyecto central.",
-      "La canción no cambia hasta que vuelvas a construir y uses Aplicar estructura."
-    ].join("\n");
-    if (!window.confirm(message)) return;
-    state.draft = { createdAt:new Date().toISOString(), parts:[], clones:{}, notes:{} };
-    saveState();
-    renderAgain(ctx);
-  }
 
   function draftOrLiveItems(s, section) {
     const clone = state.draft?.clones?.[section];
@@ -728,30 +817,17 @@
     return sectionItems(s, section);
   }
 
-  function hasClone(section) {
-    return !!(state.draft && state.draft.clones && state.draft.clones[section]);
-  }
 
-  function cloneCount() {
-    return Object.keys(state.draft?.clones || {}).length;
-  }
-
-  function displaySectionLabel(s, parts, key) {
-    const found = (parts || []).find((part) => part.section === key);
-    return found?.label || labelFor(key);
-  }
 
   function applyDraft(ctx) {
     const s = snap(ctx);
     const parts = ensureDraft(ctx).slice();
     if (!parts.length) return toast(ctx, "No hay estructura para aplicar.");
     const msg = [
-      "Esto aplicará la estructura del borrador a la canción actual.",
+      "Esto aplicará el tablero ADN a la canción actual.",
       "",
-      "Conserva acordes existentes.",
-      "Crea secciones nuevas.",
-      "Convierte variaciones independientes en secciones reales.",
-      "Guarda backup local antes de aplicar.",
+      "Actualiza título, estilo, tempo, forma, compases y acordes editados.",
+      "Guarda un backup local antes de aplicar.",
       "",
       "¿Aplicar estructura?"
     ].join("\n");
@@ -761,8 +837,8 @@
     backup(ctx, current);
 
     const sections = Object.assign({}, current.sections || s.sections || {});
-    const lyrics = Object.assign({}, current.lyrics || s.lyrics || {});
-    const sectionSolos = Object.assign({}, current.sectionSolos || s.sectionSolos || {});
+    const lyrics = Object.assign({}, current.lyrics || s.lyrics || {}, state.draft?.importedLyrics || {});
+    const sectionSolos = Object.assign({}, current.sectionSolos || s.sectionSolos || {}, state.draft?.importedSolos || {});
     const key = projectKey(s, current);
 
     const clones = state.draft?.clones || {};
@@ -774,15 +850,17 @@
 
     parts.forEach((part) => {
       if (!Array.isArray(sections[part.section]) || !sections[part.section].length) {
-        sections[part.section] = defaultChordsFor(part.section, key, part.bars);
+        sections[part.section] = defaultChordsFor(part.type || part.section, key, part.bars);
       }
       if (lyrics[part.section] === undefined) lyrics[part.section] = "";
       if (!sectionSolos[part.section]) sectionSolos[part.section] = { key, scale: "major", phrase: "" };
     });
 
+    const meta = state.draft?.meta || {};
     const project = Object.assign({}, current, {
-      title: current.title || s.title || "Canción sin nombre",
-      author: current.author || s.author || "Autor no definido",
+      title: String(meta.title || current.title || s.title || "Canción sin nombre").trim(),
+      style: meta.style || current.style || s.style || "pop",
+      bpm: Math.max(50, Math.min(180, Number(meta.bpm || current.bpm || s.bpm || 95))),
       sections,
       lyrics,
       sectionSolos,
@@ -887,25 +965,6 @@
     localStorage.setItem(BACKUP_KEY, JSON.stringify(list.slice(0, 20)));
   }
 
-  function downloadDraft(ctx, parts) {
-    const s = snap(ctx);
-    const text = [
-      "Studio 936 · Borrador de estructura",
-      "Canción: " + (s.title || ""),
-      "Autor: " + (s.author || ""),
-      "",
-      parts.map((p, i) => `${String(i+1).padStart(2,"0")}. ${p.label} [${p.section}] · ${p.bars || suggestedBars(p.section)} compases${hasClone(p.section) ? " · variación independiente" : ""}`).join("\n")
-    ].join("\n");
-    const blob = new Blob([text], { type:"text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "studio936-estructura-" + Date.now() + ".txt";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
 
   function renderAgain(ctx) {
     const content = ctx.content?.() || document.querySelector("#s936SuitePro .s936-sp-content");
@@ -928,12 +987,6 @@
     return wrap;
   }
 
-  function line(ctx, parent, label, value) {
-    const p = ctx.el("p", "s936-struct-line");
-    p.appendChild(ctx.el("strong", "", label + ":"));
-    p.appendChild(document.createTextNode(" " + (value || "")));
-    parent.appendChild(p);
-  }
 
   function metric(ctx, parent, value, label) {
     const box = ctx.el("div", "metric");
