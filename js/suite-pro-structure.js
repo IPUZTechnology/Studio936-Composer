@@ -1,13 +1,13 @@
-// Studio 936 Composer - Suite Pro Structure / ADN Module v2.0
+// Studio 936 Composer - Suite Pro Structure / ADN Module v3.0
 // Scope: Compose > Estructura only. No toca app.js, Practice, Drums, Mixer, Recorder ni MIDI.
-// Product goal: reemplazar gradualmente el constructor externo de estructura con un módulo propio y seguro.
+// Product goal: constructor claro de forma musical, sin controles repetidos y con edición segura sobre el proyecto central.
 (function () {
   "use strict";
 
-  const STYLE_ID = "s936SuiteProStructureStylesV2";
-  const STATE_KEY = "s936_suitepro_structure_v2";
+  const STYLE_ID = "s936SuiteProStructureStylesV3";
+  const STATE_KEY = "s936_suitepro_structure_v3";
   const APP_STORAGE_KEY = "studio936ComposerV25SongStructure";
-  const BACKUP_KEY = "studio936_structure_backups_v2";
+  const BACKUP_KEY = "studio936_structure_backups_v3";
 
   const PART_OPTIONS = [
     ["intro", "Intro"],
@@ -21,12 +21,17 @@
     ["bridge", "Puente"],
     ["interlude", "Interludio"],
     ["solo", "Solo"],
-    ["outro", "Outro"]
+    ["outro", "Outro"],
+    ["custom", "Personalizada"]
   ];
 
   const DEFAULT_STATE = {
     draft: null,
+    addMode: "existing",
     addExistingSection: "",
+    existingLabel: "",
+    variationSource: "",
+    variationLabel: "",
     newType: "verse",
     newLabel: "",
     newBars: 8
@@ -45,7 +50,7 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProStructure = { version: "structure-v2.0", render };
+    window.Studio936SuiteProStructure = { version: "structure-v3.0", render };
     window.Studio936SuiteProModules.structure = window.Studio936SuiteProStructure;
   }
 
@@ -98,6 +103,21 @@
 #s936SuitePro .s936-struct-section-card b{display:block;color:#fff;font-size:.70rem;text-transform:uppercase}
 #s936SuitePro .s936-struct-section-card span{display:block;color:rgba(255,255,255,.63);font-size:.60rem;margin-top:3px}
 @media(max-width:1100px){#s936SuitePro .s936-struct-grid,#s936SuitePro .s936-struct-form,#s936SuitePro .s936-struct-form.two{grid-template-columns:1fr}#s936SuitePro .s936-struct-score{grid-template-columns:repeat(2,1fr)}#s936SuitePro .s936-struct-part{grid-template-columns:28px minmax(0,1fr)}#s936SuitePro .s936-struct-mini-actions{grid-column:1/-1;justify-content:flex-start}}
+
+#s936SuitePro .s936-struct-diagnosis{margin:10px 0 0;padding:8px 10px;border-left:3px solid rgba(0,255,204,.55);background:rgba(0,255,204,.055);color:rgba(255,255,255,.76);font-size:.68rem;line-height:1.4}
+#s936SuitePro .s936-struct-empty{border:1px dashed rgba(255,255,255,.18);border-radius:14px;padding:16px;color:rgba(255,255,255,.62);font-size:.72rem;text-align:center}
+#s936SuitePro .s936-struct-add{display:grid;gap:10px}
+#s936SuitePro .s936-struct-mode-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+#s936SuitePro .s936-struct-mode{border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(255,255,255,.055);color:#fff;padding:8px 7px;font-size:.60rem;font-weight:950;cursor:pointer;text-transform:uppercase}
+#s936SuitePro .s936-struct-mode.active{border-color:rgba(0,255,204,.70);background:rgba(0,255,204,.12);color:#00ffcc}
+#s936SuitePro .s936-struct-add-panel{display:grid;gap:9px;border:1px solid rgba(255,255,255,.10);border-radius:14px;background:rgba(0,0,0,.15);padding:10px}
+#s936SuitePro .s936-struct-help{margin:0;color:rgba(255,255,255,.66);font-size:.66rem;line-height:1.42}
+#s936SuitePro .s936-struct-available{display:flex;flex-wrap:wrap;gap:5px}
+#s936SuitePro .s936-struct-advanced{border:1px solid rgba(255,255,255,.11);border-radius:16px;background:rgba(255,255,255,.035);overflow:hidden}
+#s936SuitePro .s936-struct-advanced summary{cursor:pointer;padding:11px 13px;color:#ffe066;font-size:.68rem;font-weight:950;text-transform:uppercase;letter-spacing:.7px}
+#s936SuitePro .s936-struct-advanced-body{padding:0 13px 13px;border-top:1px solid rgba(255,255,255,.08)}
+@media(max-width:760px){#s936SuitePro .s936-struct-mode-tabs{grid-template-columns:1fr}}
+
 `;
     document.head.appendChild(style);
   }
@@ -139,7 +159,7 @@
   function ensureDraft(ctx) {
     const s = snap(ctx);
     const current = readArrangement(s);
-    if (!state.draft || !Array.isArray(state.draft.parts) || !state.draft.parts.length) {
+    if (!state.draft || !Array.isArray(state.draft.parts)) {
       state.draft = { createdAt: new Date().toISOString(), parts: current.length ? current : defaultParts(), clones: {}, notes: {} };
       saveState();
     }
@@ -207,7 +227,6 @@
 
     renderHeader(ctx, root, s, parts);
     renderBuilder(ctx, root, s, parts);
-    renderSectionBank(ctx, root, s, parts);
     renderDiagnosis(ctx, root, s, parts);
 
     shell.appendChild(root);
@@ -215,25 +234,42 @@
 
   function renderHeader(ctx, root, s, parts) {
     const card = ctx.el("section", "s936-struct-card main");
-    card.appendChild(ctx.el("h4", "", "Estructura / ADN de canción"));
-    line(ctx, card, "Objetivo", "crear la forma completa desde Suite Pro: arreglo, secciones reutilizables, variaciones independientes y nombres visibles.");
+    card.appendChild(ctx.el("h4", "", "ADN de la canción"));
+    card.appendChild(ctx.el("p", "s936-struct-muted", "La franja muestra la forma completa en orden, incluidas las secciones repetidas. Edita abajo y aplica cuando estés conforme."));
+
     const score = ctx.el("div", "s936-struct-score");
-    metric(ctx, score, parts.length || "—", "bloques");
-    metric(ctx, score, totalBars(parts) || "—", "compases");
-    metric(ctx, score, uniqueSectionCount(parts) || "—", "secciones");
-    metric(ctx, score, cloneCount() || "—", "variaciones");
+    metric(ctx, score, parts.length || "0", "partes");
+    metric(ctx, score, totalBars(parts) || "0", "compases");
+    metric(ctx, score, uniqueSectionCount(parts) || "0", "secciones");
+    metric(ctx, score, cloneCount() || "0", "variaciones");
     card.appendChild(score);
 
     const flow = ctx.el("div", "s936-struct-flow");
-    parts.slice(0, 16).forEach((p, i) => flow.appendChild(ctx.el("span", "s936-struct-chip " + (p.independent || hasClone(p.section) ? "gold" : ""), `${String(i + 1).padStart(2, "0")} · ${p.label}`)));
+    if (!parts.length) {
+      flow.appendChild(ctx.el("span", "s936-struct-chip", "Estructura vacía · usa Añadir parte"));
+    } else {
+      parts.forEach((p, i) => {
+        const linked = parts.filter((x) => x.section === p.section).length > 1 && !hasClone(p.section);
+        const cls = p.independent || hasClone(p.section) ? "gold" : "";
+        const suffix = hasClone(p.section) ? " · variación" : linked ? " · repetida" : "";
+        flow.appendChild(ctx.el("span", "s936-struct-chip " + cls, `${String(i + 1).padStart(2, "0")} · ${p.label}${suffix}`));
+      });
+    }
     card.appendChild(flow);
 
     const actions = ctx.el("div", "s936-struct-actions");
     button(ctx, actions, "Aplicar estructura", () => applyDraft(ctx), "s936-struct-btn warn");
-    button(ctx, actions, "Releer canción", () => { state.draft = { createdAt: new Date().toISOString(), parts: readArrangement(snap(ctx)), clones: {}, notes: {} }; saveState(); renderAgain(ctx); }, "s936-struct-btn secondary");
-    button(ctx, actions, "Borrador base", () => { state.draft = { createdAt: new Date().toISOString(), parts: defaultParts(), clones: {}, notes: {} }; saveState(); renderAgain(ctx); }, "s936-struct-btn secondary");
-    button(ctx, actions, "Vaciar arreglo", () => clearDraft(ctx), "s936-struct-btn danger");
+    const reread = button(ctx, actions, "Releer canción", () => {
+      if (!window.confirm("¿Descartar los cambios del borrador y volver a leer la estructura actual de la canción?")) return;
+      state.draft = { createdAt: new Date().toISOString(), parts: readArrangement(snap(ctx)), clones: {}, notes: {} };
+      saveState();
+      renderAgain(ctx);
+    }, "s936-struct-btn secondary");
+    reread.title = "Descarta cambios todavía no aplicados y vuelve a leer el proyecto central.";
     card.appendChild(actions);
+
+    const status = structureStatus(parts);
+    card.appendChild(ctx.el("p", "s936-struct-diagnosis", status));
     root.appendChild(card);
   }
 
@@ -242,66 +278,199 @@
 
     const listCard = ctx.el("section", "s936-struct-card");
     listCard.appendChild(ctx.el("h4", "", "Arreglo de la canción"));
-    listCard.appendChild(ctx.el("p", "s936-struct-muted", "Esto reemplaza los botones viejos: añadir al arreglo, repetir bloque, mover, borrar, crear variación y cambiar nombre visible."));
+    listCard.appendChild(ctx.el("p", "s936-struct-muted", "Cada fila es una aparición dentro de la canción. Repetir reutiliza la misma sección; Variación crea una copia independiente para editar después."));
     const list = ctx.el("div", "s936-struct-list");
-    parts.forEach((part, index) => list.appendChild(partRow(ctx, s, parts, part, index)));
+    if (!parts.length) {
+      list.appendChild(ctx.el("div", "s936-struct-empty", "Todavía no hay partes. Usa “Añadir parte” para comenzar."));
+    } else {
+      parts.forEach((part, index) => list.appendChild(partRow(ctx, s, parts, part, index)));
+    }
     listCard.appendChild(list);
     grid.appendChild(listCard);
 
     const toolCard = ctx.el("section", "s936-struct-card gold");
-    toolCard.appendChild(ctx.el("h4", "", "Acciones de estructura"));
-    const tools = ctx.el("div", "s936-struct-toolgrid");
-
-    tools.appendChild(renderAddExisting(ctx, s, parts));
-    tools.appendChild(renderCreateNew(ctx, s, parts));
-    tools.appendChild(renderCompositionRules(ctx));
-
-    toolCard.appendChild(tools);
+    toolCard.appendChild(ctx.el("h4", "", "Añadir parte"));
+    toolCard.appendChild(ctx.el("p", "s936-struct-muted", "Elige una sola acción: insertar una sección existente, crear una nueva o crear una variación independiente."));
+    toolCard.appendChild(renderAddPart(ctx, s, parts));
     grid.appendChild(toolCard);
+
     root.appendChild(grid);
   }
 
-  function renderAddExisting(ctx, s, parts) {
-    const card = ctx.el("section", "s936-struct-card");
-    card.appendChild(ctx.el("h4", "", "Añadir sección al arreglo"));
-    card.appendChild(ctx.el("p", "s936-struct-muted", "Usa una sección existente sin copiar sus acordes. Ideal para repetir un coro o volver al interludio."));
-    const form = ctx.el("div", "s936-struct-form two");
-    const fieldSec = field(ctx, "Sección existente");
-    const select = ctx.el("select", "s936-struct-select");
-    const keys = allKnownSections(s, parts);
-    if (!state.addExistingSection && keys.length) state.addExistingSection = keys[0];
-    keys.forEach((key) => {
-      const option = ctx.el("option", "", displaySectionLabel(s, parts, key));
-      option.value = key;
-      if (key === state.addExistingSection) option.selected = true;
-      select.appendChild(option);
+  function renderAddPart(ctx, s, parts) {
+    const wrap = ctx.el("div", "s936-struct-add");
+
+    const modes = ctx.el("div", "s936-struct-mode-tabs");
+    [
+      ["existing", "Insertar existente"],
+      ["new", "Crear nueva"],
+      ["variation", "Crear variación"]
+    ].forEach(([value, label]) => {
+      const btn = ctx.el("button", "s936-struct-mode" + (state.addMode === value ? " active" : ""), label);
+      btn.type = "button";
+      btn.onclick = () => {
+        state.addMode = value;
+        saveState();
+        renderAgain(ctx);
+      };
+      modes.appendChild(btn);
     });
-    select.onchange = () => { state.addExistingSection = select.value; saveState(); };
-    fieldSec.appendChild(select);
+    wrap.appendChild(modes);
 
-    const fieldBars = field(ctx, "Compases");
-    const bars = ctx.el("input", "s936-struct-input");
-    bars.type = "number";
-    bars.min = "1";
-    bars.max = "32";
-    bars.value = String(suggestedBars(state.addExistingSection || keys[0]));
-    fieldBars.appendChild(bars);
+    const keys = allKnownSections(s, parts);
+    const panel = ctx.el("div", "s936-struct-add-panel");
 
-    form.append(fieldSec, fieldBars);
-    card.appendChild(form);
+    if (state.addMode === "new") {
+      const form = ctx.el("div", "s936-struct-form");
+      const typeField = field(ctx, "Tipo musical");
+      const typeSelect = ctx.el("select", "s936-struct-select");
+      PART_OPTIONS.forEach(([value, label]) => {
+        const option = ctx.el("option", "", label);
+        option.value = value;
+        if (value === state.newType) option.selected = true;
+        typeSelect.appendChild(option);
+      });
+      typeSelect.onchange = () => {
+        state.newType = typeSelect.value;
+        if (!state.newLabel || state.newLabel === labelFor(state.newType)) state.newLabel = "";
+        state.newBars = suggestedBars(typeSelect.value);
+        saveState();
+      };
+      typeField.appendChild(typeSelect);
 
-    const actions = ctx.el("div", "s936-struct-actions");
-    button(ctx, actions, "Añadir al arreglo", () => {
-      const section = select.value || keys[0];
-      if (!section) return toast(ctx, "No hay secciones disponibles.");
-      const label = displaySectionLabel(s, parts, section);
-      parts.push({ section, label, bars: Math.max(1, Number(bars.value) || inferredBars(s, section)), independent:false });
-      state.draft.parts = parts;
-      saveState();
-      renderAgain(ctx);
-    }, "s936-struct-btn warn");
-    card.appendChild(actions);
-    return card;
+      const nameField = field(ctx, "Nombre visible");
+      const nameInput = ctx.el("input", "s936-struct-input");
+      nameInput.value = state.newLabel || "";
+      nameInput.placeholder = typeSelect.value === "custom" ? "Ej. Nube instrumental" : "Ej. Coro final";
+      nameInput.oninput = () => { state.newLabel = nameInput.value; saveState(); };
+      nameField.appendChild(nameInput);
+
+      const barsField = field(ctx, "Compases");
+      const barsInput = ctx.el("input", "s936-struct-input");
+      barsInput.type = "number";
+      barsInput.min = "1";
+      barsInput.max = "32";
+      barsInput.value = String(state.newBars || suggestedBars(state.newType));
+      barsInput.oninput = () => { state.newBars = Math.max(1, Number(barsInput.value) || 8); saveState(); };
+      barsField.appendChild(barsInput);
+      form.append(typeField, nameField, barsField);
+      panel.appendChild(form);
+
+      panel.appendChild(ctx.el("p", "s936-struct-help", "Crea una sección musical nueva con acordes guía y la inserta al final del arreglo."));
+      const actions = ctx.el("div", "s936-struct-actions");
+      button(ctx, actions, "Crear y añadir", () => {
+        const type = typeSelect.value || "verse";
+        const visible = (nameInput.value || (type === "custom" ? "Sección nueva" : labelFor(type))).trim();
+        const keyBase = type === "custom" ? visible : type;
+        const section = uniqueSectionKey(s, parts, keyBase);
+        const bars = Math.max(1, Number(barsInput.value) || suggestedBars(type));
+        parts.push({ section, label: visible, bars, independent:true });
+        state.draft.parts = parts;
+        state.draft.clones = state.draft.clones || {};
+        state.draft.clones[section] = { source:"", items:defaultChordsFor(type, projectKey(s), bars), createdAt:new Date().toISOString() };
+        state.newLabel = "";
+        saveState();
+        renderAgain(ctx);
+      }, "s936-struct-btn warn");
+      panel.appendChild(actions);
+    } else {
+      if (!keys.length) {
+        panel.appendChild(ctx.el("div", "s936-struct-empty", "No hay secciones disponibles. Primero crea una sección nueva."));
+        wrap.appendChild(panel);
+        return wrap;
+      }
+
+      const sourceField = field(ctx, state.addMode === "variation" ? "Sección de origen" : "Sección existente");
+      const select = ctx.el("select", "s936-struct-select");
+      const selectedKey = state.addMode === "variation"
+        ? (state.variationSource || keys[0])
+        : (state.addExistingSection || keys[0]);
+      keys.forEach((key) => {
+        const option = ctx.el("option", "", displaySectionLabel(s, parts, key));
+        option.value = key;
+        if (key === selectedKey) option.selected = true;
+        select.appendChild(option);
+      });
+      select.onchange = () => {
+        if (state.addMode === "variation") state.variationSource = select.value;
+        else state.addExistingSection = select.value;
+        saveState();
+      };
+      sourceField.appendChild(select);
+
+      const nameField = field(ctx, "Nombre visible");
+      const nameInput = ctx.el("input", "s936-struct-input");
+      const defaultName = state.addMode === "variation"
+        ? (state.variationLabel || variationLabel(displaySectionLabel(s, parts, selectedKey)))
+        : (state.existingLabel || displaySectionLabel(s, parts, selectedKey));
+      nameInput.value = defaultName;
+      nameInput.placeholder = state.addMode === "variation" ? "Ej. Coro final" : "Ej. Coro 2";
+      nameInput.oninput = () => {
+        if (state.addMode === "variation") state.variationLabel = nameInput.value;
+        else state.existingLabel = nameInput.value;
+        saveState();
+      };
+      nameField.appendChild(nameInput);
+
+      const barsField = field(ctx, "Compases");
+      const barsInput = ctx.el("input", "s936-struct-input");
+      barsInput.type = "number";
+      barsInput.min = "1";
+      barsInput.max = "32";
+      barsInput.value = String(inferredBars(s, selectedKey));
+      barsField.appendChild(barsInput);
+
+      const form = ctx.el("div", "s936-struct-form");
+      form.append(sourceField, nameField, barsField);
+      panel.appendChild(form);
+
+      const help = state.addMode === "variation"
+        ? "Copia los acordes de la sección de origen a una sección nueva. Luego podrás editarla sin cambiar la original."
+        : "Inserta otra aparición de una sección existente. Ambas apariciones comparten acordes y letra.";
+      panel.appendChild(ctx.el("p", "s936-struct-help", help));
+
+      const chips = ctx.el("div", "s936-struct-available");
+      keys.slice(0, 12).forEach((key) => chips.appendChild(ctx.el("span", "s936-struct-chip", displaySectionLabel(s, parts, key))));
+      panel.appendChild(chips);
+
+      const actions = ctx.el("div", "s936-struct-actions");
+      if (state.addMode === "variation") {
+        button(ctx, actions, "Crear variación y añadir", () => {
+          const source = select.value || keys[0];
+          const originalPart = parts.find((p) => p.section === source);
+          const newKey = uniqueSectionKey(s, parts, source);
+          const visible = (nameInput.value || variationLabel(displaySectionLabel(s, parts, source))).trim();
+          const bars = Math.max(1, Number(barsInput.value) || inferredBars(s, source));
+          const sourceItems = draftOrLiveItems(s, source);
+          state.draft.clones = state.draft.clones || {};
+          state.draft.clones[newKey] = {
+            source,
+            items: cloneItems(sourceItems.length ? sourceItems : defaultChordsFor(source, projectKey(s), bars)),
+            createdAt: new Date().toISOString()
+          };
+          parts.push({ section:newKey, label:visible, bars, independent:true });
+          state.draft.parts = parts;
+          state.variationLabel = "";
+          saveState();
+          renderAgain(ctx);
+        }, "s936-struct-btn warn");
+      } else {
+        button(ctx, actions, "Insertar en el arreglo", () => {
+          const section = select.value || keys[0];
+          const label = (nameInput.value || displaySectionLabel(s, parts, section)).trim();
+          const bars = Math.max(1, Number(barsInput.value) || inferredBars(s, section));
+          parts.push({ section, label, bars, independent:hasClone(section) });
+          state.draft.parts = parts;
+          state.existingLabel = "";
+          saveState();
+          renderAgain(ctx);
+        }, "s936-struct-btn warn");
+      }
+      panel.appendChild(actions);
+    }
+
+    wrap.appendChild(panel);
+    return wrap;
   }
 
   function renderCreateNew(ctx, s, parts) {
@@ -382,17 +551,22 @@
     info.appendChild(ctx.el("b", "", part.label || labelFor(part.section)));
     const items = draftOrLiveItems(s, part.section);
     const chords = items.map((i) => String(i?.name || i?.chord || "").trim()).filter(Boolean);
-    const tag = hasClone(part.section) ? " · variación independiente" : "";
-    info.appendChild(ctx.el("span", "", `${part.section} · ${part.bars || inferredBars(s, part.section)} compases · ${chords.slice(0, 4).join(" → ") || "sin acordes todavía"}${tag}`));
+    const occurrences = parts.filter((p) => p.section === part.section).length;
+    const relation = hasClone(part.section)
+      ? "variación independiente"
+      : occurrences > 1 ? "sección reutilizada" : "sección única";
+    info.appendChild(ctx.el("span", "", `${part.bars || inferredBars(s, part.section)} compases · ${chords.slice(0, 4).join(" → ") || "sin acordes"} · ${relation}`));
     row.appendChild(info);
 
     const actions = ctx.el("div", "s936-struct-mini-actions");
     mini(ctx, actions, "↑", () => move(parts, index, -1, ctx));
     mini(ctx, actions, "↓", () => move(parts, index, 1, ctx));
-    mini(ctx, actions, "Repetir", () => repeatBlock(parts, index, ctx), false, "warn");
-    mini(ctx, actions, "Variación", () => createIndependentVariation(ctx, s, parts, index), false, "warn");
-    mini(ctx, actions, "Nombre", () => renameVisible(ctx, parts, index));
-    mini(ctx, actions, "Borrar", () => deleteFromArrangement(ctx, parts, index), true, "danger");
+    const repeat = mini(ctx, actions, "Repetir", () => repeatBlock(parts, index, ctx), false, "warn");
+    repeat.title = "Inserta otra aparición vinculada a la misma sección.";
+    const variation = mini(ctx, actions, "Variación", () => createIndependentVariation(ctx, s, parts, index), false, "warn");
+    variation.title = "Crea una sección nueva copiando los acordes para editarla de forma independiente.";
+    mini(ctx, actions, "Renombrar", () => renameVisible(ctx, parts, index));
+    mini(ctx, actions, "Quitar", () => deleteFromArrangement(ctx, parts, index), true, "danger");
     row.appendChild(actions);
     return row;
   }
@@ -423,32 +597,59 @@
   }
 
   function renderDiagnosis(ctx, root, s, parts) {
-    const card = ctx.el("section", "s936-struct-card");
-    card.appendChild(ctx.el("h4", "", "Diagnóstico de forma"));
-    const hasChorus = parts.some((p) => /chorus|coro/i.test(p.section + " " + p.label));
-    const hasVerse = parts.some((p) => /verse|verso/i.test(p.section + " " + p.label));
-    const hasBridge = parts.some((p) => /bridge|puente/i.test(p.section + " " + p.label));
-    line(ctx, card, "Estado", structureDiagnosis(parts, hasVerse, hasChorus, hasBridge));
-    line(ctx, card, "Siguiente paso", !hasChorus ? "agrega un coro claro." : !hasBridge ? "considera un puente o interludio para contraste." : "pasa al Editor para refinar acordes y compases.");
+    const details = ctx.el("details", "s936-struct-advanced");
+    const summary = ctx.el("summary", "", "Herramientas avanzadas");
+    details.appendChild(summary);
+
+    const body = ctx.el("div", "s936-struct-advanced-body");
+    body.appendChild(ctx.el("p", "s936-struct-muted", "Estas acciones no son necesarias para ordenar normalmente la canción. Úsalas solo para diagnóstico, respaldo o comenzar un borrador desde cero."));
+    line(ctx, body, "Diagnóstico", structureStatus(parts));
+
     const actions = ctx.el("div", "s936-struct-actions");
-    button(ctx, actions, "Ir a Editor", () => { ctx.state.composeTool = "editor"; renderAgain(ctx); }, "s936-struct-btn secondary");
-    button(ctx, actions, "Ir a Plantillas", () => { ctx.state.composeTool = "templates"; renderAgain(ctx); }, "s936-struct-btn secondary");
-    card.appendChild(actions);
-    root.appendChild(card);
+    button(ctx, actions, "Verificar borrador", () => verifyDraft(ctx, s, parts), "s936-struct-btn secondary");
+    button(ctx, actions, "Exportar borrador TXT", () => downloadDraft(ctx, parts), "s936-struct-btn secondary");
+    button(ctx, actions, "Vaciar solo el borrador", () => clearDraft(ctx), "s936-struct-btn danger");
+    body.appendChild(actions);
+    details.appendChild(body);
+    root.appendChild(details);
   }
 
   function structureDiagnosis(parts, hasVerse, hasChorus, hasBridge) {
     if (!parts.length) return "Todavía no hay forma definida.";
     if (!hasVerse || !hasChorus) return "La forma necesita al menos verso y coro para funcionar como canción.";
     if (parts.length < 5) return "Hay una base funcional; puede necesitar intro, repetición o cierre.";
-    if (!hasBridge) return "Forma sólida; un puente/interludio puede dar contraste antes del final.";
+    if (!hasBridge) return "Forma sólida; un puente o interludio puede aportar contraste.";
     return "Forma completa y lista para trabajar acordes, letra y arreglo.";
+  }
+
+  function structureStatus(parts) {
+    const hasChorus = parts.some((p) => /chorus|coro/i.test((p.section || "") + " " + (p.label || "")));
+    const hasVerse = parts.some((p) => /verse|verso/i.test((p.section || "") + " " + (p.label || "")));
+    const hasBridge = parts.some((p) => /bridge|puente|interlude|interludio/i.test((p.section || "") + " " + (p.label || "")));
+    return structureDiagnosis(parts, hasVerse, hasChorus, hasBridge);
+  }
+
+  function verifyDraft(ctx, s, parts) {
+    const issues = [];
+    if (!parts.length) issues.push("El borrador no tiene partes.");
+    parts.forEach((part, index) => {
+      if (!part.section) issues.push(`Parte ${index + 1}: falta la clave de sección.`);
+      if (!String(part.label || "").trim()) issues.push(`Parte ${index + 1}: falta nombre visible.`);
+      if (!Number(part.bars) || Number(part.bars) < 1) issues.push(`Parte ${index + 1}: compases inválidos.`);
+      const items = draftOrLiveItems(s, part.section);
+      if (!items.length) issues.push(`${part.label || part.section}: todavía no tiene acordes.`);
+    });
+    if (!issues.length) {
+      toast(ctx, "Verificación correcta: no se encontraron problemas básicos.");
+      return;
+    }
+    window.alert("Verificación del borrador:\n\n• " + issues.join("\n• "));
   }
 
   function repeatBlock(parts, index, ctx) {
     const original = parts[index];
     if (!original) return;
-    parts.splice(index + 1, 0, Object.assign({}, original));
+    parts.splice(index + 1, 0, Object.assign({}, original, { independent:hasClone(original.section) }));
     state.draft.parts = parts;
     saveState();
     renderAgain(ctx);
@@ -458,18 +659,22 @@
     const original = parts[index];
     if (!original) return;
     const baseSection = original.section || "verse";
-    const newKey = uniqueSectionKey(s, parts, baseSection);
-    const name = window.prompt("Nombre visible de la variación independiente:", variationLabel(original.label || labelFor(baseSection)));
+    const suggested = variationLabel(original.label || labelFor(baseSection));
+    const name = window.prompt(
+      "Nombre visible de la variación independiente:\n\nSe copiarán los acordes actuales a una sección nueva. Luego podrás editarla sin modificar la original.",
+      suggested
+    );
     if (name === null) return;
+    const newKey = uniqueSectionKey(s, parts, baseSection);
     const sourceItems = draftOrLiveItems(s, baseSection);
     const clonedItems = cloneItems(sourceItems.length ? sourceItems : defaultChordsFor(baseSection, projectKey(s), original.bars));
     state.draft.clones = state.draft.clones || {};
-    state.draft.clones[newKey] = { source: baseSection, items: clonedItems, createdAt: new Date().toISOString() };
+    state.draft.clones[newKey] = { source:baseSection, items:clonedItems, createdAt:new Date().toISOString() };
     parts.splice(index + 1, 0, {
-      section: newKey,
-      label: (name || variationLabel(original.label || labelFor(baseSection))).trim(),
-      bars: original.bars || inferredBars(s, baseSection),
-      independent: true
+      section:newKey,
+      label:(name || suggested).trim(),
+      bars:original.bars || inferredBars(s, baseSection),
+      independent:true
     });
     state.draft.parts = parts;
     saveState();
@@ -485,7 +690,7 @@
   function renameVisible(ctx, parts, index) {
     const part = parts[index];
     if (!part) return;
-    const next = window.prompt("Nuevo nombre visible:", part.label || labelFor(part.section));
+    const next = window.prompt("Nuevo nombre visible de esta aparición:\n\nNo cambia la clave interna ni los acordes.", part.label || labelFor(part.section));
     if (next === null) return;
     part.label = (next || part.label || labelFor(part.section)).trim();
     state.draft.parts = parts;
@@ -496,7 +701,7 @@
   function deleteFromArrangement(ctx, parts, index) {
     const part = parts[index];
     if (!part) return;
-    if (!window.confirm("Borrar este bloque del arreglo?\n\nNo borra la sección musical, solo la quita de la forma de la canción.")) return;
+    if (!window.confirm(`¿Quitar “${part.label || labelFor(part.section)}” del arreglo?\n\nSolo quita esta aparición de la forma. No borra los acordes ni la letra de la sección.`)) return;
     parts.splice(index, 1);
     state.draft.parts = parts;
     saveState();
@@ -504,8 +709,15 @@
   }
 
   function clearDraft(ctx) {
-    if (!window.confirm("Vaciar el borrador de arreglo?\n\nNo toca la canción hasta que uses Aplicar estructura.")) return;
-    state.draft = { createdAt: new Date().toISOString(), parts: [], clones: {}, notes: {} };
+    const message = [
+      "¿Vaciar solo el borrador de estructura?",
+      "",
+      "Esta acción quita todas las partes del borrador para comenzar desde cero.",
+      "No borra acordes, letras ni secciones del proyecto central.",
+      "La canción no cambia hasta que vuelvas a construir y uses Aplicar estructura."
+    ].join("\n");
+    if (!window.confirm(message)) return;
+    state.draft = { createdAt:new Date().toISOString(), parts:[], clones:{}, notes:{} };
     saveState();
     renderAgain(ctx);
   }
