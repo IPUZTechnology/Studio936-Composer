@@ -1100,11 +1100,226 @@ function installStudio936AppBridge(){
         syncLyricsFromModal(false);
         return JSON.stringify(project, null, 2);
     }
+
+    function editorSectionOptions(){
+        return Object.keys(project.sections || {}).map(key => [key, sectionNames[key] || key]);
+    }
+    function getEditorState(){
+        syncProjectFromControls(false);
+        const sectionKey = els.sectionSelect?.value || 'intro';
+        const seq = Array.isArray(project.sections?.[sectionKey]) ? project.sections[sectionKey] : [];
+        const chordIndex = Math.max(0, Math.min(seq.length - 1, Number(els.chordSelect?.value) || 0));
+        return {
+            sectionKey,
+            sectionName: sectionNames[sectionKey] || sectionKey,
+            chordIndex,
+            instrument: project.instrument || 'piano',
+            viewMode: project.viewMode || 'piano',
+            fretMode: project.fretMode || 'guitar',
+            sectionOptions: editorSectionOptions(),
+            sections: safeClone(project.sections || {}),
+            currentChord: safeClone(seq[chordIndex] || null)
+        };
+    }
+    function normalizeEditorPayload(payload={}){
+        const sectionKey = String(payload.sectionKey || els.sectionSelect?.value || 'intro');
+        const seq = Array.isArray(project.sections?.[sectionKey]) ? project.sections[sectionKey] : null;
+        const chordIndex = Math.max(0, Math.min(Math.max(0,(seq?.length || 1)-1), Number(payload.chordIndex) || 0));
+        return {
+            sectionKey,
+            seq,
+            chordIndex,
+            name: String(payload.name || 'Acorde').trim() || 'Acorde',
+            bass: String(payload.bass || '').trim(),
+            notes: String(payload.notes || '').trim(),
+            bars: clamp(Number(payload.bars) || 1, 1, 16),
+            instrument: String(payload.instrument || project.instrument || 'piano')
+        };
+    }
+    function validateEditorPayload(payload={}){
+        const data = normalizeEditorPayload(payload);
+        if(!data.seq) return { ok:false, message:'La sección seleccionada no existe.', data };
+        if(noteToMidi(data.bass) === null) return { ok:false, message:'No pude leer la nota de bajo. Usa un formato como C2, F#2 o Sib2.', data };
+        if(parseNotes(data.notes).length === 0) return { ok:false, message:'No pude leer las notas del acorde. Usa un formato como C3 E3 G3.', data };
+        return { ok:true, data };
+    }
+    function selectEditorSection(sectionKey){
+        const key = String(sectionKey || '');
+        if(!project.sections?.[key]) return { ok:false, message:'La sección seleccionada no existe.' };
+        if(els.sectionSelect){
+            const changed = els.sectionSelect.value !== key;
+            els.sectionSelect.value = key;
+            if(changed) els.sectionSelect.dispatchEvent(new Event('change', { bubbles:true }));
+            else {
+                chordIdx = 0;
+                stepInChord = 0;
+                renderChordSelect();
+                loadEditorFromSelected();
+                renderSectionList();
+                updateSectionNoteMap();
+                updateFretboardMap();
+            }
+        }
+        return Object.assign({ ok:true }, getEditorState());
+    }
+    function selectEditorChord(sectionKey, index){
+        const sectionResult = selectEditorSection(sectionKey);
+        if(sectionResult?.ok === false) return sectionResult;
+        const seq = project.sections?.[sectionKey] || [];
+        if(!seq.length) return { ok:false, message:'La sección no tiene acordes.' };
+        const idx = Math.max(0, Math.min(seq.length - 1, Number(index) || 0));
+        if(els.chordSelect){
+            els.chordSelect.value = String(idx);
+            els.chordSelect.dispatchEvent(new Event('change', { bubbles:true }));
+        }
+        chordIdx = idx;
+        return Object.assign({ ok:true }, getEditorState());
+    }
+    function setEditorInstrument(instrument){
+        const value = ['piano','guitar','ukulele'].includes(instrument) ? instrument : 'piano';
+        project.instrument = value;
+        if(els.instrumentSelect) els.instrumentSelect.value = value;
+        if(value === 'piano'){
+            setViewMode('piano');
+        } else {
+            project.fretMode = value === 'ukulele' ? 'ukulele' : 'guitar';
+            if(els.fretModeSelect) els.fretModeSelect.value = project.fretMode;
+            setViewMode('fretboard');
+            buildFretboard();
+            updateFretboardMap();
+        }
+        updateStyleHelp();
+        saveProject(false);
+        return Object.assign({ ok:true }, getEditorState());
+    }
+    function showEditorChordVisual(payload={}){
+        const data = normalizeEditorPayload(payload);
+        const seqItem = data.seq?.[data.chordIndex] || {};
+        const item = {
+            name: data.name || seqItem.name || 'Acorde',
+            bass: data.bass || seqItem.bass || 'C2',
+            notes: data.notes || seqItem.notes || 'C3 E3 G3',
+            bars: data.bars || seqItem.bars || 1
+        };
+        const notes = parseNotes(item.notes);
+        const bass = noteToMidi(item.bass);
+        if(!notes.length) return { ok:false, message:'No pude visualizar las notas del acorde.' };
+
+        clearKeys();
+        if(Number.isFinite(bass) && keyMap[bass]) keyMap[bass].classList.add('active-bass');
+        notes.forEach(midi => {
+            if(keyMap[midi]) keyMap[midi].classList.add('active-chord');
+        });
+        try{
+            Fretboard.updateFretboardMap({
+                fretCells,
+                item,
+                parseNotes,
+                noteToMidi
+            });
+        }catch(error){
+            console.warn('Editor Pro: no se pudo actualizar el diapasón.', error);
+        }
+        if(els.chordLabel) els.chordLabel.textContent = item.name || 'Acorde';
+        return { ok:true, item:safeClone(item), notes:safeClone(notes), bass };
+    }
+    function previewEditorChord(payload={}){
+        const result = validateEditorPayload(payload);
+        if(!result.ok) return result;
+        const data = result.data;
+        if(['piano','guitar','ukulele'].includes(data.instrument) && data.instrument !== project.instrument){
+            setEditorInstrument(data.instrument);
+        }
+        resumeAudio();
+        const bass = noteToMidi(data.bass);
+        const notes = parseNotes(data.notes);
+        const when = audioCtx.currentTime + .02;
+        showEditorChordVisual(data);
+        if(bass !== null) playNote(bass, .30, .75, 'sine', when);
+        strumChord(notes, .18, .90, when + .05, 'active-chord');
+        setTimeout(() => showEditorChordVisual(data), 760);
+        return { ok:true, message:'Acorde escuchado y mostrado en el instrumento principal.' };
+    }
+    function refreshEditorAfterMutation(sectionKey, index){
+        selectEditorSection(sectionKey);
+        renderChordSelect();
+        const seq = project.sections?.[sectionKey] || [];
+        const idx = Math.max(0, Math.min(seq.length - 1, Number(index) || 0));
+        if(els.chordSelect) els.chordSelect.value = String(idx);
+        chordIdx = idx;
+        stepInChord = 0;
+        loadEditorFromSelected();
+        renderSectionList();
+        updateSectionNoteMap();
+        updateFretboardMap();
+        saveProject(false);
+        const item = seq[idx];
+        if(item) showEditorChordVisual(Object.assign({ sectionKey, chordIndex:idx, instrument:project.instrument }, item));
+        return idx;
+    }
+    function applyEditorChord(payload={}){
+        const result = validateEditorPayload(payload);
+        if(!result.ok) return result;
+        const data = result.data;
+        const previous = data.seq[data.chordIndex] || {};
+        data.seq[data.chordIndex] = Object.assign(
+            {},
+            previous,
+            chord(data.name, data.bass, data.notes, data.bars)
+        );
+        const idx = refreshEditorAfterMutation(data.sectionKey, data.chordIndex);
+        return { ok:true, message:'Acorde aplicado al proyecto central.', chordIndex:idx, state:getEditorState() };
+    }
+    function addEditorChord(payload={}){
+        const result = validateEditorPayload(payload);
+        if(!result.ok) return result;
+        const data = result.data;
+        const item = Object.assign(
+            {},
+            chord(data.name, data.bass, data.notes, data.bars),
+            { name:data.name + ' copia' }
+        );
+        const newIndex = Math.min(data.seq.length, data.chordIndex + 1);
+        data.seq.splice(newIndex, 0, item);
+        const idx = refreshEditorAfterMutation(data.sectionKey, newIndex);
+        return { ok:true, message:'Acorde agregado.', chordIndex:idx, state:getEditorState() };
+    }
+    function duplicateEditorChord(sectionKey, index){
+        const seq = project.sections?.[sectionKey];
+        if(!Array.isArray(seq) || !seq.length) return { ok:false, message:'No hay acorde para duplicar.' };
+        const idx = Math.max(0, Math.min(seq.length - 1, Number(index) || 0));
+        const copy = safeClone(seq[idx]);
+        copy.name = String(copy.name || 'Acorde') + ' copia';
+        const newIndex = idx + 1;
+        seq.splice(newIndex, 0, copy);
+        const selected = refreshEditorAfterMutation(sectionKey, newIndex);
+        return { ok:true, message:'Acorde duplicado.', chordIndex:selected, state:getEditorState() };
+    }
+    function deleteEditorChord(sectionKey, index){
+        const seq = project.sections?.[sectionKey];
+        if(!Array.isArray(seq) || !seq.length) return { ok:false, message:'No hay acorde para borrar.' };
+        if(seq.length <= 1) return { ok:false, message:'La sección debe conservar al menos un acorde.' };
+        const idx = Math.max(0, Math.min(seq.length - 1, Number(index) || 0));
+        seq.splice(idx, 1);
+        const selected = refreshEditorAfterMutation(sectionKey, Math.max(0, idx - 1));
+        return { ok:true, message:'Acorde borrado.', chordIndex:selected, state:getEditorState() };
+    }
+
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v1',
+        version: 'suite-pro-bridge-v1.1-editor',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
+        getEditorState,
+        selectEditorSection,
+        selectEditorChord,
+        setEditorInstrument,
+        showEditorChordVisual,
+        previewEditorChord,
+        applyEditorChord,
+        addEditorChord,
+        duplicateEditorChord,
+        deleteEditorChord,
         getArrangement: () => safeClone(safe(() => arrangementParts(), [])),
         startGroove: () => { startStop(); return true; },
         playFullSong: () => { startFullSong(); return true; },

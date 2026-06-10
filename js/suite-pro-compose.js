@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Compose Coordinator v1.2
+// Studio 936 Composer - Suite Pro Compose Coordinator v1.3
 // Scope: Compose tab only. It does not write to app.js, editor, transport, drums, practice or studio modules.
 // Product goal: coordinador modular de Composición: Plantillas, Inspiración, Transponer, Estructura, Editor, Acordes IA, Teoría y Escalas.
 (function () {
@@ -189,7 +189,7 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProCompose = { version: "compose-v1.2-coordinator", render };
+    window.Studio936SuiteProCompose = { version: "compose-v1.3-editor-module", render };
     window.Studio936SuiteProModules.compose = window.Studio936SuiteProCompose;
   }
 
@@ -288,7 +288,7 @@
       inspire: renderInspire,
       transpose: renderTranspose,
       structure: renderStructureModule,
-      editor: renderEditorGateway,
+      editor: renderEditorModule,
       chordAI: renderChordAI,
       theory: renderTheory,
       scales: renderScales
@@ -869,7 +869,16 @@
   }
 
   
-  function renderEditorGateway(ctx, shell) {
+  
+  function renderEditorModule(ctx, shell) {
+    const mod = window.Studio936SuiteProEditor || window.Studio936SuiteProModules?.editor;
+    if (mod && typeof mod.render === "function") {
+      return mod.render(ctx, shell);
+    }
+    return renderEditorGateway(ctx, shell);
+  }
+
+function renderEditorGateway(ctx, shell) {
     const s = snap(ctx);
     const sectionName = s.currentSectionName || s.currentSection || "Sección actual";
     const chordName = ctx.currentChordName?.() || s.chordLabel || "Acorde actual";
