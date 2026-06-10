@@ -1121,10 +1121,18 @@ function installStudio936AppBridge(){
             currentChord: safeClone(seq[chordIndex] || null)
         };
     }
+    function normalizeMidiList(list){
+        return Array.isArray(list)
+            ? list.map(Number).filter(Number.isFinite).map(n => Math.round(n))
+            : [];
+    }
     function normalizeEditorPayload(payload={}){
         const sectionKey = String(payload.sectionKey || els.sectionSelect?.value || 'intro');
         const seq = Array.isArray(project.sections?.[sectionKey]) ? project.sections[sectionKey] : null;
         const chordIndex = Math.max(0, Math.min(Math.max(0,(seq?.length || 1)-1), Number(payload.chordIndex) || 0));
+        const exactFrets = Array.isArray(payload.exactFrets)
+            ? payload.exactFrets.slice(0,6).map(v => v === null || String(v).toUpperCase() === 'X' ? null : clamp(Number(v)||0,0,24))
+            : null;
         return {
             sectionKey,
             seq,
@@ -1133,14 +1141,29 @@ function installStudio936AppBridge(){
             bass: String(payload.bass || '').trim(),
             notes: String(payload.notes || '').trim(),
             bars: clamp(Number(payload.bars) || 1, 1, 16),
-            instrument: String(payload.instrument || project.instrument || 'piano')
+            instrument: String(payload.instrument || project.instrument || 'piano'),
+            exactMidis: normalizeMidiList(payload.exactMidis),
+            exactFrets,
+            exactStrings: Array.isArray(payload.exactStrings) ? safeClone(payload.exactStrings) : null,
+            capo: clamp(Number(payload.capo)||0,0,12),
+            barre: payload.barre && typeof payload.barre === 'object' ? safeClone(payload.barre) : null,
+            rootPitchClass: Number.isFinite(Number(payload.rootPitchClass)) ? ((Number(payload.rootPitchClass)%12)+12)%12 : null,
+            voicings: payload.voicings && typeof payload.voicings === 'object' ? safeClone(payload.voicings) : null
         };
     }
     function validateEditorPayload(payload={}){
         const data = normalizeEditorPayload(payload);
         if(!data.seq) return { ok:false, message:'La sección seleccionada no existe.', data };
-        if(noteToMidi(data.bass) === null) return { ok:false, message:'No pude leer la nota de bajo. Usa un formato como C2, F#2 o Sib2.', data };
-        if(parseNotes(data.notes).length === 0) return { ok:false, message:'No pude leer las notas del acorde. Usa un formato como C3 E3 G3.', data };
+        const exactMode = data.instrument === 'guitar' && data.exactMidis.length > 0;
+        if(!exactMode && noteToMidi(data.bass) === null){
+            return { ok:false, message:'No pude leer la nota de bajo. Usa un formato como C2, F#2 o Sib2.', data };
+        }
+        if(!exactMode && parseNotes(data.notes).length === 0){
+            return { ok:false, message:'No pude leer las notas del acorde. Usa un formato como C3 E3 G3.', data };
+        }
+        if(exactMode && data.exactMidis.length < 2){
+            return { ok:false, message:'La digitación de guitarra debe tener al menos dos cuerdas sonoras.', data };
+        }
         return { ok:true, data };
     }
     function selectEditorSection(sectionKey){
@@ -1175,11 +1198,99 @@ function installStudio936AppBridge(){
         chordIdx = idx;
         return Object.assign({ ok:true }, getEditorState());
     }
+    function clearExactVoicingMap(){
+        document.getElementById('s936ExactVoicingMap')?.remove();
+    }
+    function exactStringLabel(index){
+        return ['6 · E','5 · A','4 · D','3 · G','2 · B','1 · e'][index] || String(index + 1);
+    }
+    function renderExactFretVoicing(data){
+        if(data.instrument !== 'guitar' || !Array.isArray(data.exactFrets)) {
+            clearExactVoicingMap();
+            return;
+        }
+        const container = els.fretboardContainer;
+        if(!container) return;
+
+        let panel = document.getElementById('s936ExactVoicingMap');
+        if(!panel){
+            panel = document.createElement('section');
+            panel.id = 's936ExactVoicingMap';
+            container.insertBefore(panel, container.firstChild);
+        }
+        panel.innerHTML = '';
+
+        const head = document.createElement('div');
+        head.className = 's936-xv-head';
+        const title = document.createElement('b');
+        title.textContent = 'Voicing exacto · guitarra completa 0–24';
+        const meta = document.createElement('span');
+        const shape = data.exactFrets.map(v => v === null ? 'X' : String(v)).join('-');
+        meta.textContent = `${data.name || 'Acorde'} · Forma ${shape}${data.capo ? ` · Capo ${data.capo}` : ''}`;
+        head.append(title, meta);
+        panel.appendChild(head);
+
+        const scroll = document.createElement('div');
+        scroll.className = 's936-xv-scroll';
+        const ruler = document.createElement('div');
+        ruler.className = 's936-xv-ruler';
+        const empty = document.createElement('span');
+        empty.textContent = 'Traste';
+        ruler.appendChild(empty);
+        for(let fret=0; fret<=24; fret++){
+            const mark = document.createElement('span');
+            mark.textContent = String(fret);
+            ruler.appendChild(mark);
+        }
+        scroll.appendChild(ruler);
+
+        const exactStrings = Array.isArray(data.exactStrings) ? data.exactStrings : [];
+        const barre = data.barre || {};
+        const barreEnabled = !!barre.enabled;
+        const barreFret = clamp(Number(barre.fret)||1,1,24) + (data.capo || 0);
+        const fromString = clamp(Number(barre.fromString)||6,1,6);
+        const toString = clamp(Number(barre.toString)||1,1,6);
+        const stringHigh = Math.max(fromString,toString);
+        const stringLow = Math.min(fromString,toString);
+
+        data.exactFrets.forEach((relativeFret,index) => {
+            const row = document.createElement('div');
+            row.className = 's936-xv-row';
+            const label = document.createElement('div');
+            label.className = 's936-xv-label';
+            const stringData = exactStrings[index] || {};
+            label.textContent = `${exactStringLabel(index)} ${relativeFret === null ? '· X' : `· ${stringData.note || ''}`}`;
+            if(relativeFret === null) label.classList.add('s936-xv-muted');
+            row.appendChild(label);
+
+            const physicalFret = relativeFret === null ? null : clamp(Number(relativeFret)||0,0,24) + (data.capo || 0);
+            const stringNumber = 6 - index;
+            for(let fret=0; fret<=24; fret++){
+                const cell = document.createElement('div');
+                cell.className = 's936-xv-cell';
+                if(physicalFret === fret){
+                    cell.classList.add('on');
+                    const isBass = exactStrings[index] && exactStrings[index].midi === Math.min(...data.exactMidis);
+                    if(isBass) cell.classList.add('bass');
+                    cell.textContent = stringData.finger || (relativeFret === 0 ? '0' : String(relativeFret));
+                    cell.title = `${exactStringLabel(index)} · ${stringData.note || ''} · traste ${relativeFret}`;
+                }
+                if(barreEnabled && fret === barreFret && stringNumber <= stringHigh && stringNumber >= stringLow){
+                    cell.classList.add('barre');
+                }
+                row.appendChild(cell);
+            }
+            scroll.appendChild(row);
+        });
+
+        panel.appendChild(scroll);
+    }
     function setEditorInstrument(instrument){
         const value = ['piano','guitar','ukulele'].includes(instrument) ? instrument : 'piano';
         project.instrument = value;
         if(els.instrumentSelect) els.instrumentSelect.value = value;
         if(value === 'piano'){
+            clearExactVoicingMap();
             setViewMode('piano');
         } else {
             project.fretMode = value === 'ukulele' ? 'ukulele' : 'guitar';
@@ -1187,6 +1298,7 @@ function installStudio936AppBridge(){
             setViewMode('fretboard');
             buildFretboard();
             updateFretboardMap();
+            if(value !== 'guitar') clearExactVoicingMap();
         }
         updateStyleHelp();
         saveProject(false);
@@ -1201,8 +1313,10 @@ function installStudio936AppBridge(){
             notes: data.notes || seqItem.notes || 'C3 E3 G3',
             bars: data.bars || seqItem.bars || 1
         };
-        const notes = parseNotes(item.notes);
-        const bass = noteToMidi(item.bass);
+        const notes = data.exactMidis.length ? data.exactMidis : parseNotes(item.notes);
+        const bass = data.exactMidis.length
+            ? Math.min(...data.exactMidis)
+            : noteToMidi(item.bass);
         if(!notes.length) return { ok:false, message:'No pude visualizar las notas del acorde.' };
 
         clearKeys();
@@ -1220,8 +1334,15 @@ function installStudio936AppBridge(){
         }catch(error){
             console.warn('Editor Pro: no se pudo actualizar el diapasón.', error);
         }
+        renderExactFretVoicing(data);
         if(els.chordLabel) els.chordLabel.textContent = item.name || 'Acorde';
-        return { ok:true, item:safeClone(item), notes:safeClone(notes), bass };
+        return {
+            ok:true,
+            item:safeClone(item),
+            notes:safeClone(notes),
+            bass,
+            exact:data.exactMidis.length > 0
+        };
     }
     function previewEditorChord(payload={}){
         const result = validateEditorPayload(payload);
@@ -1231,14 +1352,28 @@ function installStudio936AppBridge(){
             setEditorInstrument(data.instrument);
         }
         resumeAudio();
-        const bass = noteToMidi(data.bass);
-        const notes = parseNotes(data.notes);
+        const exactMode = data.instrument === 'guitar' && data.exactMidis.length;
+        const bass = exactMode ? Math.min(...data.exactMidis) : noteToMidi(data.bass);
+        const notes = exactMode ? data.exactMidis : parseNotes(data.notes);
         const when = audioCtx.currentTime + .02;
         showEditorChordVisual(data);
-        if(bass !== null) playNote(bass, .30, .75, 'sine', when);
-        strumChord(notes, .18, .90, when + .05, 'active-chord');
-        setTimeout(() => showEditorChordVisual(data), 760);
-        return { ok:true, message:'Acorde escuchado y mostrado en el instrumento principal.' };
+
+        if(exactMode){
+            const strum = currentInstrument().strum || .018;
+            notes.forEach((midi,index) => {
+                playNote(midi,.22,.82,'triangle',when + index * strum);
+            });
+        } else {
+            if(bass !== null) playNote(bass,.30,.75,'sine',when);
+            strumChord(notes,.18,.90,when + .05,'active-chord');
+        }
+        setTimeout(() => showEditorChordVisual(data), 820);
+        return {
+            ok:true,
+            message:exactMode
+                ? 'Digitación exacta escuchada cuerda por cuerda y mostrada en el instrumento principal.'
+                : 'Acorde escuchado y mostrado en el instrumento principal.'
+        };
     }
     function refreshEditorAfterMutation(sectionKey, index){
         selectEditorSection(sectionKey);
@@ -1254,21 +1389,48 @@ function installStudio936AppBridge(){
         updateFretboardMap();
         saveProject(false);
         const item = seq[idx];
-        if(item) showEditorChordVisual(Object.assign({ sectionKey, chordIndex:idx, instrument:project.instrument }, item));
+        if(item){
+            const guitar = item.voicings?.guitar;
+            const exactFrets = Array.isArray(guitar?.frets) ? guitar.frets : null;
+            showEditorChordVisual(Object.assign(
+                { sectionKey, chordIndex:idx, instrument:project.instrument },
+                item,
+                exactFrets ? {
+                    exactFrets,
+                    exactMidis:Array.isArray(guitar.midis) ? guitar.midis : [],
+                    capo:guitar.capo || 0,
+                    barre:guitar.barre || null
+                } : {}
+            ));
+        }
         return idx;
+    }
+    function mergeVoicings(previous, incoming){
+        const current = previous && typeof previous === 'object' ? safeClone(previous) : {};
+        const next = incoming && typeof incoming === 'object' ? safeClone(incoming) : {};
+        return Object.assign(current, next);
     }
     function applyEditorChord(payload={}){
         const result = validateEditorPayload(payload);
         if(!result.ok) return result;
         const data = result.data;
         const previous = data.seq[data.chordIndex] || {};
-        data.seq[data.chordIndex] = Object.assign(
+        const next = Object.assign(
             {},
             previous,
             chord(data.name, data.bass, data.notes, data.bars)
         );
+        if(data.voicings){
+            next.voicings = mergeVoicings(previous.voicings, data.voicings);
+            if(next.voicings.guitar && data.exactMidis.length){
+                next.voicings.guitar.midis = safeClone(data.exactMidis);
+                next.voicings.guitar.notes = data.notes;
+                next.voicings.guitar.bass = data.bass;
+            }
+        }
+        data.seq[data.chordIndex] = next;
         const idx = refreshEditorAfterMutation(data.sectionKey, data.chordIndex);
-        return { ok:true, message:'Acorde aplicado al proyecto central.', chordIndex:idx, state:getEditorState() };
+        return { ok:true, message:'Acorde y digitación aplicados al proyecto central.', chordIndex:idx, state:getEditorState() };
     }
     function addEditorChord(payload={}){
         const result = validateEditorPayload(payload);
@@ -1279,10 +1441,18 @@ function installStudio936AppBridge(){
             chord(data.name, data.bass, data.notes, data.bars),
             { name:data.name + ' copia' }
         );
+        if(data.voicings){
+            item.voicings = mergeVoicings(null, data.voicings);
+            if(item.voicings.guitar && data.exactMidis.length){
+                item.voicings.guitar.midis = safeClone(data.exactMidis);
+                item.voicings.guitar.notes = data.notes;
+                item.voicings.guitar.bass = data.bass;
+            }
+        }
         const newIndex = Math.min(data.seq.length, data.chordIndex + 1);
         data.seq.splice(newIndex, 0, item);
         const idx = refreshEditorAfterMutation(data.sectionKey, newIndex);
-        return { ok:true, message:'Acorde agregado.', chordIndex:idx, state:getEditorState() };
+        return { ok:true, message:'Acorde agregado con su digitación.', chordIndex:idx, state:getEditorState() };
     }
     function duplicateEditorChord(sectionKey, index){
         const seq = project.sections?.[sectionKey];
@@ -1293,7 +1463,7 @@ function installStudio936AppBridge(){
         const newIndex = idx + 1;
         seq.splice(newIndex, 0, copy);
         const selected = refreshEditorAfterMutation(sectionKey, newIndex);
-        return { ok:true, message:'Acorde duplicado.', chordIndex:selected, state:getEditorState() };
+        return { ok:true, message:'Acorde y digitación duplicados.', chordIndex:selected, state:getEditorState() };
     }
     function deleteEditorChord(sectionKey, index){
         const seq = project.sections?.[sectionKey];
@@ -1306,7 +1476,7 @@ function installStudio936AppBridge(){
     }
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v1.1-editor',
+        version: 'suite-pro-bridge-v1.2-guitar-exact',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
