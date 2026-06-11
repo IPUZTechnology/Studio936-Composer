@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Compose Coordinator v1.4
+// Studio 936 Composer - Suite Pro Compose Coordinator v1.5
 // Scope: Compose tab only. It does not write to app.js, editor, transport, drums, practice or studio modules.
 // Product goal: coordinador modular de Composición: Plantillas, Inspiración, Transponer, Estructura, Editor, Acordes IA, Teoría y Escalas.
 (function () {
@@ -189,7 +189,7 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProCompose = { version: "compose-v1.4-editor-guitar-v02", render };
+    window.Studio936SuiteProCompose = { version: "compose-v1.5-editor-guitar-v03", render };
     window.Studio936SuiteProModules.compose = window.Studio936SuiteProCompose;
   }
 
@@ -283,6 +283,9 @@
 
     let active = ctx.state.composeTool || state.tool || "templates";
     if (active === "songDNA") active = "structure";
+    if (active !== "editor") {
+      safe(() => window.Studio936AppBridge?.deactivateEditorSurface?.(), null);
+    }
     const map = {
       templates: renderTemplates,
       inspire: renderInspire,

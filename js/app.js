@@ -1198,92 +1198,303 @@ function installStudio936AppBridge(){
         chordIdx = idx;
         return Object.assign({ ok:true }, getEditorState());
     }
+    function deactivateEditorSurface(){
+        const container = els.fretboardContainer;
+        if(container) container.classList.remove('s936-editor-surface-active');
+        document.getElementById('s936EditorGuitarSurface')?.remove();
+        document.querySelectorAll('.s936-finger-pop').forEach(node => node.remove());
+        return { ok:true };
+    }
     function clearExactVoicingMap(){
-        document.getElementById('s936ExactVoicingMap')?.remove();
+        return deactivateEditorSurface();
     }
     function exactStringLabel(index){
         return ['6 · E','5 · A','4 · D','3 · G','2 · B','1 · e'][index] || String(index + 1);
     }
-    function renderExactFretVoicing(data){
-        if(data.instrument !== 'guitar' || !Array.isArray(data.exactFrets)) {
-            clearExactVoicingMap();
+    function editorExternal(method, ...args){
+        const api = window.Studio936SuiteProEditor;
+        if(!api || typeof api[method] !== 'function') return false;
+        try{
+            api[method](...args);
+            return true;
+        }catch(error){
+            console.warn('Editor Pro external control:', method, error);
+            return false;
+        }
+    }
+    function guitarOpenMidi(index){
+        return [40,45,50,55,59,64][index] ?? 40;
+    }
+    function guitarCellNote(index, physicalFret){
+        return midiToNote(guitarOpenMidi(index) + Number(physicalFret || 0));
+    }
+    function removeFingerPicker(){
+        document.querySelectorAll('.s936-finger-pop').forEach(node => node.remove());
+    }
+    function showFingerPicker(anchor, stringIndex){
+        removeFingerPicker();
+        const surface = document.getElementById('s936EditorGuitarSurface');
+        if(!surface || !anchor) return;
+        const picker = document.createElement('div');
+        picker.className = 's936-finger-pop';
+        picker.setAttribute('role','dialog');
+        picker.setAttribute('aria-label','Seleccionar dedo');
+        [['1','1'],['2','2'],['3','3'],['4','4'],['T','T'],['','×']].forEach(([value,label]) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = label;
+            if(value === '') btn.classList.add('clear');
+            btn.title = value ? `Dedo ${value}` : 'Sin dedo';
+            btn.addEventListener('click', ev => {
+                ev.stopPropagation();
+                editorExternal('externalSetFinger', stringIndex, value);
+                removeFingerPicker();
+            });
+            picker.appendChild(btn);
+        });
+        surface.appendChild(picker);
+        const rect = anchor.getBoundingClientRect();
+        const maxLeft = Math.max(8, window.innerWidth - 225);
+        picker.style.left = `${Math.max(8, Math.min(maxLeft, rect.left - 20))}px`;
+        picker.style.top = `${Math.max(8, Math.min(window.innerHeight - 52, rect.bottom + 6))}px`;
+        const close = ev => {
+            if(!picker.contains(ev.target) && ev.target !== anchor){
+                removeFingerPicker();
+                document.removeEventListener('pointerdown', close, true);
+            }
+        };
+        setTimeout(() => document.addEventListener('pointerdown', close, true), 0);
+    }
+    function chartVoicingForItem(item, index, data){
+        if(index === data.chordIndex && Array.isArray(data.exactFrets)){
+            return {
+                frets:data.exactFrets,
+                fingers:Array.isArray(data.exactStrings) ? data.exactStrings.map(s => s?.finger || '') : [],
+                capo:data.capo || 0,
+                shape:data.exactFrets.map(v => v === null ? 'X' : String(v)).join('-')
+            };
+        }
+        const saved = item?.voicings?.guitar;
+        if(!saved || !Array.isArray(saved.frets) || saved.frets.length !== 6) return null;
+        return {
+            frets:saved.frets.map(v => v === null || String(v).toUpperCase() === 'X' ? null : clamp(Number(v)||0,0,24)),
+            fingers:Array.isArray(saved.fingers) ? saved.fingers : [],
+            capo:clamp(Number(saved.capo)||0,0,12),
+            shape:saved.shape || saved.frets.map(v => v === null ? 'X' : String(v)).join('-')
+        };
+    }
+    function renderMiniGuitarChart(card, voicing){
+        if(!voicing){
+            const empty = document.createElement('div');
+            empty.className = 's936-chart-empty';
+            empty.textContent = 'Sin digitación exacta guardada';
+            card.appendChild(empty);
+            return;
+        }
+        const chart = document.createElement('div');
+        chart.className = 's936-mini-chart';
+        const positive = voicing.frets.filter(v => Number(v) > 0).map(Number);
+        const base = positive.length && Math.min(...positive) > 4 ? Math.min(...positive) : 1;
+        voicing.frets.forEach((fret, index) => {
+            const x = 8.3 + index * 16.7;
+            if(fret === null){
+                const mark = document.createElement('span');
+                mark.className = 's936-mini-muted';
+                mark.textContent = '×';
+                mark.style.left = `${x}%`;
+                chart.appendChild(mark);
+                return;
+            }
+            if(Number(fret) === 0){
+                const mark = document.createElement('span');
+                mark.className = 's936-mini-open';
+                mark.textContent = '○';
+                mark.style.left = `${x}%`;
+                chart.appendChild(mark);
+                return;
+            }
+            const rel = Number(fret) - base;
+            if(rel < 0 || rel > 4) return;
+            const dot = document.createElement('span');
+            dot.className = 's936-mini-dot';
+            dot.textContent = String(voicing.fingers[index] || '');
+            dot.style.left = `${x}%`;
+            dot.style.top = `${8 + rel * 16}px`;
+            chart.appendChild(dot);
+        });
+        card.appendChild(chart);
+    }
+    function renderEditorGuitarSurface(data){
+        if(data.instrument !== 'guitar' || !Array.isArray(data.exactFrets) || data.exactFrets.length !== 6){
+            deactivateEditorSurface();
             return;
         }
         const container = els.fretboardContainer;
         if(!container) return;
+        container.classList.add('s936-editor-surface-active');
 
-        let panel = document.getElementById('s936ExactVoicingMap');
-        if(!panel){
-            panel = document.createElement('section');
-            panel.id = 's936ExactVoicingMap';
-            container.insertBefore(panel, container.firstChild);
+        let surface = document.getElementById('s936EditorGuitarSurface');
+        if(!surface){
+            surface = document.createElement('section');
+            surface.id = 's936EditorGuitarSurface';
+            container.appendChild(surface);
         }
-        panel.innerHTML = '';
+        surface.innerHTML = '';
 
         const head = document.createElement('div');
-        head.className = 's936-xv-head';
-        const title = document.createElement('b');
-        title.textContent = 'Voicing exacto · guitarra completa 0–24';
-        const meta = document.createElement('span');
+        head.className = 's936-neck-head';
+        const identity = document.createElement('div');
+        const title = document.createElement('div');
+        title.className = 's936-neck-title';
+        title.textContent = 'Cuello interactivo · Guitarra';
+        const meta = document.createElement('div');
+        meta.className = 's936-neck-meta';
         const shape = data.exactFrets.map(v => v === null ? 'X' : String(v)).join('-');
-        meta.textContent = `${data.name || 'Acorde'} · Forma ${shape}${data.capo ? ` · Capo ${data.capo}` : ''}`;
-        head.append(title, meta);
-        panel.appendChild(head);
+        meta.textContent = `${data.name || 'Acorde'} · ${shape}${data.capo ? ` · Capo ${data.capo}` : ''}`;
+        identity.append(title, meta);
+        const help = document.createElement('div');
+        help.className = 's936-neck-help';
+        help.textContent = 'Haz clic en un traste para colocar la nota y luego selecciona el dedo. X apaga la cuerda; 0 la deja abierta. El panel manual se sincroniza automáticamente.';
+        head.append(identity, help);
+        surface.appendChild(head);
 
         const scroll = document.createElement('div');
-        scroll.className = 's936-xv-scroll';
+        scroll.className = 's936-neck-scroll';
         const ruler = document.createElement('div');
-        ruler.className = 's936-xv-ruler';
-        const empty = document.createElement('span');
-        empty.textContent = 'Traste';
-        ruler.appendChild(empty);
-        for(let fret=0; fret<=24; fret++){
-            const mark = document.createElement('span');
-            mark.textContent = String(fret);
-            ruler.appendChild(mark);
+        ruler.className = 's936-neck-ruler';
+        ['Cuerda','X','0'].forEach(label => {
+            const span = document.createElement('span');
+            span.textContent = label;
+            ruler.appendChild(span);
+        });
+        const markerFrets = new Set([3,5,7,9,12,15,17,19,21,24]);
+        for(let fret=1; fret<=24; fret++){
+            const span = document.createElement('span');
+            span.textContent = String(fret);
+            if(markerFrets.has(fret)) span.classList.add('mark');
+            ruler.appendChild(span);
         }
         scroll.appendChild(ruler);
 
         const exactStrings = Array.isArray(data.exactStrings) ? data.exactStrings : [];
+        const bassMidi = data.exactMidis.length ? Math.min(...data.exactMidis) : null;
         const barre = data.barre || {};
         const barreEnabled = !!barre.enabled;
-        const barreFret = clamp(Number(barre.fret)||1,1,24) + (data.capo || 0);
-        const fromString = clamp(Number(barre.fromString)||6,1,6);
-        const toString = clamp(Number(barre.toString)||1,1,6);
-        const stringHigh = Math.max(fromString,toString);
-        const stringLow = Math.min(fromString,toString);
+        const barrePhysicalFret = clamp(Number(barre.fret)||1,1,24) + (data.capo || 0);
+        const barreHigh = Math.max(clamp(Number(barre.fromString)||6,1,6), clamp(Number(barre.toString)||1,1,6));
+        const barreLow = Math.min(clamp(Number(barre.fromString)||6,1,6), clamp(Number(barre.toString)||1,1,6));
 
         data.exactFrets.forEach((relativeFret,index) => {
             const row = document.createElement('div');
-            row.className = 's936-xv-row';
+            row.className = 's936-neck-row';
+            const stringNumber = 6 - index;
             const label = document.createElement('div');
-            label.className = 's936-xv-label';
-            const stringData = exactStrings[index] || {};
-            label.textContent = `${exactStringLabel(index)} ${relativeFret === null ? '· X' : `· ${stringData.note || ''}`}`;
-            if(relativeFret === null) label.classList.add('s936-xv-muted');
+            label.className = 's936-neck-string-label';
+            label.textContent = exactStringLabel(index);
+            const open = document.createElement('small');
+            open.textContent = midiToNote(guitarOpenMidi(index));
+            label.appendChild(open);
             row.appendChild(label);
 
-            const physicalFret = relativeFret === null ? null : clamp(Number(relativeFret)||0,0,24) + (data.capo || 0);
-            const stringNumber = 6 - index;
-            for(let fret=0; fret<=24; fret++){
-                const cell = document.createElement('div');
-                cell.className = 's936-xv-cell';
-                if(physicalFret === fret){
-                    cell.classList.add('on');
-                    const isBass = exactStrings[index] && exactStrings[index].midi === Math.min(...data.exactMidis);
-                    if(isBass) cell.classList.add('bass');
-                    cell.textContent = stringData.finger || (relativeFret === 0 ? '0' : String(relativeFret));
-                    cell.title = `${exactStringLabel(index)} · ${stringData.note || ''} · traste ${relativeFret}`;
-                }
-                if(barreEnabled && fret === barreFret && stringNumber <= stringHigh && stringNumber >= stringLow){
+            const muteBtn = document.createElement('button');
+            muteBtn.type = 'button';
+            muteBtn.className = 's936-neck-cell mute' + (relativeFret === null ? ' active' : '');
+            muteBtn.textContent = 'X';
+            muteBtn.title = `Apagar cuerda ${stringNumber}`;
+            muteBtn.addEventListener('click', () => editorExternal('externalSetFret', index, null));
+            row.appendChild(muteBtn);
+
+            const openBtn = document.createElement('button');
+            openBtn.type = 'button';
+            openBtn.className = 's936-neck-cell open' + (relativeFret === 0 ? ' active' : '');
+            openBtn.textContent = '0';
+            openBtn.title = `Cuerda ${stringNumber} abierta${data.capo ? ` desde capo ${data.capo}` : ''}`;
+            openBtn.addEventListener('click', () => editorExternal('externalSetFret', index, 0));
+            row.appendChild(openBtn);
+
+            const physicalSelected = relativeFret === null ? null : clamp(Number(relativeFret)||0,0,24) + (data.capo || 0);
+            for(let physicalFret=1; physicalFret<=24; physicalFret++){
+                const cell = document.createElement('button');
+                cell.type = 'button';
+                cell.className = 's936-neck-cell';
+                cell.dataset.stringIndex = String(index);
+                cell.dataset.physicalFret = String(physicalFret);
+                const blocked = physicalFret < (data.capo || 0);
+                if(blocked) cell.classList.add('capoblocked');
+                if(data.capo && physicalFret === data.capo) cell.classList.add('capo');
+                if(barreEnabled && physicalFret === barrePhysicalFret && stringNumber <= barreHigh && stringNumber >= barreLow){
                     cell.classList.add('barre');
                 }
+                const cellNote = guitarCellNote(index, physicalFret);
+                cell.textContent = cellNote.replace(/-?\d+$/,'');
+                cell.title = blocked
+                    ? `Debajo del capo ${data.capo}`
+                    : `${exactStringLabel(index)} · traste físico ${physicalFret} · ${cellNote}`;
+                if(physicalSelected === physicalFret){
+                    cell.classList.add('on');
+                    cell.textContent = '';
+                    const dot = document.createElement('span');
+                    dot.className = 's936-neck-dot';
+                    const stringData = exactStrings[index] || {};
+                    if(Number.isFinite(stringData.midi) && stringData.midi === bassMidi) dot.classList.add('bass');
+                    const note = document.createElement('span');
+                    note.textContent = stringData.note || cellNote;
+                    const finger = document.createElement('span');
+                    finger.className = 'finger';
+                    finger.textContent = stringData.finger ? `D${stringData.finger}` : 'dedo';
+                    dot.append(note, finger);
+                    cell.appendChild(dot);
+                }
+                cell.addEventListener('click', () => {
+                    if(blocked) return;
+                    const relative = Math.max(0, physicalFret - (data.capo || 0));
+                    editorExternal('externalSetFret', index, relative);
+                    setTimeout(() => {
+                        const updated = document.querySelector(`#s936EditorGuitarSurface [data-string-index="${index}"][data-physical-fret="${physicalFret}"]`);
+                        showFingerPicker(updated, index);
+                    }, 90);
+                });
                 row.appendChild(cell);
             }
             scroll.appendChild(row);
         });
+        surface.appendChild(scroll);
 
-        panel.appendChild(scroll);
+        const chartZone = document.createElement('section');
+        chartZone.className = 's936-chart-zone';
+        const chartHead = document.createElement('div');
+        chartHead.className = 's936-chart-head';
+        const chartTitle = document.createElement('b');
+        const sectionLabel = sectionNames[data.sectionKey] || data.sectionKey || 'Sección';
+        chartTitle.textContent = `Acordes de ${sectionLabel}`;
+        const chartHint = document.createElement('span');
+        chartHint.textContent = 'Selecciona un chart para editarlo';
+        chartHead.append(chartTitle, chartHint);
+        chartZone.appendChild(chartHead);
+
+        const chartRow = document.createElement('div');
+        chartRow.className = 's936-chart-row';
+        (data.seq || []).forEach((item,index) => {
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 's936-chart-card' + (index === data.chordIndex ? ' active' : '');
+            const name = document.createElement('span');
+            name.className = 's936-chart-name';
+            name.textContent = `${index + 1}. ${item?.name || 'Acorde'}`;
+            const voicing = chartVoicingForItem(item,index,data);
+            const metaLine = document.createElement('span');
+            metaLine.className = 's936-chart-meta';
+            metaLine.textContent = `${item?.bars || 1} comp. · ${voicing?.shape || 'sin forma'}`;
+            card.append(name, metaLine);
+            renderMiniGuitarChart(card, voicing);
+            card.addEventListener('click', () => editorExternal('externalSelectChord', index));
+            chartRow.appendChild(card);
+        });
+        chartZone.appendChild(chartRow);
+        surface.appendChild(chartZone);
+
+        const activeChart = chartRow.querySelector('.s936-chart-card.active');
+        activeChart?.scrollIntoView?.({ behavior:'smooth', block:'nearest', inline:'center' });
     }
     function setEditorInstrument(instrument){
         const value = ['piano','guitar','ukulele'].includes(instrument) ? instrument : 'piano';
@@ -1334,7 +1545,7 @@ function installStudio936AppBridge(){
         }catch(error){
             console.warn('Editor Pro: no se pudo actualizar el diapasón.', error);
         }
-        renderExactFretVoicing(data);
+        renderEditorGuitarSurface(data);
         if(els.chordLabel) els.chordLabel.textContent = item.name || 'Acorde';
         return {
             ok:true,
@@ -1476,7 +1687,7 @@ function installStudio936AppBridge(){
     }
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v1.2-guitar-exact',
+        version: 'suite-pro-bridge-v1.3-interactive-guitar-neck',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -1484,6 +1695,7 @@ function installStudio936AppBridge(){
         selectEditorSection,
         selectEditorChord,
         setEditorInstrument,
+        deactivateEditorSurface,
         showEditorChordVisual,
         previewEditorChord,
         applyEditorChord,

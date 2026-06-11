@@ -1,18 +1,21 @@
-// Studio 936 Composer - Suite Pro Editor v0.2
+// Studio 936 Composer - Suite Pro Editor v0.3
 // Scope: Editor tab inside Compose.
-// Adds exact six-string guitar voicings, chord detection, TAB and full-instrument visualization.
+// Adds an interactive guitar neck, exact six-string voicings, chord detection, TAB and section charts.
 // It does not replace or delete the legacy editor.
 (function () {
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.2-guitar-exact";
+  const VERSION = "editor-v0.3-interactive-guitar-neck";
   const state = {
     sectionKey: "",
     chordIndex: null,
     instrument: "",
-    manualName: false
+    manualName: false,
+    manualPanelOpen: false
   };
+  let activeController = null;
+  let lifecycleObserver = null;
 
   const SHARP_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
   const FLAT_NAMES = ["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"];
@@ -79,14 +82,18 @@
 #s936SuitePro .s936-ed-inst.active{border-color:#00ffcc;background:rgba(0,255,204,.14);color:#bfffee}
 #s936SuitePro .s936-ed-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 #s936SuitePro .s936-ed-btn{border:1px solid rgba(255,255,255,.18);border-radius:999px;background:rgba(255,255,255,.06);color:#fff;padding:7px 10px;font-size:.59rem;font-weight:950;text-transform:uppercase;cursor:pointer}
+#s936SuitePro .s936-ed-btn:hover{background:rgba(255,255,255,.10)}
 #s936SuitePro .s936-ed-btn.primary{border-color:rgba(0,255,204,.60);background:rgba(0,255,204,.12);color:#bfffee}
 #s936SuitePro .s936-ed-btn.warn{border-color:rgba(255,216,77,.65);background:rgba(255,216,77,.10);color:#ffe066}
 #s936SuitePro .s936-ed-btn.danger{border-color:rgba(255,90,90,.65);background:rgba(255,90,90,.10);color:#ffb9b9}
 #s936SuitePro .s936-ed-status{min-height:16px;margin-top:8px;color:#bfffee;font-size:.62rem;font-weight:800;line-height:1.35}
-#s936SuitePro .s936-ed-name-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px}
+#s936SuitePro .s936-ed-name-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px}
 #s936SuitePro .s936-ed-check{display:flex;align-items:center;gap:5px;color:rgba(255,255,255,.68);font-size:.58rem;font-weight:800}
 #s936SuitePro .s936-ed-alt{color:rgba(255,255,255,.58);font-size:.57rem;line-height:1.35}
-#s936SuitePro .s936-ed-guitar{border:1px solid rgba(255,216,77,.24);border-radius:14px;background:rgba(255,216,77,.035);padding:9px;margin-top:9px}
+#s936SuitePro .s936-ed-manual-toggle{width:auto;display:inline-flex;gap:12px;align-items:center;justify-content:space-between;margin-top:9px;border:1px solid rgba(255,216,77,.42);border-radius:12px;background:rgba(255,216,77,.07);color:#ffe066;padding:9px 10px;font-size:.61rem;font-weight:950;text-transform:uppercase;cursor:pointer}
+#s936SuitePro .s936-ed-manual-toggle span:last-child{font-size:.8rem}
+#s936SuitePro .s936-ed-manual{border:1px solid rgba(255,216,77,.24);border-radius:14px;background:rgba(255,216,77,.035);padding:9px;margin-top:7px}
+#s936SuitePro .s936-ed-manual[hidden]{display:none}
 #s936SuitePro .s936-ed-guitar-head{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:7px}
 #s936SuitePro .s936-ed-guitar-head b{color:#ffe066;font-size:.63rem;text-transform:uppercase;letter-spacing:.6px}
 #s936SuitePro .s936-ed-string-head,#s936SuitePro .s936-ed-string-row{display:grid;grid-template-columns:42px minmax(72px,1fr) minmax(66px,.8fr) minmax(74px,1fr);gap:5px;align-items:center}
@@ -98,31 +105,69 @@
 #s936SuitePro .s936-ed-note-result{color:#bfffee;font-size:.62rem;font-weight:900;text-align:center}
 #s936SuitePro .s936-ed-barre{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;border-top:1px solid rgba(255,255,255,.08);margin-top:8px;padding-top:8px}
 #s936SuitePro .s936-ed-barre .full{grid-column:1/-1}
-#s936SuitePro .s936-ed-result{border:1px solid rgba(0,255,204,.25);border-radius:13px;background:rgba(0,255,204,.045);padding:9px;margin-top:9px}
-#s936SuitePro .s936-ed-result-title{color:#8affff;font-size:.58rem;font-weight:950;text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px}
-#s936SuitePro .s936-ed-result-line{display:grid;grid-template-columns:92px minmax(0,1fr);gap:7px;margin:4px 0;font-size:.61rem;line-height:1.35}
+#s936SuitePro .s936-ed-result{border:1px solid rgba(0,255,204,.29);border-radius:13px;background:rgba(0,255,204,.055);padding:10px;margin-top:9px}
+#s936SuitePro .s936-ed-result-title{color:#8affff;font-size:.58rem;font-weight:950;text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px}
+#s936SuitePro .s936-ed-result-line{display:grid;grid-template-columns:90px minmax(0,1fr);gap:7px;margin:5px 0;font-size:.61rem;line-height:1.35}
 #s936SuitePro .s936-ed-result-line b{color:#ffe066}
 #s936SuitePro .s936-ed-result-line span{color:#e9ffff;overflow-wrap:anywhere}
+#s936SuitePro .s936-ed-result-name{display:grid;grid-template-columns:90px minmax(0,1fr);gap:7px;align-items:center}
+#s936SuitePro .s936-ed-result-name b{color:#ffe066;font-size:.61rem}
+#s936SuitePro .s936-ed-result-name .s936-ed-input{padding:7px 8px}
 #s936SuitePro .s936-ed-tab{margin:7px 0 0;padding:8px;border-radius:10px;background:#050707;color:#bfffee;font:700 .58rem/1.35 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre;overflow:auto}
 #s936SuitePro .s936-ed-visual-note{border-left:3px solid #ffe066;padding-left:9px;margin-top:10px;color:rgba(255,255,255,.72);font-size:.62rem;line-height:1.45}
-#s936ExactVoicingMap{box-sizing:border-box;margin:8px 10px;border:1px solid rgba(0,255,204,.38);border-radius:14px;background:rgba(2,13,14,.96);padding:9px;color:#fff;position:relative;z-index:5}
-#s936ExactVoicingMap .s936-xv-head{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:7px}
-#s936ExactVoicingMap .s936-xv-head b{color:#8affff;font-size:.66rem;text-transform:uppercase;letter-spacing:.7px}
-#s936ExactVoicingMap .s936-xv-head span{color:#ffe066;font-size:.58rem;font-weight:900}
-#s936ExactVoicingMap .s936-xv-scroll{overflow-x:auto;padding-bottom:4px}
-#s936ExactVoicingMap .s936-xv-ruler,#s936ExactVoicingMap .s936-xv-row{display:grid;grid-template-columns:42px repeat(25,24px);gap:2px;min-width:690px;align-items:center}
-#s936ExactVoicingMap .s936-xv-ruler{margin-bottom:3px}
-#s936ExactVoicingMap .s936-xv-ruler span{font-size:.45rem;color:rgba(255,255,255,.42);text-align:center}
-#s936ExactVoicingMap .s936-xv-label{font-size:.52rem;font-weight:950;color:#fff}
-#s936ExactVoicingMap .s936-xv-cell{height:15px;border:1px solid rgba(255,255,255,.08);border-radius:3px;background:rgba(255,255,255,.025);font-size:.43rem;display:flex;align-items:center;justify-content:center;color:transparent}
-#s936ExactVoicingMap .s936-xv-cell.on{border-color:#00ffcc;background:#00ffcc;color:#00251f;font-weight:950;box-shadow:0 0 10px rgba(0,255,204,.32)}
-#s936ExactVoicingMap .s936-xv-cell.bass{border-color:#ff5bea;background:#ff5bea;color:#23001f}
-#s936ExactVoicingMap .s936-xv-cell.barre{outline:1px solid rgba(255,216,77,.85);outline-offset:1px}
-#s936ExactVoicingMap .s936-xv-muted{color:#ff9f9f;font-size:.58rem;font-weight:950}
+
+/* Editor Pro guitar surface outside Suite Pro */
+#fretboardContainer.s936-editor-surface-active{display:block!important;overflow:hidden!important;padding:0!important;background:#050707!important}
+#fretboardContainer.s936-editor-surface-active > *:not(#s936EditorGuitarSurface){display:none!important}
+#s936EditorGuitarSurface{display:flex;flex-direction:column;gap:12px;box-sizing:border-box;width:100%;min-height:100%;padding:14px;background:radial-gradient(circle at 48% 30%,rgba(0,255,204,.05),transparent 42%),#050707;color:#fff}
+#s936EditorGuitarSurface .s936-neck-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:2px 2px 0}
+#s936EditorGuitarSurface .s936-neck-title{color:#8affff;font-size:.76rem;font-weight:950;text-transform:uppercase;letter-spacing:.8px}
+#s936EditorGuitarSurface .s936-neck-meta{margin-top:4px;color:#ffe066;font-size:.65rem;font-weight:900}
+#s936EditorGuitarSurface .s936-neck-help{max-width:430px;color:rgba(255,255,255,.68);font-size:.62rem;line-height:1.4;text-align:right}
+#s936EditorGuitarSurface .s936-neck-scroll{overflow:auto;border:1px solid rgba(255,216,77,.34);border-radius:18px;background:linear-gradient(90deg,rgba(84,43,20,.36),rgba(21,12,8,.88));padding:10px 10px 12px;box-shadow:0 18px 45px rgba(0,0,0,.28)}
+#s936EditorGuitarSurface .s936-neck-ruler,#s936EditorGuitarSurface .s936-neck-row{display:grid;grid-template-columns:72px 34px 38px repeat(24,44px);min-width:1200px;align-items:center}
+#s936EditorGuitarSurface .s936-neck-ruler{margin-bottom:4px}
+#s936EditorGuitarSurface .s936-neck-ruler span{font-size:.48rem;color:rgba(255,255,255,.45);text-align:center}
+#s936EditorGuitarSurface .s936-neck-ruler .mark{color:#00ffcc;font-weight:950}
+#s936EditorGuitarSurface .s936-neck-string-label{font-size:.58rem;font-weight:950;color:#fff;padding-right:8px}
+#s936EditorGuitarSurface .s936-neck-string-label small{display:block;color:rgba(255,255,255,.45);font-size:.46rem;font-weight:700}
+#s936EditorGuitarSurface .s936-neck-cell{height:34px;border:0;border-left:1px solid rgba(235,184,112,.38);border-right:1px solid rgba(0,0,0,.28);border-top:1px solid rgba(255,255,255,.15);border-bottom:1px solid rgba(0,0,0,.62);background:rgba(255,255,255,.025);color:rgba(255,255,255,.33);font-size:.47rem;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;padding:0}
+#s936EditorGuitarSurface .s936-neck-cell:hover{background:rgba(0,255,204,.10);color:#fff}
+#s936EditorGuitarSurface .s936-neck-cell.capoblocked{opacity:.22;cursor:not-allowed}
+#s936EditorGuitarSurface .s936-neck-cell.open,#s936EditorGuitarSurface .s936-neck-cell.mute{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.045);margin:2px;border-radius:7px;height:29px;color:rgba(255,255,255,.75);font-weight:950}
+#s936EditorGuitarSurface .s936-neck-cell.mute.active{background:rgba(255,90,90,.18);border-color:#ff6f6f;color:#ffc1c1}
+#s936EditorGuitarSurface .s936-neck-cell.open.active{background:rgba(0,255,204,.15);border-color:#00ffcc;color:#bfffee}
+#s936EditorGuitarSurface .s936-neck-cell.on{background:rgba(0,255,204,.16);color:#001c18}
+#s936EditorGuitarSurface .s936-neck-dot{width:29px;height:29px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#00ffcc;color:#00231e;font-size:.47rem;font-weight:950;box-shadow:0 0 0 2px rgba(0,255,204,.22),0 0 18px rgba(0,255,204,.34);line-height:1}
+#s936EditorGuitarSurface .s936-neck-dot.bass{background:#ff5bea;color:#260020;box-shadow:0 0 0 2px rgba(255,91,234,.22),0 0 18px rgba(255,91,234,.34)}
+#s936EditorGuitarSurface .s936-neck-dot .finger{margin-top:2px;font-size:.42rem}
+#s936EditorGuitarSurface .s936-neck-cell.barre{box-shadow:inset 0 3px 0 rgba(255,216,77,.95),inset 0 -3px 0 rgba(255,216,77,.95)}
+#s936EditorGuitarSurface .s936-neck-cell.capo{box-shadow:inset 5px 0 0 rgba(255,216,77,.88)}
+#s936EditorGuitarSurface .s936-finger-pop{position:fixed;z-index:99999;display:flex;gap:5px;align-items:center;border:1px solid rgba(0,255,204,.5);border-radius:12px;background:#071112;padding:7px;box-shadow:0 14px 35px rgba(0,0,0,.55)}
+#s936EditorGuitarSurface .s936-finger-pop button{width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);color:#fff;font-size:.62rem;font-weight:950;cursor:pointer}
+#s936EditorGuitarSurface .s936-finger-pop button:hover{border-color:#00ffcc;background:rgba(0,255,204,.14)}
+#s936EditorGuitarSurface .s936-finger-pop button.clear{border-color:rgba(255,90,90,.5);color:#ffb9b9}
+#s936EditorGuitarSurface .s936-chart-zone{border:1px solid rgba(255,255,255,.11);border-radius:17px;background:rgba(255,255,255,.025);padding:11px}
+#s936EditorGuitarSurface .s936-chart-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+#s936EditorGuitarSurface .s936-chart-head b{color:#ffe066;font-size:.68rem;text-transform:uppercase;letter-spacing:.7px}
+#s936EditorGuitarSurface .s936-chart-head span{color:rgba(255,255,255,.55);font-size:.57rem}
+#s936EditorGuitarSurface .s936-chart-row{display:flex;gap:9px;overflow-x:auto;padding-bottom:4px}
+#s936EditorGuitarSurface .s936-chart-card{flex:0 0 128px;border:1px solid rgba(255,255,255,.12);border-radius:13px;background:rgba(0,0,0,.26);color:#fff;padding:8px;cursor:pointer;text-align:left}
+#s936EditorGuitarSurface .s936-chart-card.active{border-color:#00ffcc;background:rgba(0,255,204,.08);box-shadow:0 0 0 1px rgba(0,255,204,.12) inset}
+#s936EditorGuitarSurface .s936-chart-name{display:block;color:#fff;font-size:.62rem;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#s936EditorGuitarSurface .s936-chart-meta{display:block;color:#ffe066;font-size:.49rem;margin-top:3px}
+#s936EditorGuitarSurface .s936-mini-chart{height:82px;margin-top:7px;position:relative;border-top:2px solid rgba(255,255,255,.65);background:repeating-linear-gradient(to bottom,transparent 0,transparent 15px,rgba(255,255,255,.22) 16px),repeating-linear-gradient(to right,transparent 0,transparent 16px,rgba(255,255,255,.24) 17px)}
+#s936EditorGuitarSurface .s936-mini-dot{position:absolute;width:13px;height:13px;border-radius:50%;background:#00ffcc;color:#00231e;font-size:.39rem;font-weight:950;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%)}
+#s936EditorGuitarSurface .s936-mini-open{position:absolute;top:-17px;font-size:.44rem;color:#bfffee;transform:translateX(-50%)}
+#s936EditorGuitarSurface .s936-mini-muted{position:absolute;top:-17px;font-size:.44rem;color:#ffb9b9;transform:translateX(-50%)}
+#s936EditorGuitarSurface .s936-chart-empty{height:82px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.45);font-size:.54rem;text-align:center}
 @media(max-width:760px){
   #s936SuitePro .s936-ed-grid{grid-template-columns:1fr}
   #s936SuitePro .s936-ed-field.full{grid-column:auto}
   #s936SuitePro .s936-ed-string-head,#s936SuitePro .s936-ed-string-row{grid-template-columns:38px minmax(62px,1fr) minmax(58px,.75fr) minmax(65px,.85fr)}
+  #s936EditorGuitarSurface{padding:8px}
+  #s936EditorGuitarSurface .s936-neck-head{display:block}
+  #s936EditorGuitarSurface .s936-neck-help{text-align:left;margin-top:6px}
 }
 `;
     document.head.appendChild(style);
@@ -497,12 +542,27 @@
     };
   }
 
-  function buildResultBox(ctx) {
+  function buildResultBox(ctx, options = {}) {
     const box = el(ctx, "div", "s936-ed-result");
-    box.appendChild(el(ctx, "div", "s936-ed-result-title", "Resultado sonoro"));
+    box.appendChild(el(ctx, "div", "s936-ed-result-title", options.title || "Resultado del acorde"));
     const refs = {};
+
+    if (options.nameInput) {
+      const nameRow = el(ctx, "div", "s936-ed-result-name");
+      nameRow.appendChild(el(ctx, "b", "", "Nombre"));
+      nameRow.appendChild(options.nameInput);
+      box.appendChild(nameRow);
+      if (options.nameTools) box.appendChild(options.nameTools);
+      refs.name = options.nameInput;
+    } else {
+      const nameRow = el(ctx, "div", "s936-ed-result-line");
+      nameRow.appendChild(el(ctx, "b", "", "Nombre detectado"));
+      refs.name = el(ctx, "span", "", "—");
+      nameRow.appendChild(refs.name);
+      box.appendChild(nameRow);
+    }
+
     [
-      ["name", "Nombre detectado"],
       ["bass", "Bajo"],
       ["notes", "Notas"],
       ["shape", "Forma"]
@@ -529,8 +589,23 @@
     };
   }
 
+  function watchLifecycle() {
+    const root = document.getElementById("s936SuitePro");
+    if (!root || lifecycleObserver) return;
+    lifecycleObserver = new MutationObserver(() => {
+      setTimeout(() => {
+        if (!root.querySelector(".s936-ed-module")) {
+          activeController = null;
+          bridge("deactivateEditorSurface");
+        }
+      }, 0);
+    });
+    lifecycleObserver.observe(root, { childList:true, subtree:true });
+  }
+
   function render(ctx, host) {
     installStyles();
+    watchLifecycle();
     const mount = el(ctx, "div", "s936-ed-module");
     host.appendChild(mount);
     paint(ctx, mount);
@@ -542,6 +617,7 @@
     const sections = data.sections || {};
     const sectionKeys = Object.keys(sections);
     if (!sectionKeys.length) {
+      bridge("deactivateEditorSurface");
       host.appendChild(el(ctx, "section", "s936-ed-card", "No hay secciones disponibles en el proyecto."));
       return;
     }
@@ -560,16 +636,21 @@
     title.appendChild(el(ctx, "h4", "", "Editor Pro · Acordes"));
     title.appendChild(el(ctx, "span", "s936-ed-version", VERSION));
     card.appendChild(title);
-    card.appendChild(el(ctx, "p", "s936-ed-note", "El acorde se calcula, se escucha y se refleja sobre el instrumento principal. En guitarra, cada cuerda tiene traste, dedo y nota resultante."));
+    card.appendChild(el(ctx, "p", "s936-ed-note",
+      state.instrument === "guitar"
+        ? "Construye el acorde directamente sobre el cuello grande. El panel manual queda disponible para ajustes precisos."
+        : "El acorde se calcula, se escucha y se refleja sobre el instrumento principal."
+    ));
 
     const instruments = el(ctx, "div", "s936-ed-instruments");
     [["piano","Piano"],["guitar","Guitarra"],["ukulele","Ukelele"]].forEach(([key,label]) => {
       const btn = el(ctx, "button", "s936-ed-inst" + (state.instrument === key ? " active" : ""), label);
       btn.type = "button";
       btn.addEventListener("click", () => {
-        const result = bridge("setEditorInstrument", key);
-        if (result?.ok === false) return;
+        const response = bridge("setEditorInstrument", key);
+        if (response?.ok === false) return;
         state.instrument = key;
+        if (key !== "guitar") bridge("deactivateEditorSurface");
         renderModule(ctx, host);
       });
       instruments.appendChild(btn);
@@ -614,16 +695,27 @@
     const grid = el(ctx, "div", "s936-ed-grid");
     grid.appendChild(field(ctx, "Sección", sectionSelect, true));
     grid.appendChild(field(ctx, "Acorde seleccionado", chordSelect, true));
-    const nameField = field(ctx, "Nombre del acorde", nameInput, true);
-    nameField.appendChild(nameTools);
-    grid.appendChild(nameField);
-    grid.appendChild(field(ctx, state.instrument === "guitar" ? "Bajo resultante" : "Bajo", bassInput, false));
-    grid.appendChild(field(ctx, state.instrument === "guitar" ? "Notas resultantes" : (state.instrument === "piano" ? "Notas del voicing" : "Notas sonoras"), notesInput, true));
-    grid.appendChild(field(ctx, "Compases", barsInput, false));
+
+    if (state.instrument === "guitar") {
+      grid.appendChild(field(ctx, "Compases", barsInput, false));
+    } else {
+      const nameField = field(ctx, "Nombre del acorde", nameInput, true);
+      nameField.appendChild(nameTools);
+      grid.appendChild(nameField);
+      grid.appendChild(field(ctx, "Bajo", bassInput, false));
+      grid.appendChild(field(ctx, state.instrument === "piano" ? "Notas del voicing" : "Notas sonoras", notesInput, true));
+      grid.appendChild(field(ctx, "Compases", barsInput, false));
+    }
     card.appendChild(grid);
 
     const status = el(ctx, "div", "s936-ed-status");
-    const result = buildResultBox(ctx);
+    const result = buildResultBox(
+      ctx,
+      state.instrument === "guitar"
+        ? { title:"Resultado del acorde", nameInput, nameTools }
+        : { title:"Resultado sonoro" }
+    );
+
     let guitarDraft = null;
     let guitarControls = null;
     let latestCalculation = null;
@@ -634,14 +726,24 @@
       notesInput.readOnly = true;
       guitarDraft = normalizeGuitarDraft(item);
 
-      const guitarBox = el(ctx, "section", "s936-ed-guitar");
+      card.appendChild(result.box);
+
+      const manualToggle = el(ctx, "button", "s936-ed-manual-toggle");
+      manualToggle.type = "button";
+      const toggleText = el(ctx, "span", "", state.manualPanelOpen ? "Ocultar digitación manual" : "Editar digitación manualmente");
+      const toggleIcon = el(ctx, "span", "", state.manualPanelOpen ? "▴" : "▾");
+      manualToggle.append(toggleText, toggleIcon);
+      card.appendChild(manualToggle);
+
+      const guitarBox = el(ctx, "section", "s936-ed-manual");
+      guitarBox.hidden = !state.manualPanelOpen;
       const guitarHead = el(ctx, "div", "s936-ed-guitar-head");
       guitarHead.appendChild(el(ctx, "b", "", "Digitación exacta · 6 cuerdas"));
-      guitarHead.appendChild(el(ctx, "span", "s936-ed-alt", "X = apagada · 0 = abierta · 1–24 = traste"));
+      guitarHead.appendChild(el(ctx, "span", "s936-ed-alt", "Sincronizada con el cuello grande"));
       guitarBox.appendChild(guitarHead);
 
       const head = el(ctx, "div", "s936-ed-string-head");
-      ["Cuerda","Traste","Dedo","Nota"].forEach(text => head.appendChild(el(ctx, "span", "", text)));
+      ["Cuerda","Traste","Dedo","Nota"].forEach(label => head.appendChild(el(ctx, "span", "", label)));
       guitarBox.appendChild(head);
 
       const fretSelects = [];
@@ -660,9 +762,7 @@
         fretSelects.push(fret);
         fingerSelects.push(finger);
         noteLabels.push(note);
-        row.appendChild(fret);
-        row.appendChild(finger);
-        row.appendChild(note);
+        row.append(fret, finger, note);
         guitarBox.appendChild(row);
       });
 
@@ -691,6 +791,7 @@
       barreBox.appendChild(field(ctx, "Desde cuerda", fromString, false));
       barreBox.appendChild(field(ctx, "Hasta cuerda", toString, false));
       barreBox.appendChild(field(ctx, "Dedo del barré", barreFinger, false));
+
       const applyBarreBtn = button(ctx, "Aplicar barré a cuerdas", "warn", () => {
         const fretValue = clamp(barreFret.value, 1, 24);
         const high = Math.max(Number(fromString.value), Number(toString.value));
@@ -713,6 +814,13 @@
       guitarBox.appendChild(barreBox);
       card.appendChild(guitarBox);
 
+      manualToggle.addEventListener("click", () => {
+        state.manualPanelOpen = !state.manualPanelOpen;
+        guitarBox.hidden = !state.manualPanelOpen;
+        toggleText.textContent = state.manualPanelOpen ? "Ocultar digitación manual" : "Editar digitación manualmente";
+        toggleIcon.textContent = state.manualPanelOpen ? "▴" : "▾";
+      });
+
       guitarControls = {
         fretSelects, fingerSelects, noteLabels,
         capoInput, barreEnabled, barreFret, fromString, toString, barreFinger
@@ -720,9 +828,10 @@
 
       [...fretSelects, ...fingerSelects, capoInput, barreEnabled, barreFret, fromString, toString, barreFinger]
         .forEach(control => control.addEventListener("change", recalculate));
+    } else {
+      card.appendChild(result.box);
+      bridge("deactivateEditorSurface");
     }
-
-    card.appendChild(result.box);
 
     const controls = {
       section:sectionSelect, chord:chordSelect, name:nameInput,
@@ -747,7 +856,7 @@
     }
 
     function currentPayload() {
-      const base = {
+      const payload = {
         sectionKey:controls.section.value,
         chordIndex:Number(controls.chord.value) || 0,
         name:controls.name.value.trim() || "Acorde",
@@ -757,22 +866,30 @@
         instrument:state.instrument || "piano"
       };
       if (state.instrument === "guitar" && latestCalculation) {
-        base.name = state.manualName ? (controls.name.value.trim() || latestCalculation.detection.primary) : latestCalculation.detection.primary;
-        base.bass = latestCalculation.bass;
-        base.notes = latestCalculation.notes;
-        base.exactMidis = latestCalculation.exactMidis;
-        base.exactFrets = latestCalculation.strings.map(s => s.fret);
-        base.exactStrings = latestCalculation.strings;
-        base.capo = latestCalculation.voicing.capo;
-        base.barre = latestCalculation.voicing.barre;
-        base.rootPitchClass = latestCalculation.detection.rootPc;
-        base.voicings = { guitar:latestCalculation.voicing };
+        payload.name = state.manualName
+          ? (controls.name.value.trim() || latestCalculation.detection.primary)
+          : latestCalculation.detection.primary;
+        payload.bass = latestCalculation.bass;
+        payload.notes = latestCalculation.notes;
+        payload.exactMidis = latestCalculation.exactMidis;
+        payload.exactFrets = latestCalculation.strings.map(s => s.fret);
+        payload.exactStrings = latestCalculation.strings;
+        payload.capo = latestCalculation.voicing.capo;
+        payload.barre = latestCalculation.voicing.barre;
+        payload.rootPitchClass = latestCalculation.detection.rootPc;
+        payload.voicings = { guitar:latestCalculation.voicing };
       }
-      return base;
+      return payload;
+    }
+
+    function setResultNode(node, value) {
+      if (!node) return;
+      if (node.tagName === "INPUT") node.value = value || "";
+      else node.textContent = value || "—";
     }
 
     function updateResult(name, bass, notes, shape, tab, alternativesText) {
-      result.refs.name.textContent = name || "Sin identificar";
+      setResultNode(result.refs.name, name || "Sin identificar");
       result.refs.bass.textContent = bass || "—";
       result.refs.notes.textContent = notes || "—";
       result.refs.shape.textContent = shape || "—";
@@ -785,7 +902,7 @@
       visualTimer = setTimeout(() => {
         const response = bridge("showEditorChordVisual", payload);
         if (response?.ok === false) setStatus(status, response.message || "No se pudo visualizar.", true);
-      }, 80);
+      }, 55);
     }
 
     function recalculate() {
@@ -834,6 +951,32 @@
       if (noteMidis.length) scheduleVisual(currentPayload());
     }
 
+    activeController = state.instrument === "guitar" && guitarControls ? {
+      setFret(stringIndex, fret) {
+        const index = clamp(Number(stringIndex), 0, 5);
+        const normalized = fret === null || String(fret).toUpperCase() === "X"
+          ? null
+          : clamp(Number(fret), 0, 24);
+        guitarControls.fretSelects[index].value = normalized === null ? "X" : String(normalized);
+        if (normalized === null) guitarControls.fingerSelects[index].value = "";
+        else if (normalized === 0) guitarControls.fingerSelects[index].value = "0";
+        else if (guitarControls.fingerSelects[index].value === "0") guitarControls.fingerSelects[index].value = "";
+        recalculate();
+      },
+      setFinger(stringIndex, finger) {
+        const index = clamp(Number(stringIndex), 0, 5);
+        const value = ["","0","1","2","3","4","T"].includes(String(finger)) ? String(finger) : "";
+        guitarControls.fingerSelects[index].value = value;
+        recalculate();
+      },
+      selectChord(index) {
+        const next = Math.max(0, Math.min(seq.length - 1, Number(index) || 0));
+        state.chordIndex = next;
+        bridge("selectEditorChord", state.sectionKey, next);
+        renderModule(ctx, host);
+      }
+    } : null;
+
     sectionSelect.addEventListener("change", () => {
       state.sectionKey = sectionSelect.value;
       state.chordIndex = 0;
@@ -851,7 +994,8 @@
     bassInput.addEventListener("input", recalculate);
     nameInput.addEventListener("input", () => {
       if (state.manualName) {
-        result.refs.name.textContent = nameInput.value || "Acorde";
+        setResultNode(result.refs.name, nameInput.value || "Acorde");
+        if (state.instrument === "guitar") scheduleVisual(currentPayload());
       }
     });
 
@@ -892,10 +1036,10 @@
     card.appendChild(status);
 
     const visualText = state.instrument === "piano"
-      ? "Piano: el nombre se calcula desde las alturas y el acorde se ilumina en el teclado completo."
+      ? "Piano: el acorde se ilumina sobre el teclado completo."
       : state.instrument === "guitar"
-        ? "Guitarra v0.2: la forma, el bajo, las notas y la TAB nacen de las seis cuerdas. El mapa exacto 0–24 aparece sobre el diapasón principal."
-        : "Ukelele conserva por ahora el mapa de notas de v0.1. La digitación exacta de cuatro cuerdas será la siguiente fase.";
+        ? "Guitarra v0.3: haz clic sobre una cuerda y un traste del cuello grande; después selecciona el dedo. Los charts de la sección están debajo del instrumento."
+        : "Ukelele conserva por ahora el mapa de notas. Su constructor visual exacto será una fase independiente.";
     card.appendChild(el(ctx, "div", "s936-ed-visual-note", visualText));
     shell.appendChild(card);
     host.appendChild(shell);
@@ -915,7 +1059,19 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProEditor = { version:VERSION, render };
+    window.Studio936SuiteProEditor = {
+      version:VERSION,
+      render,
+      externalSetFret(stringIndex, fret) {
+        activeController?.setFret?.(stringIndex, fret);
+      },
+      externalSetFinger(stringIndex, finger) {
+        activeController?.setFinger?.(stringIndex, finger);
+      },
+      externalSelectChord(index) {
+        activeController?.selectChord?.(index);
+      }
+    };
     window.Studio936SuiteProModules.editor = window.Studio936SuiteProEditor;
   }
 
