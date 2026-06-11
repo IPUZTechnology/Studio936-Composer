@@ -1,12 +1,12 @@
-// Studio 936 Composer - Suite Pro Editor v0.3
+// Studio 936 Composer - Suite Pro Editor v0.4
 // Scope: Editor tab inside Compose.
-// Adds an interactive guitar neck, exact six-string voicings, chord detection, TAB and section charts.
+// Refines the guitar UX with a compact interactive chart, realistic neck, exact voicings, TAB and lifecycle cleanup.
 // It does not replace or delete the legacy editor.
 (function () {
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.3-interactive-guitar-neck";
+  const VERSION = "editor-v0.4-guitar-ux-cleanup";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -116,51 +116,88 @@
 #s936SuitePro .s936-ed-tab{margin:7px 0 0;padding:8px;border-radius:10px;background:#050707;color:#bfffee;font:700 .58rem/1.35 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre;overflow:auto}
 #s936SuitePro .s936-ed-visual-note{border-left:3px solid #ffe066;padding-left:9px;margin-top:10px;color:rgba(255,255,255,.72);font-size:.62rem;line-height:1.45}
 
+/* Compact interactive chart inside the Editor dock */
+#s936SuitePro .s936-ed-guitar-card{border:1px solid rgba(0,255,204,.34);border-radius:15px;background:linear-gradient(180deg,rgba(0,255,204,.075),rgba(0,0,0,.18));padding:9px;margin-top:9px}
+#s936SuitePro .s936-ed-guitar-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+#s936SuitePro .s936-ed-guitar-card-name{color:#fff;font-size:.72rem;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#s936SuitePro .s936-ed-guitar-card-order{color:#ffe066;font:900 .53rem/1 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:nowrap}
+#s936SuitePro .s936-ed-guitar-shape{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0 4px;color:rgba(255,255,255,.68);font-size:.54rem}
+#s936SuitePro .s936-ed-guitar-shape code{color:#bfffee;font:900 .65rem/1.2 ui-monospace,SFMono-Regular,Consolas,monospace}
+#s936SuitePro .s936-ed-dock-chart{border:1px solid rgba(255,255,255,.10);border-radius:12px;background:linear-gradient(180deg,rgba(63,33,18,.72),rgba(16,10,8,.92));padding:7px}
+#s936SuitePro .s936-ed-dock-labels,#s936SuitePro .s936-ed-dock-status,#s936SuitePro .s936-ed-dock-row{display:grid;grid-template-columns:27px repeat(6,minmax(24px,1fr));gap:3px;align-items:center}
+#s936SuitePro .s936-ed-dock-labels{margin-bottom:3px}
+#s936SuitePro .s936-ed-dock-labels span{color:rgba(255,255,255,.55);font-size:.47rem;font-weight:900;text-align:center}
+#s936SuitePro .s936-ed-dock-labels span:first-child{text-align:left;color:#ffe066}
+#s936SuitePro .s936-ed-dock-status{margin-bottom:3px}
+#s936SuitePro .s936-ed-dock-status button{height:23px;border:1px solid rgba(255,255,255,.13);border-radius:7px;background:rgba(255,255,255,.045);color:rgba(255,255,255,.72);font-size:.51rem;font-weight:950;cursor:pointer;padding:0}
+#s936SuitePro .s936-ed-dock-status button.active-open{border-color:#00ffcc;background:rgba(0,255,204,.13);color:#bfffee}
+#s936SuitePro .s936-ed-dock-status button.active-mute{border-color:#ff7373;background:rgba(255,90,90,.13);color:#ffc4c4}
+#s936SuitePro .s936-ed-dock-base{color:#ffe066;font-size:.48rem;font-weight:950}
+#s936SuitePro .s936-ed-dock-row{height:23px}
+#s936SuitePro .s936-ed-dock-row .s936-ed-dock-fret{color:rgba(255,255,255,.43);font-size:.46rem;font-weight:900}
+#s936SuitePro .s936-ed-dock-cell{height:23px;border:0;border-left:1px solid rgba(255,255,255,.12);border-right:2px solid rgba(213,179,132,.43);background:rgba(255,255,255,.018);position:relative;cursor:pointer;padding:0}
+#s936SuitePro .s936-ed-dock-cell:hover{background:rgba(0,255,204,.10)}
+#s936SuitePro .s936-ed-dock-cell::before{content:"";position:absolute;left:0;right:0;top:50%;height:var(--dock-string,1px);background:linear-gradient(90deg,#d6d6d6,#8d8d8d,#e8e8e8);transform:translateY(-50%);opacity:.78}
+#s936SuitePro .s936-ed-dock-dot{position:absolute;left:50%;top:50%;width:17px;height:17px;border-radius:50%;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;background:#00ffcc;color:#00241e;font-size:.43rem;font-weight:950;z-index:2;box-shadow:0 0 0 2px rgba(0,255,204,.16)}
+#s936SuitePro .s936-ed-dock-dot.bass{background:#ff5bea;color:#2b0026}
+#s936SuitePro .s936-ed-mini-fingers{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:6px}
+#s936SuitePro .s936-ed-mini-fingers span{color:rgba(255,255,255,.58);font-size:.49rem;margin-right:2px}
+#s936SuitePro .s936-ed-mini-fingers button{width:25px;height:25px;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.055);color:#fff;font-size:.53rem;font-weight:950;cursor:pointer}
+#s936SuitePro .s936-ed-mini-fingers button:hover{border-color:#00ffcc;background:rgba(0,255,204,.13)}
+#s936SuitePro .s936-ed-guitar-card .s936-ed-name-tools{margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.07)}
+#s936SuitePro .s936-ed-guitar-card .s936-ed-alt{display:none}
+
 /* Editor Pro guitar surface outside Suite Pro */
 #fretboardContainer.s936-editor-surface-active{display:block!important;overflow:hidden!important;padding:0!important;background:#050707!important}
 #fretboardContainer.s936-editor-surface-active > *:not(#s936EditorGuitarSurface){display:none!important}
-#s936EditorGuitarSurface{display:flex;flex-direction:column;gap:12px;box-sizing:border-box;width:100%;min-height:100%;padding:14px;background:radial-gradient(circle at 48% 30%,rgba(0,255,204,.05),transparent 42%),#050707;color:#fff}
+#s936EditorGuitarSurface{display:flex;flex-direction:column;gap:11px;box-sizing:border-box;width:100%;min-height:100%;padding:14px;background:radial-gradient(circle at 48% 28%,rgba(0,255,204,.045),transparent 38%),#050707;color:#fff}
 #s936EditorGuitarSurface .s936-neck-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:2px 2px 0}
 #s936EditorGuitarSurface .s936-neck-title{color:#8affff;font-size:.76rem;font-weight:950;text-transform:uppercase;letter-spacing:.8px}
 #s936EditorGuitarSurface .s936-neck-meta{margin-top:4px;color:#ffe066;font-size:.65rem;font-weight:900}
-#s936EditorGuitarSurface .s936-neck-help{max-width:430px;color:rgba(255,255,255,.68);font-size:.62rem;line-height:1.4;text-align:right}
-#s936EditorGuitarSurface .s936-neck-scroll{overflow:auto;border:1px solid rgba(255,216,77,.34);border-radius:18px;background:linear-gradient(90deg,rgba(84,43,20,.36),rgba(21,12,8,.88));padding:10px 10px 12px;box-shadow:0 18px 45px rgba(0,0,0,.28)}
-#s936EditorGuitarSurface .s936-neck-ruler,#s936EditorGuitarSurface .s936-neck-row{display:grid;grid-template-columns:72px 34px 38px repeat(24,44px);min-width:1200px;align-items:center}
-#s936EditorGuitarSurface .s936-neck-ruler{margin-bottom:4px}
+#s936EditorGuitarSurface .s936-neck-help{max-width:470px;color:rgba(255,255,255,.68);font-size:.62rem;line-height:1.4;text-align:right}
+#s936EditorGuitarSurface .s936-neck-scroll{overflow:auto;border:1px solid rgba(255,216,77,.36);border-radius:19px;background:linear-gradient(180deg,rgba(68,31,15,.96),rgba(29,15,9,.98) 48%,rgba(55,25,13,.96));padding:10px 11px 13px;box-shadow:0 18px 45px rgba(0,0,0,.32),inset 0 0 40px rgba(255,171,71,.045);position:relative}
+#s936EditorGuitarSurface .s936-neck-scroll::before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(7deg,transparent 0 11px,rgba(255,255,255,.018) 12px,transparent 13px 25px);mix-blend-mode:screen}
+#s936EditorGuitarSurface .s936-neck-ruler,#s936EditorGuitarSurface .s936-neck-row{display:grid;grid-template-columns:72px 34px 38px repeat(24,44px);min-width:1200px;align-items:center;position:relative;z-index:1}
+#s936EditorGuitarSurface .s936-neck-ruler{margin-bottom:5px}
 #s936EditorGuitarSurface .s936-neck-ruler span{font-size:.48rem;color:rgba(255,255,255,.45);text-align:center}
 #s936EditorGuitarSurface .s936-neck-ruler .mark{color:#00ffcc;font-weight:950}
+#s936EditorGuitarSurface .s936-neck-ruler .double::after{content:"••";display:block;color:#ffe066;font-size:.42rem;letter-spacing:2px;margin-top:1px}
 #s936EditorGuitarSurface .s936-neck-string-label{font-size:.58rem;font-weight:950;color:#fff;padding-right:8px}
 #s936EditorGuitarSurface .s936-neck-string-label small{display:block;color:rgba(255,255,255,.45);font-size:.46rem;font-weight:700}
-#s936EditorGuitarSurface .s936-neck-cell{height:34px;border:0;border-left:1px solid rgba(235,184,112,.38);border-right:1px solid rgba(0,0,0,.28);border-top:1px solid rgba(255,255,255,.15);border-bottom:1px solid rgba(0,0,0,.62);background:rgba(255,255,255,.025);color:rgba(255,255,255,.33);font-size:.47rem;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;padding:0}
+#s936EditorGuitarSurface .s936-neck-cell{height:36px;border:0;border-right:2px solid rgba(214,182,136,.57);background:rgba(255,255,255,.016);color:rgba(255,255,255,.32);font-size:.45rem;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;padding:0}
+#s936EditorGuitarSurface .s936-neck-cell.fret-one{border-left:6px solid rgba(245,231,197,.94)}
+#s936EditorGuitarSurface .s936-neck-cell::before{content:"";position:absolute;left:-1px;right:-1px;top:50%;height:var(--string-width,1px);background:linear-gradient(90deg,#e7e7e7,#868686 34%,#efefef 65%,#8e8e8e);transform:translateY(-50%);opacity:.86;box-shadow:0 1px 0 rgba(0,0,0,.48)}
 #s936EditorGuitarSurface .s936-neck-cell:hover{background:rgba(0,255,204,.10);color:#fff}
 #s936EditorGuitarSurface .s936-neck-cell.capoblocked{opacity:.22;cursor:not-allowed}
 #s936EditorGuitarSurface .s936-neck-cell.open,#s936EditorGuitarSurface .s936-neck-cell.mute{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.045);margin:2px;border-radius:7px;height:29px;color:rgba(255,255,255,.75);font-weight:950}
+#s936EditorGuitarSurface .s936-neck-cell.open::before,#s936EditorGuitarSurface .s936-neck-cell.mute::before{display:none}
 #s936EditorGuitarSurface .s936-neck-cell.mute.active{background:rgba(255,90,90,.18);border-color:#ff6f6f;color:#ffc1c1}
 #s936EditorGuitarSurface .s936-neck-cell.open.active{background:rgba(0,255,204,.15);border-color:#00ffcc;color:#bfffee}
-#s936EditorGuitarSurface .s936-neck-cell.on{background:rgba(0,255,204,.16);color:#001c18}
-#s936EditorGuitarSurface .s936-neck-dot{width:29px;height:29px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#00ffcc;color:#00231e;font-size:.47rem;font-weight:950;box-shadow:0 0 0 2px rgba(0,255,204,.22),0 0 18px rgba(0,255,204,.34);line-height:1}
+#s936EditorGuitarSurface .s936-neck-cell.on{background:rgba(0,255,204,.11);color:#001c18}
+#s936EditorGuitarSurface .s936-neck-dot{width:29px;height:29px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#00ffcc;color:#00231e;font-size:.47rem;font-weight:950;box-shadow:0 0 0 2px rgba(0,255,204,.22),0 0 18px rgba(0,255,204,.34);line-height:1;position:relative;z-index:3}
 #s936EditorGuitarSurface .s936-neck-dot.bass{background:#ff5bea;color:#260020;box-shadow:0 0 0 2px rgba(255,91,234,.22),0 0 18px rgba(255,91,234,.34)}
 #s936EditorGuitarSurface .s936-neck-dot .finger{margin-top:2px;font-size:.42rem}
-#s936EditorGuitarSurface .s936-neck-cell.barre{box-shadow:inset 0 3px 0 rgba(255,216,77,.95),inset 0 -3px 0 rgba(255,216,77,.95)}
-#s936EditorGuitarSurface .s936-neck-cell.capo{box-shadow:inset 5px 0 0 rgba(255,216,77,.88)}
+#s936EditorGuitarSurface .s936-neck-cell.barre{box-shadow:inset 0 4px 0 rgba(255,216,77,.94),inset 0 -4px 0 rgba(255,216,77,.94)}
+#s936EditorGuitarSurface .s936-neck-cell.capo{box-shadow:inset 6px 0 0 rgba(255,216,77,.88)}
 #s936EditorGuitarSurface .s936-finger-pop{position:fixed;z-index:99999;display:flex;gap:5px;align-items:center;border:1px solid rgba(0,255,204,.5);border-radius:12px;background:#071112;padding:7px;box-shadow:0 14px 35px rgba(0,0,0,.55)}
 #s936EditorGuitarSurface .s936-finger-pop button{width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);color:#fff;font-size:.62rem;font-weight:950;cursor:pointer}
 #s936EditorGuitarSurface .s936-finger-pop button:hover{border-color:#00ffcc;background:rgba(0,255,204,.14)}
 #s936EditorGuitarSurface .s936-finger-pop button.clear{border-color:rgba(255,90,90,.5);color:#ffb9b9}
-#s936EditorGuitarSurface .s936-chart-zone{border:1px solid rgba(255,255,255,.11);border-radius:17px;background:rgba(255,255,255,.025);padding:11px}
-#s936EditorGuitarSurface .s936-chart-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
-#s936EditorGuitarSurface .s936-chart-head b{color:#ffe066;font-size:.68rem;text-transform:uppercase;letter-spacing:.7px}
-#s936EditorGuitarSurface .s936-chart-head span{color:rgba(255,255,255,.55);font-size:.57rem}
-#s936EditorGuitarSurface .s936-chart-row{display:flex;gap:9px;overflow-x:auto;padding-bottom:4px}
-#s936EditorGuitarSurface .s936-chart-card{flex:0 0 128px;border:1px solid rgba(255,255,255,.12);border-radius:13px;background:rgba(0,0,0,.26);color:#fff;padding:8px;cursor:pointer;text-align:left}
+#s936EditorGuitarSurface .s936-chart-zone{border:1px solid rgba(255,255,255,.10);border-radius:16px;background:rgba(255,255,255,.022);padding:9px}
+#s936EditorGuitarSurface .s936-chart-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+#s936EditorGuitarSurface .s936-chart-head b{color:#ffe066;font-size:.66rem;text-transform:uppercase;letter-spacing:.7px}
+#s936EditorGuitarSurface .s936-chart-head span{color:rgba(255,255,255,.52);font-size:.55rem}
+#s936EditorGuitarSurface .s936-chart-row{display:flex;gap:7px;overflow-x:auto;padding-bottom:3px}
+#s936EditorGuitarSurface .s936-chart-card{flex:0 0 108px;border:1px solid rgba(255,255,255,.11);border-radius:12px;background:rgba(0,0,0,.24);color:#fff;padding:7px;cursor:pointer;text-align:left}
 #s936EditorGuitarSurface .s936-chart-card.active{border-color:#00ffcc;background:rgba(0,255,204,.08);box-shadow:0 0 0 1px rgba(0,255,204,.12) inset}
-#s936EditorGuitarSurface .s936-chart-name{display:block;color:#fff;font-size:.62rem;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#s936EditorGuitarSurface .s936-chart-meta{display:block;color:#ffe066;font-size:.49rem;margin-top:3px}
-#s936EditorGuitarSurface .s936-mini-chart{height:82px;margin-top:7px;position:relative;border-top:2px solid rgba(255,255,255,.65);background:repeating-linear-gradient(to bottom,transparent 0,transparent 15px,rgba(255,255,255,.22) 16px),repeating-linear-gradient(to right,transparent 0,transparent 16px,rgba(255,255,255,.24) 17px)}
-#s936EditorGuitarSurface .s936-mini-dot{position:absolute;width:13px;height:13px;border-radius:50%;background:#00ffcc;color:#00231e;font-size:.39rem;font-weight:950;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%)}
-#s936EditorGuitarSurface .s936-mini-open{position:absolute;top:-17px;font-size:.44rem;color:#bfffee;transform:translateX(-50%)}
-#s936EditorGuitarSurface .s936-mini-muted{position:absolute;top:-17px;font-size:.44rem;color:#ffb9b9;transform:translateX(-50%)}
-#s936EditorGuitarSurface .s936-chart-empty{height:82px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.45);font-size:.54rem;text-align:center}
+#s936EditorGuitarSurface .s936-chart-name{display:block;color:#fff;font-size:.58rem;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#s936EditorGuitarSurface .s936-chart-meta{display:block;color:#ffe066;font-size:.46rem;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#s936EditorGuitarSurface .s936-mini-chart{height:62px;margin-top:6px;position:relative;border-top:2px solid rgba(255,255,255,.62);background:repeating-linear-gradient(to bottom,transparent 0,transparent 11px,rgba(255,255,255,.20) 12px),repeating-linear-gradient(to right,transparent 0,transparent 13px,rgba(255,255,255,.22) 14px)}
+#s936EditorGuitarSurface .s936-mini-dot{position:absolute;width:12px;height:12px;border-radius:50%;background:#00ffcc;color:#00231e;font-size:.36rem;font-weight:950;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%)}
+#s936EditorGuitarSurface .s936-mini-open{position:absolute;top:-15px;font-size:.42rem;color:#bfffee;transform:translateX(-50%)}
+#s936EditorGuitarSurface .s936-mini-muted{position:absolute;top:-15px;font-size:.42rem;color:#ffb9b9;transform:translateX(-50%)}
+#s936EditorGuitarSurface .s936-chart-empty{height:62px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.40);font-size:.50rem;text-align:center}
+
 @media(max-width:760px){
   #s936SuitePro .s936-ed-grid{grid-template-columns:1fr}
   #s936SuitePro .s936-ed-field.full{grid-column:auto}
@@ -544,23 +581,14 @@
 
   function buildResultBox(ctx, options = {}) {
     const box = el(ctx, "div", "s936-ed-result");
-    box.appendChild(el(ctx, "div", "s936-ed-result-title", options.title || "Resultado del acorde"));
+    box.appendChild(el(ctx, "div", "s936-ed-result-title", options.title || "Resultado sonoro"));
     const refs = {};
 
-    if (options.nameInput) {
-      const nameRow = el(ctx, "div", "s936-ed-result-name");
-      nameRow.appendChild(el(ctx, "b", "", "Nombre"));
-      nameRow.appendChild(options.nameInput);
-      box.appendChild(nameRow);
-      if (options.nameTools) box.appendChild(options.nameTools);
-      refs.name = options.nameInput;
-    } else {
-      const nameRow = el(ctx, "div", "s936-ed-result-line");
-      nameRow.appendChild(el(ctx, "b", "", "Nombre detectado"));
-      refs.name = el(ctx, "span", "", "—");
-      nameRow.appendChild(refs.name);
-      box.appendChild(nameRow);
-    }
+    const nameRow = el(ctx, "div", "s936-ed-result-line");
+    nameRow.appendChild(el(ctx, "b", "", "Nombre detectado"));
+    refs.name = el(ctx, "span", "", "—");
+    nameRow.appendChild(refs.name);
+    box.appendChild(nameRow);
 
     [
       ["bass", "Bajo"],
@@ -578,6 +606,105 @@
     return { box, refs };
   }
 
+  function buildGuitarDockCard(ctx, nameInput, nameTools) {
+    const box = el(ctx, "section", "s936-ed-guitar-card");
+    const head = el(ctx, "div", "s936-ed-guitar-card-head");
+    const name = el(ctx, "div", "s936-ed-guitar-card-name", "Acorde");
+    const order = el(ctx, "div", "s936-ed-guitar-card-order", "FORMA 6→1");
+    head.append(name, order);
+    box.appendChild(head);
+
+    const chart = el(ctx, "div", "s936-ed-dock-chart");
+    box.appendChild(chart);
+
+    const shapeRow = el(ctx, "div", "s936-ed-guitar-shape");
+    shapeRow.appendChild(el(ctx, "span", "", "TAB compacta"));
+    const shape = el(ctx, "code", "", "X X X X X X");
+    shapeRow.appendChild(shape);
+    box.appendChild(shapeRow);
+
+    const manualNameArea = el(ctx, "div", "s936-ed-manual-name");
+    manualNameArea.hidden = true;
+    manualNameArea.appendChild(nameInput);
+    box.appendChild(manualNameArea);
+    if (nameTools) box.appendChild(nameTools);
+
+    return {
+      box,
+      refs:{ name, shape, chart, manualNameArea }
+    };
+  }
+
+  function renderGuitarDockChart(refs, calculation, handlers, fingerTarget) {
+    const chart = refs?.chart;
+    if (!chart || !calculation) return;
+    chart.innerHTML = "";
+
+    const strings = calculation.strings || [];
+    const frets = strings.map(s => s?.fret ?? null);
+    const positive = frets.filter(v => Number(v) > 0).map(Number);
+    const minPositive = positive.length ? Math.min(...positive) : 1;
+    const maxPositive = positive.length ? Math.max(...positive) : 1;
+    let base = minPositive > 4 ? minPositive : 1;
+    if (maxPositive - base > 4) base = Math.max(1, maxPositive - 4);
+
+    const labels = el(null, "div", "s936-ed-dock-labels");
+    labels.appendChild(el(null, "span", "", base > 1 ? `${base}fr` : "Tr."));
+    GUITAR_STRINGS.forEach(string => labels.appendChild(el(null, "span", "", String(string.number))));
+    chart.appendChild(labels);
+
+    const status = el(null, "div", "s936-ed-dock-status");
+    status.appendChild(el(null, "span", "s936-ed-dock-base", "X/0"));
+    strings.forEach((stringData, index) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      const fret = stringData?.fret ?? null;
+      btn.textContent = fret === null ? "X" : fret === 0 ? "○" : "•";
+      if (fret === null) btn.classList.add("active-mute");
+      if (fret === 0) btn.classList.add("active-open");
+      btn.title = fret === null
+        ? `Activar cuerda ${GUITAR_STRINGS[index].number} al aire`
+        : `Alternar cuerda ${GUITAR_STRINGS[index].number} entre abierta y apagada`;
+      btn.addEventListener("click", () => handlers?.setFret?.(index, fret === null ? 0 : null));
+      status.appendChild(btn);
+    });
+    chart.appendChild(status);
+
+    for (let row = 0; row < 5; row++) {
+      const fret = base + row;
+      const line = el(null, "div", "s936-ed-dock-row");
+      line.appendChild(el(null, "span", "s936-ed-dock-fret", String(fret)));
+      strings.forEach((stringData, index) => {
+        const cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "s936-ed-dock-cell";
+        cell.style.setProperty("--dock-string", `${Math.max(.8, 3.2 - index * .46)}px`);
+        cell.title = `Cuerda ${GUITAR_STRINGS[index].number} · traste ${fret}`;
+        if (Number(stringData?.fret) === fret) {
+          const dot = el(null, "span", "s936-ed-dock-dot" + (stringData?.midi === calculation.bassMidi ? " bass" : ""));
+          dot.textContent = stringData?.finger || "•";
+          cell.appendChild(dot);
+        }
+        cell.addEventListener("click", () => handlers?.setFretAndChooseFinger?.(index, fret));
+        line.appendChild(cell);
+      });
+      chart.appendChild(line);
+    }
+
+    if (Number.isInteger(fingerTarget) && fingerTarget >= 0 && fingerTarget < 6) {
+      const picker = el(null, "div", "s936-ed-mini-fingers");
+      picker.appendChild(el(null, "span", "", `Dedo cuerda ${GUITAR_STRINGS[fingerTarget].number}:`));
+      [["1","1"],["2","2"],["3","3"],["4","4"],["T","T"],["","×"]].forEach(([value,label]) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = label;
+        btn.addEventListener("click", () => handlers?.setFinger?.(fingerTarget, value));
+        picker.appendChild(btn);
+      });
+      chart.appendChild(picker);
+    }
+  }
+
   function setStatus(node, message, isError) {
     node.textContent = message || "";
     node.style.color = isError ? "#ffb9b9" : "#bfffee";
@@ -589,18 +716,38 @@
     };
   }
 
+  function suiteEditorIsVisible(root) {
+    if (!root || !root.querySelector(".s936-ed-module")) return false;
+    if (root.hidden || root.getAttribute("aria-hidden") === "true") return false;
+    const style = window.getComputedStyle ? window.getComputedStyle(root) : null;
+    if (style && (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0)) return false;
+    return root.getClientRects ? root.getClientRects().length > 0 : true;
+  }
+
   function watchLifecycle() {
     const root = document.getElementById("s936SuitePro");
     if (!root || lifecycleObserver) return;
-    lifecycleObserver = new MutationObserver(() => {
+    const verify = () => {
       setTimeout(() => {
-        if (!root.querySelector(".s936-ed-module")) {
+        if (!suiteEditorIsVisible(root)) {
           activeController = null;
           bridge("deactivateEditorSurface");
         }
       }, 0);
+    };
+    lifecycleObserver = new MutationObserver(verify);
+    lifecycleObserver.observe(root, {
+      childList:true,
+      subtree:true,
+      attributes:true,
+      attributeFilter:["class","style","hidden","aria-hidden"]
     });
-    lifecycleObserver.observe(root, { childList:true, subtree:true });
+    document.addEventListener("click", event => {
+      const button = event.target?.closest?.("button");
+      if (!button || !button.closest("#s936SuitePro")) return;
+      const label = String(button.textContent || "").trim().toUpperCase();
+      if (label === "CERRAR" || label === "CLOSE") verify();
+    }, true);
   }
 
   function render(ctx, host) {
@@ -684,11 +831,13 @@
     const nameTools = el(ctx, "div", "s936-ed-name-tools");
     nameTools.appendChild(manualWrap);
     nameTools.appendChild(alternatives);
+    let result = null;
 
     nameInput.readOnly = !state.manualName;
     manualCheck.addEventListener("change", () => {
       state.manualName = manualCheck.checked;
       nameInput.readOnly = !state.manualName;
+      if (result?.refs?.manualNameArea) result.refs.manualNameArea.hidden = !state.manualName;
       if (!state.manualName) recalculate();
     });
 
@@ -709,17 +858,16 @@
     card.appendChild(grid);
 
     const status = el(ctx, "div", "s936-ed-status");
-    const result = buildResultBox(
-      ctx,
-      state.instrument === "guitar"
-        ? { title:"Resultado del acorde", nameInput, nameTools }
-        : { title:"Resultado sonoro" }
-    );
+    result = state.instrument === "guitar"
+      ? buildGuitarDockCard(ctx, nameInput, nameTools)
+      : buildResultBox(ctx, { title:"Resultado sonoro" });
+    if (result?.refs?.manualNameArea) result.refs.manualNameArea.hidden = !state.manualName;
 
     let guitarDraft = null;
     let guitarControls = null;
     let latestCalculation = null;
     let visualTimer = null;
+    let dockFingerTarget = null;
 
     if (state.instrument === "guitar") {
       bassInput.readOnly = true;
@@ -888,7 +1036,41 @@
       else node.textContent = value || "—";
     }
 
+    function setGuitarControlFret(stringIndex, fret, chooseFinger = false) {
+      if (!guitarControls) return;
+      const index = clamp(Number(stringIndex), 0, 5);
+      const normalized = fret === null || String(fret).toUpperCase() === "X"
+        ? null
+        : clamp(Number(fret), 0, 24);
+      guitarControls.fretSelects[index].value = normalized === null ? "X" : String(normalized);
+      if (normalized === null) guitarControls.fingerSelects[index].value = "";
+      else if (normalized === 0) guitarControls.fingerSelects[index].value = "0";
+      else if (guitarControls.fingerSelects[index].value === "0") guitarControls.fingerSelects[index].value = "";
+      dockFingerTarget = chooseFinger && normalized !== null && normalized > 0 ? index : null;
+      recalculate();
+    }
+
+    function setGuitarControlFinger(stringIndex, finger) {
+      if (!guitarControls) return;
+      const index = clamp(Number(stringIndex), 0, 5);
+      const value = ["","0","1","2","3","4","T"].includes(String(finger)) ? String(finger) : "";
+      guitarControls.fingerSelects[index].value = value;
+      dockFingerTarget = null;
+      recalculate();
+    }
+
     function updateResult(name, bass, notes, shape, tab, alternativesText) {
+      if (state.instrument === "guitar") {
+        setResultNode(result.refs.name, name || "Sin identificar");
+        result.refs.shape.textContent = `6→1 · ${String(shape || "X-X-X-X-X-X").replace(/-/g, " ")}`;
+        alternatives.textContent = alternativesText || "";
+        renderGuitarDockChart(result.refs, latestCalculation, {
+          setFret:(index, fret) => setGuitarControlFret(index, fret, false),
+          setFretAndChooseFinger:(index, fret) => setGuitarControlFret(index, fret, true),
+          setFinger:(index, finger) => setGuitarControlFinger(index, finger)
+        }, dockFingerTarget);
+        return;
+      }
       setResultNode(result.refs.name, name || "Sin identificar");
       result.refs.bass.textContent = bass || "—";
       result.refs.notes.textContent = notes || "—";
@@ -953,21 +1135,10 @@
 
     activeController = state.instrument === "guitar" && guitarControls ? {
       setFret(stringIndex, fret) {
-        const index = clamp(Number(stringIndex), 0, 5);
-        const normalized = fret === null || String(fret).toUpperCase() === "X"
-          ? null
-          : clamp(Number(fret), 0, 24);
-        guitarControls.fretSelects[index].value = normalized === null ? "X" : String(normalized);
-        if (normalized === null) guitarControls.fingerSelects[index].value = "";
-        else if (normalized === 0) guitarControls.fingerSelects[index].value = "0";
-        else if (guitarControls.fingerSelects[index].value === "0") guitarControls.fingerSelects[index].value = "";
-        recalculate();
+        setGuitarControlFret(stringIndex, fret, false);
       },
       setFinger(stringIndex, finger) {
-        const index = clamp(Number(stringIndex), 0, 5);
-        const value = ["","0","1","2","3","4","T"].includes(String(finger)) ? String(finger) : "";
-        guitarControls.fingerSelects[index].value = value;
-        recalculate();
+        setGuitarControlFinger(stringIndex, finger);
       },
       selectChord(index) {
         const next = Math.max(0, Math.min(seq.length - 1, Number(index) || 0));
@@ -1038,7 +1209,7 @@
     const visualText = state.instrument === "piano"
       ? "Piano: el acorde se ilumina sobre el teclado completo."
       : state.instrument === "guitar"
-        ? "Guitarra v0.3: haz clic sobre una cuerda y un traste del cuello grande; después selecciona el dedo. Los charts de la sección están debajo del instrumento."
+        ? "Guitarra v0.4: construye el acorde en el cuello grande o en el mini-chart. Ambas vistas y el panel manual permanecen sincronizados."
         : "Ukelele conserva por ahora el mapa de notas. Su constructor visual exacto será una fase independiente.";
     card.appendChild(el(ctx, "div", "s936-ed-visual-note", visualText));
     shell.appendChild(card);

@@ -109,6 +109,9 @@ function buildFretboard(){
     });
 }
 function setViewMode(mode){
+    if(mode === 'piano'){
+        window.Studio936AppBridge?.deactivateEditorSurface?.();
+    }
     return Fretboard.setViewMode({
         mode,
         project,
@@ -1200,14 +1203,39 @@ function installStudio936AppBridge(){
     }
     function deactivateEditorSurface(){
         const container = els.fretboardContainer;
-        if(container) container.classList.remove('s936-editor-surface-active');
-        document.getElementById('s936EditorGuitarSurface')?.remove();
+        if(container){
+            container.classList.remove('s936-editor-surface-active');
+            container.removeAttribute('data-s936-editor-surface');
+        }
+        document.querySelectorAll('#s936EditorGuitarSurface').forEach(node => node.remove());
         document.querySelectorAll('.s936-finger-pop').forEach(node => node.remove());
+        document.body?.classList.remove('s936-editor-guitar-surface');
         return { ok:true };
     }
     function clearExactVoicingMap(){
         return deactivateEditorSurface();
     }
+    function installEditorSurfaceCleanup(){
+        if(window.__s936EditorSurfaceCleanupBound) return;
+        window.__s936EditorSurfaceCleanupBound = true;
+        els.instrumentSelect?.addEventListener('change', () => {
+            deactivateEditorSurface();
+        }, true);
+        document.addEventListener('click', event => {
+            const button = event.target?.closest?.('button');
+            if(!button) return;
+            const label = String(button.textContent || '').trim().toUpperCase();
+            if(button.closest('#s936SuitePro') && (label === 'CERRAR' || label === 'CLOSE')){
+                setTimeout(deactivateEditorSurface, 0);
+                return;
+            }
+            if(button.closest('.workspace-tabs,.workspace-nav,.v25-workspace-nav') && label !== 'SUITE PRO'){
+                setTimeout(deactivateEditorSurface, 0);
+            }
+        }, true);
+        window.addEventListener('pagehide', deactivateEditorSurface);
+    }
+    installEditorSurfaceCleanup();
     function exactStringLabel(index){
         return ['6 · E','5 · A','4 · D','3 · G','2 · B','1 · e'][index] || String(index + 1);
     }
@@ -1332,6 +1360,8 @@ function installStudio936AppBridge(){
         const container = els.fretboardContainer;
         if(!container) return;
         container.classList.add('s936-editor-surface-active');
+        container.setAttribute('data-s936-editor-surface','guitar');
+        document.body?.classList.add('s936-editor-guitar-surface');
 
         let surface = document.getElementById('s936EditorGuitarSurface');
         if(!surface){
@@ -1349,12 +1379,12 @@ function installStudio936AppBridge(){
         title.textContent = 'Cuello interactivo · Guitarra';
         const meta = document.createElement('div');
         meta.className = 's936-neck-meta';
-        const shape = data.exactFrets.map(v => v === null ? 'X' : String(v)).join('-');
-        meta.textContent = `${data.name || 'Acorde'} · ${shape}${data.capo ? ` · Capo ${data.capo}` : ''}`;
+        const shape = data.exactFrets.map(v => v === null ? 'X' : String(v)).join(' ');
+        meta.textContent = `${data.name || 'Acorde'} · Forma 6→1: ${shape}${data.capo ? ` · Capo ${data.capo}` : ''}`;
         identity.append(title, meta);
         const help = document.createElement('div');
         help.className = 's936-neck-help';
-        help.textContent = 'Haz clic en un traste para colocar la nota y luego selecciona el dedo. X apaga la cuerda; 0 la deja abierta. El panel manual se sincroniza automáticamente.';
+        help.textContent = 'La 1.ª cuerda está arriba y la 6.ª abajo. Haz clic en un traste, elige el dedo y el mini-chart, el panel manual y el sonido se actualizarán juntos.';
         head.append(identity, help);
         surface.appendChild(head);
 
@@ -1372,6 +1402,7 @@ function installStudio936AppBridge(){
             const span = document.createElement('span');
             span.textContent = String(fret);
             if(markerFrets.has(fret)) span.classList.add('mark');
+            if(fret === 12 || fret === 24) span.classList.add('double');
             ruler.appendChild(span);
         }
         scroll.appendChild(ruler);
@@ -1383,11 +1414,16 @@ function installStudio936AppBridge(){
         const barrePhysicalFret = clamp(Number(barre.fret)||1,1,24) + (data.capo || 0);
         const barreHigh = Math.max(clamp(Number(barre.fromString)||6,1,6), clamp(Number(barre.toString)||1,1,6));
         const barreLow = Math.min(clamp(Number(barre.fromString)||6,1,6), clamp(Number(barre.toString)||1,1,6));
+        const displayOrder = [5,4,3,2,1,0];
 
-        data.exactFrets.forEach((relativeFret,index) => {
+        displayOrder.forEach(index => {
+            const relativeFret = data.exactFrets[index];
             const row = document.createElement('div');
             row.className = 's936-neck-row';
-            const stringNumber = 6 - index;
+            row.dataset.stringNumber = String(GUITAR_STRINGS[index].number);
+            row.style.setProperty('--string-width', `${Math.max(.8, .8 + (5-index)*.43)}px`);
+
+            const stringNumber = GUITAR_STRINGS[index].number;
             const label = document.createElement('div');
             label.className = 's936-neck-string-label';
             label.textContent = exactStringLabel(index);
@@ -1417,6 +1453,8 @@ function installStudio936AppBridge(){
                 const cell = document.createElement('button');
                 cell.type = 'button';
                 cell.className = 's936-neck-cell';
+                cell.style.setProperty('--string-width', `${Math.max(.8, .8 + (5-index)*.43)}px`);
+                if(physicalFret === 1) cell.classList.add('fret-one');
                 cell.dataset.stringIndex = String(index);
                 cell.dataset.physicalFret = String(physicalFret);
                 const blocked = physicalFret < (data.capo || 0);
@@ -1460,6 +1498,16 @@ function installStudio936AppBridge(){
         });
         surface.appendChild(scroll);
 
+        const selectedPhysical = data.exactFrets
+            .filter(v => Number(v) > 0)
+            .map(v => Number(v) + (data.capo || 0));
+        if(selectedPhysical.length){
+            const first = Math.min(...selectedPhysical);
+            setTimeout(() => {
+                scroll.scrollLeft = Math.max(0, (first - 2) * 44);
+            }, 0);
+        }
+
         const chartZone = document.createElement('section');
         chartZone.className = 's936-chart-zone';
         const chartHead = document.createElement('div');
@@ -1484,7 +1532,7 @@ function installStudio936AppBridge(){
             const voicing = chartVoicingForItem(item,index,data);
             const metaLine = document.createElement('span');
             metaLine.className = 's936-chart-meta';
-            metaLine.textContent = `${item?.bars || 1} comp. · ${voicing?.shape || 'sin forma'}`;
+            metaLine.textContent = `${item?.bars || 1} comp. · 6→1 ${(voicing?.shape ? String(voicing.shape).replace(/-/g,' ') : 'sin forma')}`;
             card.append(name, metaLine);
             renderMiniGuitarChart(card, voicing);
             card.addEventListener('click', () => editorExternal('externalSelectChord', index));
@@ -1687,7 +1735,7 @@ function installStudio936AppBridge(){
     }
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v1.3-interactive-guitar-neck',
+        version: 'suite-pro-bridge-v1.4-guitar-ux-cleanup',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
