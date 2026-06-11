@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Editor v0.4.1
+// Studio 936 Composer - Suite Pro Editor v0.4.2
 // Scope: Editor tab inside Compose.
 // Refines the guitar UX with a compact interactive chart, realistic neck, exact voicings, TAB and lifecycle cleanup.
 // It does not replace or delete the legacy editor.
@@ -6,13 +6,14 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.4.1-compact-chord-map";
+  const VERSION = "editor-v0.4.2-compact-ux";
   const state = {
     sectionKey: "",
     chordIndex: null,
     instrument: "",
     manualName: false,
-    manualPanelOpen: false
+    manualPanelOpen: false,
+    miniStartFret: null
   };
   let activeController = null;
   let lifecycleObserver = null;
@@ -67,11 +68,20 @@
 #s936SuitePro .s936-ed-shell{display:grid;gap:10px}
 #s936SuitePro .s936-ed-card{border:1px solid rgba(255,255,255,.13);border-radius:16px;background:rgba(255,255,255,.045);padding:12px}
 #s936SuitePro .s936-ed-card.primary{border-color:rgba(0,255,204,.38);background:linear-gradient(135deg,rgba(0,255,204,.09),rgba(255,255,255,.035))}
-#s936SuitePro .s936-ed-title{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:9px}
-#s936SuitePro .s936-ed-title h4{margin:0;color:#8affff;font-size:.82rem;text-transform:uppercase;letter-spacing:.8px}
-#s936SuitePro .s936-ed-version{color:rgba(255,255,255,.48);font-size:.56rem;font-weight:900}
+#s936SuitePro .s936-ed-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;position:relative}
+#s936SuitePro .s936-ed-title-main{display:flex;align-items:center;gap:6px;min-width:0}
+#s936SuitePro .s936-ed-title h4{margin:0;color:#8affff;font-size:.82rem;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#s936SuitePro .s936-ed-version{color:rgba(255,255,255,.45);font-size:.50rem;font-weight:900;white-space:nowrap}
+#s936SuitePro .s936-ed-help{width:24px;height:24px;border-radius:50%;border:1px solid rgba(0,255,204,.42);background:rgba(0,255,204,.08);color:#bfffee;font-size:.72rem;font-weight:950;cursor:pointer;display:grid;place-items:center;padding:0}
+#s936SuitePro .s936-ed-help:hover,#s936SuitePro .s936-ed-help[aria-expanded="true"]{background:rgba(0,255,204,.18);border-color:#00ffcc}
+#s936SuitePro .s936-ed-help-pop{border:1px solid rgba(0,255,204,.30);border-radius:11px;background:#071112;padding:8px 9px;margin:-1px 0 8px;color:rgba(255,255,255,.75);font-size:.60rem;line-height:1.4;box-shadow:0 12px 28px rgba(0,0,0,.32)}
+#s936SuitePro .s936-ed-help-pop[hidden]{display:none}
+#s936SuitePro .s936-ed-help-pop button{margin-top:6px;border:1px solid rgba(255,216,77,.55);border-radius:999px;background:rgba(255,216,77,.08);color:#ffe066;padding:5px 8px;font-size:.53rem;font-weight:950;text-transform:uppercase;cursor:pointer}
 #s936SuitePro .s936-ed-note{margin:0;color:rgba(255,255,255,.67);font-size:.66rem;line-height:1.42}
-#s936SuitePro .s936-ed-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#s936SuitePro .s936-ed-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+#s936SuitePro .s936-ed-chordline{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) 78px;gap:7px;align-items:end}
+#s936SuitePro .s936-ed-chordline .s936-ed-field{min-width:0}
+#s936SuitePro .s936-ed-chordline .s936-ed-input,#s936SuitePro .s936-ed-chordline .s936-ed-select{padding:7px 8px}
 #s936SuitePro .s936-ed-field.full{grid-column:1/-1}
 #s936SuitePro .s936-ed-field label{display:block;color:#ffe066;font-size:.56rem;font-weight:950;text-transform:uppercase;letter-spacing:.65px;margin:0 0 4px}
 #s936SuitePro .s936-ed-input,#s936SuitePro .s936-ed-select{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.17);border-radius:11px;background:rgba(0,0,0,.34);color:#fff;padding:8px 9px;font-size:.72rem;font-weight:800}
@@ -123,7 +133,12 @@
 #s936SuitePro .s936-ed-guitar-card-order{color:#ffe066;font:900 .50rem/1 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:nowrap}
 #s936SuitePro .s936-ed-guitar-shape{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:5px 0 2px;color:rgba(255,255,255,.60);font-size:.51rem}
 #s936SuitePro .s936-ed-guitar-shape code{color:#bfffee;font:900 .62rem/1.2 ui-monospace,SFMono-Regular,Consolas,monospace}
-#s936SuitePro .s936-ed-dock-chart{display:flex;justify-content:center;align-items:center;min-height:165px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:radial-gradient(circle at 50% 38%,rgba(0,255,204,.055),transparent 48%),linear-gradient(180deg,rgba(21,35,33,.96),rgba(5,10,10,.98));padding:6px;overflow:hidden}
+#s936SuitePro .s936-ed-fret-range{display:grid;grid-template-columns:auto 28px 54px 28px;gap:5px;align-items:center;margin:5px 0 6px}
+#s936SuitePro .s936-ed-fret-range label{color:rgba(255,255,255,.62);font-size:.50rem;font-weight:900;text-transform:uppercase;white-space:nowrap}
+#s936SuitePro .s936-ed-fret-range button{height:27px;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:rgba(255,255,255,.055);color:#fff;font-size:.66rem;font-weight:950;cursor:pointer;padding:0}
+#s936SuitePro .s936-ed-fret-range button:hover{border-color:#00ffcc;background:rgba(0,255,204,.12)}
+#s936SuitePro .s936-ed-fret-range input{height:27px;width:100%;box-sizing:border-box;border:1px solid rgba(255,216,77,.38);border-radius:8px;background:rgba(0,0,0,.30);color:#ffe066;text-align:center;font-size:.61rem;font-weight:950;padding:3px}
+#s936SuitePro .s936-ed-dock-chart{display:flex;justify-content:center;align-items:center;min-height:150px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:radial-gradient(circle at 50% 38%,rgba(0,255,204,.055),transparent 48%),linear-gradient(180deg,rgba(21,35,33,.96),rgba(5,10,10,.98));padding:6px;overflow:hidden}
 #s936SuitePro .s936-ed-chord-svg{width:min(100%,230px);height:auto;display:block;overflow:visible;touch-action:manipulation}
 #s936SuitePro .s936-ed-chord-svg .string{stroke:rgba(232,236,235,.72);stroke-linecap:round}
 #s936SuitePro .s936-ed-chord-svg .fret{stroke:rgba(255,255,255,.33);stroke-width:1.25}
@@ -157,7 +172,7 @@
 #s936EditorGuitarSurface .s936-neck-help{max-width:470px;color:rgba(255,255,255,.68);font-size:.62rem;line-height:1.4;text-align:right}
 #s936EditorGuitarSurface .s936-neck-scroll{overflow:auto;border:1px solid rgba(255,216,77,.36);border-radius:19px;background:linear-gradient(180deg,rgba(68,31,15,.96),rgba(29,15,9,.98) 48%,rgba(55,25,13,.96));padding:10px 11px 13px;box-shadow:0 18px 45px rgba(0,0,0,.32),inset 0 0 40px rgba(255,171,71,.045);position:relative}
 #s936EditorGuitarSurface .s936-neck-scroll::before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(7deg,transparent 0 11px,rgba(255,255,255,.018) 12px,transparent 13px 25px);mix-blend-mode:screen}
-#s936EditorGuitarSurface .s936-neck-ruler,#s936EditorGuitarSurface .s936-neck-row{display:grid;grid-template-columns:72px 34px 38px repeat(24,44px);min-width:1200px;align-items:center;position:relative;z-index:1}
+#s936EditorGuitarSurface .s936-neck-ruler,#s936EditorGuitarSurface .s936-neck-row{display:grid;grid-template-columns:72px 34px 38px repeat(24,minmax(44px,1fr));min-width:1200px;width:100%;box-sizing:border-box;align-items:center;position:relative;z-index:1}
 #s936EditorGuitarSurface .s936-neck-ruler{margin-bottom:5px}
 #s936EditorGuitarSurface .s936-neck-ruler span{font-size:.48rem;color:rgba(255,255,255,.45);text-align:center}
 #s936EditorGuitarSurface .s936-neck-ruler .mark{color:#00ffcc;font-weight:950}
@@ -183,11 +198,11 @@
 #s936EditorGuitarSurface .s936-finger-pop button{width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);color:#fff;font-size:.62rem;font-weight:950;cursor:pointer}
 #s936EditorGuitarSurface .s936-finger-pop button:hover{border-color:#00ffcc;background:rgba(0,255,204,.14)}
 #s936EditorGuitarSurface .s936-finger-pop button.clear{border-color:rgba(255,90,90,.5);color:#ffb9b9}
-#s936EditorGuitarSurface .s936-chart-zone{border:1px solid rgba(255,255,255,.10);border-radius:16px;background:rgba(255,255,255,.022);padding:9px}
+#s936EditorGuitarSurface .s936-chart-zone{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.10);border-radius:16px;background:rgba(255,255,255,.022);padding:9px}
 #s936EditorGuitarSurface .s936-chart-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
 #s936EditorGuitarSurface .s936-chart-head b{color:#ffe066;font-size:.66rem;text-transform:uppercase;letter-spacing:.7px}
 #s936EditorGuitarSurface .s936-chart-head span{color:rgba(255,255,255,.52);font-size:.55rem}
-#s936EditorGuitarSurface .s936-chart-row{display:flex;gap:7px;overflow-x:auto;padding-bottom:3px}
+#s936EditorGuitarSurface .s936-chart-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,128px));justify-content:center;gap:7px;width:100%;padding-bottom:3px}
 #s936EditorGuitarSurface .s936-chart-card{flex:0 0 108px;border:1px solid rgba(255,255,255,.11);border-radius:12px;background:rgba(0,0,0,.24);color:#fff;padding:7px;cursor:pointer;text-align:left}
 #s936EditorGuitarSurface .s936-chart-card.active{border-color:#00ffcc;background:rgba(0,255,204,.08);box-shadow:0 0 0 1px rgba(0,255,204,.12) inset}
 #s936EditorGuitarSurface .s936-chart-name{display:block;color:#fff;font-size:.58rem;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -200,6 +215,7 @@
 
 @media(max-width:760px){
   #s936SuitePro .s936-ed-grid{grid-template-columns:1fr}
+  #s936SuitePro .s936-ed-chordline{grid-template-columns:minmax(0,1fr) 72px}
   #s936SuitePro .s936-ed-field.full{grid-column:auto}
   #s936SuitePro .s936-ed-string-head,#s936SuitePro .s936-ed-string-row{grid-template-columns:38px minmax(62px,1fr) minmax(58px,.75fr) minmax(65px,.85fr)}
   #s936EditorGuitarSurface{padding:8px}
@@ -614,6 +630,22 @@
     head.append(name, order);
     box.appendChild(head);
 
+    const range = el(ctx, "div", "s936-ed-fret-range");
+    range.appendChild(el(ctx, "label", "", "Desde traste"));
+    const rangePrev = el(ctx, "button", "", "◀");
+    rangePrev.type = "button";
+    rangePrev.title = "Rango anterior";
+    const rangeInput = makeInput(ctx, "number", state.miniStartFret || 1);
+    rangeInput.min = "1";
+    rangeInput.max = "20";
+    rangeInput.step = "1";
+    rangeInput.title = "Primer traste visible en el mapa pequeño";
+    const rangeNext = el(ctx, "button", "", "▶");
+    rangeNext.type = "button";
+    rangeNext.title = "Rango siguiente";
+    range.append(rangePrev, rangeInput, rangeNext);
+    box.appendChild(range);
+
     const chart = el(ctx, "div", "s936-ed-dock-chart");
     box.appendChild(chart);
 
@@ -631,7 +663,7 @@
 
     return {
       box,
-      refs:{ name, shape, chart, manualNameArea }
+      refs:{ name, shape, chart, manualNameArea, rangeInput, rangePrev, rangeNext }
     };
   }
 
@@ -653,8 +685,12 @@
       .filter(fret => Number.isFinite(fret) && fret > 0);
     const minPositive = positiveFrets.length ? Math.min(...positiveFrets) : 1;
     const maxPositive = positiveFrets.length ? Math.max(...positiveFrets) : 1;
-    let baseFret = minPositive > 4 ? minPositive : 1;
-    if (maxPositive - baseFret > 4) baseFret = Math.max(1, maxPositive - 4);
+    let autoBaseFret = minPositive > 4 ? minPositive : 1;
+    if (maxPositive - autoBaseFret > 4) autoBaseFret = Math.max(1, maxPositive - 4);
+    autoBaseFret = clamp(autoBaseFret, 1, 20);
+    if (!Number.isFinite(Number(state.miniStartFret))) state.miniStartFret = autoBaseFret;
+    const baseFret = clamp(Number(state.miniStartFret) || autoBaseFret, 1, 20);
+    if (refs.rangeInput) refs.rangeInput.value = String(baseFret);
 
     const x0 = 43;
     const xGap = 25;
@@ -856,14 +892,34 @@
     const shell = el(ctx, "div", "s936-ed-shell");
     const card = el(ctx, "section", "s936-ed-card primary");
     const title = el(ctx, "div", "s936-ed-title");
-    title.appendChild(el(ctx, "h4", "", "Editor Pro · Acordes"));
+    const titleMain = el(ctx, "div", "s936-ed-title-main");
+    titleMain.appendChild(el(ctx, "h4", "", "Editor Pro · Acordes"));
+    const helpButton = el(ctx, "button", "s936-ed-help", "ⓘ");
+    helpButton.type = "button";
+    helpButton.title = "Ayuda rápida del Editor Pro";
+    helpButton.setAttribute("aria-expanded", "false");
+    titleMain.appendChild(helpButton);
+    title.appendChild(titleMain);
     title.appendChild(el(ctx, "span", "s936-ed-version", VERSION));
     card.appendChild(title);
-    card.appendChild(el(ctx, "p", "s936-ed-note",
+
+    const helpPop = el(ctx, "div", "s936-ed-help-pop");
+    helpPop.hidden = true;
+    helpPop.appendChild(document.createTextNode(
       state.instrument === "guitar"
-        ? "Construye el acorde directamente sobre el cuello grande. El panel manual queda disponible para ajustes precisos."
+        ? "Construye el acorde desde el mapa pequeño, el cuello grande o la digitación manual. Las tres vistas permanecen sincronizadas."
         : "El acorde se calcula, se escucha y se refleja sobre el instrumento principal."
     ));
+    const helpLink = el(ctx, "button", "", "Ir a Ayuda");
+    helpLink.type = "button";
+    helpLink.addEventListener("click", () => bridge("openHelp"));
+    helpPop.appendChild(document.createElement("br"));
+    helpPop.appendChild(helpLink);
+    helpButton.addEventListener("click", () => {
+      helpPop.hidden = !helpPop.hidden;
+      helpButton.setAttribute("aria-expanded", String(!helpPop.hidden));
+    });
+    card.appendChild(helpPop);
 
     const instruments = el(ctx, "div", "s936-ed-instruments");
     [["piano","Piano"],["guitar","Guitarra"],["ukulele","Ukelele"]].forEach(([key,label]) => {
@@ -887,7 +943,7 @@
     const sectionSelect = makeSelect(ctx, sectionOptions, state.sectionKey);
     const chordSelect = makeSelect(
       ctx,
-      seq.map((ch,index) => [String(index), `${index + 1}. ${ch.name || "Acorde"} · ${ch.bars || 1} comp.`]),
+      seq.map((ch,index) => [String(index), `${index + 1}. ${ch.name || "Acorde"}`]),
       state.chordIndex
     );
     const nameInput = makeInput(ctx, "text", item.name || "");
@@ -919,17 +975,17 @@
 
     const grid = el(ctx, "div", "s936-ed-grid");
     grid.appendChild(field(ctx, "Sección", sectionSelect, true));
-    grid.appendChild(field(ctx, "Acorde seleccionado", chordSelect, true));
+    const chordLine = el(ctx, "div", "s936-ed-chordline");
+    chordLine.appendChild(field(ctx, "Acorde", chordSelect, false));
+    chordLine.appendChild(field(ctx, "Compases", barsInput, false));
+    grid.appendChild(chordLine);
 
-    if (state.instrument === "guitar") {
-      grid.appendChild(field(ctx, "Compases", barsInput, false));
-    } else {
+    if (state.instrument !== "guitar") {
       const nameField = field(ctx, "Nombre del acorde", nameInput, true);
       nameField.appendChild(nameTools);
       grid.appendChild(nameField);
       grid.appendChild(field(ctx, "Bajo", bassInput, false));
       grid.appendChild(field(ctx, state.instrument === "piano" ? "Notas del voicing" : "Notas sonoras", notesInput, true));
-      grid.appendChild(field(ctx, "Compases", barsInput, false));
     }
     card.appendChild(grid);
 
@@ -951,6 +1007,24 @@
       guitarDraft = normalizeGuitarDraft(item);
 
       card.appendChild(result.box);
+
+      const fretStops = [1,5,9,13,17,20];
+      const setMiniStartFret = value => {
+        state.miniStartFret = clamp(Number(value) || 1, 1, 20);
+        if (result?.refs?.rangeInput) result.refs.rangeInput.value = String(state.miniStartFret);
+        recalculate();
+      };
+      result.refs.rangeInput.addEventListener("change", () => setMiniStartFret(result.refs.rangeInput.value));
+      result.refs.rangePrev.addEventListener("click", () => {
+        const current = clamp(Number(state.miniStartFret) || 1, 1, 20);
+        const previous = [...fretStops].reverse().find(value => value < current) || 1;
+        setMiniStartFret(previous);
+      });
+      result.refs.rangeNext.addEventListener("click", () => {
+        const current = clamp(Number(state.miniStartFret) || 1, 1, 20);
+        const next = fretStops.find(value => value > current) || 20;
+        setMiniStartFret(next);
+      });
 
       const manualToggle = el(ctx, "button", "s936-ed-manual-toggle");
       manualToggle.type = "button";
@@ -1122,6 +1196,12 @@
       if (normalized === null) guitarControls.fingerSelects[index].value = "";
       else if (normalized === 0) guitarControls.fingerSelects[index].value = "0";
       else if (guitarControls.fingerSelects[index].value === "0") guitarControls.fingerSelects[index].value = "";
+      if (normalized !== null && normalized > 0) {
+        const currentStart = clamp(Number(state.miniStartFret) || 1, 1, 20);
+        if (normalized < currentStart || normalized > currentStart + 4) {
+          state.miniStartFret = Math.min(20, 1 + Math.floor((normalized - 1) / 4) * 4);
+        }
+      }
       dockFingerTarget = chooseFinger && normalized !== null && normalized > 0 ? index : null;
       recalculate();
     }
@@ -1219,6 +1299,7 @@
       selectChord(index) {
         const next = Math.max(0, Math.min(seq.length - 1, Number(index) || 0));
         state.chordIndex = next;
+        state.miniStartFret = null;
         bridge("selectEditorChord", state.sectionKey, next);
         renderModule(ctx, host);
       }
@@ -1227,12 +1308,14 @@
     sectionSelect.addEventListener("change", () => {
       state.sectionKey = sectionSelect.value;
       state.chordIndex = 0;
+      state.miniStartFret = null;
       bridge("selectEditorSection", state.sectionKey);
       renderModule(ctx, host);
     });
 
     chordSelect.addEventListener("change", () => {
       state.chordIndex = Number(chordSelect.value) || 0;
+      state.miniStartFret = null;
       bridge("selectEditorChord", state.sectionKey, state.chordIndex);
       renderModule(ctx, host);
     });
@@ -1282,12 +1365,12 @@
     card.appendChild(actionBox);
     card.appendChild(status);
 
-    const visualText = state.instrument === "piano"
-      ? "Piano: el acorde se ilumina sobre el teclado completo."
-      : state.instrument === "guitar"
-        ? "Guitarra v0.4: construye el acorde en el cuello grande o en el mini-chart. Ambas vistas y el panel manual permanecen sincronizados."
+    if (state.instrument !== "guitar") {
+      const visualText = state.instrument === "piano"
+        ? "Piano: el acorde se ilumina sobre el teclado completo."
         : "Ukelele conserva por ahora el mapa de notas. Su constructor visual exacto será una fase independiente.";
-    card.appendChild(el(ctx, "div", "s936-ed-visual-note", visualText));
+      card.appendChild(el(ctx, "div", "s936-ed-visual-note", visualText));
+    }
     shell.appendChild(card);
     host.appendChild(shell);
 

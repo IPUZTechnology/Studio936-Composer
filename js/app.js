@@ -1743,7 +1743,7 @@ function installStudio936AppBridge(){
     }
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v1.4.1-chord-map-fix',
+        version: 'suite-pro-bridge-v1.4.2-compact-editor-ux',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
