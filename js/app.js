@@ -1,4 +1,4 @@
-// Studio 936 Composer - extracted JavaScript from legacy v25.9
+// Studio 936 Composer - extracted JavaScript from legacy v25.9 + Editor Pro bridge v1.4.1
 // Keep script order intact.
 
 (() => {
@@ -1236,6 +1236,14 @@ function installStudio936AppBridge(){
         window.addEventListener('pagehide', deactivateEditorSurface);
     }
     installEditorSurfaceCleanup();
+    const EDITOR_GUITAR_STRINGS = [
+        { number:6, label:'E', open:'E2' },
+        { number:5, label:'A', open:'A2' },
+        { number:4, label:'D', open:'D3' },
+        { number:3, label:'G', open:'G3' },
+        { number:2, label:'B', open:'B3' },
+        { number:1, label:'e', open:'E4' }
+    ];
     function exactStringLabel(index){
         return ['6 · E','5 · A','4 · D','3 · G','2 · B','1 · e'][index] || String(index + 1);
     }
@@ -1420,10 +1428,10 @@ function installStudio936AppBridge(){
             const relativeFret = data.exactFrets[index];
             const row = document.createElement('div');
             row.className = 's936-neck-row';
-            row.dataset.stringNumber = String(GUITAR_STRINGS[index].number);
+            row.dataset.stringNumber = String(EDITOR_GUITAR_STRINGS[index].number);
             row.style.setProperty('--string-width', `${Math.max(.8, .8 + (5-index)*.43)}px`);
 
-            const stringNumber = GUITAR_STRINGS[index].number;
+            const stringNumber = EDITOR_GUITAR_STRINGS[index].number;
             const label = document.createElement('div');
             label.className = 's936-neck-string-label';
             label.textContent = exactStringLabel(index);
@@ -1735,7 +1743,7 @@ function installStudio936AppBridge(){
     }
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v1.4-guitar-ux-cleanup',
+        version: 'suite-pro-bridge-v1.4.1-chord-map-fix',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,

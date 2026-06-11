@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Editor v0.4
+// Studio 936 Composer - Suite Pro Editor v0.4.1
 // Scope: Editor tab inside Compose.
 // Refines the guitar UX with a compact interactive chart, realistic neck, exact voicings, TAB and lifecycle cleanup.
 // It does not replace or delete the legacy editor.
@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.4-guitar-ux-cleanup";
+  const VERSION = "editor-v0.4.1-compact-chord-map";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -116,31 +116,31 @@
 #s936SuitePro .s936-ed-tab{margin:7px 0 0;padding:8px;border-radius:10px;background:#050707;color:#bfffee;font:700 .58rem/1.35 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre;overflow:auto}
 #s936SuitePro .s936-ed-visual-note{border-left:3px solid #ffe066;padding-left:9px;margin-top:10px;color:rgba(255,255,255,.72);font-size:.62rem;line-height:1.45}
 
-/* Compact interactive chart inside the Editor dock */
+/* Compact traditional chord map inside the Editor dock */
 #s936SuitePro .s936-ed-guitar-card{border:1px solid rgba(0,255,204,.34);border-radius:15px;background:linear-gradient(180deg,rgba(0,255,204,.075),rgba(0,0,0,.18));padding:9px;margin-top:9px}
-#s936SuitePro .s936-ed-guitar-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
-#s936SuitePro .s936-ed-guitar-card-name{color:#fff;font-size:.72rem;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#s936SuitePro .s936-ed-guitar-card-order{color:#ffe066;font:900 .53rem/1 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:nowrap}
-#s936SuitePro .s936-ed-guitar-shape{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0 4px;color:rgba(255,255,255,.68);font-size:.54rem}
-#s936SuitePro .s936-ed-guitar-shape code{color:#bfffee;font:900 .65rem/1.2 ui-monospace,SFMono-Regular,Consolas,monospace}
-#s936SuitePro .s936-ed-dock-chart{border:1px solid rgba(255,255,255,.10);border-radius:12px;background:linear-gradient(180deg,rgba(63,33,18,.72),rgba(16,10,8,.92));padding:7px}
-#s936SuitePro .s936-ed-dock-labels,#s936SuitePro .s936-ed-dock-status,#s936SuitePro .s936-ed-dock-row{display:grid;grid-template-columns:27px repeat(6,minmax(24px,1fr));gap:3px;align-items:center}
-#s936SuitePro .s936-ed-dock-labels{margin-bottom:3px}
-#s936SuitePro .s936-ed-dock-labels span{color:rgba(255,255,255,.55);font-size:.47rem;font-weight:900;text-align:center}
-#s936SuitePro .s936-ed-dock-labels span:first-child{text-align:left;color:#ffe066}
-#s936SuitePro .s936-ed-dock-status{margin-bottom:3px}
-#s936SuitePro .s936-ed-dock-status button{height:23px;border:1px solid rgba(255,255,255,.13);border-radius:7px;background:rgba(255,255,255,.045);color:rgba(255,255,255,.72);font-size:.51rem;font-weight:950;cursor:pointer;padding:0}
-#s936SuitePro .s936-ed-dock-status button.active-open{border-color:#00ffcc;background:rgba(0,255,204,.13);color:#bfffee}
-#s936SuitePro .s936-ed-dock-status button.active-mute{border-color:#ff7373;background:rgba(255,90,90,.13);color:#ffc4c4}
-#s936SuitePro .s936-ed-dock-base{color:#ffe066;font-size:.48rem;font-weight:950}
-#s936SuitePro .s936-ed-dock-row{height:23px}
-#s936SuitePro .s936-ed-dock-row .s936-ed-dock-fret{color:rgba(255,255,255,.43);font-size:.46rem;font-weight:900}
-#s936SuitePro .s936-ed-dock-cell{height:23px;border:0;border-left:1px solid rgba(255,255,255,.12);border-right:2px solid rgba(213,179,132,.43);background:rgba(255,255,255,.018);position:relative;cursor:pointer;padding:0}
-#s936SuitePro .s936-ed-dock-cell:hover{background:rgba(0,255,204,.10)}
-#s936SuitePro .s936-ed-dock-cell::before{content:"";position:absolute;left:0;right:0;top:50%;height:var(--dock-string,1px);background:linear-gradient(90deg,#d6d6d6,#8d8d8d,#e8e8e8);transform:translateY(-50%);opacity:.78}
-#s936SuitePro .s936-ed-dock-dot{position:absolute;left:50%;top:50%;width:17px;height:17px;border-radius:50%;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;background:#00ffcc;color:#00241e;font-size:.43rem;font-weight:950;z-index:2;box-shadow:0 0 0 2px rgba(0,255,204,.16)}
-#s936SuitePro .s936-ed-dock-dot.bass{background:#ff5bea;color:#2b0026}
-#s936SuitePro .s936-ed-mini-fingers{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:6px}
+#s936SuitePro .s936-ed-guitar-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px}
+#s936SuitePro .s936-ed-guitar-card-name{color:#fff;font-size:.76rem;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#s936SuitePro .s936-ed-guitar-card-order{color:#ffe066;font:900 .50rem/1 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:nowrap}
+#s936SuitePro .s936-ed-guitar-shape{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:5px 0 2px;color:rgba(255,255,255,.60);font-size:.51rem}
+#s936SuitePro .s936-ed-guitar-shape code{color:#bfffee;font:900 .62rem/1.2 ui-monospace,SFMono-Regular,Consolas,monospace}
+#s936SuitePro .s936-ed-dock-chart{display:flex;justify-content:center;align-items:center;min-height:165px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:radial-gradient(circle at 50% 38%,rgba(0,255,204,.055),transparent 48%),linear-gradient(180deg,rgba(21,35,33,.96),rgba(5,10,10,.98));padding:6px;overflow:hidden}
+#s936SuitePro .s936-ed-chord-svg{width:min(100%,230px);height:auto;display:block;overflow:visible;touch-action:manipulation}
+#s936SuitePro .s936-ed-chord-svg .string{stroke:rgba(232,236,235,.72);stroke-linecap:round}
+#s936SuitePro .s936-ed-chord-svg .fret{stroke:rgba(255,255,255,.33);stroke-width:1.25}
+#s936SuitePro .s936-ed-chord-svg .nut{stroke:#ffe8b0;stroke-width:4}
+#s936SuitePro .s936-ed-chord-svg .hit{fill:transparent;cursor:pointer}
+#s936SuitePro .s936-ed-chord-svg .hit:hover{fill:rgba(0,255,204,.12)}
+#s936SuitePro .s936-ed-chord-svg .status-hit{cursor:pointer}
+#s936SuitePro .s936-ed-chord-svg .status{font:950 12px/1 system-ui,sans-serif;text-anchor:middle;dominant-baseline:middle;fill:rgba(255,255,255,.78)}
+#s936SuitePro .s936-ed-chord-svg .status.open{fill:#00ffcc}
+#s936SuitePro .s936-ed-chord-svg .status.mute{fill:#ff8f8f}
+#s936SuitePro .s936-ed-chord-svg .fret-number{font:900 9px/1 system-ui,sans-serif;text-anchor:end;dominant-baseline:middle;fill:#ffe066}
+#s936SuitePro .s936-ed-chord-svg .string-number{font:900 8px/1 system-ui,sans-serif;text-anchor:middle;fill:rgba(255,255,255,.48)}
+#s936SuitePro .s936-ed-chord-svg .dot{fill:#00ffcc;stroke:rgba(0,0,0,.7);stroke-width:1.5}
+#s936SuitePro .s936-ed-chord-svg .dot.bass{fill:#ff5bea}
+#s936SuitePro .s936-ed-chord-svg .finger{font:950 9px/1 system-ui,sans-serif;text-anchor:middle;dominant-baseline:middle;fill:#00231e;pointer-events:none}
+#s936SuitePro .s936-ed-chord-svg .finger.bass{fill:#2a0024}
+#s936SuitePro .s936-ed-mini-fingers{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:6px;flex-wrap:wrap}
 #s936SuitePro .s936-ed-mini-fingers span{color:rgba(255,255,255,.58);font-size:.49rem;margin-right:2px}
 #s936SuitePro .s936-ed-mini-fingers button{width:25px;height:25px;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.055);color:#fff;font-size:.53rem;font-weight:950;cursor:pointer}
 #s936SuitePro .s936-ed-mini-fingers button:hover{border-color:#00ffcc;background:rgba(0,255,204,.13)}
@@ -610,7 +610,7 @@
     const box = el(ctx, "section", "s936-ed-guitar-card");
     const head = el(ctx, "div", "s936-ed-guitar-card-head");
     const name = el(ctx, "div", "s936-ed-guitar-card-name", "Acorde");
-    const order = el(ctx, "div", "s936-ed-guitar-card-order", "FORMA 6→1");
+    const order = el(ctx, "div", "s936-ed-guitar-card-order", "MAPA 6→1");
     head.append(name, order);
     box.appendChild(head);
 
@@ -618,7 +618,7 @@
     box.appendChild(chart);
 
     const shapeRow = el(ctx, "div", "s936-ed-guitar-shape");
-    shapeRow.appendChild(el(ctx, "span", "", "TAB compacta"));
+    shapeRow.appendChild(el(ctx, "span", "", "Forma"));
     const shape = el(ctx, "code", "", "X X X X X X");
     shapeRow.appendChild(shape);
     box.appendChild(shapeRow);
@@ -640,60 +640,136 @@
     if (!chart || !calculation) return;
     chart.innerHTML = "";
 
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", "0 0 210 178");
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", "Mapa compacto editable del acorde de guitarra");
+    svg.classList.add("s936-ed-chord-svg");
+
     const strings = calculation.strings || [];
-    const frets = strings.map(s => s?.fret ?? null);
-    const positive = frets.filter(v => Number(v) > 0).map(Number);
-    const minPositive = positive.length ? Math.min(...positive) : 1;
-    const maxPositive = positive.length ? Math.max(...positive) : 1;
-    let base = minPositive > 4 ? minPositive : 1;
-    if (maxPositive - base > 4) base = Math.max(1, maxPositive - 4);
+    const positiveFrets = strings
+      .map(stringData => Number(stringData?.fret))
+      .filter(fret => Number.isFinite(fret) && fret > 0);
+    const minPositive = positiveFrets.length ? Math.min(...positiveFrets) : 1;
+    const maxPositive = positiveFrets.length ? Math.max(...positiveFrets) : 1;
+    let baseFret = minPositive > 4 ? minPositive : 1;
+    if (maxPositive - baseFret > 4) baseFret = Math.max(1, maxPositive - 4);
 
-    const labels = el(null, "div", "s936-ed-dock-labels");
-    labels.appendChild(el(null, "span", "", base > 1 ? `${base}fr` : "Tr."));
-    GUITAR_STRINGS.forEach(string => labels.appendChild(el(null, "span", "", String(string.number))));
-    chart.appendChild(labels);
+    const x0 = 43;
+    const xGap = 25;
+    const y0 = 36;
+    const yGap = 25;
+    const stringX = index => x0 + index * xGap;
+    const makeSvg = (tag, attrs = {}) => {
+      const node = document.createElementNS(SVG_NS, tag);
+      Object.entries(attrs).forEach(([key,value]) => node.setAttribute(key, String(value)));
+      return node;
+    };
 
-    const status = el(null, "div", "s936-ed-dock-status");
-    status.appendChild(el(null, "span", "s936-ed-dock-base", "X/0"));
+    // X / O row and string numbers. Left-to-right order is 6 → 1.
     strings.forEach((stringData, index) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
+      const x = stringX(index);
       const fret = stringData?.fret ?? null;
-      btn.textContent = fret === null ? "X" : fret === 0 ? "○" : "•";
-      if (fret === null) btn.classList.add("active-mute");
-      if (fret === 0) btn.classList.add("active-open");
-      btn.title = fret === null
-        ? `Activar cuerda ${GUITAR_STRINGS[index].number} al aire`
-        : `Alternar cuerda ${GUITAR_STRINGS[index].number} entre abierta y apagada`;
-      btn.addEventListener("click", () => handlers?.setFret?.(index, fret === null ? 0 : null));
-      status.appendChild(btn);
-    });
-    chart.appendChild(status);
 
-    for (let row = 0; row < 5; row++) {
-      const fret = base + row;
-      const line = el(null, "div", "s936-ed-dock-row");
-      line.appendChild(el(null, "span", "s936-ed-dock-fret", String(fret)));
-      strings.forEach((stringData, index) => {
-        const cell = document.createElement("button");
-        cell.type = "button";
-        cell.className = "s936-ed-dock-cell";
-        cell.style.setProperty("--dock-string", `${Math.max(.8, 3.2 - index * .46)}px`);
-        cell.title = `Cuerda ${GUITAR_STRINGS[index].number} · traste ${fret}`;
-        if (Number(stringData?.fret) === fret) {
-          const dot = el(null, "span", "s936-ed-dock-dot" + (stringData?.midi === calculation.bassMidi ? " bass" : ""));
-          dot.textContent = stringData?.finger || "•";
-          cell.appendChild(dot);
-        }
-        cell.addEventListener("click", () => handlers?.setFretAndChooseFinger?.(index, fret));
-        line.appendChild(cell);
+      const statusHit = makeSvg("rect", {
+        x:x - 11, y:5, width:22, height:24, rx:6,
+        class:"status-hit", fill:"transparent"
       });
-      chart.appendChild(line);
+      statusHit.addEventListener("click", () => {
+        handlers?.setFret?.(index, fret === null ? 0 : null);
+      });
+      svg.appendChild(statusHit);
+
+      const status = makeSvg("text", {
+        x, y:18,
+        class:`status ${fret === null ? "mute" : fret === 0 ? "open" : ""}`
+      });
+      status.textContent = fret === null ? "×" : fret === 0 ? "○" : "•";
+      svg.appendChild(status);
+
+      const number = makeSvg("text", {
+        x, y:174, class:"string-number"
+      });
+      number.textContent = String(GUITAR_STRINGS[index].number);
+      svg.appendChild(number);
+    });
+
+    if (baseFret === 1) {
+      svg.appendChild(makeSvg("line", {
+        x1:x0, x2:stringX(5), y1:y0, y2:y0, class:"nut"
+      }));
     }
+
+    // Five visible fret spaces.
+    for (let row = 0; row <= 5; row++) {
+      const y = y0 + row * yGap;
+      svg.appendChild(makeSvg("line", {
+        x1:x0, x2:stringX(5), y1:y, y2:y, class:"fret"
+      }));
+    }
+
+    // Six vertical strings with progressive thickness.
+    strings.forEach((stringData, index) => {
+      const x = stringX(index);
+      const line = makeSvg("line", {
+        x1:x, x2:x, y1:y0, y2:y0 + 5 * yGap,
+        class:"string"
+      });
+      line.setAttribute("stroke-width", String(Math.max(.9, 3.3 - index * .46)));
+      svg.appendChild(line);
+    });
+
+    if (baseFret > 1) {
+      const base = makeSvg("text", {
+        x:x0 - 10, y:y0 + yGap / 2,
+        class:"fret-number"
+      });
+      base.textContent = `${baseFret}fr`;
+      svg.appendChild(base);
+    }
+
+    // Click zones and active finger dots.
+    for (let row = 0; row < 5; row++) {
+      const fret = baseFret + row;
+      strings.forEach((stringData, index) => {
+        const x = stringX(index);
+        const y = y0 + row * yGap;
+
+        const hit = makeSvg("rect", {
+          x:x - xGap / 2,
+          y,
+          width:xGap,
+          height:yGap,
+          class:"hit"
+        });
+        hit.setAttribute("aria-label", `Cuerda ${GUITAR_STRINGS[index].number}, traste ${fret}`);
+        hit.addEventListener("click", () => handlers?.setFretAndChooseFinger?.(index, fret));
+        svg.appendChild(hit);
+
+        if (Number(stringData?.fret) === fret) {
+          const cy = y + yGap / 2;
+          const isBass = stringData?.midi === calculation.bassMidi;
+          const dot = makeSvg("circle", {
+            cx:x, cy, r:9.5,
+            class:`dot${isBass ? " bass" : ""}`
+          });
+          svg.appendChild(dot);
+          const finger = makeSvg("text", {
+            x, y:cy + .5,
+            class:`finger${isBass ? " bass" : ""}`
+          });
+          finger.textContent = stringData?.finger || "•";
+          svg.appendChild(finger);
+        }
+      });
+    }
+
+    chart.appendChild(svg);
 
     if (Number.isInteger(fingerTarget) && fingerTarget >= 0 && fingerTarget < 6) {
       const picker = el(null, "div", "s936-ed-mini-fingers");
-      picker.appendChild(el(null, "span", "", `Dedo cuerda ${GUITAR_STRINGS[fingerTarget].number}:`));
+      picker.appendChild(el(null, "span", "", `Dedo · cuerda ${GUITAR_STRINGS[fingerTarget].number}:`));
       [["1","1"],["2","2"],["3","3"],["4","4"],["T","T"],["","×"]].forEach(([value,label]) => {
         const btn = document.createElement("button");
         btn.type = "button";
