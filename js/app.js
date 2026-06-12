@@ -1369,7 +1369,8 @@ function installStudio936AppBridge(){
         resumeAudio();
         const stringExact = !!data.profile && data.exactMidis.length > 0;
         const when = audioCtx.currentTime + .02;
-        showEditorChordVisual(data);
+        if(data.instrument === 'piano') clearKeys();
+        else showEditorChordVisual(data);
 
         if(stringExact){
             const notes = data.exactMidis;
@@ -1386,36 +1387,68 @@ function installStudio936AppBridge(){
         }
 
         if(data.instrument === 'piano'){
-            const piano = data.voicings?.piano || {};
-            const left = data.leftHandMidis.length
+            const piano = data.voicings?.piano || {
+                leftHand:{
+                    notes:data.pianoPattern.length ? data.pianoPattern : [data.bass],
+                    mode:data.pianoMode || 'together',
+                    pattern:data.pianoPattern
+                },
+                rightHand:{notes:data.notes.split(/\s+/).filter(Boolean)}
+            };
+            const fallbackLeft = data.leftHandMidis.length
                 ? data.leftHandMidis
                 : parseNotes((piano.leftHand?.notes || []).join(' ') || data.bass);
-            const right = data.rightHandMidis.length
+            const fallbackRight = data.rightHandMidis.length
                 ? data.rightHandMidis
                 : parseNotes((piano.rightHand?.notes || []).join(' ') || data.notes);
-            const mode = data.pianoMode || piano.leftHand?.mode || 'together';
-            const patternTokens = data.pianoPattern.length
-                ? data.pianoPattern
-                : (piano.leftHand?.pattern || []);
-            const patternMidis = parseNotes(patternTokens.join(' '));
+            const plan = PianoEditorPro?.previewPlan
+                ? PianoEditorPro.previewPlan(piano,{bpm:project.bpm})
+                : {
+                    mode:data.pianoMode || 'together',
+                    pulseSeconds:60 / (Number(project.bpm) || 95) / 2,
+                    durationSeconds:.8,
+                    leftEvents:[{at:0,notes:(piano.leftHand?.notes || [])}],
+                    rightNotes:(piano.rightHand?.notes || [])
+                };
 
-            if(mode === 'alternate' || mode === 'custom'){
-                const sequence = patternMidis.length ? patternMidis : left;
-                sequence.forEach((midi,index) => {
-                    playNote(midi,.30,.75,'sine',when + index * .20);
+            const right = parseNotes(plan.rightNotes.join(' '));
+            const rightMidis = right.length ? right : fallbackRight;
+            const bassFlashMs = Math.max(130, Math.round(plan.pulseSeconds * 780));
+
+            plan.leftEvents.forEach(event => {
+                const midis = parseNotes((event.notes || []).join(' '));
+                if(!midis.length) return;
+                const eventTime = when + Math.max(0,Number(event.at) || 0);
+                midis.forEach(midi => {
+                    playNote(midi,Math.max(.22,plan.pulseSeconds * .82),.76,'sine',eventTime);
                 });
-            } else {
-                left.forEach((midi,index) => {
-                    playNote(midi,.32,.72,'sine',when + index * .012);
-                });
+                setVisual(eventTime,() => flashKeys(midis,'active-bass',bassFlashMs));
+            });
+
+            if(!plan.leftEvents.length && fallbackLeft.length){
+                fallbackLeft.forEach(midi => playNote(midi,.32,.76,'sine',when));
+                setVisual(when,() => flashKeys(fallbackLeft,'active-bass',bassFlashMs));
             }
-            strumChord(right,.22,.90,when + .05,'active-chord');
-            setTimeout(() => showEditorChordVisual(data), 900);
+
+            if(rightMidis.length){
+                strumChord(
+                    rightMidis,
+                    Math.max(.30,Math.min(.85,plan.durationSeconds * .72)),
+                    .90,
+                    when + .03,
+                    'active-chord'
+                );
+            }
+
+            const restoreDelay = Math.ceil((plan.durationSeconds + .28) * 1000);
+            setTimeout(() => showEditorChordVisual(data), restoreDelay);
             return {
                 ok:true,
-                message:mode === 'together'
-                    ? 'Bajos de mano izquierda y voicing completo de mano derecha escuchados.'
-                    : 'Patrón de bajos de mano izquierda y voicing completo de mano derecha escuchados.'
+                message:plan.mode === 'together'
+                    ? 'Bajos simultáneos de mano izquierda y acorde completo de mano derecha escuchados.'
+                    : plan.mode === 'alternate'
+                        ? 'Bajos alternados al tempo y acorde completo de mano derecha escuchados.'
+                        : 'Patrón de bajos al tempo y acorde completo de mano derecha escuchados.'
             };
         }
 

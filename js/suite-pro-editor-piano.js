@@ -1,5 +1,5 @@
-// Studio 936 Composer - Piano Editor Logic v1.0
-// Keeps the approved piano UI and adds independent left/right hand voicings.
+// Studio 936 Composer - Piano Editor Logic v1.1
+// Keeps the approved piano UI and owns left/right hand voicing + preview timing.
 window.Studio936SuiteProPianoEditor = (() => {
   "use strict";
 
@@ -21,6 +21,12 @@ window.Studio936SuiteProPianoEditor = (() => {
       .filter(Boolean);
   }
 
+  function normalizeMode(value){
+    return ["together","alternate","custom"].includes(value)
+      ? value
+      : "together";
+  }
+
   function normalize(item){
     const saved = item?.voicings?.piano || {};
     const left = saved.leftHand || {};
@@ -31,9 +37,7 @@ window.Studio936SuiteProPianoEditor = (() => {
     const rightNotes = Array.isArray(right.notes) && right.notes.length
       ? right.notes.map(String)
       : tokenize(item?.notes || "C3 E3 G3");
-    const mode = ["together","alternate","custom"].includes(left.mode)
-      ? left.mode
-      : "together";
+    const mode = normalizeMode(left.mode);
     const pattern = Array.isArray(left.pattern) && left.pattern.length
       ? left.pattern.map(String)
       : leftNotes.slice();
@@ -47,13 +51,15 @@ window.Studio936SuiteProPianoEditor = (() => {
   function createVoicing({leftNotes,leftMode,leftPattern,rightNotes}){
     const left = tokenize(leftNotes);
     const right = tokenize(rightNotes);
-    const pattern = leftMode === "custom"
+    const mode = normalizeMode(leftMode);
+    const pattern = mode === "custom"
       ? tokenize(leftPattern)
       : left.slice();
+
     return {
       leftHand:{
         notes:left,
-        mode:["together","alternate","custom"].includes(leftMode) ? leftMode : "together",
+        mode,
         pattern:pattern.length ? pattern : left.slice()
       },
       rightHand:{notes:right}
@@ -78,14 +84,65 @@ window.Studio936SuiteProPianoEditor = (() => {
     return notes;
   }
 
+  /*
+   * Returns a tempo-aware plan without touching Web Audio or the DOM.
+   * together: all left-hand notes at the same instant.
+   * alternate: eight eighth-note pulses cycling through the left-hand notes.
+   * custom: one eighth-note pulse per written pattern token; R creates a rest.
+   */
+  function previewPlan(voicing, options = {}){
+    const normalized = normalize({voicings:{piano:voicing || {}}});
+    const left = normalized.leftHand;
+    const rightNotes = normalized.rightHand.notes.slice();
+    const bpm = Math.max(40, Math.min(240, Number(options.bpm) || 95));
+    const pulseSeconds = 60 / bpm / 2;
+    const events = [];
+
+    if(left.mode === "together"){
+      if(left.notes.length){
+        events.push({at:0, notes:left.notes.slice()});
+      }
+    }else if(left.mode === "alternate"){
+      const notes = left.notes.length ? left.notes : [];
+      const pulseCount = Math.max(8, notes.length * 4);
+      for(let i=0; i<pulseCount && notes.length; i++){
+        events.push({at:i * pulseSeconds, notes:[notes[i % notes.length]]});
+      }
+    }else{
+      const pattern = left.pattern.length ? left.pattern : left.notes;
+      pattern.forEach((token,index) => {
+        const isRest = /^R(?:EST)?$/i.test(String(token));
+        events.push({
+          at:index * pulseSeconds,
+          notes:isRest ? [] : [String(token)]
+        });
+      });
+    }
+
+    const lastAt = events.length ? events[events.length - 1].at : 0;
+    const durationSeconds = Math.max(
+      pulseSeconds,
+      lastAt + pulseSeconds
+    );
+
+    return {
+      mode:left.mode,
+      pulseSeconds,
+      durationSeconds,
+      leftEvents:events,
+      rightNotes
+    };
+  }
+
   return {
-    version:"piano-editor-v1",
+    version:"piano-editor-v1.1",
     modes:MODES,
     tokenize,
     normalize,
     createVoicing,
     legacyFields,
     sequence,
+    previewPlan,
     clone
   };
 })();

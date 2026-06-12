@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Editor v0.4.2
+// Studio 936 Composer - Suite Pro Editor v0.5.1
 // Scope: Editor tab inside Compose.
 // Refines the guitar UX with a compact interactive chart, realistic neck, exact voicings, TAB and lifecycle cleanup.
 // It does not replace or delete the legacy editor.
@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.5.0-modular-instruments";
+  const VERSION = "editor-v0.5.1-piano-preview";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -103,13 +103,16 @@
 #s936SuitePro .s936-ed-chordline{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) 78px;gap:7px;align-items:end}
 #s936SuitePro .s936-ed-chordline .s936-ed-field{min-width:0}
 #s936SuitePro .s936-ed-chordline .s936-ed-input,#s936SuitePro .s936-ed-chordline .s936-ed-select{padding:7px 8px}
+#s936SuitePro .s936-ed-piano-leftline{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(86px,.9fr) minmax(0,1fr);gap:6px;align-items:end}
+#s936SuitePro .s936-ed-piano-leftline .s936-ed-field{min-width:0}
+#s936SuitePro .s936-ed-piano-leftline .s936-ed-input,#s936SuitePro .s936-ed-piano-leftline .s936-ed-select{padding:7px 7px;font-size:.66rem}
 #s936SuitePro .s936-ed-field.full{grid-column:1/-1}
 #s936SuitePro .s936-ed-field label{display:block;color:#ffe066;font-size:.56rem;font-weight:950;text-transform:uppercase;letter-spacing:.65px;margin:0 0 4px}
 #s936SuitePro .s936-ed-input,#s936SuitePro .s936-ed-select{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.17);border-radius:11px;background:rgba(0,0,0,.34);color:#fff;padding:8px 9px;font-size:.72rem;font-weight:800}
 #s936SuitePro .s936-ed-input[readonly]{color:#bfffee;background:rgba(0,255,204,.045)}
 #s936SuitePro .s936-ed-input:focus,#s936SuitePro .s936-ed-select:focus{outline:none;border-color:rgba(0,255,204,.72);box-shadow:0 0 0 2px rgba(0,255,204,.10)}
-#s936SuitePro .s936-ed-instruments{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:9px 0}
-#s936SuitePro .s936-ed-inst{border:1px solid rgba(255,255,255,.16);border-radius:12px;background:rgba(255,255,255,.05);color:#fff;padding:8px 6px;font-size:.61rem;font-weight:950;text-transform:uppercase;cursor:pointer}
+#s936SuitePro .s936-ed-instruments{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin:8px 0}
+#s936SuitePro .s936-ed-inst{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:clip;border:1px solid rgba(255,255,255,.16);border-radius:11px;background:rgba(255,255,255,.05);color:#fff;padding:7px 2px;font-size:.53rem;font-weight:950;text-transform:uppercase;cursor:pointer}
 #s936SuitePro .s936-ed-inst.active{border-color:#00ffcc;background:rgba(0,255,204,.14);color:#bfffee}
 #s936SuitePro .s936-ed-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 #s936SuitePro .s936-ed-btn{border:1px solid rgba(255,255,255,.18);border-radius:999px;background:rgba(255,255,255,.06);color:#fff;padding:7px 10px;font-size:.59rem;font-weight:950;text-transform:uppercase;cursor:pointer}
@@ -962,11 +965,15 @@
         pianoModeSelect = makeSelect(ctx, PianoEditor.modes, pianoDraft.leftHand.mode);
         pianoPatternInput = makeInput(ctx, "text", pianoDraft.leftHand.pattern.join(" "));
 
-        grid.appendChild(field(ctx, "Mano izquierda · bajos", bassInput, true));
-        const pianoModeLine = el(ctx, "div", "s936-ed-chordline");
-        pianoModeLine.appendChild(field(ctx, "Modo del bajo", pianoModeSelect, false));
-        pianoModeLine.appendChild(field(ctx, "Patrón", pianoPatternInput, false));
-        grid.appendChild(pianoModeLine);
+        bassInput.placeholder = "C2 C3";
+        pianoPatternInput.placeholder = "C2 C3 C2 C3";
+        notesInput.placeholder = "E3 G3 B3 D4";
+
+        const pianoLeftLine = el(ctx, "div", "s936-ed-piano-leftline");
+        pianoLeftLine.appendChild(field(ctx, "Mano izquierda · bajos", bassInput, false));
+        pianoLeftLine.appendChild(field(ctx, "Modo", pianoModeSelect, false));
+        pianoLeftLine.appendChild(field(ctx, "Patrón", pianoPatternInput, false));
+        grid.appendChild(pianoLeftLine);
         grid.appendChild(field(ctx, "Mano derecha · acorde completo", notesInput, true));
       } else {
         grid.appendChild(field(ctx, "Bajo", bassInput, false));
