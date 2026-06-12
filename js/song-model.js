@@ -63,7 +63,7 @@ function defaultArrangement(){
 }
 
 const defaultProject = () => ({
-    title:'Despertar de un Sueño', author:'Rafael Ipuz', bpm:95, style:'funk', instrument:'piano', arrangement: defaultArrangement(), grooveVol:7, viewMode:'piano', routingMode:'normal', fretMode:'guitar', tuningHz:440, voicingLibrary:normalizeVoicingLibrary(null),
+    title:'Despertar de un Sueño', author:'Rafael Ipuz', bpm:95, style:'funk', instrument:'piano', arrangement: defaultArrangement(), grooveVol:7, viewMode:'piano', routingMode:'normal', fretMode:'guitar', tuningHz:440, voicingLibrary:normalizeVoicingLibrary(null), bassLines:{},
     soloOn:true,
     soloPhrase:'D4:1 E4:1 G4:1 A4:1 C5:1 D5:1 F5:1 E5:1 C5:1 B4:1 A4:1 G4:1 R:2 G4:1 A4:1 C5:1 D5:1 E5:1 D5:1 C5:1 B4:1 A4:1 G4:2 F4:2 E4:2 C4:4',
     soloKey:'F', soloScale:'major',
@@ -214,6 +214,55 @@ function normalizeVoicingLibrary(raw){
     return out;
 }
 
+function normalizeBassLineEvent(raw,index,totalSteps){
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const rest = source.rest === true || String(source.note || '').toUpperCase() === 'R';
+    const allowedDurations = [1,2,4,8,16,32];
+    const durationSteps = allowedDurations.includes(Number(source.durationSteps)) ? Number(source.durationSteps) : 4;
+    const step = clamp(Number(source.step)||0,0,Math.max(0,totalSteps-1));
+    return {
+        id:String(source.id || ('bass_event_'+index+'_'+step)),
+        step,
+        durationSteps,
+        rest,
+        note:rest ? 'R' : String(source.note || ''),
+        midi:rest || !Number.isFinite(Number(source.midi)) ? null : Math.round(Number(source.midi)),
+        stringIndex:rest || !Number.isFinite(Number(source.stringIndex)) ? null : clamp(Number(source.stringIndex),0,3),
+        stringNumber:rest || !Number.isFinite(Number(source.stringNumber)) ? null : clamp(Number(source.stringNumber),1,4),
+        fret:rest || !Number.isFinite(Number(source.fret)) ? null : clamp(Number(source.fret),0,24)
+    };
+}
+
+function normalizeBassLines(raw,sections){
+    const out = {};
+    const source = raw && typeof raw === 'object' ? raw : {};
+    Object.keys(sections || {}).forEach(sectionKey=>{
+        const line = source[sectionKey];
+        if(!line || typeof line !== 'object') return;
+        const sectionBars = Math.max(1,(sections[sectionKey] || []).reduce((sum,item)=>sum+(Number(item?.bars)||1),0));
+        const bars = clamp(Number(line.bars)||sectionBars,1,64);
+        const totalSteps = bars * 16;
+        const allowedScales = ['major','naturalMinor','majorPent','minorPent','blues','dorian','mixolydian','chromatic'];
+        const allowedPatterns = ['custom','root','root-fifth','root-octave','root-fifth-octave','scale-up','walking','syncopated'];
+        const defaultDuration = [1,2,4,8,16,32].includes(Number(line.defaultDuration)) ? Number(line.defaultDuration) : 4;
+        out[sectionKey] = {
+            version:1,
+            root:String(line.root || 'C'),
+            scale:allowedScales.includes(line.scale) ? line.scale : 'major',
+            patternId:allowedPatterns.includes(line.patternId) ? line.patternId : 'custom',
+            followChords:line.followChords !== false,
+            bars,
+            stepsPerBar:16,
+            bpm:clamp(Number(line.bpm)||95,40,240),
+            defaultDuration,
+            events:Array.isArray(line.events)
+                ? line.events.map((event,index)=>normalizeBassLineEvent(event,index,totalSteps)).sort((a,b)=>a.step-b.step)
+                : []
+        };
+    });
+    return out;
+}
+
 
 function clamp(n,a,b){return Math.max(a,Math.min(b,n));}
 
@@ -267,6 +316,7 @@ function normalizeProject(p, styles={}, instruments={}){
         merged.sections[k] = merged.sections[k].map((x,i)=>normalizeChord(x, d.sections[k]?.[i] || null));
     });
     merged.voicingLibrary = normalizeVoicingLibrary(p.voicingLibrary || merged.voicingLibrary);
+    merged.bassLines = normalizeBassLines(p.bassLines || merged.bassLines, merged.sections);
     merged.arrangement = normalizeArrangement(p.arrangement, merged);
     if(styles && Object.keys(styles).length && !styles[merged.style]) merged.style='funk';
     if(instruments && Object.keys(instruments).length && !instruments[merged.instrument]) merged.instrument='piano';
@@ -295,6 +345,7 @@ return {
     chord,
     normalizeChord,
     normalizeVoicingLibrary,
+    normalizeBassLines,
     normalizeProject,
     normalizeArrangement,
     normalizeSectionSolos

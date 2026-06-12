@@ -1101,6 +1101,7 @@ function installStudio936AppBridge(){
             sections: safeClone(project.sections || {}),
             lyrics: safeClone(project.lyrics || {}),
             sectionSolos: safeClone(project.sectionSolos || {}),
+            bassLines: safeClone(project.bassLines || {}),
             project: safeClone(project)
         };
     }
@@ -1131,12 +1132,14 @@ function installStudio936AppBridge(){
             sectionName: sectionNames[sectionKey] || sectionKey,
             chordIndex,
             instrument,
+            bpm:project.bpm,
             viewMode: project.viewMode || 'piano',
             fretMode: project.fretMode || 'guitar',
             sectionOptions: editorSectionOptions(),
             sections: safeClone(project.sections || {}),
             currentChord: safeClone(seq[chordIndex] || null),
-            voicingLibrary:safeClone(project.voicingLibrary || {})
+            voicingLibrary:safeClone(project.voicingLibrary || {}),
+            bassLines:safeClone(project.bassLines || {})
         };
     }
     function normalizeMidiList(list){
@@ -1176,7 +1179,9 @@ function installStudio936AppBridge(){
             leftHandMidis: normalizeMidiList(payload.leftHandMidis),
             rightHandMidis: normalizeMidiList(payload.rightHandMidis),
             pianoMode: String(payload.pianoMode || piano?.leftHand?.mode || 'together'),
-            pianoPattern: Array.isArray(payload.pianoPattern) ? payload.pianoPattern.map(String) : (Array.isArray(piano?.leftHand?.pattern) ? piano.leftHand.pattern.map(String) : [])
+            pianoPattern: Array.isArray(payload.pianoPattern) ? payload.pianoPattern.map(String) : (Array.isArray(piano?.leftHand?.pattern) ? piano.leftHand.pattern.map(String) : []),
+            surfaceMode: String(payload.surfaceMode || ''),
+            noteDuration: Number.isFinite(Number(payload.noteDuration)) ? Math.max(.06,Number(payload.noteDuration)) : null
         };
     }
     function validateEditorPayload(payload={}){
@@ -1375,11 +1380,12 @@ function installStudio936AppBridge(){
         if(stringExact){
             const notes = data.exactMidis;
             const strum = currentInstrument().strum || .018;
+            const exactDuration = data.noteDuration || (data.instrument === 'bass' ? .32 : .22);
             notes.forEach((midi,index) => {
                 const type = data.instrument === 'bass' ? 'sine' : 'triangle';
-                playNote(midi,data.instrument === 'bass' ? .32 : .22,.82,type,when + index * strum);
+                playNote(midi,exactDuration,.82,type,when + index * strum);
             });
-            setTimeout(() => showEditorChordVisual(data), 820);
+            setTimeout(() => showEditorChordVisual(data), Math.max(420,Math.ceil(exactDuration*1000)+120));
             return {
                 ok:true,
                 message:`Digitación exacta de ${data.profile.label.toLowerCase()} escuchada y mostrada en el instrumento principal.`
@@ -1606,12 +1612,27 @@ function installStudio936AppBridge(){
         return { ok:true, message:'Acorde borrado.', chordIndex:selected, state:getEditorState() };
     }
 
+    function saveBassLine(sectionKey,line){
+        const key = String(sectionKey || els.sectionSelect?.value || 'intro');
+        if(!project.sections?.[key]) return {ok:false,message:'La sección seleccionada no existe.'};
+        project.bassLines = project.bassLines && typeof project.bassLines === 'object' ? project.bassLines : {};
+        let normalized = safeClone(line || {});
+        if(typeof SongModel.normalizeBassLines === 'function'){
+            normalized = SongModel.normalizeBassLines({[key]:normalized},project.sections)?.[key] || normalized;
+        }
+        normalized.bpm = project.bpm;
+        project.bassLines[key] = normalized;
+        saveProject(false);
+        return {ok:true,message:'Línea de bajo guardada en la canción actual.',line:safeClone(normalized)};
+    }
+
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v1.5.0-modular-instruments',
+        version: 'suite-pro-bridge-v1.6-bass-line',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
         getEditorState,
+        saveBassLine,
         selectEditorSection,
         selectEditorChord,
         setEditorInstrument,

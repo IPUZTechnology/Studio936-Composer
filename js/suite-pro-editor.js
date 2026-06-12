@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Editor v0.5.1
+// Studio 936 Composer - Suite Pro Editor v0.6
 // Scope: Editor tab inside Compose.
 // Refines the guitar UX with a compact interactive chart, realistic neck, exact voicings, TAB and lifecycle cleanup.
 // It does not replace or delete the legacy editor.
@@ -6,20 +6,22 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.5.1-piano-preview";
+  const VERSION = "editor-v0.6-bass-line";
   const state = {
     sectionKey: "",
     chordIndex: null,
     instrument: "",
     manualName: false,
     manualPanelOpen: false,
-    miniStartFret: null
+    miniStartFret: null,
+    bassMode: "line"
   };
   let activeController = null;
   let lifecycleObserver = null;
   const StringInstruments = window.Studio936StringInstruments || null;
   const PianoEditor = window.Studio936SuiteProPianoEditor || null;
   const VoicingStore = window.Studio936VoicingStore || null;
+  const BassLine = window.Studio936BassLinePro || null;
 
   function isStringInstrument(instrument = state.instrument) {
     return !!StringInstruments?.isStringInstrument?.(instrument);
@@ -840,6 +842,7 @@
 
   function paint(ctx, host) {
     installStyles();
+    activeController = null;
     const data = getEditorState();
     const sections = data.sections || {};
     const sectionKeys = Object.keys(sections);
@@ -861,7 +864,7 @@
     const card = el(ctx, "section", "s936-ed-card primary");
     const title = el(ctx, "div", "s936-ed-title");
     const titleMain = el(ctx, "div", "s936-ed-title-main");
-    titleMain.appendChild(el(ctx, "h4", "", "Editor Pro · Acordes"));
+    titleMain.appendChild(el(ctx, "h4", "", state.instrument === "bass" && state.bassMode !== "position" ? "Editor Pro · Bass Line" : "Editor Pro · Acordes"));
     const helpButton = el(ctx, "button", "s936-ed-help", "ⓘ");
     helpButton.type = "button";
     helpButton.title = "Ayuda rápida del Editor Pro";
@@ -874,9 +877,11 @@
     const helpPop = el(ctx, "div", "s936-ed-help-pop");
     helpPop.hidden = true;
     helpPop.appendChild(document.createTextNode(
-      isStringInstrument()
-        ? `Construye ${stringProfile().label.toLowerCase()} desde el mapa pequeño, el cuello grande o la digitación manual. Las tres vistas permanecen sincronizadas.`
-        : "El acorde se calcula, se escucha y se refleja sobre el instrumento principal."
+      state.instrument === "bass" && state.bassMode !== "position"
+        ? "Construye una línea de bajo por sección: elige fundamental, escala, patrón, tiempo y duración; luego escribe notas directamente desde el cuello."
+        : isStringInstrument()
+          ? `Construye ${stringProfile().label.toLowerCase()} desde el mapa pequeño, el cuello grande o la digitación manual. Las tres vistas permanecen sincronizadas.`
+          : "El acorde se calcula, se escucha y se refleja sobre el instrumento principal."
     ));
     const helpLink = el(ctx, "button", "", "Ir a Ayuda");
     helpLink.type = "button";
@@ -898,12 +903,54 @@
         if (response?.ok === false) return;
         state.instrument = key;
         state.miniStartFret = null;
+        if (key === "bass") state.bassMode = "line";
         if (!isStringInstrument(key)) bridge("deactivateEditorSurface");
         renderModule(ctx, host);
       });
       instruments.appendChild(btn);
     });
     card.appendChild(instruments);
+
+    if (state.instrument === "bass" && state.bassMode !== "position" && BassLine) {
+      const sectionOptionsForBass = (data.sectionOptions || sectionKeys.map(k => [k, humanize(k)]))
+        .filter(entry => Array.isArray(entry) && sections[entry[0]])
+        .map(entry => [entry[0], entry[1] || humanize(entry[0])]);
+      activeController = BassLine.render({
+        host:card,
+        sectionKey:state.sectionKey,
+        sectionName:(sectionOptionsForBass.find(entry => entry[0] === state.sectionKey) || [state.sectionKey,humanize(state.sectionKey)])[1],
+        sectionOptions:sectionOptionsForBass,
+        sections,
+        bpm:data.bpm || 95,
+        onSectionChange:key => {
+          state.sectionKey = key;
+          state.chordIndex = 0;
+          bridge("selectEditorSection", key);
+          renderModule(ctx, host);
+        },
+        onPositionMode:() => {
+          state.bassMode = "position";
+          renderModule(ctx, host);
+        }
+      });
+      shell.appendChild(card);
+      host.appendChild(shell);
+      return;
+    }
+
+    if (state.instrument === "bass" && state.bassMode === "position") {
+      const modebar = el(ctx, "div", "s936-bl-modebar");
+      const lineButton = el(ctx, "button", "", "Línea / patrón");
+      lineButton.type = "button";
+      lineButton.addEventListener("click", () => {
+        state.bassMode = "line";
+        renderModule(ctx, host);
+      });
+      const positionButton = el(ctx, "button", "active", "Posición / voicing");
+      positionButton.type = "button";
+      modebar.append(lineButton, positionButton);
+      card.appendChild(modebar);
+    }
 
     const sectionOptions = (data.sectionOptions || sectionKeys.map(k => [k, humanize(k)]))
       .filter(entry => Array.isArray(entry) && sections[entry[0]])

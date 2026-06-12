@@ -146,15 +146,20 @@ window.Studio936StringSurface = (() => {
     const identity = document.createElement("div");
     const title = document.createElement("div");
     title.className = "s936-neck-title";
-    title.textContent = `Cuello interactivo · ${profile.label}`;
+    const bassLineMode = data.surfaceMode === "bass-line";
+    title.textContent = bassLineMode ? "Cuello de Bajo · línea por sección" : `Cuello interactivo · ${profile.label}`;
     const meta = document.createElement("div");
     meta.className = "s936-neck-meta";
     const shape = data.exactFrets.map(value => value === null ? "X" : String(value)).join(" ");
-    meta.textContent = `${data.name || "Acorde"} · Forma ${profile.shapeOrder}: ${shape}${data.capo ? ` · Capo ${data.capo}` : ""}`;
+    meta.textContent = bassLineMode
+      ? `${data.sectionName || data.sectionKey || "Sección"} · ${data.name || "Selecciona un paso"}`
+      : `${data.name || "Acorde"} · Forma ${profile.shapeOrder}: ${shape}${data.capo ? ` · Capo ${data.capo}` : ""}`;
     identity.append(title,meta);
     const help = document.createElement("div");
     help.className = "s936-neck-help";
-    help.textContent = `La 1.ª cuerda está arriba. Haz clic en un traste y elige el dedo; mapa pequeño, panel manual y sonido se actualizarán juntos.`;
+    help.textContent = bassLineMode
+      ? "Selecciona un paso en Bass Line Pro y toca una cuerda/traste para escribir la nota."
+      : "La 1.ª cuerda está arriba. Haz clic en un traste y elige el dedo; mapa pequeño, panel manual y sonido se actualizarán juntos.";
     head.append(identity,help);
     surface.appendChild(head);
 
@@ -252,10 +257,12 @@ window.Studio936StringSurface = (() => {
           if(blocked) return;
           const relative = Math.max(0,physicalFret-(data.capo||0));
           editorCall("externalSetFret",index,relative);
-          setTimeout(()=>{
-            const updated = document.querySelector(`#s936EditorGuitarSurface [data-string-index="${index}"][data-physical-fret="${physicalFret}"]`);
-            showFingerPicker(surface,updated,index);
-          },90);
+          if(!bassLineMode){
+            setTimeout(()=>{
+              const updated = document.querySelector(`#s936EditorGuitarSurface [data-string-index="${index}"][data-physical-fret="${physicalFret}"]`);
+              showFingerPicker(surface,updated,index);
+            },90);
+          }
         });
         cell.dataset.stringIndex = String(index);
         cell.dataset.physicalFret = String(physicalFret);
@@ -277,9 +284,9 @@ window.Studio936StringSurface = (() => {
     chartHead.className = "s936-chart-head";
     const chartTitle = document.createElement("b");
     const sectionLabel = sectionNames[data.sectionKey] || data.sectionKey || "Sección";
-    chartTitle.textContent = `Acordes de ${sectionLabel}`;
+    chartTitle.textContent = bassLineMode ? `Contexto armónico de ${sectionLabel}` : `Acordes de ${sectionLabel}`;
     const chartHint = document.createElement("span");
-    chartHint.textContent = "Selecciona un chart para editarlo";
+    chartHint.textContent = bassLineMode ? "El patrón puede seguir estos acordes" : "Selecciona un chart para editarlo";
     chartHead.append(chartTitle,chartHint);
     chartZone.appendChild(chartHead);
 
