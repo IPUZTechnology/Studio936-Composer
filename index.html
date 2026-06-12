@@ -34,6 +34,7 @@
                 <option value="epiano">Piano eléctrico</option>
                 <option value="guitar">Guitarra</option>
                 <option value="ukulele">Ukelele</option>
+                <option value="bass">Bajo eléctrico</option>
                 <option value="organ">Órgano</option>
                 <option value="sax">Saxo guía</option>
                 <option value="synth">Synth</option>
@@ -251,7 +252,7 @@
                     <tr><td>Piano</td><td>Base equilibrada para acordes, bajo y melodía.</td></tr>
                     <tr><td>Piano eléctrico</td><td>Color suave para funk, pop, jazz y balada.</td></tr>
                     <tr><td>Guitarra</td><td>Acordes más cortos y ataque más marcado; útil para rasgueos simplificados.</td></tr>
-                    <tr><td>Ukelele</td><td>Sonido más brillante y seco para ideas ligeras.</td></tr>
+                    <tr><td>Ukelele</td><td>Sonido más brillante y seco para ideas ligeras.</td></tr><tr><td>Bajo eléctrico</td><td>Vista de cuatro cuerdas E1–A1–D2–G2 para construir líneas, dobles notas y voicings graves.</td></tr>
                     <tr><td>Órgano</td><td>Sostiene más los acordes; útil para rock, blues y gospel sencillo.</td></tr>
                     <tr><td>Saxo guía</td><td>Funciona mejor para melodías/solos. Para acordes es solo referencia armónica.</td></tr>
                     <tr><td>Synth</td><td>Color moderno para probar ideas electrónicas o demos rápidas.</td></tr>
@@ -405,9 +406,9 @@
 <!-- v25.4 UX Left Dock Polish: fixed panel close + compact structure cards + stable instrument-first layout -->
 
 <!-- v25.8 Editor Review: workspace order + editor section selector + note validation + updated help -->
-<script src="js/instruments.js"></script>
+<script src="js/instruments.js?v=150"></script>
 <script src="js/rhythm-engine.js"></script>
-<script src="js/song-model.js"></script>
+<script src="js/song-model.js?v=150"></script>
 <script src="js/storage.js"></script>
 <script src="js/piano.js"></script>
 <script src="js/fretboard.js"></script>
@@ -430,10 +431,14 @@
 <script src="js/suite-pro-recorder.js"></script>
 <script src="js/suite-pro-midi.js"></script>
 <script src="js/suite-pro-structure-v403.js?v=403"></script>
-<script src="js/suite-pro-editor.js?v=042"></script>
-<script src="js/suite-pro-compose.js?v=15"></script>
+<script src="js/suite-pro-string-instruments.js?v=100"></script>
+<script src="js/suite-pro-voicing-store.js?v=100"></script>
+<script src="js/suite-pro-editor-piano.js?v=100"></script>
+<script src="js/suite-pro-string-surface.js?v=100"></script>
+<script src="js/suite-pro-editor.js?v=050"></script>
+<script src="js/suite-pro-compose.js?v=18"></script>
 <script src="js/suite-pro.js"></script>
-<script src="js/app.js?v=editor-bridge-142"></script>
+<script src="js/app.js?v=editor-bridge-150"></script>
 </body>
 </html>
 
