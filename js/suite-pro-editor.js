@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.4.2-compact-ux";
+  const VERSION = "editor-v0.5.0-modular-instruments";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -17,6 +17,27 @@
   };
   let activeController = null;
   let lifecycleObserver = null;
+  const StringInstruments = window.Studio936StringInstruments || null;
+  const PianoEditor = window.Studio936SuiteProPianoEditor || null;
+  const VoicingStore = window.Studio936VoicingStore || null;
+
+  function isStringInstrument(instrument = state.instrument) {
+    return !!StringInstruments?.isStringInstrument?.(instrument);
+  }
+
+  function stringProfile(instrument = state.instrument) {
+    return StringInstruments?.profile?.(instrument) || {
+      id:"guitar", label:"Guitarra", shortLabel:"Guitarra", shapeOrder:"6→1",
+      maxFret:24, capoMax:12, minSounding:2, allowBarre:true, allowCapo:true,
+      strings:GUITAR_STRINGS,
+      defaultFrets:[0,2,2,1,0,0],
+      defaultFingers:["0","2","3","1","0","0"]
+    };
+  }
+
+  function activeStrings() {
+    return stringProfile().strings;
+  }
 
   const SHARP_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
   const FLAT_NAMES = ["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"];
@@ -398,9 +419,9 @@
     return clamp(parseInt(value, 10), 0, 24);
   }
 
-  function fretOptions() {
+  function fretOptions(maxFret = stringProfile().maxFret) {
     const list = [["X", "X · apagada"], ["0", "0 · al aire"]];
-    for (let i = 1; i <= 24; i++) list.push([String(i), String(i)]);
+    for (let i = 1; i <= maxFret; i++) list.push([String(i), String(i)]);
     return list;
   }
 
@@ -507,92 +528,38 @@
   }
 
   function normalizeGuitarDraft(item) {
-    const saved = item?.voicings?.guitar || item?.guitarVoicing || null;
+    const profile = stringProfile();
+    const saved = item?.voicings?.[profile.id] || null;
+    if (saved && Array.isArray(saved.frets) && saved.frets.length === profile.strings.length) {
+      return StringInstruments.normalizeDraft(item, profile.id);
+    }
+    if (profile.id !== "guitar") {
+      return StringInstruments.normalizeDraft(item, profile.id);
+    }
     const suggested = suggestGuitarShape(item || {});
-    const frets = Array.isArray(saved?.frets) && saved.frets.length === 6
-      ? saved.frets.map(normalizeFret)
-      : suggested.frets.map(normalizeFret);
-    const fingers = Array.isArray(saved?.fingers) && saved.fingers.length === 6
-      ? saved.fingers.map(v => String(v ?? ""))
-      : suggested.fingers.slice();
-
     return {
-      tuning: GUITAR_STRINGS.map(s => s.open),
-      frets,
-      fingers,
-      capo: clamp(saved?.capo || 0, 0, 12),
-      barre: {
-        enabled: !!saved?.barre?.enabled,
-        fret: clamp(saved?.barre?.fret || 1, 1, 24),
-        fromString: clamp(saved?.barre?.fromString || 6, 1, 6),
-        toString: clamp(saved?.barre?.toString || 1, 1, 6),
-        finger: String(saved?.barre?.finger || "1")
+      instrument:profile.id,
+      tuning:profile.strings.map(s => s.open),
+      frets:suggested.frets.map(value => StringInstruments.normalizeFret(value, profile.maxFret)),
+      fingers:suggested.fingers.slice(),
+      capo:0,
+      barre:{
+        enabled:false,
+        fret:1,
+        fromString:profile.strings.length,
+        toString:1,
+        finger:"1"
       }
     };
   }
 
   function calculateGuitar(draft, preferredName) {
-    const flats = preferFlatsFrom(preferredName);
-    const capo = clamp(draft.capo, 0, 12);
-    const strings = GUITAR_STRINGS.map((string, i) => {
-      const rawFret = normalizeFret(draft.frets[i]);
-      const fret = rawFret === null ? null : Math.min(rawFret, Math.max(0, 24 - capo));
-      if (fret === null) {
-        return {
-          number:string.number, label:string.label, open:string.open,
-          fret:null, physicalFret:null, finger:String(draft.fingers[i] || ""),
-          midi:null, note:"X", muted:true
-        };
-      }
-      const midi = string.midi + capo + fret;
-      return {
-        number:string.number, label:string.label, open:string.open,
-        fret, physicalFret:capo + fret, finger:String(draft.fingers[i] || (fret === 0 ? "0" : "")),
-        midi, note:noteNameFromMidi(midi, flats), muted:false
-      };
+    const profile = stringProfile();
+    return StringInstruments.calculate(draft, profile.id, {
+      noteNameFromMidi,
+      detectChord,
+      preferFlats:preferFlatsFrom(preferredName)
     });
-
-    const sounded = strings.filter(s => Number.isFinite(s.midi));
-    const bassString = sounded.reduce((lowest, current) => !lowest || current.midi < lowest.midi ? current : lowest, null);
-    const exactMidis = sounded.map(s => s.midi);
-    const bassMidi = bassString?.midi ?? null;
-    const detection = detectChord(exactMidis, bassMidi, flats);
-    const shape = strings.map(s => s.muted ? "X" : String(s.fret)).join("-");
-    const notes = sounded.map(s => s.note).join(" ");
-    const bass = Number.isFinite(bassMidi) ? noteNameFromMidi(bassMidi, flats) : "";
-
-    const tabRows = strings.slice().reverse().map(s => {
-      const token = s.muted ? "X" : String(s.fret);
-      return `${s.label}|--${token.padStart(2,"-")}-- ${s.note}`;
-    });
-    const capoLine = capo > 0 ? `Capo: traste ${capo}\n` : "";
-
-    return {
-      strings,
-      exactMidis,
-      bassMidi,
-      bass,
-      notes,
-      shape,
-      tab: capoLine + tabRows.join("\n"),
-      detection,
-      voicing: {
-        tuning:GUITAR_STRINGS.map(s => s.open),
-        frets:strings.map(s => s.fret),
-        fingers:strings.map(s => s.finger),
-        capo,
-        barre:{
-          enabled:!!draft.barre.enabled,
-          fret:clamp(draft.barre.fret,1,24),
-          fromString:clamp(draft.barre.fromString,1,6),
-          toString:clamp(draft.barre.toString,1,6),
-          finger:String(draft.barre.finger || "1")
-        },
-        shape,
-        notes,
-        bass
-      }
-    };
   }
 
   function buildResultBox(ctx, options = {}) {
@@ -623,10 +590,11 @@
   }
 
   function buildGuitarDockCard(ctx, nameInput, nameTools) {
+    const profile = stringProfile();
     const box = el(ctx, "section", "s936-ed-guitar-card");
     const head = el(ctx, "div", "s936-ed-guitar-card-head");
     const name = el(ctx, "div", "s936-ed-guitar-card-name", "Acorde");
-    const order = el(ctx, "div", "s936-ed-guitar-card-order", "MAPA 6→1");
+    const order = el(ctx, "div", "s936-ed-guitar-card-order", `MAPA ${profile.shapeOrder}`);
     head.append(name, order);
     box.appendChild(head);
 
@@ -637,7 +605,7 @@
     rangePrev.title = "Rango anterior";
     const rangeInput = makeInput(ctx, "number", state.miniStartFret || 1);
     rangeInput.min = "1";
-    rangeInput.max = "20";
+    rangeInput.max = String(Math.max(1, profile.maxFret - 4));
     rangeInput.step = "1";
     rangeInput.title = "Primer traste visible en el mapa pequeño";
     const rangeNext = el(ctx, "button", "", "▶");
@@ -651,7 +619,7 @@
 
     const shapeRow = el(ctx, "div", "s936-ed-guitar-shape");
     shapeRow.appendChild(el(ctx, "span", "", "Forma"));
-    const shape = el(ctx, "code", "", "X X X X X X");
+    const shape = el(ctx, "code", "", profile.strings.map(() => "X").join(" "));
     shapeRow.appendChild(shape);
     box.appendChild(shapeRow);
 
@@ -672,14 +640,17 @@
     if (!chart || !calculation) return;
     chart.innerHTML = "";
 
+    const profile = stringProfile(calculation.instrument || state.instrument);
+    const strings = calculation.strings || [];
+    const count = profile.strings.length;
+    const maxStart = Math.max(1, profile.maxFret - 4);
     const SVG_NS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(SVG_NS, "svg");
     svg.setAttribute("viewBox", "0 0 210 178");
     svg.setAttribute("role", "img");
-    svg.setAttribute("aria-label", "Mapa compacto editable del acorde de guitarra");
+    svg.setAttribute("aria-label", `Mapa compacto editable de ${profile.label.toLowerCase()}`);
     svg.classList.add("s936-ed-chord-svg");
 
-    const strings = calculation.strings || [];
     const positiveFrets = strings
       .map(stringData => Number(stringData?.fret))
       .filter(fret => Number.isFinite(fret) && fret > 0);
@@ -687,27 +658,26 @@
     const maxPositive = positiveFrets.length ? Math.max(...positiveFrets) : 1;
     let autoBaseFret = minPositive > 4 ? minPositive : 1;
     if (maxPositive - autoBaseFret > 4) autoBaseFret = Math.max(1, maxPositive - 4);
-    autoBaseFret = clamp(autoBaseFret, 1, 20);
+    autoBaseFret = clamp(autoBaseFret, 1, maxStart);
     if (!Number.isFinite(Number(state.miniStartFret))) state.miniStartFret = autoBaseFret;
-    const baseFret = clamp(Number(state.miniStartFret) || autoBaseFret, 1, 20);
+    const baseFret = clamp(Number(state.miniStartFret) || autoBaseFret, 1, maxStart);
     if (refs.rangeInput) refs.rangeInput.value = String(baseFret);
 
-    const x0 = 43;
-    const xGap = 25;
+    const x0 = count === 6 ? 43 : 58;
+    const xGap = count > 1 ? (count === 6 ? 25 : 31) : 0;
     const y0 = 36;
     const yGap = 25;
     const stringX = index => x0 + index * xGap;
+    const endX = stringX(count - 1);
     const makeSvg = (tag, attrs = {}) => {
       const node = document.createElementNS(SVG_NS, tag);
       Object.entries(attrs).forEach(([key,value]) => node.setAttribute(key, String(value)));
       return node;
     };
 
-    // X / O row and string numbers. Left-to-right order is 6 → 1.
     strings.forEach((stringData, index) => {
       const x = stringX(index);
       const fret = stringData?.fret ?? null;
-
       const statusHit = makeSvg("rect", {
         x:x - 11, y:5, width:22, height:24, rx:6,
         class:"status-hit", fill:"transparent"
@@ -724,35 +694,31 @@
       status.textContent = fret === null ? "×" : fret === 0 ? "○" : "•";
       svg.appendChild(status);
 
-      const number = makeSvg("text", {
-        x, y:174, class:"string-number"
-      });
-      number.textContent = String(GUITAR_STRINGS[index].number);
+      const number = makeSvg("text", { x, y:174, class:"string-number" });
+      number.textContent = String(profile.strings[index].number);
       svg.appendChild(number);
     });
 
     if (baseFret === 1) {
       svg.appendChild(makeSvg("line", {
-        x1:x0, x2:stringX(5), y1:y0, y2:y0, class:"nut"
+        x1:x0, x2:endX, y1:y0, y2:y0, class:"nut"
       }));
     }
 
-    // Five visible fret spaces.
     for (let row = 0; row <= 5; row++) {
       const y = y0 + row * yGap;
       svg.appendChild(makeSvg("line", {
-        x1:x0, x2:stringX(5), y1:y, y2:y, class:"fret"
+        x1:x0, x2:endX, y1:y, y2:y, class:"fret"
       }));
     }
 
-    // Six vertical strings with progressive thickness.
     strings.forEach((stringData, index) => {
       const x = stringX(index);
       const line = makeSvg("line", {
         x1:x, x2:x, y1:y0, y2:y0 + 5 * yGap,
         class:"string"
       });
-      line.setAttribute("stroke-width", String(Math.max(.9, 3.3 - index * .46)));
+      line.setAttribute("stroke-width", String(Math.max(.9, 3.3 - index * (2.4 / Math.max(1,count-1)))));
       svg.appendChild(line);
     });
 
@@ -765,7 +731,6 @@
       svg.appendChild(base);
     }
 
-    // Click zones and active finger dots.
     for (let row = 0; row < 5; row++) {
       const fret = baseFret + row;
       strings.forEach((stringData, index) => {
@@ -779,7 +744,7 @@
           height:yGap,
           class:"hit"
         });
-        hit.setAttribute("aria-label", `Cuerda ${GUITAR_STRINGS[index].number}, traste ${fret}`);
+        hit.setAttribute("aria-label", `Cuerda ${profile.strings[index].number}, traste ${fret}`);
         hit.addEventListener("click", () => handlers?.setFretAndChooseFinger?.(index, fret));
         svg.appendChild(hit);
 
@@ -803,9 +768,9 @@
 
     chart.appendChild(svg);
 
-    if (Number.isInteger(fingerTarget) && fingerTarget >= 0 && fingerTarget < 6) {
+    if (Number.isInteger(fingerTarget) && fingerTarget >= 0 && fingerTarget < count) {
       const picker = el(null, "div", "s936-ed-mini-fingers");
-      picker.appendChild(el(null, "span", "", `Dedo · cuerda ${GUITAR_STRINGS[fingerTarget].number}:`));
+      picker.appendChild(el(null, "span", "", `Dedo · cuerda ${profile.strings[fingerTarget].number}:`));
       [["1","1"],["2","2"],["3","3"],["4","4"],["T","T"],["","×"]].forEach(([value,label]) => {
         const btn = document.createElement("button");
         btn.type = "button";
@@ -906,8 +871,8 @@
     const helpPop = el(ctx, "div", "s936-ed-help-pop");
     helpPop.hidden = true;
     helpPop.appendChild(document.createTextNode(
-      state.instrument === "guitar"
-        ? "Construye el acorde desde el mapa pequeño, el cuello grande o la digitación manual. Las tres vistas permanecen sincronizadas."
+      isStringInstrument()
+        ? `Construye ${stringProfile().label.toLowerCase()} desde el mapa pequeño, el cuello grande o la digitación manual. Las tres vistas permanecen sincronizadas.`
         : "El acorde se calcula, se escucha y se refleja sobre el instrumento principal."
     ));
     const helpLink = el(ctx, "button", "", "Ir a Ayuda");
@@ -922,14 +887,15 @@
     card.appendChild(helpPop);
 
     const instruments = el(ctx, "div", "s936-ed-instruments");
-    [["piano","Piano"],["guitar","Guitarra"],["ukulele","Ukelele"]].forEach(([key,label]) => {
+    [["piano","Piano"],["guitar","Guitarra"],["ukulele","Ukelele"],["bass","Bajo"]].forEach(([key,label]) => {
       const btn = el(ctx, "button", "s936-ed-inst" + (state.instrument === key ? " active" : ""), label);
       btn.type = "button";
       btn.addEventListener("click", () => {
         const response = bridge("setEditorInstrument", key);
         if (response?.ok === false) return;
         state.instrument = key;
-        if (key !== "guitar") bridge("deactivateEditorSurface");
+        state.miniStartFret = null;
+        if (!isStringInstrument(key)) bridge("deactivateEditorSurface");
         renderModule(ctx, host);
       });
       instruments.appendChild(btn);
@@ -973,6 +939,10 @@
       if (!state.manualName) recalculate();
     });
 
+    let pianoDraft = null;
+    let pianoModeSelect = null;
+    let pianoPatternInput = null;
+
     const grid = el(ctx, "div", "s936-ed-grid");
     grid.appendChild(field(ctx, "Sección", sectionSelect, true));
     const chordLine = el(ctx, "div", "s936-ed-chordline");
@@ -980,17 +950,33 @@
     chordLine.appendChild(field(ctx, "Compases", barsInput, false));
     grid.appendChild(chordLine);
 
-    if (state.instrument !== "guitar") {
+    if (!isStringInstrument()) {
       const nameField = field(ctx, "Nombre del acorde", nameInput, true);
       nameField.appendChild(nameTools);
       grid.appendChild(nameField);
-      grid.appendChild(field(ctx, "Bajo", bassInput, false));
-      grid.appendChild(field(ctx, state.instrument === "piano" ? "Notas del voicing" : "Notas sonoras", notesInput, true));
+
+      if (state.instrument === "piano" && PianoEditor) {
+        pianoDraft = PianoEditor.normalize(item);
+        bassInput.value = pianoDraft.leftHand.notes.join(" ");
+        notesInput.value = pianoDraft.rightHand.notes.join(" ");
+        pianoModeSelect = makeSelect(ctx, PianoEditor.modes, pianoDraft.leftHand.mode);
+        pianoPatternInput = makeInput(ctx, "text", pianoDraft.leftHand.pattern.join(" "));
+
+        grid.appendChild(field(ctx, "Mano izquierda · bajos", bassInput, true));
+        const pianoModeLine = el(ctx, "div", "s936-ed-chordline");
+        pianoModeLine.appendChild(field(ctx, "Modo del bajo", pianoModeSelect, false));
+        pianoModeLine.appendChild(field(ctx, "Patrón", pianoPatternInput, false));
+        grid.appendChild(pianoModeLine);
+        grid.appendChild(field(ctx, "Mano derecha · acorde completo", notesInput, true));
+      } else {
+        grid.appendChild(field(ctx, "Bajo", bassInput, false));
+        grid.appendChild(field(ctx, "Notas sonoras", notesInput, true));
+      }
     }
     card.appendChild(grid);
 
     const status = el(ctx, "div", "s936-ed-status");
-    result = state.instrument === "guitar"
+    result = isStringInstrument()
       ? buildGuitarDockCard(ctx, nameInput, nameTools)
       : buildResultBox(ctx, { title:"Resultado sonoro" });
     if (result?.refs?.manualNameArea) result.refs.manualNameArea.hidden = !state.manualName;
@@ -1001,28 +987,31 @@
     let visualTimer = null;
     let dockFingerTarget = null;
 
-    if (state.instrument === "guitar") {
+    if (isStringInstrument()) {
+      const profile = stringProfile();
+      const stringCount = profile.strings.length;
+      const maxStartFret = Math.max(1, profile.maxFret - 4);
       bassInput.readOnly = true;
       notesInput.readOnly = true;
       guitarDraft = normalizeGuitarDraft(item);
 
       card.appendChild(result.box);
 
-      const fretStops = [1,5,9,13,17,20];
+      const fretStops = [1,5,9,13,17,20].filter(value => value <= maxStartFret).concat(maxStartFret).filter((value,index,array) => array.indexOf(value) === index).sort((a,b) => a-b);
       const setMiniStartFret = value => {
-        state.miniStartFret = clamp(Number(value) || 1, 1, 20);
+        state.miniStartFret = clamp(Number(value) || 1, 1, maxStartFret);
         if (result?.refs?.rangeInput) result.refs.rangeInput.value = String(state.miniStartFret);
         recalculate();
       };
       result.refs.rangeInput.addEventListener("change", () => setMiniStartFret(result.refs.rangeInput.value));
       result.refs.rangePrev.addEventListener("click", () => {
-        const current = clamp(Number(state.miniStartFret) || 1, 1, 20);
+        const current = clamp(Number(state.miniStartFret) || 1, 1, maxStartFret);
         const previous = [...fretStops].reverse().find(value => value < current) || 1;
         setMiniStartFret(previous);
       });
       result.refs.rangeNext.addEventListener("click", () => {
-        const current = clamp(Number(state.miniStartFret) || 1, 1, 20);
-        const next = fretStops.find(value => value > current) || 20;
+        const current = clamp(Number(state.miniStartFret) || 1, 1, maxStartFret);
+        const next = fretStops.find(value => value > current) || maxStartFret;
         setMiniStartFret(next);
       });
 
@@ -1036,7 +1025,7 @@
       const guitarBox = el(ctx, "section", "s936-ed-manual");
       guitarBox.hidden = !state.manualPanelOpen;
       const guitarHead = el(ctx, "div", "s936-ed-guitar-head");
-      guitarHead.appendChild(el(ctx, "b", "", "Digitación exacta · 6 cuerdas"));
+      guitarHead.appendChild(el(ctx, "b", "", `Digitación exacta · ${stringCount} cuerdas`));
       guitarHead.appendChild(el(ctx, "span", "s936-ed-alt", "Sincronizada con el cuello grande"));
       guitarBox.appendChild(guitarHead);
 
@@ -1048,13 +1037,13 @@
       const fingerSelects = [];
       const noteLabels = [];
 
-      GUITAR_STRINGS.forEach((string, i) => {
+      activeStrings().forEach((string, i) => {
         const row = el(ctx, "div", "s936-ed-string-row");
         const label = el(ctx, "div", "s936-ed-string-label", `${string.number} · ${string.label}`);
         label.appendChild(el(ctx, "span", "", string.open));
         row.appendChild(label);
 
-        const fret = makeSelect(ctx, fretOptions(), guitarDraft.frets[i] === null ? "X" : String(guitarDraft.frets[i]), "s936-ed-mini");
+        const fret = makeSelect(ctx, fretOptions(profile.maxFret), guitarDraft.frets[i] === null ? "X" : String(guitarDraft.frets[i]), "s936-ed-mini");
         const finger = makeSelect(ctx, fingerOptions(), guitarDraft.fingers[i], "s936-ed-mini");
         const note = el(ctx, "div", "s936-ed-note-result", "—");
         fretSelects.push(fret);
@@ -1065,51 +1054,61 @@
       });
 
       const barreBox = el(ctx, "div", "s936-ed-barre");
-      const capoInput = makeInput(ctx, "number", guitarDraft.capo);
+      const capoInput = makeInput(ctx, "number", profile.allowCapo ? guitarDraft.capo : 0);
       capoInput.min = "0";
-      capoInput.max = "12";
+      capoInput.max = String(profile.capoMax || 12);
+      capoInput.disabled = !profile.allowCapo;
 
       const barreEnabledWrap = el(ctx, "label", "s936-ed-check full");
       const barreEnabled = document.createElement("input");
       barreEnabled.type = "checkbox";
-      barreEnabled.checked = guitarDraft.barre.enabled;
+      barreEnabled.checked = profile.allowBarre && guitarDraft.barre.enabled;
+      barreEnabled.disabled = !profile.allowBarre;
       barreEnabledWrap.appendChild(barreEnabled);
-      barreEnabledWrap.appendChild(document.createTextNode("Usar barré / cejilla con el dedo"));
+      barreEnabledWrap.appendChild(document.createTextNode(profile.allowBarre ? "Usar barré / cejilla con el dedo" : "Barré no aplica a este instrumento"));
 
       const barreFret = makeInput(ctx, "number", guitarDraft.barre.fret);
       barreFret.min = "1";
-      barreFret.max = "24";
-      const fromString = makeSelect(ctx, [["6","6"],["5","5"],["4","4"],["3","3"],["2","2"],["1","1"]], guitarDraft.barre.fromString);
-      const toString = makeSelect(ctx, [["1","1"],["2","2"],["3","3"],["4","4"],["5","5"],["6","6"]], guitarDraft.barre.toString);
+      barreFret.max = String(profile.maxFret);
+      barreFret.disabled = !profile.allowBarre;
+      const stringOptionsDescending = profile.strings.map(string => [String(string.number),String(string.number)]);
+      const stringOptionsAscending = stringOptionsDescending.slice().reverse();
+      const fromString = makeSelect(ctx, stringOptionsDescending, guitarDraft.barre.fromString);
+      const toString = makeSelect(ctx, stringOptionsAscending, guitarDraft.barre.toString);
+      fromString.disabled = !profile.allowBarre;
+      toString.disabled = !profile.allowBarre;
       const barreFinger = makeSelect(ctx, [["1","1 · índice"],["2","2 · medio"],["3","3 · anular"],["4","4 · meñique"]], guitarDraft.barre.finger);
+      barreFinger.disabled = !profile.allowBarre;
 
-      barreBox.appendChild(field(ctx, "Capo externo", capoInput, false));
-      barreBox.appendChild(barreEnabledWrap);
-      barreBox.appendChild(field(ctx, "Traste del barré", barreFret, false));
-      barreBox.appendChild(field(ctx, "Desde cuerda", fromString, false));
-      barreBox.appendChild(field(ctx, "Hasta cuerda", toString, false));
-      barreBox.appendChild(field(ctx, "Dedo del barré", barreFinger, false));
+      if (profile.allowCapo) barreBox.appendChild(field(ctx, "Capo externo", capoInput, false));
+      if (profile.allowBarre) {
+        barreBox.appendChild(barreEnabledWrap);
+        barreBox.appendChild(field(ctx, "Traste del barré", barreFret, false));
+        barreBox.appendChild(field(ctx, "Desde cuerda", fromString, false));
+        barreBox.appendChild(field(ctx, "Hasta cuerda", toString, false));
+        barreBox.appendChild(field(ctx, "Dedo del barré", barreFinger, false));
 
-      const applyBarreBtn = button(ctx, "Aplicar barré a cuerdas", "warn", () => {
-        const fretValue = clamp(barreFret.value, 1, 24);
-        const high = Math.max(Number(fromString.value), Number(toString.value));
-        const low = Math.min(Number(fromString.value), Number(toString.value));
-        GUITAR_STRINGS.forEach((string, i) => {
-          if (string.number <= high && string.number >= low) {
-            const current = normalizeFret(fretSelects[i].value);
-            if (current === null || current === 0 || current < fretValue) {
-              fretSelects[i].value = String(fretValue);
-              fingerSelects[i].value = barreFinger.value;
+        const applyBarreBtn = button(ctx, "Aplicar barré a cuerdas", "warn", () => {
+          const fretValue = clamp(barreFret.value, 1, profile.maxFret);
+          const high = Math.max(Number(fromString.value), Number(toString.value));
+          const low = Math.min(Number(fromString.value), Number(toString.value));
+          activeStrings().forEach((string, i) => {
+            if (string.number <= high && string.number >= low) {
+              const current = normalizeFret(fretSelects[i].value);
+              if (current === null || current === 0 || current < fretValue) {
+                fretSelects[i].value = String(fretValue);
+                fingerSelects[i].value = barreFinger.value;
+              }
             }
-          }
+          });
+          barreEnabled.checked = true;
+          recalculate();
         });
-        barreEnabled.checked = true;
-        recalculate();
-      });
-      const applyWrap = el(ctx, "div", "full");
-      applyWrap.appendChild(applyBarreBtn);
-      barreBox.appendChild(applyWrap);
-      guitarBox.appendChild(barreBox);
+        const applyWrap = el(ctx, "div", "full");
+        applyWrap.appendChild(applyBarreBtn);
+        barreBox.appendChild(applyWrap);
+      }
+      if (profile.allowCapo || profile.allowBarre) guitarBox.appendChild(barreBox);
       card.appendChild(guitarBox);
 
       manualToggle.addEventListener("click", () => {
@@ -1136,24 +1135,26 @@
       bass:bassInput, notes:notesInput, bars:barsInput
     };
 
-    function collectGuitarDraft() {
+      function collectGuitarDraft() {
       if (!guitarControls) return null;
+      const profile = stringProfile();
       return {
-        tuning:GUITAR_STRINGS.map(s => s.open),
-        frets:guitarControls.fretSelects.map(select => normalizeFret(select.value)),
+        instrument:profile.id,
+        tuning:profile.strings.map(s => s.open),
+        frets:guitarControls.fretSelects.map(select => StringInstruments.normalizeFret(select.value, profile.maxFret)),
         fingers:guitarControls.fingerSelects.map(select => select.value),
-        capo:clamp(guitarControls.capoInput.value,0,12),
+        capo:profile.allowCapo ? clamp(guitarControls.capoInput.value,0,profile.capoMax) : 0,
         barre:{
-          enabled:guitarControls.barreEnabled.checked,
-          fret:clamp(guitarControls.barreFret.value,1,24),
-          fromString:clamp(guitarControls.fromString.value,1,6),
-          toString:clamp(guitarControls.toString.value,1,6),
+          enabled:profile.allowBarre && guitarControls.barreEnabled.checked,
+          fret:clamp(guitarControls.barreFret.value,1,profile.maxFret),
+          fromString:clamp(guitarControls.fromString.value,1,profile.strings.length),
+          toString:clamp(guitarControls.toString.value,1,profile.strings.length),
           finger:guitarControls.barreFinger.value || "1"
         }
       };
     }
 
-    function currentPayload() {
+      function currentPayload() {
       const payload = {
         sectionKey:controls.section.value,
         chordIndex:Number(controls.chord.value) || 0,
@@ -1163,7 +1164,8 @@
         bars:clamp(controls.bars.value,1,16),
         instrument:state.instrument || "piano"
       };
-      if (state.instrument === "guitar" && latestCalculation) {
+
+      if (isStringInstrument() && latestCalculation) {
         payload.name = state.manualName
           ? (controls.name.value.trim() || latestCalculation.detection.primary)
           : latestCalculation.detection.primary;
@@ -1175,7 +1177,22 @@
         payload.capo = latestCalculation.voicing.capo;
         payload.barre = latestCalculation.voicing.barre;
         payload.rootPitchClass = latestCalculation.detection.rootPc;
-        payload.voicings = { guitar:latestCalculation.voicing };
+        payload.voicings = { [state.instrument]:latestCalculation.voicing };
+      } else if (state.instrument === "piano" && PianoEditor) {
+        const pianoVoicing = PianoEditor.createVoicing({
+          leftNotes:controls.bass.value,
+          leftMode:pianoModeSelect?.value || "together",
+          leftPattern:pianoPatternInput?.value || controls.bass.value,
+          rightNotes:controls.notes.value
+        });
+        const legacy = PianoEditor.legacyFields(pianoVoicing);
+        payload.bass = legacy.bass;
+        payload.notes = legacy.notes;
+        payload.leftHandMidis = parseNoteMidis(pianoVoicing.leftHand.notes.join(" "));
+        payload.rightHandMidis = parseNoteMidis(pianoVoicing.rightHand.notes.join(" "));
+        payload.pianoMode = pianoVoicing.leftHand.mode;
+        payload.pianoPattern = pianoVoicing.leftHand.pattern;
+        payload.voicings = { piano:pianoVoicing };
       }
       return payload;
     }
@@ -1186,29 +1203,32 @@
       else node.textContent = value || "—";
     }
 
-    function setGuitarControlFret(stringIndex, fret, chooseFinger = false) {
+      function setGuitarControlFret(stringIndex, fret, chooseFinger = false) {
       if (!guitarControls) return;
-      const index = clamp(Number(stringIndex), 0, 5);
+      const profile = stringProfile();
+      const index = clamp(Number(stringIndex), 0, profile.strings.length - 1);
       const normalized = fret === null || String(fret).toUpperCase() === "X"
         ? null
-        : clamp(Number(fret), 0, 24);
+        : clamp(Number(fret), 0, profile.maxFret);
       guitarControls.fretSelects[index].value = normalized === null ? "X" : String(normalized);
       if (normalized === null) guitarControls.fingerSelects[index].value = "";
       else if (normalized === 0) guitarControls.fingerSelects[index].value = "0";
       else if (guitarControls.fingerSelects[index].value === "0") guitarControls.fingerSelects[index].value = "";
       if (normalized !== null && normalized > 0) {
-        const currentStart = clamp(Number(state.miniStartFret) || 1, 1, 20);
+        const maxStart = Math.max(1, profile.maxFret - 4);
+        const currentStart = clamp(Number(state.miniStartFret) || 1, 1, maxStart);
         if (normalized < currentStart || normalized > currentStart + 4) {
-          state.miniStartFret = Math.min(20, 1 + Math.floor((normalized - 1) / 4) * 4);
+          state.miniStartFret = Math.min(maxStart, 1 + Math.floor((normalized - 1) / 4) * 4);
         }
       }
       dockFingerTarget = chooseFinger && normalized !== null && normalized > 0 ? index : null;
       recalculate();
     }
 
-    function setGuitarControlFinger(stringIndex, finger) {
+      function setGuitarControlFinger(stringIndex, finger) {
       if (!guitarControls) return;
-      const index = clamp(Number(stringIndex), 0, 5);
+      const profile = stringProfile();
+      const index = clamp(Number(stringIndex), 0, profile.strings.length - 1);
       const value = ["","0","1","2","3","4","T"].includes(String(finger)) ? String(finger) : "";
       guitarControls.fingerSelects[index].value = value;
       dockFingerTarget = null;
@@ -1216,9 +1236,10 @@
     }
 
     function updateResult(name, bass, notes, shape, tab, alternativesText) {
-      if (state.instrument === "guitar") {
+      if (isStringInstrument()) {
         setResultNode(result.refs.name, name || "Sin identificar");
-        result.refs.shape.textContent = `6→1 · ${String(shape || "X-X-X-X-X-X").replace(/-/g, " ")}`;
+        const profile = stringProfile();
+        result.refs.shape.textContent = `${profile.shapeOrder} · ${String(shape || profile.strings.map(() => "X").join("-")).replace(/-/g, " ")}`;
         alternatives.textContent = alternativesText || "";
         renderGuitarDockChart(result.refs, latestCalculation, {
           setFret:(index, fret) => setGuitarControlFret(index, fret, false),
@@ -1243,8 +1264,8 @@
       }, 55);
     }
 
-    function recalculate() {
-      if (state.instrument === "guitar" && guitarControls) {
+      function recalculate() {
+      if (isStringInstrument() && guitarControls) {
         latestCalculation = calculateGuitar(collectGuitarDraft(), nameInput.value || item.name);
         guitarControls.noteLabels.forEach((label, i) => {
           const stringData = latestCalculation.strings[i];
@@ -1272,24 +1293,26 @@
         return;
       }
 
-      const noteMidis = parseNoteMidis(notesInput.value);
-      const bassMidi = noteTokenToMidi(bassInput.value);
-      const harmonicMidis = noteMidis.slice();
-      if (Number.isFinite(bassMidi)) harmonicMidis.push(bassMidi);
+      const rightMidis = parseNoteMidis(notesInput.value);
+      const leftMidis = state.instrument === "piano"
+        ? parseNoteMidis(bassInput.value)
+        : [noteTokenToMidi(bassInput.value)].filter(Number.isFinite);
+      const bassMidi = leftMidis.length ? Math.min(...leftMidis) : null;
+      const harmonicMidis = rightMidis.concat(leftMidis);
       const detection = detectChord(harmonicMidis, bassMidi, preferFlatsFrom(nameInput.value || item.name));
       if (!state.manualName && detection.primary) nameInput.value = detection.primary;
       updateResult(
         nameInput.value,
         bassInput.value,
         notesInput.value,
-        state.instrument === "piano" ? "Voicing por alturas" : "Mapa de notas",
+        state.instrument === "piano" ? "Mano izquierda + mano derecha" : "Mapa de notas",
         "",
         detection.alternatives.length ? "Alternativas: " + detection.alternatives.join(" · ") : "Nombre calculado desde las notas."
       );
-      if (noteMidis.length) scheduleVisual(currentPayload());
+      if (rightMidis.length || leftMidis.length) scheduleVisual(currentPayload());
     }
 
-    activeController = state.instrument === "guitar" && guitarControls ? {
+    activeController = isStringInstrument() && guitarControls ? {
       setFret(stringIndex, fret) {
         setGuitarControlFret(stringIndex, fret, false);
       },
@@ -1322,10 +1345,12 @@
 
     notesInput.addEventListener("input", recalculate);
     bassInput.addEventListener("input", recalculate);
+    pianoModeSelect?.addEventListener("change", recalculate);
+    pianoPatternInput?.addEventListener("input", recalculate);
     nameInput.addEventListener("input", () => {
       if (state.manualName) {
         setResultNode(result.refs.name, nameInput.value || "Acorde");
-        if (state.instrument === "guitar") scheduleVisual(currentPayload());
+        if (isStringInstrument()) scheduleVisual(currentPayload());
       }
     });
 
@@ -1365,11 +1390,10 @@
     card.appendChild(actionBox);
     card.appendChild(status);
 
-    if (state.instrument !== "guitar") {
-      const visualText = state.instrument === "piano"
-        ? "Piano: el acorde se ilumina sobre el teclado completo."
-        : "Ukelele conserva por ahora el mapa de notas. Su constructor visual exacto será una fase independiente.";
-      card.appendChild(el(ctx, "div", "s936-ed-visual-note", visualText));
+    if (!isStringInstrument()) {
+      card.appendChild(el(ctx, "div", "s936-ed-visual-note",
+        "Piano: mano izquierda para bajos simples, octavados, simultáneos o alternados; mano derecha para el voicing completo."
+      ));
     }
     shell.appendChild(card);
     host.appendChild(shell);

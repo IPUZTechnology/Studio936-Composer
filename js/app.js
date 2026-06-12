@@ -256,6 +256,10 @@ function adjustedMidiForInstrument(midi, prof, role){
         while(m < 50) m += 12;
         while(m > 82) m -= 12;
     }
+    if(project.instrument === 'bass'){
+        while(m < 28) m += 12;
+        while(m > 67) m -= 12;
+    }
     return m;
 }
 function playNoteImpl(midi,vol=.18,decay=.45,type='triangle',time=audioCtx.currentTime){
@@ -298,7 +302,7 @@ function playPluckedNote(midi,vol,decay,type,time,role,inst,prof){
     const m = adjustedMidiForInstrument(midi, prof, role);
     const freq = midiFreq(m);
     const finalDecay = Math.max(.08, decay * (prof.decayMult || .5));
-    const v = vol * (project.grooveVol/7) * (project.instrument === 'ukulele' ? 1.12 : .95);
+    const v = vol * (project.grooveVol/7) * (project.instrument === 'ukulele' ? 1.12 : project.instrument === 'bass' ? 1.05 : .95);
     const osc = audioCtx.createOscillator();
     const osc2 = audioCtx.createOscillator();
     const body = audioCtx.createBiquadFilter();
@@ -308,14 +312,14 @@ function playPluckedNote(midi,vol,decay,type,time,role,inst,prof){
     osc2.type = prof.type2 || 'sine';
     osc.frequency.setValueAtTime(freq, now);
     osc2.frequency.setValueAtTime(freq*(prof.detune || 1.006), now);
-    body.type = 'bandpass'; body.frequency.setValueAtTime(inst.body || 220, now); body.Q.setValueAtTime(project.instrument==='ukulele'?3.2:2.1, now);
+    body.type = 'bandpass'; body.frequency.setValueAtTime(inst.body || 220, now); body.Q.setValueAtTime(project.instrument==='ukulele'?3.2:project.instrument==='bass'?1.35:2.1, now);
     bright.type = 'lowpass'; bright.frequency.setValueAtTime(prof.filter || inst.brightness || 3000, now); bright.Q.setValueAtTime(.8, now);
     gain.gain.setValueAtTime(0.0001, now);
     gain.gain.exponentialRampToValueAtTime(Math.max(.0002,v), now + (prof.attack || .003));
     gain.gain.exponentialRampToValueAtTime(0.001, now + finalDecay);
     osc.connect(body); osc2.connect(body); body.connect(bright); bright.connect(gain); connectOut(gain,'music');
     osc.start(now); osc2.start(now); osc.stop(now+finalDecay+.05); osc2.stop(now+finalDecay+.05);
-    addPickNoise(now, v * (inst.pick || 1), project.instrument==='ukulele' ? 0.018 : 0.026, project.instrument==='ukulele' ? 5200 : 3300);
+    addPickNoise(now, v * (inst.pick || 1), project.instrument==='ukulele' ? 0.018 : project.instrument==='bass' ? 0.014 : 0.026, project.instrument==='ukulele' ? 5200 : project.instrument==='bass' ? 900 : 3300);
 }
 function addPickNoise(time,vol,dur,frequency){
     try{
@@ -947,12 +951,12 @@ function bind(){
     els.styleSelect.onchange=()=>{ project.style=els.styleSelect.value; updateStyleHelp(); updateStepGrid(-1); updateSectionNoteMap(); updateFretboardMap(); saveProject(false); };
     els.instrumentSelect.onchange=()=>{
         project.instrument=els.instrumentSelect.value;
-        if(['guitar','ukulele'].includes(project.instrument)){
-            project.fretMode = project.instrument === 'ukulele' ? 'ukulele' : 'guitar';
+        if(['guitar','ukulele','bass'].includes(project.instrument)){
+            project.fretMode = project.instrument === 'ukulele' ? 'ukulele' : project.instrument === 'bass' ? 'bass' : 'guitar';
             if(els.fretModeSelect) els.fretModeSelect.value = project.fretMode;
             setViewMode('fretboard');
             buildFretboard(); updateFretboardMap();
-            flashStatus(project.instrument === 'ukulele' ? 'Vista de diapasón ukelele activa.' : 'Vista de diapasón guitarra activa.');
+            flashStatus(project.instrument === 'ukulele' ? 'Vista de diapasón ukelele activa.' : project.instrument === 'bass' ? 'Vista de diapasón bajo activa.' : 'Vista de diapasón guitarra activa.');
         }
         updateStyleHelp(); saveProject(false);
     };
@@ -1051,6 +1055,11 @@ function bindFinalMidiExport(){
 
 
 function installStudio936AppBridge(){
+    const StringInstruments = window.Studio936StringInstruments || null;
+    const StringSurface = window.Studio936StringSurface || null;
+    const VoicingStore = window.Studio936VoicingStore || null;
+    const PianoEditorPro = window.Studio936SuiteProPianoEditor || null;
+
     function safeClone(value){
         try { return JSON.parse(JSON.stringify(value)); }
         catch(error){ return value; }
@@ -1111,17 +1120,23 @@ function installStudio936AppBridge(){
         syncProjectFromControls(false);
         const sectionKey = els.sectionSelect?.value || 'intro';
         const seq = Array.isArray(project.sections?.[sectionKey]) ? project.sections[sectionKey] : [];
+        const instrument = project.instrument || 'piano';
+        if(VoicingStore){
+            VoicingStore.ensure(project);
+            seq.forEach(item => VoicingStore.hydrateChord(project,item,instrument));
+        }
         const chordIndex = Math.max(0, Math.min(seq.length - 1, Number(els.chordSelect?.value) || 0));
         return {
             sectionKey,
             sectionName: sectionNames[sectionKey] || sectionKey,
             chordIndex,
-            instrument: project.instrument || 'piano',
+            instrument,
             viewMode: project.viewMode || 'piano',
             fretMode: project.fretMode || 'guitar',
             sectionOptions: editorSectionOptions(),
             sections: safeClone(project.sections || {}),
-            currentChord: safeClone(seq[chordIndex] || null)
+            currentChord: safeClone(seq[chordIndex] || null),
+            voicingLibrary:safeClone(project.voicingLibrary || {})
         };
     }
     function normalizeMidiList(list){
@@ -1133,9 +1148,14 @@ function installStudio936AppBridge(){
         const sectionKey = String(payload.sectionKey || els.sectionSelect?.value || 'intro');
         const seq = Array.isArray(project.sections?.[sectionKey]) ? project.sections[sectionKey] : null;
         const chordIndex = Math.max(0, Math.min(Math.max(0,(seq?.length || 1)-1), Number(payload.chordIndex) || 0));
-        const exactFrets = Array.isArray(payload.exactFrets)
-            ? payload.exactFrets.slice(0,6).map(v => v === null || String(v).toUpperCase() === 'X' ? null : clamp(Number(v)||0,0,24))
+        const instrument = String(payload.instrument || project.instrument || 'piano');
+        const profile = StringInstruments?.profile?.(instrument) || null;
+        const expectedStrings = profile?.strings?.length || 0;
+        const exactFrets = Array.isArray(payload.exactFrets) && expectedStrings
+            ? payload.exactFrets.slice(0,expectedStrings).map(v => v === null || String(v).toUpperCase() === 'X' ? null : clamp(Number(v)||0,0,profile.maxFret || 24))
             : null;
+        const voicings = payload.voicings && typeof payload.voicings === 'object' ? safeClone(payload.voicings) : null;
+        const piano = voicings?.piano || null;
         return {
             sectionKey,
             seq,
@@ -1144,28 +1164,40 @@ function installStudio936AppBridge(){
             bass: String(payload.bass || '').trim(),
             notes: String(payload.notes || '').trim(),
             bars: clamp(Number(payload.bars) || 1, 1, 16),
-            instrument: String(payload.instrument || project.instrument || 'piano'),
+            instrument,
+            profile,
             exactMidis: normalizeMidiList(payload.exactMidis),
             exactFrets,
             exactStrings: Array.isArray(payload.exactStrings) ? safeClone(payload.exactStrings) : null,
-            capo: clamp(Number(payload.capo)||0,0,12),
+            capo: profile?.allowCapo ? clamp(Number(payload.capo)||0,0,profile.capoMax || 12) : 0,
             barre: payload.barre && typeof payload.barre === 'object' ? safeClone(payload.barre) : null,
             rootPitchClass: Number.isFinite(Number(payload.rootPitchClass)) ? ((Number(payload.rootPitchClass)%12)+12)%12 : null,
-            voicings: payload.voicings && typeof payload.voicings === 'object' ? safeClone(payload.voicings) : null
+            voicings,
+            leftHandMidis: normalizeMidiList(payload.leftHandMidis),
+            rightHandMidis: normalizeMidiList(payload.rightHandMidis),
+            pianoMode: String(payload.pianoMode || piano?.leftHand?.mode || 'together'),
+            pianoPattern: Array.isArray(payload.pianoPattern) ? payload.pianoPattern.map(String) : (Array.isArray(piano?.leftHand?.pattern) ? piano.leftHand.pattern.map(String) : [])
         };
     }
     function validateEditorPayload(payload={}){
         const data = normalizeEditorPayload(payload);
         if(!data.seq) return { ok:false, message:'La sección seleccionada no existe.', data };
-        const exactMode = data.instrument === 'guitar' && data.exactMidis.length > 0;
+        const exactMode = !!data.profile && data.exactMidis.length > 0;
+        if(exactMode && data.exactMidis.length < (data.profile.minSounding || 1)){
+            return { ok:false, message:`La digitación de ${data.profile.label.toLowerCase()} necesita al menos ${data.profile.minSounding || 1} cuerda(s) sonora(s).`, data };
+        }
+        if(data.instrument === 'piano'){
+            const left = data.leftHandMidis.length ? data.leftHandMidis : parseNotes(data.bass);
+            const right = data.rightHandMidis.length ? data.rightHandMidis : parseNotes(data.notes);
+            if(!left.length) return { ok:false, message:'No pude leer los bajos de la mano izquierda.', data };
+            if(!right.length) return { ok:false, message:'No pude leer las notas de la mano derecha.', data };
+            return { ok:true, data };
+        }
         if(!exactMode && noteToMidi(data.bass) === null){
             return { ok:false, message:'No pude leer la nota de bajo. Usa un formato como C2, F#2 o Sib2.', data };
         }
         if(!exactMode && parseNotes(data.notes).length === 0){
             return { ok:false, message:'No pude leer las notas del acorde. Usa un formato como C3 E3 G3.', data };
-        }
-        if(exactMode && data.exactMidis.length < 2){
-            return { ok:false, message:'La digitación de guitarra debe tener al menos dos cuerdas sonoras.', data };
         }
         return { ok:true, data };
     }
@@ -1207,6 +1239,7 @@ function installStudio936AppBridge(){
             container.classList.remove('s936-editor-surface-active');
             container.removeAttribute('data-s936-editor-surface');
         }
+        StringSurface?.clear?.();
         document.querySelectorAll('#s936EditorGuitarSurface').forEach(node => node.remove());
         document.querySelectorAll('.s936-finger-pop').forEach(node => node.remove());
         document.body?.classList.remove('s936-editor-guitar-surface');
@@ -1236,336 +1269,20 @@ function installStudio936AppBridge(){
         window.addEventListener('pagehide', deactivateEditorSurface);
     }
     installEditorSurfaceCleanup();
-    const EDITOR_GUITAR_STRINGS = [
-        { number:6, label:'E', open:'E2' },
-        { number:5, label:'A', open:'A2' },
-        { number:4, label:'D', open:'D3' },
-        { number:3, label:'G', open:'G3' },
-        { number:2, label:'B', open:'B3' },
-        { number:1, label:'e', open:'E4' }
-    ];
-    function exactStringLabel(index){
-        return ['6 · E','5 · A','4 · D','3 · G','2 · B','1 · e'][index] || String(index + 1);
-    }
-    function editorExternal(method, ...args){
-        const api = window.Studio936SuiteProEditor;
-        if(!api || typeof api[method] !== 'function') return false;
-        try{
-            api[method](...args);
-            return true;
-        }catch(error){
-            console.warn('Editor Pro external control:', method, error);
-            return false;
-        }
-    }
-    function guitarOpenMidi(index){
-        return [40,45,50,55,59,64][index] ?? 40;
-    }
-    function guitarCellNote(index, physicalFret){
-        return midiToNote(guitarOpenMidi(index) + Number(physicalFret || 0));
-    }
-    function removeFingerPicker(){
-        document.querySelectorAll('.s936-finger-pop').forEach(node => node.remove());
-    }
-    function showFingerPicker(anchor, stringIndex){
-        removeFingerPicker();
-        const surface = document.getElementById('s936EditorGuitarSurface');
-        if(!surface || !anchor) return;
-        const picker = document.createElement('div');
-        picker.className = 's936-finger-pop';
-        picker.setAttribute('role','dialog');
-        picker.setAttribute('aria-label','Seleccionar dedo');
-        [['1','1'],['2','2'],['3','3'],['4','4'],['T','T'],['','×']].forEach(([value,label]) => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.textContent = label;
-            if(value === '') btn.classList.add('clear');
-            btn.title = value ? `Dedo ${value}` : 'Sin dedo';
-            btn.addEventListener('click', ev => {
-                ev.stopPropagation();
-                editorExternal('externalSetFinger', stringIndex, value);
-                removeFingerPicker();
-            });
-            picker.appendChild(btn);
-        });
-        surface.appendChild(picker);
-        const rect = anchor.getBoundingClientRect();
-        const maxLeft = Math.max(8, window.innerWidth - 225);
-        picker.style.left = `${Math.max(8, Math.min(maxLeft, rect.left - 20))}px`;
-        picker.style.top = `${Math.max(8, Math.min(window.innerHeight - 52, rect.bottom + 6))}px`;
-        const close = ev => {
-            if(!picker.contains(ev.target) && ev.target !== anchor){
-                removeFingerPicker();
-                document.removeEventListener('pointerdown', close, true);
-            }
-        };
-        setTimeout(() => document.addEventListener('pointerdown', close, true), 0);
-    }
-    function chartVoicingForItem(item, index, data){
-        if(index === data.chordIndex && Array.isArray(data.exactFrets)){
-            return {
-                frets:data.exactFrets,
-                fingers:Array.isArray(data.exactStrings) ? data.exactStrings.map(s => s?.finger || '') : [],
-                capo:data.capo || 0,
-                shape:data.exactFrets.map(v => v === null ? 'X' : String(v)).join('-')
-            };
-        }
-        const saved = item?.voicings?.guitar;
-        if(!saved || !Array.isArray(saved.frets) || saved.frets.length !== 6) return null;
-        return {
-            frets:saved.frets.map(v => v === null || String(v).toUpperCase() === 'X' ? null : clamp(Number(v)||0,0,24)),
-            fingers:Array.isArray(saved.fingers) ? saved.fingers : [],
-            capo:clamp(Number(saved.capo)||0,0,12),
-            shape:saved.shape || saved.frets.map(v => v === null ? 'X' : String(v)).join('-')
-        };
-    }
-    function renderMiniGuitarChart(card, voicing){
-        if(!voicing){
-            const empty = document.createElement('div');
-            empty.className = 's936-chart-empty';
-            empty.textContent = 'Sin digitación exacta guardada';
-            card.appendChild(empty);
-            return;
-        }
-        const chart = document.createElement('div');
-        chart.className = 's936-mini-chart';
-        const positive = voicing.frets.filter(v => Number(v) > 0).map(Number);
-        const base = positive.length && Math.min(...positive) > 4 ? Math.min(...positive) : 1;
-        voicing.frets.forEach((fret, index) => {
-            const x = 8.3 + index * 16.7;
-            if(fret === null){
-                const mark = document.createElement('span');
-                mark.className = 's936-mini-muted';
-                mark.textContent = '×';
-                mark.style.left = `${x}%`;
-                chart.appendChild(mark);
-                return;
-            }
-            if(Number(fret) === 0){
-                const mark = document.createElement('span');
-                mark.className = 's936-mini-open';
-                mark.textContent = '○';
-                mark.style.left = `${x}%`;
-                chart.appendChild(mark);
-                return;
-            }
-            const rel = Number(fret) - base;
-            if(rel < 0 || rel > 4) return;
-            const dot = document.createElement('span');
-            dot.className = 's936-mini-dot';
-            dot.textContent = String(voicing.fingers[index] || '');
-            dot.style.left = `${x}%`;
-            dot.style.top = `${8 + rel * 16}px`;
-            chart.appendChild(dot);
-        });
-        card.appendChild(chart);
-    }
-    function renderEditorGuitarSurface(data){
-        if(data.instrument !== 'guitar' || !Array.isArray(data.exactFrets) || data.exactFrets.length !== 6){
-            deactivateEditorSurface();
-            return;
-        }
-        const container = els.fretboardContainer;
-        if(!container) return;
-        container.classList.add('s936-editor-surface-active');
-        container.setAttribute('data-s936-editor-surface','guitar');
-        document.body?.classList.add('s936-editor-guitar-surface');
-
-        let surface = document.getElementById('s936EditorGuitarSurface');
-        if(!surface){
-            surface = document.createElement('section');
-            surface.id = 's936EditorGuitarSurface';
-            container.appendChild(surface);
-        }
-        surface.innerHTML = '';
-
-        const head = document.createElement('div');
-        head.className = 's936-neck-head';
-        const identity = document.createElement('div');
-        const title = document.createElement('div');
-        title.className = 's936-neck-title';
-        title.textContent = 'Cuello interactivo · Guitarra';
-        const meta = document.createElement('div');
-        meta.className = 's936-neck-meta';
-        const shape = data.exactFrets.map(v => v === null ? 'X' : String(v)).join(' ');
-        meta.textContent = `${data.name || 'Acorde'} · Forma 6→1: ${shape}${data.capo ? ` · Capo ${data.capo}` : ''}`;
-        identity.append(title, meta);
-        const help = document.createElement('div');
-        help.className = 's936-neck-help';
-        help.textContent = 'La 1.ª cuerda está arriba y la 6.ª abajo. Haz clic en un traste, elige el dedo y el mini-chart, el panel manual y el sonido se actualizarán juntos.';
-        head.append(identity, help);
-        surface.appendChild(head);
-
-        const scroll = document.createElement('div');
-        scroll.className = 's936-neck-scroll';
-        const ruler = document.createElement('div');
-        ruler.className = 's936-neck-ruler';
-        ['Cuerda','X','0'].forEach(label => {
-            const span = document.createElement('span');
-            span.textContent = label;
-            ruler.appendChild(span);
-        });
-        const markerFrets = new Set([3,5,7,9,12,15,17,19,21,24]);
-        for(let fret=1; fret<=24; fret++){
-            const span = document.createElement('span');
-            span.textContent = String(fret);
-            if(markerFrets.has(fret)) span.classList.add('mark');
-            if(fret === 12 || fret === 24) span.classList.add('double');
-            ruler.appendChild(span);
-        }
-        scroll.appendChild(ruler);
-
-        const exactStrings = Array.isArray(data.exactStrings) ? data.exactStrings : [];
-        const bassMidi = data.exactMidis.length ? Math.min(...data.exactMidis) : null;
-        const barre = data.barre || {};
-        const barreEnabled = !!barre.enabled;
-        const barrePhysicalFret = clamp(Number(barre.fret)||1,1,24) + (data.capo || 0);
-        const barreHigh = Math.max(clamp(Number(barre.fromString)||6,1,6), clamp(Number(barre.toString)||1,1,6));
-        const barreLow = Math.min(clamp(Number(barre.fromString)||6,1,6), clamp(Number(barre.toString)||1,1,6));
-        const displayOrder = [5,4,3,2,1,0];
-
-        displayOrder.forEach(index => {
-            const relativeFret = data.exactFrets[index];
-            const row = document.createElement('div');
-            row.className = 's936-neck-row';
-            row.dataset.stringNumber = String(EDITOR_GUITAR_STRINGS[index].number);
-            row.style.setProperty('--string-width', `${Math.max(.8, .8 + (5-index)*.43)}px`);
-
-            const stringNumber = EDITOR_GUITAR_STRINGS[index].number;
-            const label = document.createElement('div');
-            label.className = 's936-neck-string-label';
-            label.textContent = exactStringLabel(index);
-            const open = document.createElement('small');
-            open.textContent = midiToNote(guitarOpenMidi(index));
-            label.appendChild(open);
-            row.appendChild(label);
-
-            const muteBtn = document.createElement('button');
-            muteBtn.type = 'button';
-            muteBtn.className = 's936-neck-cell mute' + (relativeFret === null ? ' active' : '');
-            muteBtn.textContent = 'X';
-            muteBtn.title = `Apagar cuerda ${stringNumber}`;
-            muteBtn.addEventListener('click', () => editorExternal('externalSetFret', index, null));
-            row.appendChild(muteBtn);
-
-            const openBtn = document.createElement('button');
-            openBtn.type = 'button';
-            openBtn.className = 's936-neck-cell open' + (relativeFret === 0 ? ' active' : '');
-            openBtn.textContent = '0';
-            openBtn.title = `Cuerda ${stringNumber} abierta${data.capo ? ` desde capo ${data.capo}` : ''}`;
-            openBtn.addEventListener('click', () => editorExternal('externalSetFret', index, 0));
-            row.appendChild(openBtn);
-
-            const physicalSelected = relativeFret === null ? null : clamp(Number(relativeFret)||0,0,24) + (data.capo || 0);
-            for(let physicalFret=1; physicalFret<=24; physicalFret++){
-                const cell = document.createElement('button');
-                cell.type = 'button';
-                cell.className = 's936-neck-cell';
-                cell.style.setProperty('--string-width', `${Math.max(.8, .8 + (5-index)*.43)}px`);
-                if(physicalFret === 1) cell.classList.add('fret-one');
-                cell.dataset.stringIndex = String(index);
-                cell.dataset.physicalFret = String(physicalFret);
-                const blocked = physicalFret < (data.capo || 0);
-                if(blocked) cell.classList.add('capoblocked');
-                if(data.capo && physicalFret === data.capo) cell.classList.add('capo');
-                if(barreEnabled && physicalFret === barrePhysicalFret && stringNumber <= barreHigh && stringNumber >= barreLow){
-                    cell.classList.add('barre');
-                }
-                const cellNote = guitarCellNote(index, physicalFret);
-                cell.textContent = cellNote.replace(/-?\d+$/,'');
-                cell.title = blocked
-                    ? `Debajo del capo ${data.capo}`
-                    : `${exactStringLabel(index)} · traste físico ${physicalFret} · ${cellNote}`;
-                if(physicalSelected === physicalFret){
-                    cell.classList.add('on');
-                    cell.textContent = '';
-                    const dot = document.createElement('span');
-                    dot.className = 's936-neck-dot';
-                    const stringData = exactStrings[index] || {};
-                    if(Number.isFinite(stringData.midi) && stringData.midi === bassMidi) dot.classList.add('bass');
-                    const note = document.createElement('span');
-                    note.textContent = stringData.note || cellNote;
-                    const finger = document.createElement('span');
-                    finger.className = 'finger';
-                    finger.textContent = stringData.finger ? `D${stringData.finger}` : 'dedo';
-                    dot.append(note, finger);
-                    cell.appendChild(dot);
-                }
-                cell.addEventListener('click', () => {
-                    if(blocked) return;
-                    const relative = Math.max(0, physicalFret - (data.capo || 0));
-                    editorExternal('externalSetFret', index, relative);
-                    setTimeout(() => {
-                        const updated = document.querySelector(`#s936EditorGuitarSurface [data-string-index="${index}"][data-physical-fret="${physicalFret}"]`);
-                        showFingerPicker(updated, index);
-                    }, 90);
-                });
-                row.appendChild(cell);
-            }
-            scroll.appendChild(row);
-        });
-        surface.appendChild(scroll);
-
-        const selectedPhysical = data.exactFrets
-            .filter(v => Number(v) > 0)
-            .map(v => Number(v) + (data.capo || 0));
-        if(selectedPhysical.length){
-            const first = Math.min(...selectedPhysical);
-            setTimeout(() => {
-                scroll.scrollLeft = Math.max(0, (first - 2) * 44);
-            }, 0);
-        }
-
-        const chartZone = document.createElement('section');
-        chartZone.className = 's936-chart-zone';
-        const chartHead = document.createElement('div');
-        chartHead.className = 's936-chart-head';
-        const chartTitle = document.createElement('b');
-        const sectionLabel = sectionNames[data.sectionKey] || data.sectionKey || 'Sección';
-        chartTitle.textContent = `Acordes de ${sectionLabel}`;
-        const chartHint = document.createElement('span');
-        chartHint.textContent = 'Selecciona un chart para editarlo';
-        chartHead.append(chartTitle, chartHint);
-        chartZone.appendChild(chartHead);
-
-        const chartRow = document.createElement('div');
-        chartRow.className = 's936-chart-row';
-        (data.seq || []).forEach((item,index) => {
-            const card = document.createElement('button');
-            card.type = 'button';
-            card.className = 's936-chart-card' + (index === data.chordIndex ? ' active' : '');
-            const name = document.createElement('span');
-            name.className = 's936-chart-name';
-            name.textContent = `${index + 1}. ${item?.name || 'Acorde'}`;
-            const voicing = chartVoicingForItem(item,index,data);
-            const metaLine = document.createElement('span');
-            metaLine.className = 's936-chart-meta';
-            metaLine.textContent = `${item?.bars || 1} comp. · 6→1 ${(voicing?.shape ? String(voicing.shape).replace(/-/g,' ') : 'sin forma')}`;
-            card.append(name, metaLine);
-            renderMiniGuitarChart(card, voicing);
-            card.addEventListener('click', () => editorExternal('externalSelectChord', index));
-            chartRow.appendChild(card);
-        });
-        chartZone.appendChild(chartRow);
-        surface.appendChild(chartZone);
-
-        const activeChart = chartRow.querySelector('.s936-chart-card.active');
-        activeChart?.scrollIntoView?.({ behavior:'smooth', block:'nearest', inline:'center' });
-    }
     function setEditorInstrument(instrument){
-        const value = ['piano','guitar','ukulele'].includes(instrument) ? instrument : 'piano';
+        const allowed = ['piano','guitar','ukulele','bass'];
+        const value = allowed.includes(instrument) ? instrument : 'piano';
         project.instrument = value;
         if(els.instrumentSelect) els.instrumentSelect.value = value;
         if(value === 'piano'){
             clearExactVoicingMap();
             setViewMode('piano');
         } else {
-            project.fretMode = value === 'ukulele' ? 'ukulele' : 'guitar';
+            project.fretMode = value;
             if(els.fretModeSelect) els.fretModeSelect.value = project.fretMode;
             setViewMode('fretboard');
             buildFretboard();
             updateFretboardMap();
-            if(value !== 'guitar') clearExactVoicingMap();
         }
         updateStyleHelp();
         saveProject(false);
@@ -1580,17 +1297,36 @@ function installStudio936AppBridge(){
             notes: data.notes || seqItem.notes || 'C3 E3 G3',
             bars: data.bars || seqItem.bars || 1
         };
-        const notes = data.exactMidis.length ? data.exactMidis : parseNotes(item.notes);
-        const bass = data.exactMidis.length
+
+        const stringExact = !!data.profile && data.exactMidis.length > 0 && Array.isArray(data.exactFrets);
+        const leftMidis = data.instrument === 'piano'
+            ? (data.leftHandMidis.length ? data.leftHandMidis : parseNotes(item.bass))
+            : [];
+        const rightMidis = data.instrument === 'piano'
+            ? (data.rightHandMidis.length ? data.rightHandMidis : parseNotes(item.notes))
+            : [];
+        const notes = stringExact
+            ? data.exactMidis
+            : data.instrument === 'piano'
+                ? rightMidis
+                : parseNotes(item.notes);
+        const bass = stringExact
             ? Math.min(...data.exactMidis)
-            : noteToMidi(item.bass);
-        if(!notes.length) return { ok:false, message:'No pude visualizar las notas del acorde.' };
+            : data.instrument === 'piano'
+                ? (leftMidis.length ? Math.min(...leftMidis) : null)
+                : noteToMidi(item.bass);
+
+        if(!notes.length && !leftMidis.length) return { ok:false, message:'No pude visualizar las notas del acorde.' };
 
         clearKeys();
+        leftMidis.forEach(midi => {
+            if(keyMap[midi]) keyMap[midi].classList.add('active-bass');
+        });
         if(Number.isFinite(bass) && keyMap[bass]) keyMap[bass].classList.add('active-bass');
         notes.forEach(midi => {
             if(keyMap[midi]) keyMap[midi].classList.add('active-chord');
         });
+
         try{
             Fretboard.updateFretboardMap({
                 fretCells,
@@ -1601,46 +1337,94 @@ function installStudio936AppBridge(){
         }catch(error){
             console.warn('Editor Pro: no se pudo actualizar el diapasón.', error);
         }
-        renderEditorGuitarSurface(data);
+
+        if(stringExact && StringSurface && StringInstruments){
+            StringSurface.render({
+                container:els.fretboardContainer,
+                data,
+                profiles:StringInstruments.profiles,
+                sectionNames
+            });
+        } else {
+            deactivateEditorSurface();
+        }
+
         if(els.chordLabel) els.chordLabel.textContent = item.name || 'Acorde';
         return {
             ok:true,
             item:safeClone(item),
             notes:safeClone(notes),
             bass,
-            exact:data.exactMidis.length > 0
+            exact:stringExact
         };
     }
     function previewEditorChord(payload={}){
         const result = validateEditorPayload(payload);
         if(!result.ok) return result;
         const data = result.data;
-        if(['piano','guitar','ukulele'].includes(data.instrument) && data.instrument !== project.instrument){
+        if(['piano','guitar','ukulele','bass'].includes(data.instrument) && data.instrument !== project.instrument){
             setEditorInstrument(data.instrument);
         }
+
         resumeAudio();
-        const exactMode = data.instrument === 'guitar' && data.exactMidis.length;
-        const bass = exactMode ? Math.min(...data.exactMidis) : noteToMidi(data.bass);
-        const notes = exactMode ? data.exactMidis : parseNotes(data.notes);
+        const stringExact = !!data.profile && data.exactMidis.length > 0;
         const when = audioCtx.currentTime + .02;
         showEditorChordVisual(data);
 
-        if(exactMode){
+        if(stringExact){
+            const notes = data.exactMidis;
             const strum = currentInstrument().strum || .018;
             notes.forEach((midi,index) => {
-                playNote(midi,.22,.82,'triangle',when + index * strum);
+                const type = data.instrument === 'bass' ? 'sine' : 'triangle';
+                playNote(midi,data.instrument === 'bass' ? .32 : .22,.82,type,when + index * strum);
             });
-        } else {
-            if(bass !== null) playNote(bass,.30,.75,'sine',when);
-            strumChord(notes,.18,.90,when + .05,'active-chord');
+            setTimeout(() => showEditorChordVisual(data), 820);
+            return {
+                ok:true,
+                message:`Digitación exacta de ${data.profile.label.toLowerCase()} escuchada y mostrada en el instrumento principal.`
+            };
         }
+
+        if(data.instrument === 'piano'){
+            const piano = data.voicings?.piano || {};
+            const left = data.leftHandMidis.length
+                ? data.leftHandMidis
+                : parseNotes((piano.leftHand?.notes || []).join(' ') || data.bass);
+            const right = data.rightHandMidis.length
+                ? data.rightHandMidis
+                : parseNotes((piano.rightHand?.notes || []).join(' ') || data.notes);
+            const mode = data.pianoMode || piano.leftHand?.mode || 'together';
+            const patternTokens = data.pianoPattern.length
+                ? data.pianoPattern
+                : (piano.leftHand?.pattern || []);
+            const patternMidis = parseNotes(patternTokens.join(' '));
+
+            if(mode === 'alternate' || mode === 'custom'){
+                const sequence = patternMidis.length ? patternMidis : left;
+                sequence.forEach((midi,index) => {
+                    playNote(midi,.30,.75,'sine',when + index * .20);
+                });
+            } else {
+                left.forEach((midi,index) => {
+                    playNote(midi,.32,.72,'sine',when + index * .012);
+                });
+            }
+            strumChord(right,.22,.90,when + .05,'active-chord');
+            setTimeout(() => showEditorChordVisual(data), 900);
+            return {
+                ok:true,
+                message:mode === 'together'
+                    ? 'Bajos de mano izquierda y voicing completo de mano derecha escuchados.'
+                    : 'Patrón de bajos de mano izquierda y voicing completo de mano derecha escuchados.'
+            };
+        }
+
+        const bass = noteToMidi(data.bass);
+        const notes = parseNotes(data.notes);
+        if(bass !== null) playNote(bass,.30,.75,'sine',when);
+        strumChord(notes,.18,.90,when + .05,'active-chord');
         setTimeout(() => showEditorChordVisual(data), 820);
-        return {
-            ok:true,
-            message:exactMode
-                ? 'Digitación exacta escuchada cuerda por cuerda y mostrada en el instrumento principal.'
-                : 'Acorde escuchado y mostrado en el instrumento principal.'
-        };
+        return { ok:true, message:'Acorde escuchado y mostrado en el instrumento principal.' };
     }
     function refreshEditorAfterMutation(sectionKey, index){
         selectEditorSection(sectionKey);
@@ -1655,20 +1439,33 @@ function installStudio936AppBridge(){
         updateSectionNoteMap();
         updateFretboardMap();
         saveProject(false);
+
         const item = seq[idx];
         if(item){
-            const guitar = item.voicings?.guitar;
-            const exactFrets = Array.isArray(guitar?.frets) ? guitar.frets : null;
-            showEditorChordVisual(Object.assign(
-                { sectionKey, chordIndex:idx, instrument:project.instrument },
-                item,
-                exactFrets ? {
+            const instrument = project.instrument || 'piano';
+            const voicing = item.voicings?.[instrument];
+            const exactFrets = Array.isArray(voicing?.frets) ? voicing.frets : null;
+            const payload = Object.assign(
+                { sectionKey, chordIndex:idx, instrument },
+                item
+            );
+            if(exactFrets){
+                Object.assign(payload,{
                     exactFrets,
-                    exactMidis:Array.isArray(guitar.midis) ? guitar.midis : [],
-                    capo:guitar.capo || 0,
-                    barre:guitar.barre || null
-                } : {}
-            ));
+                    exactMidis:Array.isArray(voicing.midis) ? voicing.midis : [],
+                    exactStrings:Array.isArray(voicing.strings) ? voicing.strings : null,
+                    capo:voicing.capo || 0,
+                    barre:voicing.barre || null
+                });
+            }
+            if(instrument === 'piano' && voicing){
+                payload.voicings = {piano:voicing};
+                payload.leftHandMidis = parseNotes((voicing.leftHand?.notes || []).join(' '));
+                payload.rightHandMidis = parseNotes((voicing.rightHand?.notes || []).join(' '));
+                payload.pianoMode = voicing.leftHand?.mode || 'together';
+                payload.pianoPattern = voicing.leftHand?.pattern || [];
+            }
+            showEditorChordVisual(payload);
         }
         return idx;
     }
@@ -1689,15 +1486,26 @@ function installStudio936AppBridge(){
         );
         if(data.voicings){
             next.voicings = mergeVoicings(previous.voicings, data.voicings);
-            if(next.voicings.guitar && data.exactMidis.length){
-                next.voicings.guitar.midis = safeClone(data.exactMidis);
-                next.voicings.guitar.notes = data.notes;
-                next.voicings.guitar.bass = data.bass;
+            const instrumentVoicing = next.voicings[data.instrument];
+            if(instrumentVoicing && data.exactMidis.length){
+                instrumentVoicing.midis = safeClone(data.exactMidis);
+                instrumentVoicing.notes = data.notes;
+                instrumentVoicing.bass = data.bass;
+                instrumentVoicing.strings = safeClone(data.exactStrings || []);
+            }
+            if(VoicingStore && instrumentVoicing){
+                VoicingStore.remember(project,data.instrument,data.name,instrumentVoicing);
             }
         }
         data.seq[data.chordIndex] = next;
+        saveProject(false);
         const idx = refreshEditorAfterMutation(data.sectionKey, data.chordIndex);
-        return { ok:true, message:'Acorde y digitación aplicados al proyecto central.', chordIndex:idx, state:getEditorState() };
+        return {
+            ok:true,
+            message:'Acorde y voicing aplicados y guardados en la canción actual.',
+            chordIndex:idx,
+            state:getEditorState()
+        };
     }
     function addEditorChord(payload={}){
         const result = validateEditorPayload(payload);
@@ -1706,31 +1514,54 @@ function installStudio936AppBridge(){
         const item = Object.assign(
             {},
             chord(data.name, data.bass, data.notes, data.bars),
-            { name:data.name + ' copia' }
+            { name:data.name }
         );
         if(data.voicings){
             item.voicings = mergeVoicings(null, data.voicings);
-            if(item.voicings.guitar && data.exactMidis.length){
-                item.voicings.guitar.midis = safeClone(data.exactMidis);
-                item.voicings.guitar.notes = data.notes;
-                item.voicings.guitar.bass = data.bass;
+            const instrumentVoicing = item.voicings[data.instrument];
+            if(instrumentVoicing && data.exactMidis.length){
+                instrumentVoicing.midis = safeClone(data.exactMidis);
+                instrumentVoicing.notes = data.notes;
+                instrumentVoicing.bass = data.bass;
+                instrumentVoicing.strings = safeClone(data.exactStrings || []);
+            }
+            if(VoicingStore && instrumentVoicing){
+                VoicingStore.remember(project,data.instrument,data.name,instrumentVoicing);
+            }
+        } else if(VoicingStore){
+            const remembered = VoicingStore.recall(project,data.instrument,data.name);
+            if(remembered){
+                item.voicings = {[data.instrument]:remembered};
             }
         }
         const newIndex = Math.min(data.seq.length, data.chordIndex + 1);
         data.seq.splice(newIndex, 0, item);
+        saveProject(false);
         const idx = refreshEditorAfterMutation(data.sectionKey, newIndex);
-        return { ok:true, message:'Acorde agregado con su digitación.', chordIndex:idx, state:getEditorState() };
+        return {
+            ok:true,
+            message:'Acorde agregado con su voicing y guardado.',
+            chordIndex:idx,
+            state:getEditorState()
+        };
     }
     function duplicateEditorChord(sectionKey, index){
         const seq = project.sections?.[sectionKey];
         if(!Array.isArray(seq) || !seq.length) return { ok:false, message:'No hay acorde para duplicar.' };
         const idx = Math.max(0, Math.min(seq.length - 1, Number(index) || 0));
         const copy = safeClone(seq[idx]);
-        copy.name = String(copy.name || 'Acorde') + ' copia';
         const newIndex = idx + 1;
         seq.splice(newIndex, 0, copy);
+        if(VoicingStore){
+            ['piano','guitar','ukulele','bass'].forEach(instrument => {
+                if(copy?.voicings?.[instrument]){
+                    VoicingStore.remember(project,instrument,copy.name,copy.voicings[instrument]);
+                }
+            });
+        }
+        saveProject(false);
         const selected = refreshEditorAfterMutation(sectionKey, newIndex);
-        return { ok:true, message:'Acorde y digitación duplicados.', chordIndex:selected, state:getEditorState() };
+        return { ok:true, message:'Acorde duplicado exactamente con todos sus voicings.', chordIndex:selected, state:getEditorState() };
     }
     function deleteEditorChord(sectionKey, index){
         const seq = project.sections?.[sectionKey];
@@ -1743,7 +1574,7 @@ function installStudio936AppBridge(){
     }
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v1.4.2-compact-editor-ux',
+        version: 'suite-pro-bridge-v1.5.0-modular-instruments',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -2043,8 +1874,8 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     instrument.dataset.v19AutoFret='1';
     instrument.addEventListener('change',()=>{
       const p=load();
-      if(instrument.value==='guitar' || instrument.value==='ukulele'){
-        p.instrument=instrument.value; p.viewMode='fretboard'; p.fretMode=instrument.value==='ukulele'?'ukulele':'guitar'; save(p);
+      if(instrument.value==='guitar' || instrument.value==='ukulele' || instrument.value==='bass'){
+        p.instrument=instrument.value; p.viewMode='fretboard'; p.fretMode=instrument.value==='ukulele'?'ukulele':instrument.value==='bass'?'bass':'guitar'; save(p);
         if(fret) fret.value=p.fretMode;
         const pianoBox=$('pianoContainer');
         if(view && pianoBox && getComputedStyle(pianoBox).display!=='none') view.click();
@@ -2190,7 +2021,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     instrument.dataset.v20Return='1';
     instrument.addEventListener('change',()=>{
       const p=load(); p.instrument=instrument.value;
-      if(!['guitar','ukulele'].includes(instrument.value)){
+      if(!['guitar','ukulele','bass'].includes(instrument.value)){
         p.viewMode='piano'; save(p);
         const piano=$('pianoContainer'), fret=$('fretboardContainer'), toggle=$('viewToggleBtn');
         if(piano) piano.style.display='flex';
@@ -2618,7 +2449,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     document.documentElement.classList.remove('v23-zoom-on');
     const btn=$('pianoZoomBtn'); if(btn){btn.classList.remove('active'); btn.textContent=T('zoom');}
     const inst=$('instrumentSelect')?.value||'piano';
-    if(prevView==='fretboard' && ['guitar','ukulele'].includes(inst)){
+    if(prevView==='fretboard' && ['guitar','ukulele','bass'].includes(inst)){
       const piano=$('pianoContainer'), fret=$('fretboardContainer'), toggle=$('viewToggleBtn');
       if(piano) piano.style.display='none'; if(fret) fret.style.display='flex'; if(toggle) toggle.textContent=tr()==='en'?'Piano view':'Vista piano';
       renderChordCharts();
@@ -2642,8 +2473,8 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
   function forceInstrumentView(){
     const inst=$('instrumentSelect')?.value||'piano';
     const piano=$('pianoContainer'), fret=$('fretboardContainer'), toggle=$('viewToggleBtn'), fm=$('fretModeSelect');
-    if(['guitar','ukulele'].includes(inst)){
-      if(fm) fm.value=inst==='ukulele'?'ukulele':'guitar';
+    if(['guitar','ukulele','bass'].includes(inst)){
+      if(fm) fm.value=inst==='ukulele'?'ukulele':inst==='bass'?'bass':'guitar';
       if(piano) piano.style.display='none'; if(fret) fret.style.display='flex';
       if(toggle) toggle.textContent=tr()==='en'?'Piano view':'Vista piano';
       setTimeout(renderChordCharts,80);

@@ -63,7 +63,7 @@ function defaultArrangement(){
 }
 
 const defaultProject = () => ({
-    title:'Despertar de un Sueño', author:'Rafael Ipuz', bpm:95, style:'funk', instrument:'piano', arrangement: defaultArrangement(), grooveVol:7, viewMode:'piano', routingMode:'normal', fretMode:'guitar', tuningHz:440,
+    title:'Despertar de un Sueño', author:'Rafael Ipuz', bpm:95, style:'funk', instrument:'piano', arrangement: defaultArrangement(), grooveVol:7, viewMode:'piano', routingMode:'normal', fretMode:'guitar', tuningHz:440, voicingLibrary:normalizeVoicingLibrary(null),
     soloOn:true,
     soloPhrase:'D4:1 E4:1 G4:1 A4:1 C5:1 D5:1 F5:1 E5:1 C5:1 B4:1 A4:1 G4:1 R:2 G4:1 A4:1 C5:1 D5:1 E5:1 D5:1 C5:1 B4:1 A4:1 G4:2 F4:2 E4:2 C4:4',
     soloKey:'F', soloScale:'major',
@@ -178,6 +178,42 @@ const defaultProject = () => ({
 });
 function chord(name,bass,notes,bars){return {name,bass,notes,bars:Number(bars)||1};}
 
+function deepClone(value){
+    return value == null ? value : JSON.parse(JSON.stringify(value));
+}
+
+function normalizeChord(raw, fallback){
+    const source = raw && typeof raw === 'object' ? raw : (fallback || {});
+    const base = chord(
+        source.name || fallback?.name || 'C',
+        source.bass || fallback?.bass || 'C2',
+        source.notes || fallback?.notes || 'C3 E3 G3',
+        source.bars || fallback?.bars || 1
+    );
+    const out = {...deepClone(source), ...base};
+    if(source.voicings && typeof source.voicings === 'object'){
+        out.voicings = deepClone(source.voicings);
+    }
+    return out;
+}
+
+function normalizeVoicingLibrary(raw){
+    const instruments = ['piano','guitar','ukulele','bass'];
+    const out = {};
+    instruments.forEach(instrument=>{
+        out[instrument] = {};
+        const source = raw && typeof raw === 'object' ? raw[instrument] : null;
+        if(source && typeof source === 'object'){
+            Object.entries(source).forEach(([name,voicing])=>{
+                if(voicing && typeof voicing === 'object'){
+                    out[instrument][String(name).trim().toUpperCase()] = deepClone(voicing);
+                }
+            });
+        }
+    });
+    return out;
+}
+
 
 function clamp(n,a,b){return Math.max(a,Math.min(b,n));}
 
@@ -228,8 +264,9 @@ function normalizeProject(p, styles={}, instruments={}){
     merged.sectionSolos = normalizeSectionSolos(p.sectionSolos || null, p, d.sectionSolos);
     Object.keys(merged.sections).forEach(k=>{
         if(!Array.isArray(merged.sections[k]) || !merged.sections[k].length) merged.sections[k]=d.sections[k] || [chord('C','C2','C3 E3 G3',1)];
-        merged.sections[k] = merged.sections[k].map(x=>chord(x.name||'C', x.bass||'C2', x.notes||'C3 E3 G3', x.bars||1));
+        merged.sections[k] = merged.sections[k].map((x,i)=>normalizeChord(x, d.sections[k]?.[i] || null));
     });
+    merged.voicingLibrary = normalizeVoicingLibrary(p.voicingLibrary || merged.voicingLibrary);
     merged.arrangement = normalizeArrangement(p.arrangement, merged);
     if(styles && Object.keys(styles).length && !styles[merged.style]) merged.style='funk';
     if(instruments && Object.keys(instruments).length && !instruments[merged.instrument]) merged.instrument='piano';
@@ -256,6 +293,8 @@ return {
     defaultArrangement,
     defaultProject,
     chord,
+    normalizeChord,
+    normalizeVoicingLibrary,
     normalizeProject,
     normalizeArrangement,
     normalizeSectionSolos
