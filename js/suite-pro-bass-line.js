@@ -1,4 +1,4 @@
-// Studio 936 Composer - Bass Line Pro v0.6
+// Studio 936 Composer - Bass Line Pro v0.6.2 SAFE Isolation
 // Section-based bass pattern editor. Musical logic lives here; app.js only provides audio/persistence bridge.
 (function(){
 "use strict";
@@ -363,11 +363,8 @@ function showEventSurface(sectionKey,line,event,chords){
   const instruments=window.Studio936StringInstruments;
   const container=document.getElementById("fretboardContainer");
   if(!surface || !instruments || !container) return;
-  let editorState=bridge("getEditorState")||{};
-  if(editorState.instrument!=="bass"){
-    bridge("setEditorInstrument","bass");
-    editorState=bridge("getEditorState")||editorState;
-  }
+  bridge("mountEditorInstrumentSurface","bass");
+  const editorState=bridge("getEditorState")||{};
   const sectionName=(editorState.sectionOptions||[]).find(entry=>entry[0]===sectionKey)?.[1]||sectionKey;
   const data=bassSurfacePayload(sectionKey,line,event,chords);
   data.sectionName=sectionName;
@@ -630,7 +627,7 @@ function render(options={}){
     if(!line.events.length) return setStatus("La línea está vacía. Genera un patrón o escribe notas desde el cuello.",true);
     stopCursor();
     clearScheduledAudio();
-    if((bridge("getEditorState")||{}).instrument!=="bass") bridge("setEditorInstrument","bass");
+    bridge("mountEditorInstrumentSurface","bass");
     const bpm=Number(state.bpm||options.bpm||95);
     const stepSeconds=60/bpm/4;
     const totalSteps=line.bars*16;

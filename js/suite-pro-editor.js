@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Editor v0.6
+// Studio 936 Composer - Suite Pro Editor v0.6.2 SAFE Isolation
 // Scope: Editor tab inside Compose.
 // Refines the guitar UX with a compact interactive chart, realistic neck, exact voicings, TAB and lifecycle cleanup.
 // It does not replace or delete the legacy editor.
@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.6-bass-line";
+  const VERSION = "editor-v0.6.2-safe-isolation";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -114,6 +114,9 @@
 #s936SuitePro .s936-ed-input[readonly]{color:#bfffee;background:rgba(0,255,204,.045)}
 #s936SuitePro .s936-ed-input:focus,#s936SuitePro .s936-ed-select:focus{outline:none;border-color:rgba(0,255,204,.72);box-shadow:0 0 0 2px rgba(0,255,204,.10)}
 #s936SuitePro .s936-ed-instruments{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin:8px 0}
+#s936SuitePro .s936-ed-instruments-isolated{display:flex!important;flex-wrap:nowrap!important;width:100%!important;min-width:0!important}
+#s936SuitePro .s936-ed-instruments-isolated>.s936-ed-inst{display:flex!important;flex:1 1 0!important;width:auto!important;min-width:0!important;visibility:visible!important;opacity:1!important;position:relative!important;inset:auto!important}
+
 #s936SuitePro .s936-ed-inst{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:clip;border:1px solid rgba(255,255,255,.16);border-radius:11px;background:rgba(255,255,255,.05);color:#fff;padding:7px 2px;font-size:.53rem;font-weight:950;text-transform:uppercase;cursor:pointer}
 #s936SuitePro .s936-ed-inst.active{border-color:#00ffcc;background:rgba(0,255,204,.14);color:#bfffee}
 #s936SuitePro .s936-ed-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
@@ -812,6 +815,8 @@
     const verify = () => {
       setTimeout(() => {
         if (!suiteEditorIsVisible(root)) {
+          try { activeController?.stop?.(); } catch (error) {}
+          try { activeController?.destroy?.(); } catch (error) {}
           activeController = null;
           bridge("deactivateEditorSurface");
         }
@@ -842,6 +847,8 @@
 
   function paint(ctx, host) {
     installStyles();
+    try { activeController?.stop?.(); } catch (error) {}
+    try { activeController?.destroy?.(); } catch (error) {}
     activeController = null;
     const data = getEditorState();
     const sections = data.sections || {};
@@ -855,6 +862,7 @@
     state.sectionKey = sections[state.sectionKey] ? state.sectionKey : (data.sectionKey || sectionKeys[0]);
     state.chordIndex = state.chordIndex === null ? (Number(data.chordIndex) || 0) : (Number(state.chordIndex) || 0);
     state.instrument = state.instrument || data.instrument || "piano";
+    bridge("mountEditorInstrumentSurface", state.instrument);
 
     const seq = Array.isArray(sections[state.sectionKey]) ? sections[state.sectionKey] : [];
     if (state.chordIndex >= seq.length) state.chordIndex = Math.max(0, seq.length - 1);
@@ -894,29 +902,71 @@
     });
     card.appendChild(helpPop);
 
-    const instruments = el(ctx, "div", "s936-ed-instruments");
+    const instruments = document.createElement("div");
+    instruments.className = "s936-ed-instruments s936-ed-instruments-isolated";
+    instruments.setAttribute("role", "tablist");
+    instruments.setAttribute("aria-label", "Instrumentos del Editor Pro");
+    Object.assign(instruments.style, {
+      display:"flex",
+      flexWrap:"nowrap",
+      gap:"5px",
+      width:"100%",
+      minWidth:"0",
+      alignItems:"stretch"
+    });
+
     [["piano","Piano"],["guitar","Guitarra"],["ukulele","Ukelele"],["bass","Bajo"]].forEach(([key,label]) => {
-      const btn = el(ctx, "button", "s936-ed-inst" + (state.instrument === key ? " active" : ""), label);
+      const btn = document.createElement("button");
+      btn.className = "s936-ed-inst" + (state.instrument === key ? " active" : "");
       btn.type = "button";
+      btn.textContent = label;
+      btn.dataset.instrument = key;
+      btn.title = label;
+      btn.setAttribute("role", "tab");
+      btn.setAttribute("aria-label", `Abrir ${label}`);
+      btn.setAttribute("aria-selected", String(state.instrument === key));
+      Object.assign(btn.style, {
+        display:"flex",
+        alignItems:"center",
+        justifyContent:"center",
+        flex:"1 1 0",
+        minWidth:"0",
+        width:"auto",
+        whiteSpace:"nowrap",
+        overflow:"hidden"
+      });
       btn.addEventListener("click", () => {
-        const response = bridge("setEditorInstrument", key);
-        if (response?.ok === false) return;
+        try { activeController?.stop?.(); } catch (error) {}
+        try { activeController?.destroy?.(); } catch (error) {}
+        activeController = null;
         state.instrument = key;
         state.miniStartFret = null;
         if (key === "bass") state.bassMode = "line";
-        if (!isStringInstrument(key)) bridge("deactivateEditorSurface");
+        const response = bridge("setEditorInstrument", key);
+        if (response?.ok === false) {
+          setTimeout(() => renderModule(ctx, host), 0);
+          return;
+        }
         renderModule(ctx, host);
       });
       instruments.appendChild(btn);
     });
     card.appendChild(instruments);
+    shell.appendChild(card);
+
+    if (state.instrument === "bass" && state.bassMode !== "position" && !BassLine) {
+      state.bassMode = "position";
+      const warning = el(ctx, "div", "s936-ed-status", "Bass Line Pro no está disponible; se abrió el modo Posición / voicing.");
+      card.appendChild(warning);
+    }
 
     if (state.instrument === "bass" && state.bassMode !== "position" && BassLine) {
       const sectionOptionsForBass = (data.sectionOptions || sectionKeys.map(k => [k, humanize(k)]))
         .filter(entry => Array.isArray(entry) && sections[entry[0]])
         .map(entry => [entry[0], entry[1] || humanize(entry[0])]);
+      const bassHost = el(ctx, "section", "s936-ed-card s936-ed-bass-host");
       activeController = BassLine.render({
-        host:card,
+        host:bassHost,
         sectionKey:state.sectionKey,
         sectionName:(sectionOptionsForBass.find(entry => entry[0] === state.sectionKey) || [state.sectionKey,humanize(state.sectionKey)])[1],
         sectionOptions:sectionOptionsForBass,
@@ -933,7 +983,7 @@
           renderModule(ctx, host);
         }
       });
-      shell.appendChild(card);
+      shell.appendChild(bassHost);
       host.appendChild(shell);
       return;
     }
@@ -1449,7 +1499,6 @@
         "Piano: mano izquierda para bajos simples, octavados, simultáneos o alternados; mano derecha para el voicing completo."
       ));
     }
-    shell.appendChild(card);
     host.appendChild(shell);
 
     recalculate();
@@ -1467,7 +1516,21 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProEditor = {
+    window.Studio936DebugEditorInstruments = function () {
+    const buttons = Array.from(document.querySelectorAll("#s936SuitePro .s936-ed-inst"));
+    return {
+      version:VERSION,
+      count:buttons.length,
+      instruments:buttons.map(button => ({
+        key:button.dataset.instrument || "",
+        label:String(button.textContent || "").trim(),
+        active:button.classList.contains("active"),
+        visible:!!(button.offsetWidth || button.offsetHeight || button.getClientRects().length)
+      }))
+    };
+  };
+
+  window.Studio936SuiteProEditor = {
       version:VERSION,
       render,
       externalSetFret(stringIndex, fret) {
