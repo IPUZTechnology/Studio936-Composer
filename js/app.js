@@ -88,6 +88,7 @@ const els = {
 };
 let project = loadProject();
 const EDITOR_INSTRUMENT_IDS = ['piano','guitar','ukulele','bass'];
+const EDITOR_SURFACE_IDS = [...EDITOR_INSTRUMENT_IDS,'drums'];
 let editorInstrument = EDITOR_INSTRUMENT_IDS.includes(project.instrument) ? project.instrument : 'piano';
 const InstrumentSurfaceManager = window.Studio936InstrumentSurfaceManager;
 if(!InstrumentSurfaceManager || typeof InstrumentSurfaceManager.configure !== 'function'){
@@ -97,6 +98,7 @@ InstrumentSurfaceManager.configure({
     pianoContainer:()=>document.getElementById('pianoContainer'),
     fretboardContainer:()=>els.fretboardContainer || document.getElementById('fretboardContainer'),
     stringSurface:()=>window.Studio936StringSurface || null,
+    drumSurface:()=>window.Studio936DrumSurface || null,
     getMainInstrument:()=>project.instrument || 'piano'
 });
 
@@ -104,9 +106,25 @@ function captureEditorSurfaceSession(){
     return InstrumentSurfaceManager.beginEditorSession(editorInstrument);
 }
 function mountEditorInstrumentSurface(instrument){
-    const value = EDITOR_INSTRUMENT_IDS.includes(instrument) ? instrument : 'piano';
+    const value = EDITOR_SURFACE_IDS.includes(instrument) ? instrument : 'piano';
     editorInstrument = value;
     return InstrumentSurfaceManager.showEditorInstrument(value);
+}
+function mountEditorDrumSurface(payload={}){
+    editorInstrument = 'drums';
+    return InstrumentSurfaceManager.renderEditorDrums({
+        pattern:payload.pattern || {},
+        sectionName:String(payload.sectionName || sectionNames[payload.sectionKey] || payload.sectionKey || 'Sección'),
+        renderer:window.Studio936DrumSurface || null,
+        onLaneSelect:typeof payload.onLaneSelect === 'function' ? payload.onLaneSelect : null,
+        onLaneTrigger:typeof payload.onLaneTrigger === 'function' ? payload.onLaneTrigger : null
+    });
+}
+function flashEditorDrumLane(laneId,velocity=.82,duration=160){
+    return InstrumentSurfaceManager.flashEditorDrumLane(laneId,velocity,duration);
+}
+function selectEditorDrumLane(laneId){
+    return InstrumentSurfaceManager.selectEditorDrumLane(laneId);
 }
 function withEditorPreviewInstrument(instrument,callback){
     const previous = editorPreviewInstrument;
@@ -1315,7 +1333,7 @@ function installStudio936AppBridge(){
     }
     installEditorSurfaceCleanup();
     function setEditorInstrument(instrument){
-        const value = EDITOR_INSTRUMENT_IDS.includes(instrument) ? instrument : 'piano';
+        const value = EDITOR_SURFACE_IDS.includes(instrument) ? instrument : 'piano';
         mountEditorInstrumentSurface(value);
         return Object.assign({
             ok:true,
@@ -1707,7 +1725,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v1.7.1-instrumental-pro',
+        version: 'suite-pro-bridge-v1.7.1.2-drum-surface',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -1719,6 +1737,9 @@ function installStudio936AppBridge(){
         selectEditorChord,
         setEditorInstrument,
         mountEditorInstrumentSurface,
+        mountEditorDrumSurface,
+        flashEditorDrumLane,
+        selectEditorDrumLane,
         deactivateEditorSurface,
         getInstrumentSurfaceState:()=>InstrumentSurfaceManager.getState(),
         showEditorChordVisual,

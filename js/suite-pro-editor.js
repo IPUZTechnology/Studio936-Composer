@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.1-instrumental-pro";
+  const VERSION = "editor-v0.7.1.2-drum-surface";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -199,7 +199,7 @@
 
 /* Editor Pro guitar surface outside Suite Pro */
 #fretboardContainer.s936-editor-surface-active{display:block!important;overflow:hidden!important;padding:0!important;background:#050707!important}
-#fretboardContainer.s936-editor-surface-active > *:not(#s936EditorGuitarSurface){display:none!important}
+#fretboardContainer.s936-editor-surface-active > *:not(#s936EditorGuitarSurface):not(#s936EditorDrumSurface){display:none!important}
 #s936EditorGuitarSurface{display:flex;flex-direction:column;gap:11px;box-sizing:border-box;width:100%;min-height:100%;padding:14px;background:radial-gradient(circle at 48% 28%,rgba(0,255,204,.045),transparent 38%),#050707;color:#fff}
 #s936EditorGuitarSurface .s936-neck-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:2px 2px 0}
 #s936EditorGuitarSurface .s936-neck-title{color:#8affff;font-size:.76rem;font-weight:950;text-transform:uppercase;letter-spacing:.8px}
@@ -918,7 +918,7 @@
 
         let response = null;
         if (key === "lead") response = bridge("setEditorInstrument", "guitar");
-        else if (key === "drums") response = bridge("deactivateEditorSurface");
+        else if (key === "drums") response = bridge("mountEditorInstrumentSurface", "drums");
         else response = bridge("setEditorInstrument", key);
 
         if (response?.ok === false) {
@@ -970,7 +970,7 @@
     state.chordIndex = state.chordIndex === null ? (Number(data.chordIndex) || 0) : (Number(state.chordIndex) || 0);
     state.instrument = state.instrument || data.instrument || "piano";
     if (state.instrument === "lead") bridge("mountEditorInstrumentSurface", "guitar");
-    else if (state.instrument === "drums") bridge("deactivateEditorSurface");
+    else if (state.instrument === "drums") bridge("mountEditorInstrumentSurface", "drums");
     else bridge("mountEditorInstrumentSurface", state.instrument);
 
     const seq = Array.isArray(sections[state.sectionKey]) ? sections[state.sectionKey] : [];

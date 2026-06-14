@@ -3,9 +3,10 @@
 (function(){
 "use strict";
 
-const VERSION = "drum-composer-v0.7.1";
+const VERSION = "drum-composer-v0.7.1.2";
 const STYLE_ID = "s936DrumComposerStyles";
 const Core = window.Studio936SequencerCore;
+const DrumSurface = window.Studio936DrumSurface || null;
 
 const LANES = [
   {id:"kick",label:"Bombo",short:"BD",group:"core",defaultVolume:.92},
@@ -51,6 +52,8 @@ const PERCUSSION_VOICES = [
 let activeController = null;
 let audioCtx = null;
 let timer = null;
+let selectedLaneId = "kick";
+const visualTimers = new Set();
 
 function bridge(name,...args){
   const fn=window.Studio936AppBridge?.[name];
@@ -113,6 +116,7 @@ function installStyles(){
 #s936SuitePro .s936-dc-workspace{display:grid;grid-template-columns:minmax(205px,260px) minmax(0,1fr);gap:9px;align-items:start}
 #s936SuitePro .s936-dc-kit{display:grid;gap:6px}
 #s936SuitePro .s936-dc-lane-control{display:grid;grid-template-columns:26px minmax(0,1fr) 28px 28px;gap:5px;align-items:center;border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:6px;background:rgba(255,255,255,.025)}
+#s936SuitePro .s936-dc-lane-control.selected{border-color:rgba(0,255,204,.7);box-shadow:0 0 0 2px rgba(0,255,204,.12),0 0 18px rgba(0,255,204,.12)}
 #s936SuitePro .s936-dc-lane-control.off{opacity:.42}
 #s936SuitePro .s936-dc-lane-control.solo{border-color:rgba(255,210,70,.52);background:rgba(255,210,70,.07)}
 #s936SuitePro .s936-dc-lane-control.muted{border-color:rgba(255,75,75,.42)}
@@ -374,6 +378,7 @@ function render(options={}){
   const sectionOptions=state.sectionOptions||options.sectionOptions||[];
   let pattern=normalizePattern(state.drumPatterns?.[sectionKey]||{},chords,state.bpm||options.bpm||95);
   let playingStep=-1;
+  const laneRows=new Map();
 
   const shell=el("div","s936-dc-shell");
   const config=el("section","s936-dc-panel primary");
@@ -452,6 +457,49 @@ function render(options={}){
     status.textContent=message;
     status.classList.toggle("error",!!error);
   }
+  function clearVisualTimers(){
+    visualTimers.forEach(handle=>clearTimeout(handle));
+    visualTimers.clear();
+  }
+  function sectionLabel(){
+    const match=sectionOptions.find(entry=>String(entry?.[0])===String(sectionKey));
+    return match?.[1] || options.sectionName || sectionKey;
+  }
+  function syncSurface(){
+    return bridge("mountEditorDrumSurface",{
+      sectionKey,
+      sectionName:sectionLabel(),
+      pattern:clone(pattern),
+      onLaneSelect:laneId=>focusLane(laneId,true),
+      onLaneTrigger:(laneId,velocity)=>previewLane(laneId,velocity)
+    });
+  }
+  function focusLane(laneId,scroll=false){
+    if(!LANES.some(def=>def.id===laneId)) return;
+    selectedLaneId=laneId;
+    kitList.querySelectorAll(".s936-dc-lane-control").forEach(row=>{
+      row.classList.toggle("selected",row.dataset.lane===laneId);
+    });
+    const row=laneRows.get(laneId);
+    if(scroll&&row?.scrollIntoView){
+      row.scrollIntoView({block:"nearest",behavior:"smooth"});
+    }
+    bridge("selectEditorDrumLane",laneId);
+  }
+  function previewLane(laneId,velocity=.9){
+    const def=LANES.find(item=>item.id===laneId);
+    const lane=pattern.lanes[laneId];
+    if(!def||!lane) return;
+    focusLane(laneId,true);
+    if(!ensureAudio()){
+      setStatus("AudioContext no disponible.",true);
+      return;
+    }
+    const when=audioCtx.currentTime+.015;
+    playLane(laneId,clamp(velocity,0,1),pattern,when);
+    bridge("flashEditorDrumLane",laneId,velocity,190);
+    setStatus(`${def.label} · vista previa`);
+  }
   function syncConfig(){
     pattern.kit=kitSelect.value;
     pattern.preset=presetSelect.value;
@@ -495,9 +543,12 @@ function render(options={}){
   }
   function redrawKit(){
     kitList.innerHTML="";
+    laneRows.clear();
     LANES.forEach(def=>{
       const lane=pattern.lanes[def.id];
       const row=el("div","s936-dc-lane-control");
+      row.dataset.lane=def.id;
+      if(def.id===selectedLaneId) row.classList.add("selected");
       if(!lane.enabled) row.classList.add("off");
       if(lane.mute) row.classList.add("muted");
       if(lane.solo) row.classList.add("solo");
@@ -507,10 +558,12 @@ function render(options={}){
       enabled.addEventListener("change",()=>{lane.enabled=enabled.checked;persist(false);redraw();});
       const name=el("div","s936-dc-lane-name");
       const label=el("b","",def.label);
+      label.title=`Seleccionar ${def.label}`;
+      label.addEventListener("click",()=>focusLane(def.id,false));
       const volume=document.createElement("input");
       volume.type="range";volume.min="0";volume.max="1";volume.step=".01";volume.value=String(lane.volume);
       volume.title=`Volumen ${def.label}`;
-      volume.addEventListener("input",()=>{lane.volume=clamp(volume.value,0,1);persist(false);});
+      volume.addEventListener("input",()=>{lane.volume=clamp(volume.value,0,1);persist(false);syncSurface();});
       name.append(label,volume);
       const mute=el("button","s936-dc-mini"+(lane.mute?" active":""),"M");
       mute.type="button";mute.title="Mute";mute.addEventListener("click",()=>{lane.mute=!lane.mute;persist(false);redraw();});
@@ -518,6 +571,7 @@ function render(options={}){
       solo.type="button";solo.title="Solo";solo.addEventListener("click",()=>{lane.solo=!lane.solo;persist(false);redraw();});
       row.append(enabled,name,mute,solo);
       kitList.appendChild(row);
+      laneRows.set(def.id,row);
     });
   }
   function redrawGrid(){
@@ -559,6 +613,7 @@ function render(options={}){
     redrawKit();
     redrawGrid();
     gridHead.lastChild.textContent=`${pattern.bars} compás(es) · ${LANES.reduce((sum,def)=>sum+Object.keys(pattern.lanes[def.id].hits).length,0)} golpes`;
+    syncSurface();
   }
   function playStep(step){
     const bpm=Number(state.bpm||options.bpm||95);
@@ -570,7 +625,14 @@ function render(options={}){
       if(!velocity||!audibleLane(lane)) return;
       const human=(Math.random()*2-1)*pattern.humanize*stepSeconds;
       const swing=(step%2?pattern.swing*stepSeconds:0);
-      playLane(def.id,velocity,pattern,Math.max(audioCtx.currentTime,now+human+swing));
+      const when=Math.max(audioCtx.currentTime,now+human+swing);
+      playLane(def.id,velocity,pattern,when);
+      const delay=Math.max(0,(when-audioCtx.currentTime)*1000);
+      const handle=setTimeout(()=>{
+        visualTimers.delete(handle);
+        bridge("flashEditorDrumLane",def.id,velocity,Math.max(90,stepSeconds*720));
+      },delay);
+      visualTimers.add(handle);
     });
   }
   function play(){
@@ -597,7 +659,13 @@ function render(options={}){
   }
   function stopPlayback(){
     if(timer) clearTimeout(timer);
-    timer=null;playingStep=-1;redrawGrid();setStatus("Batería detenida.");
+    timer=null;
+    visualTimers.forEach(handle=>clearTimeout(handle));
+    visualTimers.clear();
+    window.Studio936DrumSurface?.clearActive?.();
+    playingStep=-1;
+    if(grid) redrawGrid();
+    setStatus("Batería detenida.");
   }
 
   sectionSelect.addEventListener("change",()=>{
@@ -609,8 +677,12 @@ function render(options={}){
 
   const controller={
     stop:stopPlayback,
-    destroy:stopPlayback,
-    getPattern(){return clone(pattern);}
+    destroy(){
+      stopPlayback();
+      window.Studio936DrumSurface?.clearActive?.();
+    },
+    getPattern(){return clone(pattern);},
+    selectLane:focusLane
   };
   activeController=controller;
   redraw();
