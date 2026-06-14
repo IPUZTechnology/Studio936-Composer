@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Editor v0.7.0 Surface Manager
+// Studio 936 Composer - Suite Pro Editor v0.7.0.3 Persistent Instrument Tabs
 // Scope: Editor tab inside Compose.
 // Refines the guitar UX with a compact interactive chart, realistic neck, exact voicings, TAB and lifecycle cleanup.
 // It does not replace or delete the legacy editor.
@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.0-surface-manager";
+  const VERSION = "editor-v0.7.0.3-persistent-tabs";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -114,6 +114,8 @@
 #s936SuitePro .s936-ed-input[readonly]{color:#bfffee;background:rgba(0,255,204,.045)}
 #s936SuitePro .s936-ed-input:focus,#s936SuitePro .s936-ed-select:focus{outline:none;border-color:rgba(0,255,204,.72);box-shadow:0 0 0 2px rgba(0,255,204,.10)}
 #s936SuitePro .s936-ed-instruments{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin:8px 0}
+#s936SuitePro .s936-ed-instruments-persistent{position:sticky!important;top:0!important;z-index:40!important;display:flex!important;visibility:visible!important;opacity:1!important}
+#s936SuitePro .s936-ed-instrument-content{min-width:0}
 #s936SuitePro .s936-ed-instruments-isolated{display:flex!important;flex-wrap:nowrap!important;width:100%!important;min-width:0!important}
 #s936SuitePro .s936-ed-instruments-isolated>.s936-ed-inst{display:flex!important;flex:1 1 0!important;width:auto!important;min-width:0!important;visibility:visible!important;opacity:1!important;position:relative!important;inset:auto!important}
 
@@ -837,12 +839,108 @@
     }, true);
   }
 
+  function syncPersistentInstrumentTabs(tabs) {
+    if (!tabs) return;
+    tabs.querySelectorAll(".s936-ed-inst").forEach(button => {
+      const active = button.dataset.instrument === state.instrument;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+      button.tabIndex = active ? 0 : -1;
+    });
+  }
+
+  function createPersistentInstrumentTabs(ctx, contentHost) {
+    const instruments = document.createElement("div");
+    instruments.id = "s936EditorInstrumentTabs";
+    instruments.className = "s936-ed-instruments s936-ed-instruments-isolated s936-ed-instruments-persistent";
+    instruments.dataset.surfaceIndependent = "true";
+    instruments.setAttribute("role", "tablist");
+    instruments.setAttribute("aria-label", "Instrumentos del Editor Pro");
+
+    Object.assign(instruments.style, {
+      display:"flex",
+      flexWrap:"nowrap",
+      gap:"5px",
+      width:"100%",
+      minWidth:"0",
+      alignItems:"stretch",
+      position:"sticky",
+      top:"0",
+      zIndex:"40",
+      boxSizing:"border-box",
+      padding:"7px",
+      marginBottom:"8px",
+      border:"1px solid rgba(255,255,255,.12)",
+      borderRadius:"12px",
+      background:"rgba(10,12,18,.96)",
+      backdropFilter:"blur(12px)",
+      boxShadow:"0 8px 22px rgba(0,0,0,.28)"
+    });
+
+    [["piano","Piano"],["guitar","Guitarra"],["ukulele","Ukelele"],["bass","Bajo"]].forEach(([key,label]) => {
+      const btn = document.createElement("button");
+      btn.className = "s936-ed-inst";
+      btn.type = "button";
+      btn.textContent = label;
+      btn.dataset.instrument = key;
+      btn.title = label;
+      btn.setAttribute("role", "tab");
+      btn.setAttribute("aria-label", `Abrir ${label}`);
+
+      Object.assign(btn.style, {
+        display:"flex",
+        alignItems:"center",
+        justifyContent:"center",
+        flex:"1 1 0",
+        minWidth:"0",
+        width:"auto",
+        whiteSpace:"nowrap",
+        overflow:"hidden"
+      });
+
+      btn.addEventListener("click", () => {
+        if (state.instrument === key) return;
+
+        try { activeController?.stop?.(); } catch (error) {}
+        try { activeController?.destroy?.(); } catch (error) {}
+        activeController = null;
+
+        state.instrument = key;
+        state.miniStartFret = null;
+        if (key === "bass") state.bassMode = "line";
+
+        syncPersistentInstrumentTabs(instruments);
+
+        const response = bridge("setEditorInstrument", key);
+        if (response?.ok === false) {
+          setTimeout(() => renderModule(ctx, contentHost), 0);
+          return;
+        }
+
+        renderModule(ctx, contentHost);
+      });
+
+      instruments.appendChild(btn);
+    });
+
+    syncPersistentInstrumentTabs(instruments);
+    return instruments;
+  }
+
   function render(ctx, host) {
     installStyles();
     watchLifecycle();
+
+    const initialData = getEditorState();
+    state.instrument = state.instrument || initialData.instrument || "piano";
+
     const mount = el(ctx, "div", "s936-ed-module");
+    const contentHost = el(ctx, "div", "s936-ed-instrument-content");
+    const tabs = createPersistentInstrumentTabs(ctx, contentHost);
+
+    mount.append(tabs, contentHost);
     host.appendChild(mount);
-    paint(ctx, mount);
+    paint(ctx, contentHost);
   }
 
   function paint(ctx, host) {
@@ -902,58 +1000,6 @@
     });
     card.appendChild(helpPop);
 
-    const instruments = document.createElement("div");
-    instruments.id = "s936EditorInstrumentTabs";
-    instruments.className = "s936-ed-instruments s936-ed-instruments-isolated";
-    instruments.dataset.surfaceIndependent = "true";
-    instruments.setAttribute("role", "tablist");
-    instruments.setAttribute("aria-label", "Instrumentos del Editor Pro");
-    Object.assign(instruments.style, {
-      display:"flex",
-      flexWrap:"nowrap",
-      gap:"5px",
-      width:"100%",
-      minWidth:"0",
-      alignItems:"stretch"
-    });
-
-    [["piano","Piano"],["guitar","Guitarra"],["ukulele","Ukelele"],["bass","Bajo"]].forEach(([key,label]) => {
-      const btn = document.createElement("button");
-      btn.className = "s936-ed-inst" + (state.instrument === key ? " active" : "");
-      btn.type = "button";
-      btn.textContent = label;
-      btn.dataset.instrument = key;
-      btn.title = label;
-      btn.setAttribute("role", "tab");
-      btn.setAttribute("aria-label", `Abrir ${label}`);
-      btn.setAttribute("aria-selected", String(state.instrument === key));
-      Object.assign(btn.style, {
-        display:"flex",
-        alignItems:"center",
-        justifyContent:"center",
-        flex:"1 1 0",
-        minWidth:"0",
-        width:"auto",
-        whiteSpace:"nowrap",
-        overflow:"hidden"
-      });
-      btn.addEventListener("click", () => {
-        try { activeController?.stop?.(); } catch (error) {}
-        try { activeController?.destroy?.(); } catch (error) {}
-        activeController = null;
-        state.instrument = key;
-        state.miniStartFret = null;
-        if (key === "bass") state.bassMode = "line";
-        const response = bridge("setEditorInstrument", key);
-        if (response?.ok === false) {
-          setTimeout(() => renderModule(ctx, host), 0);
-          return;
-        }
-        renderModule(ctx, host);
-      });
-      instruments.appendChild(btn);
-    });
-    card.appendChild(instruments);
     shell.appendChild(card);
 
     if (state.instrument === "bass" && state.bassMode !== "position" && !BassLine) {
