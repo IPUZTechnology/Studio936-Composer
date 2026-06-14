@@ -359,21 +359,14 @@ function bassSurfacePayload(sectionKey,line,event,chords){
   };
 }
 function showEventSurface(sectionKey,line,event,chords){
-  const surface=window.Studio936StringSurface;
-  const instruments=window.Studio936StringInstruments;
-  const container=document.getElementById("fretboardContainer");
-  if(!surface || !instruments || !container) return;
-  bridge("mountEditorInstrumentSurface","bass");
   const editorState=bridge("getEditorState")||{};
   const sectionName=(editorState.sectionOptions||[]).find(entry=>entry[0]===sectionKey)?.[1]||sectionKey;
   const data=bassSurfacePayload(sectionKey,line,event,chords);
   data.sectionName=sectionName;
-  surface.render({
-    container,
-    data,
-    profiles:instruments.profiles,
-    sectionNames:{[sectionKey]:sectionName}
-  });
+  const result=bridge("showEditorChordVisual",data);
+  if(result?.ok===false){
+    console.warn("Bass Line Pro: no se pudo mostrar la superficie del Bajo.",result.message||result);
+  }
 }
 function stopCursor(){
   if(previewTimer){ clearInterval(previewTimer); previewTimer=null; }

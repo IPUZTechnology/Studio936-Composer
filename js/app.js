@@ -89,45 +89,24 @@ const els = {
 let project = loadProject();
 const EDITOR_INSTRUMENT_IDS = ['piano','guitar','ukulele','bass'];
 let editorInstrument = EDITOR_INSTRUMENT_IDS.includes(project.instrument) ? project.instrument : 'piano';
-let editorSurfaceSession = null;
+const InstrumentSurfaceManager = window.Studio936InstrumentSurfaceManager;
+if(!InstrumentSurfaceManager || typeof InstrumentSurfaceManager.configure !== 'function'){
+    throw new Error('Studio936InstrumentSurfaceManager no está cargado. Revisa el orden de scripts antes de js/app.js.');
+}
+InstrumentSurfaceManager.configure({
+    pianoContainer:()=>document.getElementById('pianoContainer'),
+    fretboardContainer:()=>els.fretboardContainer || document.getElementById('fretboardContainer'),
+    stringSurface:()=>window.Studio936StringSurface || null,
+    getMainInstrument:()=>project.instrument || 'piano'
+});
 
 function captureEditorSurfaceSession(){
-    if(editorSurfaceSession) return editorSurfaceSession;
-    const pianoBox = document.getElementById('pianoContainer');
-    const fretboardBox = els.fretboardContainer || document.getElementById('fretboardContainer');
-    editorSurfaceSession = {
-        pianoDisplay: pianoBox ? pianoBox.style.display : '',
-        fretboardDisplay: fretboardBox ? fretboardBox.style.display : '',
-        active: true
-    };
-    return editorSurfaceSession;
+    return InstrumentSurfaceManager.beginEditorSession(editorInstrument);
 }
 function mountEditorInstrumentSurface(instrument){
     const value = EDITOR_INSTRUMENT_IDS.includes(instrument) ? instrument : 'piano';
     editorInstrument = value;
-    captureEditorSurfaceSession();
-
-    const pianoBox = document.getElementById('pianoContainer');
-    const fretboardBox = els.fretboardContainer || document.getElementById('fretboardContainer');
-
-    if(value === 'piano'){
-        StringSurface?.clear?.();
-        if(fretboardBox){
-            fretboardBox.classList.remove('s936-editor-surface-active');
-            fretboardBox.removeAttribute('data-s936-editor-surface');
-            fretboardBox.style.display = 'none';
-        }
-        if(pianoBox) pianoBox.style.display = 'flex';
-    } else {
-        const exactSurface = document.getElementById('s936EditorGuitarSurface');
-        if(exactSurface && exactSurface.dataset.instrument !== value){
-            StringSurface?.clear?.();
-        }
-        if(pianoBox) pianoBox.style.display = 'none';
-        if(fretboardBox) fretboardBox.style.display = 'flex';
-    }
-    document.body?.setAttribute('data-s936-editor-instrument', value);
-    return {ok:true,instrument:value};
+    return InstrumentSurfaceManager.showEditorInstrument(value);
 }
 function withEditorPreviewInstrument(instrument,callback){
     const previous = editorPreviewInstrument;
@@ -1016,6 +995,9 @@ function bind(){
             setViewMode('fretboard');
             buildFretboard(); updateFretboardMap();
             flashStatus(project.instrument === 'ukulele' ? 'Vista de diapasón ukelele activa.' : project.instrument === 'bass' ? 'Vista de diapasón bajo activa.' : 'Vista de diapasón guitarra activa.');
+        } else {
+            setViewMode('piano');
+            flashStatus(project.instrument === 'piano' ? 'Vista de piano activa.' : 'Vista de teclado activa para ' + (instruments[project.instrument]?.label || project.instrument) + '.');
         }
         updateStyleHelp(); saveProject(false);
     };
@@ -1298,28 +1280,12 @@ function installStudio936AppBridge(){
         return Object.assign({ ok:true }, getEditorState());
     }
     function deactivateEditorSurface(){
-        const pianoBox = document.getElementById('pianoContainer');
-        const container = els.fretboardContainer || document.getElementById('fretboardContainer');
-
-        if(container){
-            container.classList.remove('s936-editor-surface-active');
-            container.removeAttribute('data-s936-editor-surface');
-        }
-        StringSurface?.clear?.();
-        document.querySelectorAll('#s936EditorGuitarSurface').forEach(node => node.remove());
-        document.querySelectorAll('.s936-finger-pop').forEach(node => node.remove());
-        document.body?.classList.remove('s936-editor-guitar-surface');
-        document.body?.removeAttribute('data-s936-editor-instrument');
-
-        if(editorSurfaceSession){
-            if(pianoBox) pianoBox.style.display = editorSurfaceSession.pianoDisplay;
-            if(container) container.style.display = editorSurfaceSession.fretboardDisplay;
-            editorSurfaceSession = null;
-        }
+        const result = InstrumentSurfaceManager.endEditorSession({restore:true});
         return {
             ok:true,
             instrument:editorInstrument,
-            mainInstrument:project.instrument || 'piano'
+            mainInstrument:project.instrument || 'piano',
+            surface:result
         };
     }
     function clearExactVoicingMap(){
@@ -1408,11 +1374,12 @@ function installStudio936AppBridge(){
         }
 
         if(stringExact && StringSurface && StringInstruments){
-            StringSurface.render({
-                container:els.fretboardContainer,
+            InstrumentSurfaceManager.renderEditorStrings({
+                instrument:data.instrument,
                 data,
                 profiles:StringInstruments.profiles,
-                sectionNames
+                sectionNames,
+                renderer:StringSurface
             });
         } else if(data.instrument !== 'piano' && els.fretboardContainer){
             buildFretboard();
@@ -1691,22 +1658,23 @@ function installStudio936AppBridge(){
     }
 
     window.Studio936DebugEditorIsolation = function(){
-        const pianoBox = document.getElementById('pianoContainer');
-        const fretboardBox = els.fretboardContainer || document.getElementById('fretboardContainer');
+        const surface = InstrumentSurfaceManager.getState();
         return {
-            version:'v0.6.2-safe-isolation',
+            version:'v0.7.0-surface-manager',
             editorInstrument,
             mainInstrument:project.instrument || 'piano',
             mainSelector:els.instrumentSelect?.value || '',
-            sessionActive:!!editorSurfaceSession,
-            pianoDisplay:pianoBox ? getComputedStyle(pianoBox).display : 'missing',
-            fretboardDisplay:fretboardBox ? getComputedStyle(fretboardBox).display : 'missing',
-            exactSurfaceExists:!!document.getElementById('s936EditorGuitarSurface')
+            sessionActive:surface.active,
+            pianoDisplay:surface.pianoDisplay,
+            fretboardDisplay:surface.fretboardDisplay,
+            exactSurfaceExists:surface.exactSurfaceExists,
+            surfaceOwner:surface.owner,
+            surfaceManager:surface
         };
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v1.6.2-safe-isolation',
+        version: 'suite-pro-bridge-v1.7.0-surface-manager',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -1717,6 +1685,7 @@ function installStudio936AppBridge(){
         setEditorInstrument,
         mountEditorInstrumentSurface,
         deactivateEditorSurface,
+        getInstrumentSurfaceState:()=>InstrumentSurfaceManager.getState(),
         showEditorChordVisual,
         previewEditorChord,
         applyEditorChord,

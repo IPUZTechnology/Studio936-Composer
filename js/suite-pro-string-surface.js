@@ -1,4 +1,4 @@
-// Studio 936 Composer - Shared String Instrument Surface v1.0
+// Studio 936 Composer - Shared String Instrument Surface v1.1 · Surface Manager
 // Renders Guitar, Ukulele and Bass on the main instrument area.
 window.Studio936StringSurface = (() => {
   "use strict";
@@ -29,7 +29,6 @@ window.Studio936StringSurface = (() => {
   function clear(){
     document.querySelectorAll("#s936EditorGuitarSurface").forEach(node => node.remove());
     document.querySelectorAll(".s936-finger-pop").forEach(node => node.remove());
-    document.body?.classList.remove("s936-editor-guitar-surface");
   }
 
   function showFingerPicker(surface,anchor,stringIndex){
@@ -127,10 +126,6 @@ window.Studio936StringSurface = (() => {
       clear();
       return {ok:false};
     }
-
-    container.classList.add("s936-editor-surface-active");
-    container.setAttribute("data-s936-editor-surface",instrument);
-    document.body?.classList.add("s936-editor-guitar-surface");
 
     let surface = document.getElementById("s936EditorGuitarSurface");
     if(!surface){
@@ -315,7 +310,7 @@ window.Studio936StringSurface = (() => {
   }
 
   return {
-    version:"string-surface-v1",
+    version:"string-surface-v1.1",
     render,
     clear
   };

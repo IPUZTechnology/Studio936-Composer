@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Editor v0.6.2 SAFE Isolation
+// Studio 936 Composer - Suite Pro Editor v0.7.0 Surface Manager
 // Scope: Editor tab inside Compose.
 // Refines the guitar UX with a compact interactive chart, realistic neck, exact voicings, TAB and lifecycle cleanup.
 // It does not replace or delete the legacy editor.
@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.6.2-safe-isolation";
+  const VERSION = "editor-v0.7.0-surface-manager";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -903,7 +903,9 @@
     card.appendChild(helpPop);
 
     const instruments = document.createElement("div");
+    instruments.id = "s936EditorInstrumentTabs";
     instruments.className = "s936-ed-instruments s936-ed-instruments-isolated";
+    instruments.dataset.surfaceIndependent = "true";
     instruments.setAttribute("role", "tablist");
     instruments.setAttribute("aria-label", "Instrumentos del Editor Pro");
     Object.assign(instruments.style, {
@@ -1231,7 +1233,7 @@
         .forEach(control => control.addEventListener("change", recalculate));
     } else {
       card.appendChild(result.box);
-      bridge("deactivateEditorSurface");
+      bridge("mountEditorInstrumentSurface", "piano");
     }
 
     const controls = {
