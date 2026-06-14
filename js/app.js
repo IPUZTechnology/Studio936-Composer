@@ -1180,7 +1180,9 @@ function installStudio936AppBridge(){
             sections: safeClone(project.sections || {}),
             currentChord: safeClone(seq[chordIndex] || null),
             voicingLibrary:safeClone(project.voicingLibrary || {}),
-            bassLines:safeClone(project.bassLines || {})
+            bassLines:safeClone(project.bassLines || {}),
+            leadLines:safeClone(project.leadLines || {}),
+            drumPatterns:safeClone(project.drumPatterns || {})
         };
     }
     function normalizeMidiList(list){
@@ -1334,11 +1336,10 @@ function installStudio936AppBridge(){
         };
 
         const hasExactStringNotes = !!data.profile && data.exactMidis.length > 0 && Array.isArray(data.exactFrets);
-        const isEmptyBassLineSurface = data.instrument === 'bass'
-            && data.surfaceMode === 'bass-line'
+        const isEmptySequencerSurface = (data.surfaceMode === 'bass-line' || data.surfaceMode === 'lead-line')
             && !!data.profile
             && Array.isArray(data.exactFrets);
-        const useStringSurface = hasExactStringNotes || isEmptyBassLineSurface;
+        const useStringSurface = hasExactStringNotes || isEmptySequencerSurface;
         const leftMidis = data.instrument === 'piano'
             ? (data.leftHandMidis.length ? data.leftHandMidis : parseNotes(item.bass))
             : [];
@@ -1356,7 +1357,7 @@ function installStudio936AppBridge(){
                 ? (leftMidis.length ? Math.min(...leftMidis) : null)
                 : noteToMidi(item.bass);
 
-        if(!notes.length && !leftMidis.length && !isEmptyBassLineSurface){
+        if(!notes.length && !leftMidis.length && !isEmptySequencerSurface){
             return { ok:false, message:'No pude visualizar las notas del acorde.' };
         }
 
@@ -1400,7 +1401,7 @@ function installStudio936AppBridge(){
             notes:safeClone(notes),
             bass,
             exact:hasExactStringNotes,
-            emptyBassLineSurface:isEmptyBassLineSurface
+            emptySequencerSurface:isEmptySequencerSurface
         };
     }
     function previewEditorChord(payload={}){
@@ -1665,6 +1666,30 @@ function installStudio936AppBridge(){
         return {ok:true,message:'Línea de bajo guardada en la canción actual.',line:safeClone(normalized)};
     }
 
+    function saveLeadLine(sectionKey,line){
+        const key = String(sectionKey || els.sectionSelect?.value || 'intro');
+        if(!project.sections?.[key]) return {ok:false,message:'La sección seleccionada no existe.'};
+        project.leadLines = project.leadLines && typeof project.leadLines === 'object' ? project.leadLines : {};
+        const normalized = safeClone(line || {});
+        normalized.bpm = project.bpm;
+        normalized.updatedAt = new Date().toISOString();
+        project.leadLines[key] = normalized;
+        saveProject(false);
+        return {ok:true,message:'Solo de guitarra guardado en la canción actual.',line:safeClone(normalized)};
+    }
+
+    function saveDrumPattern(sectionKey,pattern){
+        const key = String(sectionKey || els.sectionSelect?.value || 'intro');
+        if(!project.sections?.[key]) return {ok:false,message:'La sección seleccionada no existe.'};
+        project.drumPatterns = project.drumPatterns && typeof project.drumPatterns === 'object' ? project.drumPatterns : {};
+        const normalized = safeClone(pattern || {});
+        normalized.bpm = project.bpm;
+        normalized.updatedAt = new Date().toISOString();
+        project.drumPatterns[key] = normalized;
+        saveProject(false);
+        return {ok:true,message:'Patrón de batería guardado en la canción actual.',pattern:safeClone(normalized)};
+    }
+
     window.Studio936DebugEditorIsolation = function(){
         const surface = InstrumentSurfaceManager.getState();
         return {
@@ -1682,12 +1707,14 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v1.7.0-surface-manager',
+        version: 'suite-pro-bridge-v1.7.1-instrumental-pro',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
         getEditorState,
         saveBassLine,
+        saveLeadLine,
+        saveDrumPattern,
         selectEditorSection,
         selectEditorChord,
         setEditorInstrument,

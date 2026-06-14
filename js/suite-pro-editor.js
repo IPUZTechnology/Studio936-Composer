@@ -1,4 +1,4 @@
-// Studio 936 Composer - Suite Pro Editor v0.7.0.3 Persistent Instrument Tabs
+// Studio 936 Composer - Suite Pro Editor v0.7.1 Instrumental Pro
 // Scope: Editor tab inside Compose.
 // Refines the guitar UX with a compact interactive chart, realistic neck, exact voicings, TAB and lifecycle cleanup.
 // It does not replace or delete the legacy editor.
@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.0.3-persistent-tabs";
+  const VERSION = "editor-v0.7.1-instrumental-pro";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -22,6 +22,8 @@
   const PianoEditor = window.Studio936SuiteProPianoEditor || null;
   const VoicingStore = window.Studio936VoicingStore || null;
   const BassLine = window.Studio936BassLinePro || null;
+  const LeadLine = window.Studio936LeadLinePro || null;
+  const DrumComposer = window.Studio936DrumComposerPro || null;
 
   function isStringInstrument(instrument = state.instrument) {
     return !!StringInstruments?.isStringInstrument?.(instrument);
@@ -89,6 +91,8 @@
     style.id = STYLE_ID;
     style.textContent = `
 #s936SuitePro .s936-ed-shell{display:grid;gap:10px}
+#s936SuitePro .s936-ed-instruments-persistent .s936-ed-inst{font-size:.66rem;padding:7px 4px}
+#s936SuitePro .s936-ed-lead-host,#s936SuitePro .s936-ed-drums-host{padding:10px}
 #s936SuitePro .s936-ed-card{border:1px solid rgba(255,255,255,.13);border-radius:16px;background:rgba(255,255,255,.045);padding:12px}
 #s936SuitePro .s936-ed-card.primary{border-color:rgba(0,255,204,.38);background:linear-gradient(135deg,rgba(0,255,204,.09),rgba(255,255,255,.035))}
 #s936SuitePro .s936-ed-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;position:relative}
@@ -877,15 +881,16 @@
       boxShadow:"0 8px 22px rgba(0,0,0,.28)"
     });
 
-    [["piano","Piano"],["guitar","Guitarra"],["ukulele","Ukelele"],["bass","Bajo"]].forEach(([key,label]) => {
+    [["piano","Piano"],["guitar","Guitarra"],["ukulele","Ukelele"],["bass","Bajo"],["lead","G. Lead"],["drums","Batería"]].forEach(([key,label]) => {
       const btn = document.createElement("button");
       btn.className = "s936-ed-inst";
       btn.type = "button";
+      const fullLabel = key === "lead" ? "Guitarra Lead" : label;
       btn.textContent = label;
       btn.dataset.instrument = key;
-      btn.title = label;
+      btn.title = fullLabel;
       btn.setAttribute("role", "tab");
-      btn.setAttribute("aria-label", `Abrir ${label}`);
+      btn.setAttribute("aria-label", `Abrir ${fullLabel}`);
 
       Object.assign(btn.style, {
         display:"flex",
@@ -911,7 +916,11 @@
 
         syncPersistentInstrumentTabs(instruments);
 
-        const response = bridge("setEditorInstrument", key);
+        let response = null;
+        if (key === "lead") response = bridge("setEditorInstrument", "guitar");
+        else if (key === "drums") response = bridge("deactivateEditorSurface");
+        else response = bridge("setEditorInstrument", key);
+
         if (response?.ok === false) {
           setTimeout(() => renderModule(ctx, contentHost), 0);
           return;
@@ -960,7 +969,9 @@
     state.sectionKey = sections[state.sectionKey] ? state.sectionKey : (data.sectionKey || sectionKeys[0]);
     state.chordIndex = state.chordIndex === null ? (Number(data.chordIndex) || 0) : (Number(state.chordIndex) || 0);
     state.instrument = state.instrument || data.instrument || "piano";
-    bridge("mountEditorInstrumentSurface", state.instrument);
+    if (state.instrument === "lead") bridge("mountEditorInstrumentSurface", "guitar");
+    else if (state.instrument === "drums") bridge("deactivateEditorSurface");
+    else bridge("mountEditorInstrumentSurface", state.instrument);
 
     const seq = Array.isArray(sections[state.sectionKey]) ? sections[state.sectionKey] : [];
     if (state.chordIndex >= seq.length) state.chordIndex = Math.max(0, seq.length - 1);
@@ -970,7 +981,14 @@
     const card = el(ctx, "section", "s936-ed-card primary");
     const title = el(ctx, "div", "s936-ed-title");
     const titleMain = el(ctx, "div", "s936-ed-title-main");
-    titleMain.appendChild(el(ctx, "h4", "", state.instrument === "bass" && state.bassMode !== "position" ? "Editor Pro · Bass Line" : "Editor Pro · Acordes"));
+    const editorTitle = state.instrument === "bass" && state.bassMode !== "position"
+      ? "Editor Instrumental · Bass Line"
+      : state.instrument === "lead"
+        ? "Editor Instrumental · Guitarra Lead"
+        : state.instrument === "drums"
+          ? "Editor Instrumental · Batería"
+          : "Editor Instrumental · Acordes";
+    titleMain.appendChild(el(ctx, "h4", "", editorTitle));
     const helpButton = el(ctx, "button", "s936-ed-help", "ⓘ");
     helpButton.type = "button";
     helpButton.title = "Ayuda rápida del Editor Pro";
@@ -985,9 +1003,13 @@
     helpPop.appendChild(document.createTextNode(
       state.instrument === "bass" && state.bassMode !== "position"
         ? "Construye una línea de bajo por sección: elige fundamental, escala, patrón, tiempo y duración; luego escribe notas directamente desde el cuello."
-        : isStringInstrument()
-          ? `Construye ${stringProfile().label.toLowerCase()} desde el mapa pequeño, el cuello grande o la digitación manual. Las tres vistas permanecen sincronizadas.`
-          : "El acorde se calcula, se escucha y se refleja sobre el instrumento principal."
+        : state.instrument === "lead"
+          ? "Crea solos por sección con fundamental, escala, motivo, duración y articulación. Selecciona un paso y toca directamente sobre el cuello."
+          : state.instrument === "drums"
+            ? "Diseña la batería por sección: activa piezas del kit, dibuja golpes, acentos, fills, mute y solo, y reproduce el patrón al BPM de la canción."
+            : isStringInstrument()
+              ? `Construye ${stringProfile().label.toLowerCase()} desde el mapa pequeño, el cuello grande o la digitación manual. Las tres vistas permanecen sincronizadas.`
+              : "El acorde se calcula, se escucha y se refleja sobre el instrumento principal."
     ));
     const helpLink = el(ctx, "button", "", "Ir a Ayuda");
     helpLink.type = "button";
@@ -1001,6 +1023,62 @@
     card.appendChild(helpPop);
 
     shell.appendChild(card);
+
+    if (state.instrument === "lead") {
+      const sectionOptionsForLead = (data.sectionOptions || sectionKeys.map(k => [k, humanize(k)]))
+        .filter(entry => Array.isArray(entry) && sections[entry[0]])
+        .map(entry => [entry[0], entry[1] || humanize(entry[0])]);
+      const leadHost = el(ctx, "section", "s936-ed-card s936-ed-lead-host");
+      if (!LeadLine) {
+        leadHost.appendChild(el(ctx, "div", "s936-ed-status", "Guitarra Lead Pro no está disponible. Revisa que js/suite-pro-lead-line.js cargue antes del Editor."));
+      } else {
+        activeController = LeadLine.render({
+          host:leadHost,
+          sectionKey:state.sectionKey,
+          sectionName:(sectionOptionsForLead.find(entry => entry[0] === state.sectionKey) || [state.sectionKey,humanize(state.sectionKey)])[1],
+          sectionOptions:sectionOptionsForLead,
+          sections,
+          bpm:data.bpm || 95,
+          onSectionChange:key => {
+            state.sectionKey = key;
+            state.chordIndex = 0;
+            bridge("selectEditorSection", key);
+            renderModule(ctx, host);
+          }
+        });
+      }
+      shell.appendChild(leadHost);
+      host.appendChild(shell);
+      return;
+    }
+
+    if (state.instrument === "drums") {
+      const sectionOptionsForDrums = (data.sectionOptions || sectionKeys.map(k => [k, humanize(k)]))
+        .filter(entry => Array.isArray(entry) && sections[entry[0]])
+        .map(entry => [entry[0], entry[1] || humanize(entry[0])]);
+      const drumsHost = el(ctx, "section", "s936-ed-card s936-ed-drums-host");
+      if (!DrumComposer) {
+        drumsHost.appendChild(el(ctx, "div", "s936-ed-status", "Batería Pro no está disponible. Revisa que js/suite-pro-drum-composer.js cargue antes del Editor."));
+      } else {
+        activeController = DrumComposer.render({
+          host:drumsHost,
+          sectionKey:state.sectionKey,
+          sectionName:(sectionOptionsForDrums.find(entry => entry[0] === state.sectionKey) || [state.sectionKey,humanize(state.sectionKey)])[1],
+          sectionOptions:sectionOptionsForDrums,
+          sections,
+          bpm:data.bpm || 95,
+          onSectionChange:key => {
+            state.sectionKey = key;
+            state.chordIndex = 0;
+            bridge("selectEditorSection", key);
+            renderModule(ctx, host);
+          }
+        });
+      }
+      shell.appendChild(drumsHost);
+      host.appendChild(shell);
+      return;
+    }
 
     if (state.instrument === "bass" && state.bassMode !== "position" && !BassLine) {
       state.bassMode = "position";
