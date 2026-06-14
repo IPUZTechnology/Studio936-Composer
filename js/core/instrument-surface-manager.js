@@ -1,4 +1,4 @@
-// Studio 936 Composer - Instrument Surface Manager v0.7.0
+// Studio 936 Composer - Instrument Surface Manager v0.7.0.1 HOTFIX
 // Single owner for Main/Editor instrument surface visibility and lifecycle.
 window.Studio936InstrumentSurfaceManager = (() => {
   "use strict";
@@ -11,6 +11,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
     snapshot: null,
     observer: null,
     enforcing: false,
+    enforceQueued: false,
     lastStringRender: null,
     options: {}
   };
@@ -53,27 +54,44 @@ window.Studio936InstrumentSurfaceManager = (() => {
     if (element && element.style.display !== value) element.style.display = value;
   }
 
+  function setAttributeIfChanged(element, name, value) {
+    if (!element) return;
+    if (element.getAttribute(name) !== String(value)) {
+      element.setAttribute(name, String(value));
+    }
+  }
+
+  function removeAttributeIfPresent(element, name) {
+    if (element?.hasAttribute?.(name)) element.removeAttribute(name);
+  }
+
+  function toggleClassIfNeeded(element, className, enabled) {
+    if (!element) return;
+    const has = element.classList.contains(className);
+    if (enabled && !has) element.classList.add(className);
+    if (!enabled && has) element.classList.remove(className);
+  }
+
   function removeEditorMarkers() {
     const { fretboard } = elements();
-    fretboard?.classList.remove("s936-editor-surface-active");
-    fretboard?.removeAttribute("data-s936-editor-surface");
-    document.body?.classList.remove("s936-editor-guitar-surface");
-    document.body?.removeAttribute("data-s936-editor-instrument");
-    document.body?.removeAttribute("data-s936-surface-owner");
+    toggleClassIfNeeded(fretboard, "s936-editor-surface-active", false);
+    removeAttributeIfPresent(fretboard, "data-s936-editor-surface");
+    toggleClassIfNeeded(document.body, "s936-editor-guitar-surface", false);
+    removeAttributeIfPresent(document.body, "data-s936-editor-instrument");
+    removeAttributeIfPresent(document.body, "data-s936-surface-owner");
   }
 
   function applyEditorMarkers(instrument) {
     const { fretboard } = elements();
-    document.body?.setAttribute("data-s936-editor-instrument", instrument);
-    document.body?.setAttribute("data-s936-surface-owner", "editor");
-    if (instrument !== "piano") {
-      fretboard?.classList.add("s936-editor-surface-active");
-      fretboard?.setAttribute("data-s936-editor-surface", instrument);
-      document.body?.classList.add("s936-editor-guitar-surface");
+    setAttributeIfChanged(document.body, "data-s936-editor-instrument", instrument);
+    setAttributeIfChanged(document.body, "data-s936-surface-owner", "editor");
+    const isStringInstrument = instrument !== "piano";
+    toggleClassIfNeeded(fretboard, "s936-editor-surface-active", isStringInstrument);
+    toggleClassIfNeeded(document.body, "s936-editor-guitar-surface", isStringInstrument);
+    if (isStringInstrument) {
+      setAttributeIfChanged(fretboard, "data-s936-editor-surface", instrument);
     } else {
-      fretboard?.classList.remove("s936-editor-surface-active");
-      fretboard?.removeAttribute("data-s936-editor-surface");
-      document.body?.classList.remove("s936-editor-guitar-surface");
+      removeAttributeIfPresent(fretboard, "data-s936-editor-surface");
     }
   }
 
@@ -103,8 +121,12 @@ window.Studio936InstrumentSurfaceManager = (() => {
   }
 
   function scheduleEnforce() {
-    if (!state.active || state.enforcing) return;
-    queueMicrotask(enforce);
+    if (!state.active || state.enforcing || state.enforceQueued) return;
+    state.enforceQueued = true;
+    queueMicrotask(() => {
+      state.enforceQueued = false;
+      enforce();
+    });
   }
 
   function startObserver() {
@@ -119,17 +141,14 @@ window.Studio936InstrumentSurfaceManager = (() => {
         childList: true
       });
     });
-    if (document.body) {
-      state.observer.observe(document.body, {
-        attributes: true,
-        attributeFilter: ["class", "data-s936-editor-instrument", "data-s936-surface-owner"]
-      });
-    }
+    // Do not observe <body> markers: the manager writes those markers itself.
+    // Observing them created a self-triggering MutationObserver loop in v0.7.0.
   }
 
   function stopObserver() {
     state.observer?.disconnect?.();
     state.observer = null;
+    state.enforceQueued = false;
   }
 
   function configure(options = {}) {
@@ -219,7 +238,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   function getState() {
     const { piano, fretboard } = elements();
     return {
-      version: "instrument-surface-manager-v0.7.0",
+      version: "instrument-surface-manager-v0.7.0.1-hotfix",
       configured: state.configured,
       active: state.active,
       owner: state.active ? "editor" : "main",
@@ -233,7 +252,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   }
 
   const api = {
-    version: "instrument-surface-manager-v0.7.0",
+    version: "instrument-surface-manager-v0.7.0.1-hotfix",
     configure,
     beginEditorSession,
     showEditorInstrument,
