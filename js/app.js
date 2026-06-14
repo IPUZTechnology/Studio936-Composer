@@ -1333,25 +1333,32 @@ function installStudio936AppBridge(){
             bars: data.bars || seqItem.bars || 1
         };
 
-        const stringExact = !!data.profile && data.exactMidis.length > 0 && Array.isArray(data.exactFrets);
+        const hasExactStringNotes = !!data.profile && data.exactMidis.length > 0 && Array.isArray(data.exactFrets);
+        const isEmptyBassLineSurface = data.instrument === 'bass'
+            && data.surfaceMode === 'bass-line'
+            && !!data.profile
+            && Array.isArray(data.exactFrets);
+        const useStringSurface = hasExactStringNotes || isEmptyBassLineSurface;
         const leftMidis = data.instrument === 'piano'
             ? (data.leftHandMidis.length ? data.leftHandMidis : parseNotes(item.bass))
             : [];
         const rightMidis = data.instrument === 'piano'
             ? (data.rightHandMidis.length ? data.rightHandMidis : parseNotes(item.notes))
             : [];
-        const notes = stringExact
+        const notes = hasExactStringNotes
             ? data.exactMidis
             : data.instrument === 'piano'
                 ? rightMidis
                 : parseNotes(item.notes);
-        const bass = stringExact
+        const bass = hasExactStringNotes
             ? Math.min(...data.exactMidis)
             : data.instrument === 'piano'
                 ? (leftMidis.length ? Math.min(...leftMidis) : null)
                 : noteToMidi(item.bass);
 
-        if(!notes.length && !leftMidis.length) return { ok:false, message:'No pude visualizar las notas del acorde.' };
+        if(!notes.length && !leftMidis.length && !isEmptyBassLineSurface){
+            return { ok:false, message:'No pude visualizar las notas del acorde.' };
+        }
 
         clearKeys();
         leftMidis.forEach(midi => {
@@ -1373,7 +1380,7 @@ function installStudio936AppBridge(){
             console.warn('Editor Pro: no se pudo actualizar el diapasón.', error);
         }
 
-        if(stringExact && StringSurface && StringInstruments){
+        if(useStringSurface && StringSurface && StringInstruments){
             InstrumentSurfaceManager.renderEditorStrings({
                 instrument:data.instrument,
                 data,
@@ -1392,7 +1399,8 @@ function installStudio936AppBridge(){
             item:safeClone(item),
             notes:safeClone(notes),
             bass,
-            exact:stringExact
+            exact:hasExactStringNotes,
+            emptyBassLineSurface:isEmptyBassLineSurface
         };
     }
     function previewEditorChord(payload={}){
