@@ -352,7 +352,20 @@ function playLane(id,velocity,pattern,when){
 
 function render(options={}){
   installStyles();
-  stopPlayback();
+
+  // Detener de forma segura una instancia anterior.
+  // No llamar al stop local de esta nueva instancia antes de crear su grid.
+  if(activeController && typeof activeController.destroy==="function"){
+    try{ activeController.destroy(); }catch(error){
+      console.warn("Drum Composer: no se pudo detener la instancia anterior.",error);
+    }
+  }
+  activeController=null;
+  if(timer){
+    clearTimeout(timer);
+    timer=null;
+  }
+
   const host=options.host;
   if(!host) return null;
   const state=bridge("getEditorState")||{};
