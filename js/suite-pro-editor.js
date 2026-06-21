@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.1.8.6-guitar-instance-guard";
+  const VERSION = "editor-v0.7.1.8.7-guitar-editor-handshake";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -1527,7 +1527,7 @@
         }
       }
       dockFingerTarget = chooseFinger && normalized !== null && normalized > 0 ? index : null;
-      recalculate();
+      recalculate({ immediate:true });
     }
 
       function setGuitarControlFinger(stringIndex, finger) {
@@ -1537,7 +1537,7 @@
       const value = ["","0","1","2","3","4","T"].includes(String(finger)) ? String(finger) : "";
       guitarControls.fingerSelects[index].value = value;
       dockFingerTarget = null;
-      recalculate();
+      recalculate({ immediate:true });
     }
 
     function updateResult(name, bass, notes, shape, tab, alternativesText) {
@@ -1577,7 +1577,8 @@
       visualTimer = setTimeout(draw, 36);
     }
 
-      function recalculate() {
+      function recalculate(options = {}) {
+      const immediateVisual = !!(options && options.immediate);
       if (isStringInstrument() && guitarControls) {
         latestCalculation = calculateGuitar(collectGuitarDraft(), nameInput.value || item.name);
         guitarControls.noteLabels.forEach((label, i) => {
@@ -1602,7 +1603,7 @@
           latestCalculation.tab,
           alt
         );
-        scheduleVisual(currentPayload());
+        scheduleVisual(currentPayload(), immediateVisual);
         return;
       }
 
@@ -1714,8 +1715,16 @@
     }
     host.appendChild(shell);
 
-    recalculate();
+    recalculate({ immediate:true });
     setTimeout(() => {
+      if (isStringInstrument()) {
+        // v0.7.1.8.7:
+        // Cuando Main ya venía en Guitarra, llamar al selector legacy justo al abrir
+        // podía reactivar el render viejo y dejar el mástil grande pegado en la primera nota.
+        // El editor de cuerdas ya tiene su propio estado; solo refrescamos la superficie viva.
+        scheduleVisual(currentPayload(), true);
+        return;
+      }
       bridge("selectEditorChord", state.sectionKey, state.chordIndex);
       recalculate();
     }, 0);
