@@ -1,9 +1,9 @@
-// Studio 936 Composer - Instrument Surface Manager v0.7.1.8.8 Lifecycle Lock
+// Studio 936 Composer - Instrument Surface Manager v0.7.2 Instrument Surfaces Core
 // Single owner for Main/Editor instrument surface visibility and lifecycle.
 window.Studio936InstrumentSurfaceManager = (() => {
   "use strict";
 
-  const VALID_EDITOR_INSTRUMENTS = new Set(["piano", "guitar", "ukulele", "bass", "drums"]);
+  const VALID_EDITOR_INSTRUMENTS = new Set(["piano", "guitar", "ukulele", "bass", "lead", "drums"]);
   const state = {
     configured: false,
     active: false,
@@ -91,7 +91,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
     const { fretboard } = elements();
     setAttributeIfChanged(document.body, "data-s936-editor-instrument", instrument);
     setAttributeIfChanged(document.body, "data-s936-surface-owner", "editor");
-    const isStringInstrument = ["guitar","ukulele","bass"].includes(instrument);
+    const isStringInstrument = ["guitar","ukulele","bass","lead"].includes(instrument);
     const isDrumInstrument = instrument === "drums";
     const hasEditorSurface = isStringInstrument || isDrumInstrument;
     toggleClassIfNeeded(fretboard, "s936-editor-surface-active", hasEditorSurface);
@@ -213,12 +213,10 @@ window.Studio936InstrumentSurfaceManager = (() => {
     data,
     profiles,
     sectionNames = {},
-    onCellPlay = null,
-    onChordSelect = null,
     renderer = stringSurface()
   } = {}) {
     const value = normalizeInstrument(instrument || data?.instrument);
-    if (!["guitar","ukulele","bass"].includes(value)) {
+    if (!["guitar","ukulele","bass","lead"].includes(value)) {
       return { ok: false, message: "La superficie de cuerdas requiere Guitarra, Ukelele o Bajo." };
     }
     clearEditorDrums();
@@ -233,9 +231,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
       readOnly: false,
       data: { ...data, instrument: value, surfaceOwner: "editor" },
       profiles,
-      sectionNames,
-      onCellPlay: typeof onCellPlay === "function" ? onCellPlay : null,
-      onChordSelect: typeof onChordSelect === "function" ? onChordSelect : null
+      sectionNames
     };
     state.lastStringRender = { renderer, options };
     let result = { ok: true };
@@ -336,7 +332,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   function getState() {
     const { piano, fretboard } = elements();
     return {
-      version: "instrument-surface-manager-v0.7.1.8.8-lifecycle-lock",
+      version: "instrument-surface-manager-v0.7.2-surfaces-core",
       configured: state.configured,
       active: state.active,
       owner: state.active ? "editor" : "main",
@@ -351,7 +347,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   }
 
   const api = {
-    version: "instrument-surface-manager-v0.7.1.8.8-lifecycle-lock",
+    version: "instrument-surface-manager-v0.7.2-surfaces-core",
     configure,
     beginEditorSession,
     showEditorInstrument,
