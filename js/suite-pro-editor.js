@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.1.8.2-safe-drums-exact-play";
+  const VERSION = "editor-v0.7.1.8.3-qc-safe-guitar-drums";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -1003,9 +1003,22 @@
     state.instrument = state.instrument || data.instrument || "piano";
     if (state.instrument === "lead") bridge("mountEditorInstrumentSurface", "guitar");
     else if (state.instrument === "drums") {
-      // Batería no debe montar superficies pesadas automáticamente:
-      // en algunos navegadores entraba en ciclo y bloqueaba la página.
-      try { bridge("deactivateEditorSurface"); } catch (_) {}
+      // QC v0.7.1.8.3:
+      // No desactivar la superficie del editor; eso dejaba la SuperGuitarra visible
+      // cuando el usuario seleccionaba Batería. Montamos solo el kit visual liviano
+      // y mantenemos pausado el panel pesado para evitar bloqueos.
+      try {
+        const drumSection = data.sectionKey || state.sectionKey || "intro";
+        bridge("mountEditorDrumSurface", {
+          sectionKey: drumSection,
+          sectionName: humanize(drumSection),
+          pattern: (data.drumPatterns && data.drumPatterns[drumSection]) || {
+            kit: "studio",
+            bars: 1,
+            lanes: {}
+          }
+        });
+      } catch (_) {}
     } else bridge("mountEditorInstrumentSurface", state.instrument);
 
     const seq = Array.isArray(sections[state.sectionKey]) ? sections[state.sectionKey] : [];
@@ -1088,59 +1101,46 @@
     }
 
     if (state.instrument === "drums") {
-      const sectionOptionsForDrums = (data.sectionOptions || sectionKeys.map(k => [k, humanize(k)]))
-        .filter(entry => Array.isArray(entry) && sections[entry[0]])
-        .map(entry => [entry[0], entry[1] || humanize(entry[0])]);
+      const drumSection = state.sectionKey || data.sectionKey || sectionKeys[0] || "intro";
+      const drumPattern = (data.drumPatterns && data.drumPatterns[drumSection]) || {
+        kit: "studio",
+        bars: 1,
+        lanes: {}
+      };
+
+      try {
+        bridge("mountEditorDrumSurface", {
+          sectionKey: drumSection,
+          sectionName: humanize(drumSection),
+          pattern: drumPattern
+        });
+      } catch (error) {
+        console.warn("Studio 936 · kit visual de batería no pudo montarse:", error);
+      }
 
       const drumsHost = el(ctx, "section", "s936-ed-card s936-ed-drums-host");
-      const safeTitle = el(ctx, "h4", "", "Batería Pro · Modo seguro");
+      const safeTitle = el(ctx, "h4", "", "Batería Pro · Control seguro");
       const safeText = el(ctx, "div", "s936-ed-status",
-        "Batería quedó protegida para no bloquear la página. El editor no monta el kit pesado automáticamente; puedes cargarlo manualmente para probar."
+        "Kit visual activo en la superficie principal. El panel pesado queda pausado para no congelar la aplicación mientras cerramos la integración."
       );
       const safeActions = el(ctx, "div", "s936-ed-actions");
 
-      const loadBtn = button(ctx, "Cargar Batería Pro", "warn", () => {
-        if (!DrumComposer) {
-          safeText.textContent = "Batería Pro no está disponible. Revisa que js/suite-pro-drum-composer.js cargue antes del Editor.";
-          safeText.style.color = "#ffb9b9";
-          return;
-        }
-        loadBtn.disabled = true;
-        loadBtn.textContent = "Cargando...";
-        drumsHost.querySelectorAll(".s936-dc-shell,.s936-dc-grid,.s936-dc-status").forEach(node => node.remove());
-        setTimeout(() => {
-          try {
-            activeController = DrumComposer.render({
-              host:drumsHost,
-              sectionKey:state.sectionKey,
-              sectionName:(sectionOptionsForDrums.find(entry => entry[0] === state.sectionKey) || [state.sectionKey,humanize(state.sectionKey)])[1],
-              sectionOptions:sectionOptionsForDrums,
-              sections,
-              bpm:data.bpm || 95,
-              onSectionChange:key => {
-                state.sectionKey = key;
-                state.chordIndex = 0;
-                bridge("selectEditorSection", key);
-                renderModule(ctx, host);
-              }
-            });
-            safeText.textContent = activeController
-              ? "Batería Pro cargada manualmente. Si notas lentitud, vuelve a Guitarra y regresa luego."
-              : "Batería Pro abrió sin controlador; el modo seguro sigue activo.";
-            safeText.style.color = "#bfffee";
-          } catch (error) {
-            console.error("Studio 936 · Batería Pro no pudo renderizar:", error);
-            safeText.textContent = "Batería Pro se detuvo en modo seguro para no bloquear la aplicación. Copia la primera línea roja de consola.";
-            safeText.style.color = "#ffb9b9";
-          } finally {
-            loadBtn.disabled = false;
-            loadBtn.textContent = "Reintentar Batería Pro";
-          }
-        }, 80);
+      const visualBtn = button(ctx, "Reactivar kit visual", "primary", () => {
+        bridge("mountEditorDrumSurface", {
+          sectionKey: drumSection,
+          sectionName: humanize(drumSection),
+          pattern: drumPattern
+        });
+        safeText.textContent = "Kit visual reactivado sin cargar el panel pesado.";
+        safeText.style.color = "#bfffee";
       });
 
-      safeActions.appendChild(loadBtn);
-      drumsHost.append(safeTitle,safeText,safeActions);
+      const note = el(ctx, "div", "s936-ed-status",
+        "QC: no se carga automáticamente el secuenciador completo porque era la causa probable del bloqueo. Siguiente paso: restaurar la batería completa en módulo aislado."
+      );
+
+      safeActions.appendChild(visualBtn);
+      drumsHost.append(safeTitle,safeText,safeActions,note);
       shell.appendChild(drumsHost);
       host.appendChild(shell);
       return;

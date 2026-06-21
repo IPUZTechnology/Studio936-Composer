@@ -1,4 +1,4 @@
-// Studio 936 Composer - Shared String Instrument Surface v1.7 · Exact Play / Safe Map
+// Studio 936 Composer - Shared String Instrument Surface v1.8.3 · QC Exact Play
 // Renders Guitar, Ukulele and Bass as one live surface for Main and Editor.
 window.Studio936StringSurface = (() => {
   "use strict";
@@ -556,6 +556,15 @@ window.Studio936StringSurface = (() => {
     }
     surface.dataset.instrument = instrument;
     surface.dataset.owner = isMainSurface ? "main" : "editor";
+
+    // QC v0.7.1.8.3:
+    // En Editor, no conservar Mapa como modo persistente. Mapa es teoría;
+    // Tocar es edición real. Esto evita que vuelvan las equivalencias por todo el cuello.
+    if(!isMainSurface && interactionMode === "map") {
+      interactionMode = "play";
+      try { window.localStorage?.setItem?.("s936-string-mode", "play"); } catch (_) {}
+    }
+
     container.classList.toggle("s936-main-string-surface-active", !!isMainSurface);
     container.classList.toggle("s936-editor-surface-active", !isMainSurface && container.classList.contains("s936-editor-surface-active"));
     surface.innerHTML = "";
@@ -809,7 +818,7 @@ window.Studio936StringSurface = (() => {
   }
 
   return {
-    version:"string-surface-v1.7-exact-play-safe-map",
+    version:"string-surface-v1.8.3-qc-exact-play",
     render,
     clear,
     flashMidis,
