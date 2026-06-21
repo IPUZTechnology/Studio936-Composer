@@ -290,18 +290,34 @@ function resetMainSurfaceClasses(){
     const container = mainSurfaceContainer();
     container?.classList?.remove('s936-main-string-surface-active','s936-main-drum-surface-active');
 }
+function forceMainSurfaceOwnership(reason='main'){
+    try {
+        const state = InstrumentSurfaceManager?.getState?.();
+        if(state?.active){
+            InstrumentSurfaceManager.endEditorSession({restore:false});
+        }
+    } catch(error){
+        console.warn('Studio936 Main surface: no pude cerrar sesión de editor antes de montar Main.', reason, error);
+    }
+    document.body?.removeAttribute?.('data-s936-surface-owner');
+    document.body?.removeAttribute?.('data-s936-editor-instrument');
+    document.body?.classList?.remove?.('s936-editor-guitar-surface','s936-editor-drum-surface');
+}
 function prepareMainSurface(kind){
     const container = mainSurfaceContainer();
     if(!container) return null;
+    forceMainSurfaceOwnership(kind);
     container.style.display = 'flex';
+    container.style.visibility = 'visible';
+    container.removeAttribute?.('data-s936-editor-surface');
     hideLegacyFretboardShell();
     if(kind === 'drums'){
-        container.classList.remove('s936-main-string-surface-active');
+        container.classList.remove('s936-main-string-surface-active','s936-editor-surface-active');
         container.classList.add('s936-main-drum-surface-active');
         window.Studio936StringSurface?.clear?.();
         document.getElementById('s936EditorGuitarSurface')?.remove();
     }else if(kind === 'strings'){
-        container.classList.remove('s936-main-drum-surface-active');
+        container.classList.remove('s936-main-drum-surface-active','s936-editor-surface-active');
         container.classList.add('s936-main-string-surface-active');
         window.Studio936DrumSurface?.clear?.();
         document.getElementById('s936EditorDrumSurface')?.remove();
@@ -640,7 +656,10 @@ function clearMainDrumSurface(){
 }
 function renderMainDrumSurface(force=false){
     if(project.instrument !== 'drums') return false;
-    if(InstrumentSurfaceManager?.getState?.().active) return false;
+    if(InstrumentSurfaceManager?.getState?.().active){
+        if(force) forceMainSurfaceOwnership('drums-force');
+        else return false;
+    }
     const DrumSurface = window.Studio936DrumSurface;
     if(!DrumSurface?.render) return false;
     const container = els.fretboardContainer || document.getElementById('fretboardContainer');
@@ -651,18 +670,32 @@ function renderMainDrumSurface(force=false){
     const key = ['drums',sectionKey,project.bpm,pattern?.kit || 'studio',pattern?.bars || 1].join('|');
     if(!force && key === lastMainDrumRenderKey && document.getElementById('s936EditorDrumSurface')) return true;
     lastMainDrumRenderKey = key;
-    prepareMainSurface('drums');
+    const target = prepareMainSurface('drums') || container;
     if(pianoBox) pianoBox.style.display = 'none';
+    target.style.display = 'flex';
+    target.style.visibility = 'visible';
     if(els.viewToggleBtn) els.viewToggleBtn.textContent = 'Vista piano';
     project.viewMode = 'fretboard';
-    DrumSurface.render({
-        container,
-        pattern,
-        sectionName:sectionNames[sectionKey] || sectionKey,
-        onLaneSelect:()=>{},
-        onLaneTrigger:(laneId,velocity)=>triggerEditorDrumLane(laneId,velocity,pattern)
-    });
+    try {
+        DrumSurface.render({
+            container:target,
+            pattern,
+            sectionName:sectionNames[sectionKey] || sectionKey,
+            onLaneSelect:()=>{},
+            onLaneTrigger:(laneId,velocity)=>triggerEditorDrumLane(laneId,velocity,pattern)
+        });
+    } catch(error){
+        console.error('Studio936 Main batería: no pude montar el kit visual.', error);
+        return false;
+    }
     return true;
+}
+function scheduleMainDrumSurface(){
+    if(project.instrument !== 'drums') return;
+    renderMainDrumSurface(true);
+    requestAnimationFrame(() => renderMainDrumSurface(true));
+    setTimeout(() => renderMainDrumSurface(true), 120);
+    setTimeout(() => renderMainDrumSurface(true), 360);
 }
 function flashMainDrumStep(stepBar,types={}){
     if(project.instrument !== 'drums') return false;
@@ -1162,7 +1195,12 @@ function updateLiveUI(item,stepBar,barNum,types){
     updatePartDisplay();
     els.measureLabel.textContent = `Compás ${barNum}/${item.bars || 1} · Paso ${stepBar+1}/16`;
     updateStepGrid(stepBar,types);
-    renderMainStringSurface(chordIdx,false);
+    if(project.instrument === 'drums'){
+        renderMainDrumSurface(false);
+        flashMainDrumStep(stepBar,types);
+    } else {
+        renderMainStringSurface(chordIdx,false);
+    }
 }
 function updateStepGrid(activeStep=-1,types={}){
     const st = styles[project.style] || styles.funk;
@@ -1243,7 +1281,7 @@ function renderAll(){
     loadSoloFromSelectedSection();
     renderSectionOptions(); renderChordSelect(); renderSectionList(); loadEditorFromSelected(); updateStyleHelp(); updatePartDisplay(); updateStepGrid(-1); updateSectionNoteMap(); renderArrangementBuilder(); setBPM(project.bpm);
     if(stringInstrumentId(project.instrument)) setTimeout(()=>renderMainStringSurface(chordIdx,true),0);
-    else if(project.instrument === 'drums') setTimeout(()=>renderMainDrumSurface(true),0);
+    else if(project.instrument === 'drums') setTimeout(()=>scheduleMainDrumSurface(),0);
 }
 function renderChordSelect(){
     const seq = editorSeq(); els.chordSelect.innerHTML='';
@@ -1261,7 +1299,7 @@ function previewChord(){
     const t=audioCtx.currentTime+.02;
     const item = editorSeq()[Number(els.chordSelect?.value)||0] || currentItem();
     if(project.instrument === 'drums'){
-        renderMainDrumSurface(true);
+        scheduleMainDrumSurface();
         ['kick','snare','hatClosed'].forEach((lane,index)=>setTimeout(()=>triggerEditorDrumLane(lane,index===0 ? .95 : .72,defaultDrumPattern()),index*70));
         return;
     }
@@ -1568,7 +1606,7 @@ function bind(){
         } else if(project.instrument === 'drums'){
             clearMainStringSurface();
             setViewMode('fretboard');
-            renderMainDrumSurface(true);
+            scheduleMainDrumSurface();
             flashStatus('Batería 936 activa en Main.');
         } else {
             setViewMode('piano');
@@ -2364,7 +2402,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.2-surfaces-core',
+        version: 'suite-pro-bridge-v0.7.2.3-main-bateria-direct',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -2383,6 +2421,7 @@ function installStudio936AppBridge(){
         deactivateEditorSurface,
         getInstrumentSurfaceState:()=>InstrumentSurfaceManager.getState(),
         renderMainStringSurface:()=>renderMainStringSurface(chordIdx,true),
+        renderMainDrumSurface:()=>{ project.instrument='drums'; if(els.instrumentSelect) els.instrumentSelect.value='drums'; scheduleMainDrumSurface(); return true; },
         showEditorChordVisual,
         previewEditorChord,
         applyEditorChord,
@@ -3300,7 +3339,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     }else if(inst==='drums'){
       if(piano) piano.style.display='none'; if(fret) fret.style.display='flex';
       if(toggle) toggle.textContent=tr()==='en'?'Piano view':'Vista piano';
-      try { renderMainDrumSurface(true); } catch(_) {}
+      try { scheduleMainDrumSurface(); } catch(_) {}
       const box=$('v23ChordCharts'); if(box) box.style.display='none';
     }else if(!document.documentElement.classList.contains('v23-zoom-on')){
       if(piano) piano.style.display='flex'; if(fret) fret.style.display='none';
