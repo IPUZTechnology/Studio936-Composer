@@ -1,4 +1,4 @@
-// Studio 936 Composer - Shared String Instrument Surface v1.4 · Expression & Chord Preview
+// Studio 936 Composer - Shared String Instrument Surface v1.5 · Strum Modes
 // Renders Guitar, Ukulele and Bass as one live surface for Main and Editor.
 window.Studio936StringSurface = (() => {
   "use strict";
@@ -195,6 +195,42 @@ window.Studio936StringSurface = (() => {
     return total;
   }
 
+  function cellPayloadFromNode(node,instrument,fallback={}){
+    if(!node) return null;
+    const midi = Number(node.dataset.midi);
+    if(!Number.isFinite(midi)) return null;
+    const stringIndex = Number(node.dataset.stringIndex);
+    const physicalFret = Number(node.dataset.physicalFret);
+    return Object.assign({},fallback,{
+      instrument: instrument || fallback.instrument,
+      midi,
+      note: noteName(midi),
+      stringIndex,
+      physicalFret,
+      fret: Math.max(0,physicalFret - (Number(fallback.capo) || 0)),
+      open: node.classList.contains("open"),
+      maxFret: Number(fallback.maxFret) || 24,
+      capo: Number(fallback.capo) || 0
+    });
+  }
+
+  function activeCellForString(surface,stringIndex){
+    if(!surface || !Number.isFinite(Number(stringIndex))) return null;
+    const selector = [
+      `.s936-neck-cell.on[data-string-index="${Number(stringIndex)}"][data-midi]`,
+      `.s936-neck-cell.open.active[data-string-index="${Number(stringIndex)}"][data-midi]`
+    ].join(",");
+    return surface.querySelector(selector);
+  }
+
+  function neckCellFromPoint(x,y,surface){
+    if(typeof document.elementFromPoint !== "function") return null;
+    const raw = document.elementFromPoint(Number(x)||0,Number(y)||0);
+    const cell = raw?.closest?.("#s936EditorGuitarSurface .s936-neck-cell[data-midi]");
+    if(!cell || (surface && !surface.contains(cell))) return null;
+    return cell;
+  }
+
   function startExpressionGesture(pointerEvent,cell,payload,onCellPlay,surface){
     if(!pointerEvent || !cell || typeof onCellPlay !== "function") return;
     const pointerId = pointerEvent.pointerId;
@@ -207,9 +243,12 @@ window.Studio936StringSurface = (() => {
     const startMidi = Number(payload.midi);
     let lastFret = startFret;
     let lastBend = 0;
+    let lastStrummedString = stringIndex;
+    let strumCount = 0;
     try { cell.setPointerCapture?.(pointerId); } catch (_) {}
 
     function emitSlide(targetFret){
+      if(strumCount > 0) return;
       if(!Number.isFinite(targetFret) || targetFret === lastFret) return;
       lastFret = targetFret;
       const target = surface?.querySelector?.(`[data-string-index="${stringIndex}"][data-physical-fret="${targetFret}"]`);
@@ -225,6 +264,7 @@ window.Studio936StringSurface = (() => {
     }
 
     function emitBend(semitones){
+      if(strumCount > 0) return;
       const bend = Math.max(0,Math.min(2,Number(semitones)||0));
       if(bend === lastBend) return;
       lastBend = bend;
@@ -238,16 +278,41 @@ window.Studio936StringSurface = (() => {
       }));
     }
 
+    function emitStrum(targetCell,clientY){
+      const targetString = Number(targetCell?.dataset?.stringIndex);
+      if(!Number.isFinite(targetString) || targetString === lastStrummedString) return false;
+      lastStrummedString = targetString;
+      const active = activeCellForString(surface,targetString);
+      const node = active || targetCell;
+      const eventPayload = cellPayloadFromNode(node,payload.instrument,payload);
+      if(!eventPayload) return false;
+      const direction = (Number(clientY)||0) >= startY ? "down" : "up";
+      flashCells([node],"s936-strum-hit",250);
+      onCellPlay(Object.assign({},eventPayload,{
+        gesture:"strum",
+        strumDirection:direction,
+        source:"vertical-drag"
+      }));
+      strumCount += 1;
+      return true;
+    }
+
     function move(event){
       if(event.pointerId !== pointerId) return;
-      const dx = (Number(event.clientX) || 0) - startX;
-      const dy = startY - (Number(event.clientY) || 0);
-      if(Math.abs(dx) > 26 && Number.isFinite(startFret)){
+      const x = Number(event.clientX) || 0;
+      const y = Number(event.clientY) || 0;
+      const dx = x - startX;
+      const dyFromStart = y - startY;
+      const dyUp = startY - y;
+      const targetCell = neckCellFromPoint(x,y,surface);
+      const strummed = targetCell ? emitStrum(targetCell,y) : false;
+
+      if(!strummed && Math.abs(dx) > 26 && Number.isFinite(startFret) && Math.abs(dx) >= Math.abs(dyFromStart)){
         const shift = Math.round(dx / 44);
         const targetFret = clamp(startFret + shift, capo, maxFret);
         emitSlide(targetFret);
       }
-      if(dy > 24) emitBend(Math.ceil(Math.min(2,dy / 42)));
+      if(!strummed && dyUp > 24 && Math.abs(dx) < 34) emitBend(Math.ceil(Math.min(2,dyUp / 42)));
       event.preventDefault?.();
     }
 
@@ -270,12 +335,24 @@ window.Studio936StringSurface = (() => {
     flashCells([cell],"s936-live-hit",220);
     if(interactionMode === "map") flashMidis([payload.midi],"s936-map-hit",560);
     if(interactionMode === "chord") {
-      const chordEvents = Array.from(surface?.querySelectorAll?.(".s936-neck-cell.on,.s936-neck-cell.open.active") || []).map(node => ({
-        stringIndex:Number(node.dataset.stringIndex),
-        physicalFret:Number(node.dataset.physicalFret),
-        midi:Number(node.dataset.midi)
-      }));
-      flashStringEvents(chordEvents,"s936-strum-hit",220,28);
+      const chordEvents = Array.from(surface?.querySelectorAll?.(".s936-neck-cell.on[data-midi],.s936-neck-cell.open.active[data-midi]") || [])
+        .map(node => cellPayloadFromNode(node,payload.instrument,payload))
+        .filter(Boolean)
+        .sort((a,b) => Number(a.stringIndex) - Number(b.stringIndex));
+      if(chordEvents.length){
+        flashStringEvents(chordEvents,"s936-strum-hit",240,34);
+        if(typeof onCellPlay === "function"){
+          chordEvents.forEach((chordEvent,index) => {
+            setTimeout(() => onCellPlay(Object.assign({},chordEvent,{
+              gesture:"strum",
+              visualMode:interactionMode,
+              source:"chord-mode"
+            })), index * 34);
+          });
+        }
+        startExpressionGesture(event,cell,enriched,onCellPlay,surface);
+        return;
+      }
     }
     if(typeof onCellPlay === "function") onCellPlay(enriched);
     startExpressionGesture(event,cell,enriched,onCellPlay,surface);
@@ -439,10 +516,10 @@ window.Studio936StringSurface = (() => {
     const help = document.createElement("div");
     help.className = "s936-neck-help";
     help.textContent = isMainSurface
-      ? "Modo práctica: toca cuerda/traste para escuchar; Start Groove y Escuchar canción iluminan la digitación real."
+      ? "Modo Tocar: tap = nota; arrastre vertical = strum; horizontal = slide; hacia arriba en la misma cuerda = bend. Mapa muestra equivalentes; Acorde rasguea la forma actual."
       : (bassLineMode
         ? "Selecciona un paso en Bass Line Pro y toca una cuerda/traste para escribir la nota."
-        : "La 1.ª cuerda está arriba. Haz clic en un traste y elige el dedo; mapa pequeño, panel manual y sonido se actualizarán juntos.");
+        : "La 1.ª cuerda está arriba. Tocar escribe/escucha; arrastrar vertical rasguea la forma; Mapa enseña notas equivalentes; Acorde reproduce la digitación.");
     const modeBar = document.createElement("div");
     modeBar.className = "s936-mode-bar";
     const modeLabel = document.createElement("span");
@@ -667,7 +744,7 @@ window.Studio936StringSurface = (() => {
   }
 
   return {
-    version:"string-surface-v1.4-expression-preview",
+    version:"string-surface-v1.5-strum-modes",
     render,
     clear,
     flashMidis,

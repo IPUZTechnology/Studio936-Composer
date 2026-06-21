@@ -1,4 +1,4 @@
-// Studio 936 Composer - extracted JavaScript from legacy v25.9 + Editor Pro bridge v1.7.1.4.1 SuperGuitarra Base Hotfix
+// Studio 936 Composer - extracted JavaScript from legacy v25.9 + Editor Pro bridge v1.7.1.7 SuperGuitarra Strum Modes
 // Keep script order intact.
 
 (() => {
@@ -504,12 +504,12 @@ function renderMainStringSurface(index=chordIdx,force=false){
             const gesture = String(event?.gesture || 'tap');
             playNote(
                 midi,
-                gesture === 'slide' ? .18 : gesture === 'bend' ? .16 : (instrument === 'bass' ? .36 : .24),
-                instrument === 'bass' ? .72 : .66,
+                gesture === 'strum' ? .13 : gesture === 'slide' ? .18 : gesture === 'bend' ? .16 : (instrument === 'bass' ? .36 : .24),
+                gesture === 'strum' ? .58 : (instrument === 'bass' ? .72 : .66),
                 instrument === 'bass' ? 'sine' : 'triangle',
                 audioCtx.currentTime
             );
-            const cls = gesture === 'slide' ? 's936-slide-hit' : gesture === 'bend' ? 's936-bend-hit' : 's936-live-hit';
+            const cls = gesture === 'strum' ? 's936-strum-hit' : gesture === 'slide' ? 's936-slide-hit' : gesture === 'bend' ? 's936-bend-hit' : 's936-live-hit';
             if(Number.isFinite(Number(event?.stringIndex)) && Number.isFinite(Number(event?.physicalFret))){
                 StringSurface.flashPosition?.(Number(event.stringIndex),Number(event.physicalFret),cls,220);
             }
