@@ -1,4 +1,4 @@
-// Studio 936 Composer - extracted JavaScript from legacy v25.9 + Editor Pro bridge v1.7.1.8.5 Guitar Sync + Drum Restore
+// Studio 936 Composer - extracted JavaScript from legacy v25.9 + Editor Pro bridge v1.7.1.8.8 Lifecycle Lock
 // Keep script order intact.
 
 (() => {
@@ -7,6 +7,22 @@ const debugArrangementEnabled = new URLSearchParams(window.location.search).get(
 const STORAGE_KEY = 'studio936ComposerV25SongStructure';
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 window.__studio936AudioCtx = audioCtx;
+
+window.s936EditorSurfaceActive = function s936EditorSurfaceActiveSafe(){
+    try {
+        const managerState = window.Studio936InstrumentSurfaceManager?.getState?.();
+        if (managerState?.active || managerState?.owner === 'editor') return true;
+    } catch(_) {}
+    try {
+        const owner = document.body?.getAttribute?.('data-s936-surface-owner');
+        return owner === 'editor'
+            || document.body?.classList?.contains('s936-editor-guitar-surface')
+            || document.body?.classList?.contains('s936-editor-drum-surface');
+    } catch(_) {
+        return false;
+    }
+};
+
 
 const SongModel = window.Studio936SongModel || {};
 const {
@@ -1889,6 +1905,9 @@ function installStudio936AppBridge(){
                         StringSurface?.flashPosition?.(Number(event.stringIndex),Number(event.physicalFret),cls,220);
                     }
                 },
+                onChordSelect:index => {
+                    selectEditorChord(data.sectionKey, Number(index) || 0);
+                },
                 renderer:StringSurface
             });
         } else if(data.instrument !== 'piano' && els.fretboardContainer){
@@ -2227,7 +2246,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v1.7.1.8.5-guitar-sync-drum-restore',
+        version: 'suite-pro-bridge-v1.7.1.8.8-lifecycle-lock',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -2836,7 +2855,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
   function markTouch(){ if(isTouch()) document.documentElement.classList.add('v22-touch'); }
 
   function normalizeViewFromInstrument(){
-    if(s936EditorSurfaceActive()) return;
+    if(window.s936EditorSurfaceActive?.()) return;
     const inst = $('instrumentSelect')?.value || 'piano';
     const piano = $('pianoContainer');
     const fret = $('fretboardContainer');
@@ -3088,7 +3107,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     return box;
   }
   function renderChordCharts(){
-    if(s936EditorSurfaceActive()){
+    if(window.s936EditorSurfaceActive?.()){
       const box=$('v23ChordCharts');
       if(box) box.style.display='none';
       return;
@@ -3151,7 +3170,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     const tool=$('v19ToolsToggle'); if(tool){ tool.style.writingMode='horizontal-tb'; tool.style.transform='none'; if(!tool.textContent.trim() || /herramientas|tools/i.test(tool.textContent)) tool.textContent=T('tools'); }
   }
   function forceInstrumentView(){
-    if(s936EditorSurfaceActive()) return;
+    if(window.s936EditorSurfaceActive?.()) return;
     const inst=$('instrumentSelect')?.value||'piano';
     const piano=$('pianoContainer'), fret=$('fretboardContainer'), toggle=$('viewToggleBtn'), fm=$('fretModeSelect');
     if(['guitar','ukulele','bass'].includes(inst)){

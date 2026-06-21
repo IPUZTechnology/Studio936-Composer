@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.1.8.7-guitar-editor-handshake";
+  const VERSION = "editor-v0.7.1.8.8-lifecycle-lock";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -1119,38 +1119,20 @@
 
       try {
         mountVisualOnly();
-        if (!DrumComposer) {
-          drumsHost.appendChild(el(ctx, "div", "s936-ed-status", "Batería Pro no está disponible. Revisa que js/suite-pro-drum-composer.js cargue antes del Editor."));
-        } else {
-          activeController = DrumComposer.render({
-            host: drumsHost,
-            sectionKey: drumSection,
-            sectionName: (sectionOptionsForDrums.find(entry => entry[0] === drumSection) || [drumSection,humanize(drumSection)])[1],
-            sectionOptions: sectionOptionsForDrums,
-            sections,
-            bpm: data.bpm || 95,
-            drumPatterns: data.drumPatterns || {},
-            onSectionChange:key => {
-              state.sectionKey = key;
-              state.chordIndex = 0;
-              bridge("selectEditorSection", key);
-              renderModule(ctx, host);
-            }
-          });
-        }
+        const safeTitle = el(ctx, "h4", "", "Batería Pro · Kit visual");
+        const safeMsg = el(ctx, "div", "s936-ed-status", "Modo seguro activo: el kit visual queda disponible para tocar sin bloquear la aplicación. El secuenciador completo queda pausado hasta estabilizarlo.");
+        drumsHost.append(safeTitle, safeMsg);
       } catch (error) {
-        console.warn("Studio 936 · Batería Pro completa falló, usando kit visual seguro:", error);
+        console.warn("Studio 936 · Batería visual falló:", error);
         while (drumsHost.firstChild) drumsHost.removeChild(drumsHost.firstChild);
-        const title = el(ctx, "h4", "", "Batería Pro · Kit visual seguro");
-        const msg = el(ctx, "div", "s936-ed-status", "El panel completo falló, pero el kit visual queda activo para tocar sin bloquear la aplicación.");
-        const retry = button(ctx, "Reintentar panel completo", "primary", () => renderModule(ctx, host));
-        drumsHost.append(title,msg,retry);
-        mountVisualOnly();
+        drumsHost.appendChild(el(ctx, "div", "s936-ed-status", "No se pudo montar el kit visual de batería, pero el Editor quedó desbloqueado."));
       }
 
       shell.appendChild(drumsHost);
       host.appendChild(shell);
-      requestAnimationFrame(() => mountVisualOnly());
+      requestAnimationFrame(() => {
+        try { mountVisualOnly(); } catch(error) { console.warn("Studio 936 · remount batería visual falló:", error); }
+      });
       return;
     }
 
@@ -1645,6 +1627,16 @@
         renderModule(ctx, host);
       }
     } : null;
+
+    // v0.7.1.8.8: Auto-wake de la SuperGuitarra al entrar desde Main.
+    // Evita que la superficie quede montada pero esperando una reselección manual.
+    if (isStringInstrument() && guitarControls) {
+      setTimeout(() => {
+        try { scheduleVisual(currentPayload(), true); } catch (error) {
+          console.warn("Editor Instrumental · auto-wake guitarra falló:", error);
+        }
+      }, 0);
+    }
 
     sectionSelect.addEventListener("change", () => {
       state.sectionKey = sectionSelect.value;
