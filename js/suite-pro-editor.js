@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.1.3-navigation-live";
+  const VERSION = "editor-v0.7.1.8.1-drum-safe";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -1092,20 +1092,35 @@
       if (!DrumComposer) {
         drumsHost.appendChild(el(ctx, "div", "s936-ed-status", "Batería Pro no está disponible. Revisa que js/suite-pro-drum-composer.js cargue antes del Editor."));
       } else {
-        activeController = DrumComposer.render({
-          host:drumsHost,
-          sectionKey:state.sectionKey,
-          sectionName:(sectionOptionsForDrums.find(entry => entry[0] === state.sectionKey) || [state.sectionKey,humanize(state.sectionKey)])[1],
-          sectionOptions:sectionOptionsForDrums,
-          sections,
-          bpm:data.bpm || 95,
-          onSectionChange:key => {
-            state.sectionKey = key;
-            state.chordIndex = 0;
-            bridge("selectEditorSection", key);
-            renderModule(ctx, host);
+        try {
+          activeController = DrumComposer.render({
+            host:drumsHost,
+            sectionKey:state.sectionKey,
+            sectionName:(sectionOptionsForDrums.find(entry => entry[0] === state.sectionKey) || [state.sectionKey,humanize(state.sectionKey)])[1],
+            sectionOptions:sectionOptionsForDrums,
+            sections,
+            bpm:data.bpm || 95,
+            onSectionChange:key => {
+              state.sectionKey = key;
+              state.chordIndex = 0;
+              bridge("selectEditorSection", key);
+              renderModule(ctx, host);
+            }
+          });
+          if (!activeController) {
+            drumsHost.appendChild(el(ctx, "div", "s936-ed-status", "Batería Pro abrió en modo seguro. Revisa la consola si la superficie visual no aparece."));
           }
-        });
+        } catch (error) {
+          console.error("Studio 936 · Batería Pro no pudo renderizar:", error);
+          drumsHost.innerHTML = "";
+          const fallback = el(ctx, "div", "s936-ed-status", "Batería Pro entró en modo seguro para no bloquear la aplicación. Cierra y vuelve a abrir Compose, o revisa la primera línea roja de consola.");
+          fallback.classList.add("error");
+          drumsHost.appendChild(fallback);
+          const retry = el(ctx, "button", "s936-ed-btn warn", "Reintentar batería");
+          retry.type = "button";
+          retry.addEventListener("click", () => renderModule(ctx, host));
+          drumsHost.appendChild(retry);
+        }
       }
       shell.appendChild(drumsHost);
       host.appendChild(shell);

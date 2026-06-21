@@ -3,7 +3,7 @@
 (function(){
 "use strict";
 
-const VERSION = "drum-composer-v0.7.1.3-live-rec";
+const VERSION = "drum-composer-v0.7.1.8.1-safe-dock";
 const STYLE_ID = "s936DrumComposerStyles";
 const Core = window.Studio936SequencerCore;
 const DrumSurface = window.Studio936DrumSurface || null;
@@ -96,25 +96,25 @@ function installStyles(){
   const style=document.createElement("style");
   style.id=STYLE_ID;
   style.textContent=`
-#s936SuitePro .s936-dc-shell{display:grid;gap:10px;margin-top:8px}
-#s936SuitePro .s936-dc-panel{border:1px solid rgba(255,255,255,.13);border-radius:15px;background:rgba(255,255,255,.045);padding:11px}
+#s936SuitePro .s936-dc-shell{display:grid;gap:10px;margin-top:8px;min-width:0;max-width:100%;overflow:visible}
+#s936SuitePro .s936-dc-panel{border:1px solid rgba(255,255,255,.13);border-radius:15px;background:rgba(255,255,255,.045);padding:11px;min-width:0;max-width:100%;box-sizing:border-box}
 #s936SuitePro .s936-dc-panel.primary{border-color:rgba(255,190,55,.38);background:linear-gradient(135deg,rgba(255,184,45,.10),rgba(255,75,75,.055))}
-#s936SuitePro .s936-dc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+#s936SuitePro .s936-dc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap}
 #s936SuitePro .s936-dc-head b{color:#ffd36d;font-size:.82rem;text-transform:uppercase;letter-spacing:.55px}
 #s936SuitePro .s936-dc-head span{color:rgba(255,255,255,.55);font-size:.65rem}
-#s936SuitePro .s936-dc-config{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+#s936SuitePro .s936-dc-config{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;min-width:0}
 #s936SuitePro .s936-dc-field{display:grid;gap:4px;min-width:0}
 #s936SuitePro .s936-dc-field>span{font-size:.61rem;font-weight:800;color:rgba(255,255,255,.58);text-transform:uppercase;letter-spacing:.42px}
 #s936SuitePro .s936-dc-field select,#s936SuitePro .s936-dc-field input{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.13);border-radius:9px;background:#111722;color:#fff;padding:8px;font-size:.72rem}
-#s936SuitePro .s936-dc-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+#s936SuitePro .s936-dc-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;min-width:0}
 #s936SuitePro .s936-dc-btn{border:1px solid rgba(255,255,255,.14);border-radius:9px;background:rgba(255,255,255,.07);color:#fff;padding:8px 10px;font-size:.69rem;font-weight:850;cursor:pointer}
 #s936SuitePro .s936-dc-btn.primary{background:linear-gradient(135deg,#ff9d2f,#ff5c4d);border-color:transparent}
 #s936SuitePro .s936-dc-btn.warn{background:rgba(255,210,70,.12);border-color:rgba(255,210,70,.35);color:#ffe28c}
 #s936SuitePro .s936-dc-btn.danger{background:rgba(255,75,75,.10);border-color:rgba(255,75,75,.34);color:#ffaaaa}
 #s936SuitePro .s936-dc-status{margin-top:8px;border-radius:9px;background:rgba(0,0,0,.25);padding:8px;color:#caffd8;font-size:.69rem}
 #s936SuitePro .s936-dc-status.error{color:#ffabab}
-#s936SuitePro .s936-dc-workspace{display:grid;grid-template-columns:minmax(205px,260px) minmax(0,1fr);gap:9px;align-items:start}
-#s936SuitePro .s936-dc-kit{display:grid;gap:6px}
+#s936SuitePro .s936-dc-workspace{display:grid;grid-template-columns:1fr;gap:9px;align-items:start;min-width:0;max-width:100%}
+#s936SuitePro .s936-dc-kit{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;min-width:0}
 #s936SuitePro .s936-dc-lane-control{display:grid;grid-template-columns:26px minmax(0,1fr) 28px 28px;gap:5px;align-items:center;border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:6px;background:rgba(255,255,255,.025)}
 #s936SuitePro .s936-dc-lane-control.selected{border-color:rgba(0,255,204,.7);box-shadow:0 0 0 2px rgba(0,255,204,.12),0 0 18px rgba(0,255,204,.12)}
 #s936SuitePro .s936-dc-lane-control.off{opacity:.42}
@@ -126,13 +126,13 @@ function installStyles(){
 #s936SuitePro .s936-dc-lane-name input{width:100%;accent-color:#ffbd4f}
 #s936SuitePro .s936-dc-mini{border:1px solid rgba(255,255,255,.12);border-radius:6px;background:#111722;color:#fff;font-size:.59rem;font-weight:900;height:27px;cursor:pointer}
 #s936SuitePro .s936-dc-mini.active{background:#ffd15d;color:#201500}
-#s936SuitePro .s936-dc-grid-wrap{overflow:auto;padding-bottom:5px}
-#s936SuitePro .s936-dc-grid{display:grid;gap:4px;min-width:max-content}
-#s936SuitePro .s936-dc-grid-head,#s936SuitePro .s936-dc-grid-row{display:grid;grid-template-columns:82px repeat(var(--steps),34px);gap:3px;align-items:center}
+#s936SuitePro .s936-dc-grid-wrap{overflow:auto;padding-bottom:5px;max-width:100%;min-width:0;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#s936SuitePro .s936-dc-grid{display:grid;gap:4px;min-width:max-content;max-width:none}
+#s936SuitePro .s936-dc-grid-head,#s936SuitePro .s936-dc-grid-row{display:grid;grid-template-columns:72px repeat(var(--steps),30px);gap:3px;align-items:center}
 #s936SuitePro .s936-dc-grid-head span{font-size:.54rem;text-align:center;color:rgba(255,255,255,.48)}
 #s936SuitePro .s936-dc-grid-head .label{text-align:left;color:#ffd36d;font-weight:900}
 #s936SuitePro .s936-dc-row-label{font-size:.62rem;color:rgba(255,255,255,.78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#s936SuitePro .s936-dc-step{width:34px;height:34px;border:1px solid rgba(255,255,255,.09);border-radius:7px;background:rgba(255,255,255,.035);color:#fff;cursor:pointer;padding:0}
+#s936SuitePro .s936-dc-step{width:30px;height:30px;border:1px solid rgba(255,255,255,.09);border-radius:7px;background:rgba(255,255,255,.035);color:#fff;cursor:pointer;padding:0}
 #s936SuitePro .s936-dc-step.beat{border-top-color:rgba(255,210,80,.62)}
 #s936SuitePro .s936-dc-step.bar{box-shadow:inset 3px 0 0 rgba(255,255,255,.18)}
 #s936SuitePro .s936-dc-step.on{background:rgba(255,165,55,.58);border-color:#ffbd58}
@@ -143,6 +143,11 @@ function installStyles(){
 #s936SuitePro .s936-dc-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:7px;font-size:.62rem;color:rgba(255,255,255,.55)}
 #s936SuitePro .s936-dc-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px;background:rgba(255,165,55,.58)}
 #s936SuitePro .s936-dc-legend i.accent{background:#fff0a0}
+
+#s936SuitePro .s936-ed-drums-host{overflow:visible!important;min-width:0!important}
+#s936SuitePro .s936-ed-drums-host .s936-dc-grid-wrap{touch-action:pan-x pan-y}
+#s936SuitePro .s936-dc-safe-note{border:1px solid rgba(255,210,70,.35);border-radius:12px;background:rgba(255,210,70,.08);padding:9px;color:#ffe9a3;font-size:.65rem;line-height:1.35}
+
 @media(max-width:920px){
   #s936SuitePro .s936-dc-workspace{grid-template-columns:1fr}
   #s936SuitePro .s936-dc-kit{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -705,7 +710,12 @@ function render(options={}){
     redrawKit();
     redrawGrid();
     gridHead.lastChild.textContent=`${pattern.bars} compás(es) · ${LANES.reduce((sum,def)=>sum+Object.keys(pattern.lanes[def.id].hits).length,0)} golpes`;
-    syncSurface();
+    try{
+      syncSurface();
+    }catch(error){
+      console.warn("Drum Composer: superficie visual no disponible.", error);
+      setStatus("Batería lista en modo seguro. La superficie visual grande no se pudo montar, pero el secuenciador sigue disponible.", true);
+    }
   }
   function playStep(step){
     const bpm=Number(state.bpm||options.bpm||95);
