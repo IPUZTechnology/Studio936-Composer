@@ -391,9 +391,47 @@ function mainStringPlaybackMidis(item,instrument=project.instrument){
     return exactStringMidis(item,instrument);
 }
 function mainStringVisualBassMidis(item,instrument=project.instrument){
+    const events = mainStringVisualBassEvents(item,instrument);
+    return events.map(event => event.midi).filter(Number.isFinite);
+}
+function mainStringVoicingEvents(item,instrument=project.instrument){
     const voicing = mainStringVoicing(item,instrument);
-    if(!voicing?.midis?.length) return [];
-    return [Math.min(...voicing.midis)];
+    if(!voicing?.strings?.length) return [];
+    return voicing.strings
+        .filter(string => string && !string.muted && Number.isFinite(Number(string.midi)) && Number.isFinite(Number(string.physicalFret)))
+        .map(string => ({
+            stringIndex:Number(string.index),
+            physicalFret:Number(string.physicalFret),
+            fret:Number(string.fret),
+            midi:Number(string.midi),
+            note:string.note || midiToNote(Number(string.midi))
+        }));
+}
+function mainStringEventsForMidis(item,midis,instrument=project.instrument){
+    const wanted = (Array.isArray(midis) ? midis : [midis]).map(Number).filter(Number.isFinite).map(Math.round);
+    const pool = mainStringVoicingEvents(item,instrument);
+    const used = new Set();
+    const events = [];
+    wanted.forEach(midi => {
+        let idx = pool.findIndex((event,index) => !used.has(index) && Math.round(event.midi) === midi);
+        if(idx < 0) idx = pool.findIndex((event,index) => !used.has(index) && pcOfMidi936(event.midi) === pcOfMidi936(midi));
+        if(idx >= 0){
+            used.add(idx);
+            events.push(Object.assign({},pool[idx],{midi}));
+        }
+    });
+    return events;
+}
+function mainStringVisualBassEvents(item,instrument=project.instrument){
+    const events = mainStringVoicingEvents(item,instrument);
+    if(!events.length) return [];
+    return [events.slice().sort((a,b)=>a.midi-b.midi)[0]];
+}
+function mainStringSeqVoicingPreviews(seq,instrument=project.instrument){
+    return (Array.isArray(seq) ? seq : []).map(item => {
+        const voicing = mainStringVoicing(item,instrument);
+        return voicing?.voicing ? voicing.voicing : null;
+    });
 }
 function clearMainStringSurface(){
     lastMainStringRenderKey = '';
@@ -416,6 +454,7 @@ function renderMainStringSurface(index=chordIdx,force=false){
     const item = seq[chordIndex] || currentItem();
     const voicing = mainStringVoicing(item,instrument);
     if(!voicing?.voicing || !voicing.midis?.length) return false;
+    const seqVoicings = mainStringSeqVoicingPreviews(seq,instrument);
 
     const shape = (voicing.voicing.frets || []).map(value => value === null ? 'X' : String(value)).join('-');
     const key = [instrument,sectionKey,chordIndex,item?.name || '',shape,project.bpm].join('|');
@@ -447,6 +486,7 @@ function renderMainStringSurface(index=chordIdx,force=false){
             sectionName:sectionNames[sectionKey] || sectionKey,
             chordIndex,
             seq,
+            seqVoicings,
             name:item?.name || 'Acorde',
             bass:item?.bass || voicing.voicing.bass || '',
             notes:item?.notes || voicing.voicing.notes || '',
@@ -461,14 +501,18 @@ function renderMainStringSurface(index=chordIdx,force=false){
             const midi = Number(event?.midi);
             if(!Number.isFinite(midi)) return;
             resumeAudio();
+            const gesture = String(event?.gesture || 'tap');
             playNote(
                 midi,
-                instrument === 'bass' ? .36 : .24,
+                gesture === 'slide' ? .18 : gesture === 'bend' ? .16 : (instrument === 'bass' ? .36 : .24),
                 instrument === 'bass' ? .72 : .66,
                 instrument === 'bass' ? 'sine' : 'triangle',
                 audioCtx.currentTime
             );
-            StringSurface.flashMidis?.([midi],'s936-live-hit',220);
+            const cls = gesture === 'slide' ? 's936-slide-hit' : gesture === 'bend' ? 's936-bend-hit' : 's936-live-hit';
+            if(Number.isFinite(Number(event?.stringIndex)) && Number.isFinite(Number(event?.physicalFret))){
+                StringSurface.flashPosition?.(Number(event.stringIndex),Number(event.physicalFret),cls,220);
+            }
         },
         onChordSelect:selectedIndex => {
             const next = Math.max(0,Math.min(seq.length-1,Number(selectedIndex)||0));
@@ -488,6 +532,10 @@ function renderMainStringSurface(index=chordIdx,force=false){
 function flashMainStringMidis(midis,cls='s936-live-hit',dur=220){
     if(!stringInstrumentId(project.instrument)) return 0;
     if(!document.getElementById('s936EditorGuitarSurface')) renderMainStringSurface(chordIdx,false);
+    const events = mainStringEventsForMidis(currentItem(),midis,project.instrument);
+    if(events.length && window.Studio936StringSurface?.flashStringEvents){
+        return window.Studio936StringSurface.flashStringEvents(events,cls,dur);
+    }
     return window.Studio936StringSurface?.flashMidis?.(midis,cls,dur) || 0;
 }
 function chordPlaybackMidis(item){
@@ -498,6 +546,14 @@ function chordPlaybackMidis(item){
     return notes.length ? notes : [60,64,67];
 }
 function flashExactStringVoicing(item,cls='active-chord',dur=230){
+    const voicing = exactStringVoicing(item,project.instrument);
+    const events = voicing?.strings
+        ?.filter(string => string && !string.muted && Number.isFinite(Number(string.midi)))
+        ?.map(string => ({stringIndex:Number(string.index),physicalFret:Number(string.physicalFret),midi:Number(string.midi)})) || [];
+    if(events.length && window.Studio936StringSurface?.flashStringEvents){
+        window.Studio936StringSurface.flashStringEvents(events,cls,dur);
+        return events.map(event => event.midi);
+    }
     const exact = exactStringMidis(item,project.instrument);
     if(exact.length) flashFretboard(exact,cls,dur);
     return exact;
@@ -1056,11 +1112,15 @@ function previewChord(){
     const t=audioCtx.currentTime+.02;
     const item = editorSeq()[Number(els.chordSelect?.value)||0] || currentItem();
     if(stringInstrumentId(project.instrument)){
-        const notes = mainStringPlaybackMidis(item,project.instrument);
+        const voicing = mainStringVoicing(item,project.instrument);
+        const notes = voicing?.midis || mainStringPlaybackMidis(item,project.instrument);
         if(notes.length){
             renderMainStringSurface(Number(els.chordSelect?.value)||chordIdx,true);
-            notes.forEach((midi,index)=>playNote(midi,project.instrument === 'bass' ? .34 : .20,project.instrument === 'bass' ? .76 : .82,project.instrument === 'bass' ? 'sine' : 'triangle',t + index*(currentInstrument().strum || .018)));
-            window.Studio936StringSurface?.strumMidis?.(notes,Math.max(22,Math.round((currentInstrument().strum || .018)*1000)),240);
+            const strum = currentInstrument().strum || .018;
+            notes.forEach((midi,index)=>playNote(midi,project.instrument === 'bass' ? .34 : .20,project.instrument === 'bass' ? .76 : .82,project.instrument === 'bass' ? 'sine' : 'triangle',t + index*strum));
+            const events = mainStringVoicingEvents(item,project.instrument);
+            if(events.length) window.Studio936StringSurface?.strumPositions?.(events,Math.max(22,Math.round(strum*1000)),240);
+            else window.Studio936StringSurface?.strumMidis?.(notes,Math.max(22,Math.round(strum*1000)),240);
             return;
         }
     }
@@ -1721,6 +1781,17 @@ function installStudio936AppBridge(){
             && !!data.profile
             && Array.isArray(data.exactFrets);
         const useStringSurface = hasExactStringNotes || isEmptySequencerSurface;
+        if(data.profile && Array.isArray(data.seq)){
+            data.seqVoicings = mainStringSeqVoicingPreviews(data.seq,data.instrument);
+            if(data.voicings?.[data.instrument]) data.seqVoicings[data.chordIndex] = data.voicings[data.instrument];
+            else if(Array.isArray(data.exactFrets)) data.seqVoicings[data.chordIndex] = {
+                frets:safeClone(data.exactFrets),
+                fingers:Array.isArray(data.exactStrings) ? data.exactStrings.map(string => string?.finger || '') : [],
+                capo:data.capo || 0,
+                barre:data.barre || null,
+                midis:safeClone(data.exactMidis || [])
+            };
+        }
         const leftMidis = data.instrument === 'piano'
             ? (data.leftHandMidis.length ? data.leftHandMidis : parseNotes(item.bass))
             : [];
@@ -1772,17 +1843,21 @@ function installStudio936AppBridge(){
                 onCellPlay:event => {
                     const midi = Number(event?.midi);
                     if(!Number.isFinite(midi)) return;
+                    const gesture = String(event?.gesture || 'tap');
                     resumeAudio();
                     withEditorPreviewInstrument(data.instrument, () => {
                         playNote(
                             midi,
-                            data.instrument === 'bass' ? .34 : .24,
+                            gesture === 'slide' ? .18 : gesture === 'bend' ? .16 : (data.instrument === 'bass' ? .34 : .24),
                             data.instrument === 'bass' ? .72 : .64,
                             data.instrument === 'bass' ? 'sine' : 'triangle',
                             audioCtx.currentTime
                         );
                     });
-                    StringSurface?.flashMidis?.([midi],'s936-live-hit',210);
+                    const cls = gesture === 'slide' ? 's936-slide-hit' : gesture === 'bend' ? 's936-bend-hit' : 's936-live-hit';
+                    if(Number.isFinite(Number(event?.stringIndex)) && Number.isFinite(Number(event?.physicalFret))){
+                        StringSurface?.flashPosition?.(Number(event.stringIndex),Number(event.physicalFret),cls,220);
+                    }
                 },
                 renderer:StringSurface
             });
@@ -1801,6 +1876,16 @@ function installStudio936AppBridge(){
             emptySequencerSurface:isEmptySequencerSurface
         };
     }
+    function exactStringEventsFromEditorData(data){
+        return (Array.isArray(data?.exactStrings) ? data.exactStrings : [])
+            .filter(string => string && !string.muted && Number.isFinite(Number(string.midi)) && Number.isFinite(Number(string.physicalFret)) && Number.isFinite(Number(string.index)))
+            .map(string => ({
+                stringIndex:Number(string.index),
+                physicalFret:Number(string.physicalFret),
+                midi:Number(string.midi),
+                note:string.note || midiToNote(Number(string.midi))
+            }));
+    }
     function previewEditorChord(payload={}){
         const result = validateEditorPayload(payload);
         if(!result.ok) return result;
@@ -1815,17 +1900,20 @@ function installStudio936AppBridge(){
 
         if(stringExact){
             const notes = data.exactMidis;
+            const events = exactStringEventsFromEditorData(data);
             const strum = currentInstrument().strum || .018;
             const exactDuration = data.noteDuration || (data.instrument === 'bass' ? .32 : .22);
             notes.forEach((midi,index) => {
                 const type = data.instrument === 'bass' ? 'sine' : 'triangle';
                 playNote(midi,exactDuration,.82,type,when + index * strum);
                 setVisual(when + index * strum, () => {
-                    StringSurface?.flashMidis?.([midi],'s936-strum-hit',230);
-                    flashFretboard([midi],'active-chord',230);
+                    const event = events[index];
+                    if(event) StringSurface?.flashStringEvents?.([event],'s936-strum-hit',230);
+                    else StringSurface?.flashMidis?.([midi],'s936-strum-hit',230);
                 });
             });
-            StringSurface?.strumMidis?.(notes,Math.max(22,Math.round(strum * 1000)),230);
+            if(events.length) StringSurface?.strumPositions?.(events,Math.max(22,Math.round(strum * 1000)),230);
+            else StringSurface?.strumMidis?.(notes,Math.max(22,Math.round(strum * 1000)),230);
             setTimeout(() => showEditorChordVisual(data), Math.max(420,Math.ceil(exactDuration*1000)+120));
             return {
                 ok:true,
@@ -2109,7 +2197,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v1.7.1.5-super-guitar-main-unified',
+        version: 'suite-pro-bridge-v1.7.1.6-super-guitar-expression',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,

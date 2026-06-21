@@ -1,7 +1,34 @@
-// Studio 936 Composer - Shared String Instrument Surface v1.3 · Main + Editor Unificado
+// Studio 936 Composer - Shared String Instrument Surface v1.4 · Expression & Chord Preview
 // Renders Guitar, Ukulele and Bass as one live surface for Main and Editor.
 window.Studio936StringSurface = (() => {
   "use strict";
+
+  const MODE_LABELS = {
+    play: "Tocar",
+    map: "Mapa",
+    chord: "Acorde"
+  };
+  let interactionMode = "play";
+
+  try {
+    const saved = window.localStorage?.getItem?.("s936-string-mode");
+    if (["play","map","chord"].includes(saved)) interactionMode = saved;
+  } catch (_) {}
+
+  function setInteractionMode(mode) {
+    interactionMode = ["play","map","chord"].includes(String(mode)) ? String(mode) : "play";
+    try { window.localStorage?.setItem?.("s936-string-mode", interactionMode); } catch (_) {}
+    updateModeButtons();
+    return interactionMode;
+  }
+
+  function updateModeButtons(root=document) {
+    root.querySelectorAll?.("#s936EditorGuitarSurface .s936-mode-button").forEach(button => {
+      button.classList.toggle("active", button.dataset.mode === interactionMode);
+    });
+    const surface = document.getElementById("s936EditorGuitarSurface");
+    if (surface) surface.dataset.interactionMode = interactionMode;
+  }
 
   function clamp(value,min,max){
     const n = Number(value);
@@ -43,6 +70,13 @@ window.Studio936StringSurface = (() => {
       #s936EditorGuitarSurface .s936-neck-title{color:#8affff;font-size:.76rem;font-weight:950;text-transform:uppercase;letter-spacing:.8px}
       #s936EditorGuitarSurface .s936-neck-meta{margin-top:4px;color:#ffe066;font-size:.65rem;font-weight:900}
       #s936EditorGuitarSurface .s936-neck-help{max-width:470px;color:rgba(255,255,255,.68);font-size:.62rem;line-height:1.4;text-align:right}
+      #s936EditorGuitarSurface .s936-mode-bar{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap;margin-top:7px}
+      #s936EditorGuitarSurface .s936-mode-label{color:rgba(255,255,255,.50);font-size:.52rem;font-weight:900;text-transform:uppercase;letter-spacing:.7px}
+      #s936EditorGuitarSurface .s936-mode-button{border:1px solid rgba(255,255,255,.16);border-radius:999px;background:rgba(255,255,255,.045);color:#fff;padding:5px 9px;font-size:.55rem;font-weight:950;cursor:pointer}
+      #s936EditorGuitarSurface .s936-mode-button.active{border-color:#00ffcc;background:rgba(0,255,204,.16);color:#00ffcc;box-shadow:0 0 0 1px rgba(0,255,204,.12) inset}
+      #s936EditorGuitarSurface .s936-neck-cell.s936-map-hit{background:rgba(255,216,77,.23)!important;box-shadow:inset 0 0 0 1px rgba(255,216,77,.55),0 0 14px rgba(255,216,77,.22)}
+      #s936EditorGuitarSurface .s936-neck-cell.s936-slide-hit{background:rgba(0,153,255,.28)!important;box-shadow:inset 0 0 0 2px rgba(0,153,255,.65),0 0 18px rgba(0,153,255,.28)}
+      #s936EditorGuitarSurface .s936-neck-cell.s936-bend-hit{background:rgba(255,91,234,.30)!important;box-shadow:inset 0 0 0 2px rgba(255,91,234,.72),0 0 18px rgba(255,91,234,.34);transform:translateY(-1px)}
       #s936EditorGuitarSurface .s936-neck-scroll{overflow:auto;border:1px solid rgba(255,216,77,.36);border-radius:19px;background:linear-gradient(180deg,rgba(68,31,15,.96),rgba(29,15,9,.98) 48%,rgba(55,25,13,.96));padding:10px 11px 13px;box-shadow:0 18px 45px rgba(0,0,0,.32),inset 0 0 40px rgba(255,171,71,.045);position:relative}
       #s936EditorGuitarSurface .s936-neck-scroll::before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(7deg,transparent 0 11px,rgba(255,255,255,.018) 12px,transparent 13px 25px);mix-blend-mode:screen}
       #s936EditorGuitarSurface .s936-neck-ruler,#s936EditorGuitarSurface .s936-neck-row{display:grid;grid-template-columns:72px 34px 38px repeat(24,minmax(44px,1fr));min-width:1200px;width:100%;box-sizing:border-box;align-items:center;position:relative;z-index:1}
@@ -138,6 +172,115 @@ window.Studio936StringSurface = (() => {
     return flashCells(document.querySelectorAll(selector),cls,duration);
   }
 
+  function positionSelector(stringIndex,physicalFret){
+    return `#s936EditorGuitarSurface [data-string-index="${Number(stringIndex)}"][data-physical-fret="${Number(physicalFret)}"]`;
+  }
+
+  function flashStringEvents(events,cls="s936-live-hit",duration=190,interval=0){
+    const list = Array.isArray(events) ? events : [events];
+    let total = 0;
+    list.filter(Boolean).forEach((event,index) => {
+      const run = () => {
+        const stringIndex = Number(event.stringIndex ?? event.index);
+        const physicalFret = Number(event.physicalFret ?? event.fret);
+        if(Number.isFinite(stringIndex) && Number.isFinite(physicalFret)){
+          const count = flashPosition(stringIndex,physicalFret,cls,duration);
+          if(count) { total += count; return; }
+        }
+        if(Number.isFinite(Number(event.midi))) total += flashMidis([Number(event.midi)],cls,duration);
+      };
+      if(interval > 0) setTimeout(run,Math.max(0,index * interval));
+      else run();
+    });
+    return total;
+  }
+
+  function startExpressionGesture(pointerEvent,cell,payload,onCellPlay,surface){
+    if(!pointerEvent || !cell || typeof onCellPlay !== "function") return;
+    const pointerId = pointerEvent.pointerId;
+    const startX = Number(pointerEvent.clientX) || 0;
+    const startY = Number(pointerEvent.clientY) || 0;
+    const startFret = Number(payload.physicalFret);
+    const maxFret = Math.max(0,Number(payload.maxFret) || 24);
+    const capo = Math.max(0,Number(payload.capo) || 0);
+    const stringIndex = Number(payload.stringIndex);
+    const startMidi = Number(payload.midi);
+    let lastFret = startFret;
+    let lastBend = 0;
+    try { cell.setPointerCapture?.(pointerId); } catch (_) {}
+
+    function emitSlide(targetFret){
+      if(!Number.isFinite(targetFret) || targetFret === lastFret) return;
+      lastFret = targetFret;
+      const target = surface?.querySelector?.(`[data-string-index="${stringIndex}"][data-physical-fret="${targetFret}"]`);
+      if(target) flashCells([target],"s936-slide-hit",210);
+      const targetMidi = startMidi + (targetFret - startFret);
+      onCellPlay(Object.assign({},payload,{
+        gesture:"slide",
+        fromMidi:startMidi,
+        midi:targetMidi,
+        physicalFret:targetFret,
+        fret:Math.max(0,targetFret-capo)
+      }));
+    }
+
+    function emitBend(semitones){
+      const bend = Math.max(0,Math.min(2,Number(semitones)||0));
+      if(bend === lastBend) return;
+      lastBend = bend;
+      if(bend <= 0) return;
+      flashCells([cell],"s936-bend-hit",220);
+      onCellPlay(Object.assign({},payload,{
+        gesture:"bend",
+        bendSemitones:bend,
+        fromMidi:startMidi,
+        midi:startMidi + bend
+      }));
+    }
+
+    function move(event){
+      if(event.pointerId !== pointerId) return;
+      const dx = (Number(event.clientX) || 0) - startX;
+      const dy = startY - (Number(event.clientY) || 0);
+      if(Math.abs(dx) > 26 && Number.isFinite(startFret)){
+        const shift = Math.round(dx / 44);
+        const targetFret = clamp(startFret + shift, capo, maxFret);
+        emitSlide(targetFret);
+      }
+      if(dy > 24) emitBend(Math.ceil(Math.min(2,dy / 42)));
+      event.preventDefault?.();
+    }
+
+    function end(event){
+      if(event.pointerId !== pointerId) return;
+      document.removeEventListener("pointermove",move);
+      document.removeEventListener("pointerup",end);
+      document.removeEventListener("pointercancel",end);
+      try { cell.releasePointerCapture?.(pointerId); } catch (_) {}
+    }
+
+    document.addEventListener("pointermove",move,{passive:false});
+    document.addEventListener("pointerup",end,{passive:true});
+    document.addEventListener("pointercancel",end,{passive:true});
+  }
+
+  function emitCellInteraction(event,cell,payload,onCellPlay,surface){
+    if(event?.preventDefault) event.preventDefault();
+    const enriched = Object.assign({gesture:"tap",visualMode:interactionMode},payload);
+    flashCells([cell],"s936-live-hit",220);
+    if(interactionMode === "map") flashMidis([payload.midi],"s936-map-hit",560);
+    if(interactionMode === "chord") {
+      const chordEvents = Array.from(surface?.querySelectorAll?.(".s936-neck-cell.on,.s936-neck-cell.open.active") || []).map(node => ({
+        stringIndex:Number(node.dataset.stringIndex),
+        physicalFret:Number(node.dataset.physicalFret),
+        midi:Number(node.dataset.midi)
+      }));
+      flashStringEvents(chordEvents,"s936-strum-hit",220,28);
+    }
+    if(typeof onCellPlay === "function") onCellPlay(enriched);
+    startExpressionGesture(event,cell,enriched,onCellPlay,surface);
+  }
+
   function editorCall(method,...args){
     const api = window.Studio936SuiteProEditor;
     if(!api || typeof api[method] !== "function") return false;
@@ -189,6 +332,15 @@ window.Studio936StringSurface = (() => {
         fingers:Array.isArray(data.exactStrings) ? data.exactStrings.map(string => string?.finger || "") : [],
         capo:data.capo || 0,
         shape:data.exactFrets.map(value => value === null ? "X" : String(value)).join("-")
+      };
+    }
+    const preview = Array.isArray(data.seqVoicings) ? data.seqVoicings[index] : null;
+    if(preview && Array.isArray(preview.frets) && preview.frets.length === profile.strings.length){
+      return {
+        frets:preview.frets.map(value => value === null || String(value).toUpperCase() === "X" ? null : clamp(Number(value)||0,0,profile.maxFret)),
+        fingers:Array.isArray(preview.fingers) ? preview.fingers : [],
+        capo:profile.allowCapo ? clamp(Number(preview.capo)||0,0,profile.capoMax) : 0,
+        shape:preview.shape || preview.frets.map(value => value === null ? "X" : String(value)).join("-")
       };
     }
     const saved = item?.voicings?.[profile.id];
@@ -291,8 +443,28 @@ window.Studio936StringSurface = (() => {
       : (bassLineMode
         ? "Selecciona un paso en Bass Line Pro y toca una cuerda/traste para escribir la nota."
         : "La 1.ª cuerda está arriba. Haz clic en un traste y elige el dedo; mapa pequeño, panel manual y sonido se actualizarán juntos.");
+    const modeBar = document.createElement("div");
+    modeBar.className = "s936-mode-bar";
+    const modeLabel = document.createElement("span");
+    modeLabel.className = "s936-mode-label";
+    modeLabel.textContent = "Modo";
+    modeBar.appendChild(modeLabel);
+    Object.entries(MODE_LABELS).forEach(([mode,label]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "s936-mode-button";
+      button.dataset.mode = mode;
+      button.textContent = label;
+      button.addEventListener("click",event => {
+        event.preventDefault();
+        setInteractionMode(mode);
+      });
+      modeBar.appendChild(button);
+    });
+    help.appendChild(modeBar);
     head.append(identity,help);
     surface.appendChild(head);
+    updateModeButtons(surface);
 
     const scroll = document.createElement("div");
     scroll.className = "s936-neck-scroll";
@@ -360,19 +532,17 @@ window.Studio936StringSurface = (() => {
       openBtn.dataset.physicalFret = String(data.capo || 0);
       openBtn.dataset.midi = String(openMidi);
       openBtn.addEventListener("pointerdown",event => {
-        event.preventDefault();
-        flashCells([openBtn]);
-        if(typeof onCellPlay === "function"){
-          onCellPlay({
-            instrument,
-            midi:openMidi,
-            note:noteName(openMidi),
-            stringIndex:index,
-            physicalFret:data.capo || 0,
-            fret:0,
-            open:true
-          });
-        }
+        emitCellInteraction(event,openBtn,{
+          instrument,
+          midi:openMidi,
+          note:noteName(openMidi),
+          stringIndex:index,
+          physicalFret:data.capo || 0,
+          fret:0,
+          open:true,
+          maxFret:profile.maxFret,
+          capo:data.capo || 0
+        },onCellPlay,surface);
       },{passive:false});
       openBtn.addEventListener("click",()=>{ if(!readOnly) editorCall("externalSetFret",index,0); });
       row.appendChild(openBtn);
@@ -411,19 +581,17 @@ window.Studio936StringSurface = (() => {
         cell.dataset.midi = String(cellMidi);
         cell.addEventListener("pointerdown",event => {
           if(blocked) return;
-          event.preventDefault();
-          flashCells([cell]);
-          if(typeof onCellPlay === "function"){
-            onCellPlay({
-              instrument,
-              midi:cellMidi,
-              note:cellNote,
-              stringIndex:index,
-              physicalFret,
-              fret:Math.max(0,physicalFret-(data.capo||0)),
-              open:false
-            });
-          }
+          emitCellInteraction(event,cell,{
+            instrument,
+            midi:cellMidi,
+            note:cellNote,
+            stringIndex:index,
+            physicalFret,
+            fret:Math.max(0,physicalFret-(data.capo||0)),
+            open:false,
+            maxFret:profile.maxFret,
+            capo:data.capo || 0
+          },onCellPlay,surface);
         },{passive:false});
         cell.addEventListener("click",()=>{
           if(blocked) return;
@@ -494,12 +662,20 @@ window.Studio936StringSurface = (() => {
     return list.length;
   }
 
+  function strumPositions(events,interval=55,duration=220){
+    return flashStringEvents(events,"s936-strum-hit",duration,interval);
+  }
+
   return {
-    version:"string-surface-v1.3-main-editor-unified",
+    version:"string-surface-v1.4-expression-preview",
     render,
     clear,
     flashMidis,
     flashPosition,
-    strumMidis
+    flashStringEvents,
+    strumMidis,
+    strumPositions,
+    setInteractionMode: setInteractionMode,
+    getInteractionMode: () => interactionMode
   };
 })();
