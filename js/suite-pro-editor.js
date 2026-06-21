@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.1.8.5-guitar-editor-sync-drum-restore";
+  const VERSION = "editor-v0.7.1.8.6-guitar-instance-guard";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -1289,6 +1289,7 @@
     let guitarControls = null;
     let latestCalculation = null;
     let visualTimer = null;
+    let visualSerial = 0;
     let dockFingerTarget = null;
 
     if (isStringInstrument()) {
@@ -1527,9 +1528,6 @@
       }
       dockFingerTarget = chooseFinger && normalized !== null && normalized > 0 ? index : null;
       recalculate();
-      if (isStringInstrument() && state.instrument === "guitar") {
-        scheduleVisual(currentPayload(), true);
-      }
     }
 
       function setGuitarControlFinger(stringIndex, finger) {
@@ -1540,9 +1538,6 @@
       guitarControls.fingerSelects[index].value = value;
       dockFingerTarget = null;
       recalculate();
-      if (isStringInstrument() && state.instrument === "guitar") {
-        scheduleVisual(currentPayload(), true);
-      }
     }
 
     function updateResult(name, bass, notes, shape, tab, alternativesText) {
@@ -1568,16 +1563,18 @@
 
     function scheduleVisual(payload, immediate = false) {
       clearTimeout(visualTimer);
+      const token = ++visualSerial;
       const draw = () => {
+        if (token !== visualSerial) return;
         visualTimer = null;
         const response = bridge("showEditorChordVisual", payload);
         if (response?.ok === false) setStatus(status, response.message || "No se pudo visualizar.", true);
       };
       if (immediate) {
-        draw();
+        queueMicrotask(draw);
         return;
       }
-      visualTimer = setTimeout(draw, 28);
+      visualTimer = setTimeout(draw, 36);
     }
 
       function recalculate() {
@@ -1629,6 +1626,10 @@
     }
 
     activeController = isStringInstrument() && guitarControls ? {
+      stop() {
+        clearTimeout(visualTimer);
+        visualSerial++;
+      },
       setFret(stringIndex, fret) {
         setGuitarControlFret(stringIndex, fret, false);
       },

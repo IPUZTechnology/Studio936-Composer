@@ -1,4 +1,4 @@
-// Studio 936 Composer - Shared String Instrument Surface v1.8.5 · Editor Sync
+// Studio 936 Composer - Shared String Instrument Surface v1.8.6 · Guitar Instance Guard
 // Renders Guitar, Ukulele and Bass as one live surface for Main and Editor.
 window.Studio936StringSurface = (() => {
   "use strict";
@@ -9,6 +9,7 @@ window.Studio936StringSurface = (() => {
     chord: "Acorde"
   };
   let interactionMode = "play";
+  let activeSurfaceOwner = null;
 
   try {
     const saved = window.localStorage?.getItem?.("s936-string-mode");
@@ -300,7 +301,10 @@ window.Studio936StringSurface = (() => {
       if(target) flashCells([target],"s936-slide-hit",210);
       const targetMidi = startMidi + (targetFret - startFret);
       const relativeFret = Math.max(0,targetFret-capo);
-      if(surface?.dataset?.owner !== "main" && interactionMode !== "map"){
+      const isEditorSurface = surface?.dataset?.owner === "editor"
+        || activeSurfaceOwner === "editor"
+        || document.body?.dataset?.s936SurfaceOwner === "editor";
+      if(isEditorSurface && interactionMode !== "map"){
         editorCall("externalSetFret",stringIndex,relativeFret);
       }
       onCellPlay(Object.assign({},payload,{
@@ -389,7 +393,10 @@ window.Studio936StringSurface = (() => {
 
     // En Editor, Modo Tocar debe escribir la cuerda/traste inmediatamente.
     // Antes dependía del evento click; en touch/iPad podía quedarse solo en luz.
-    if(surface?.dataset?.owner !== "main" && interactionMode === "play"){
+    const isEditorSurface = surface?.dataset?.owner === "editor"
+      || activeSurfaceOwner === "editor"
+      || document.body?.dataset?.s936SurfaceOwner === "editor";
+    if(isEditorSurface && interactionMode === "play"){
       const relativeFret = payload.fret === null || String(payload.fret).toUpperCase?.() === "X"
         ? null
         : Math.max(0,Number(payload.fret)||0);
@@ -436,6 +443,7 @@ window.Studio936StringSurface = (() => {
   }
 
   function clear(){
+    activeSurfaceOwner = null;
     document.querySelectorAll("#s936EditorGuitarSurface").forEach(node => node.remove());
     document.querySelectorAll(".s936-finger-pop").forEach(node => node.remove());
     document.getElementById("fretboardContainer")?.classList?.remove("s936-main-string-surface-active");
@@ -548,14 +556,20 @@ window.Studio936StringSurface = (() => {
       return {ok:false};
     }
 
+    const targetOwner = isMainSurface ? "main" : "editor";
     let surface = document.getElementById("s936EditorGuitarSurface");
+    if(surface && (surface.parentElement !== container || (surface.dataset.owner && surface.dataset.owner !== targetOwner))){
+      surface.remove();
+      surface = null;
+    }
     if(!surface){
       surface = document.createElement("section");
       surface.id = "s936EditorGuitarSurface";
       container.appendChild(surface);
     }
+    activeSurfaceOwner = targetOwner;
     surface.dataset.instrument = instrument;
-    surface.dataset.owner = isMainSurface ? "main" : "editor";
+    surface.dataset.owner = targetOwner;
 
     // QC v0.7.1.8.4:
     // En Editor, la superficie siempre entra en Modo Tocar para editar cuerda/traste.
@@ -818,7 +832,7 @@ window.Studio936StringSurface = (() => {
   }
 
   return {
-    version:"string-surface-v1.8.5-editor-sync",
+    version:"string-surface-v1.8.6-guitar-instance-guard",
     render,
     clear,
     flashMidis,
