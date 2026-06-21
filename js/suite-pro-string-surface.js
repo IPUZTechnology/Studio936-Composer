@@ -1,4 +1,4 @@
-// Studio 936 Composer - Shared String Instrument Surface v1.1 · Surface Manager
+// Studio 936 Composer - Shared String Instrument Surface v1.2 · SuperGuitarra 936 Base
 // Renders Guitar, Ukulele and Bass on the main instrument area.
 window.Studio936StringSurface = (() => {
   "use strict";
@@ -12,6 +12,61 @@ window.Studio936StringSurface = (() => {
     const names = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
     const n = Math.round(Number(midi));
     return `${names[((n%12)+12)%12]}${Math.floor(n/12)-1}`;
+  }
+
+  function installStyles(){
+    if(document.getElementById("s936StringSurfaceLiveStyles")) return;
+    const style = document.createElement("style");
+    style.id = "s936StringSurfaceLiveStyles";
+    style.textContent = `
+      #s936EditorGuitarSurface .s936-neck-cell.s936-live-hit,
+      #s936EditorGuitarSurface .s936-neck-cell.s936-strum-hit{
+        background:rgba(0,255,204,.20)!important;
+        border-color:rgba(0,255,204,.78)!important;
+        box-shadow:0 0 0 1px rgba(0,255,204,.42),0 0 24px rgba(0,255,204,.28)!important;
+        color:#eafffb!important;
+      }
+      #s936EditorGuitarSurface .s936-neck-cell.s936-live-hit::after,
+      #s936EditorGuitarSurface .s936-neck-cell.s936-strum-hit::after{
+        content:"";
+        position:absolute;
+        left:8px;
+        right:8px;
+        top:50%;
+        height:3px;
+        border-radius:999px;
+        background:rgba(255,216,77,.9);
+        box-shadow:0 0 14px rgba(255,216,77,.65);
+        transform:translateY(-50%);
+        pointer-events:none;
+      }
+      #s936EditorGuitarSurface .s936-neck-cell.open.s936-live-hit,
+      #s936EditorGuitarSurface .s936-neck-cell.open.s936-strum-hit{
+        color:#00110e!important;
+        background:#00ffcc!important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function flashCells(cells,cls="s936-live-hit",duration=190){
+    const targets = Array.from(cells || []).filter(Boolean);
+    targets.forEach(cell => cell.classList.add(cls));
+    setTimeout(() => targets.forEach(cell => cell.classList.remove(cls)), duration);
+    return targets.length;
+  }
+
+  function flashMidis(midis,cls="s936-live-hit",duration=190){
+    const wanted = new Set((Array.isArray(midis) ? midis : [midis]).map(Number).filter(Number.isFinite).map(Math.round));
+    if(!wanted.size) return 0;
+    const cells = Array.from(document.querySelectorAll("#s936EditorGuitarSurface [data-midi]"))
+      .filter(cell => wanted.has(Number(cell.dataset.midi)));
+    return flashCells(cells,cls,duration);
+  }
+
+  function flashPosition(stringIndex,physicalFret,cls="s936-live-hit",duration=190){
+    const selector = `#s936EditorGuitarSurface [data-string-index="${Number(stringIndex)}"][data-physical-fret="${Number(physicalFret)}"]`;
+    return flashCells(document.querySelectorAll(selector),cls,duration);
   }
 
   function editorCall(method,...args){
@@ -119,7 +174,8 @@ window.Studio936StringSurface = (() => {
     card.appendChild(chart);
   }
 
-  function render({container,data,profiles,sectionNames={}}){
+  function render({container,data,profiles,sectionNames={},onCellPlay=null}={}){
+    installStyles();
     const instrument = data?.instrument;
     const profile = profiles?.[instrument];
     if(!container || !profile || !Array.isArray(data?.exactFrets) || data.exactFrets.length !== profile.strings.length){
@@ -210,6 +266,8 @@ window.Studio936StringSurface = (() => {
       muteBtn.type = "button";
       muteBtn.className = "s936-neck-cell mute" + (relativeFret===null ? " active" : "");
       muteBtn.textContent = "X";
+      muteBtn.dataset.stringIndex = String(index);
+      muteBtn.dataset.physicalFret = "X";
       muteBtn.addEventListener("click",()=>editorCall("externalSetFret",index,null));
       row.appendChild(muteBtn);
 
@@ -217,6 +275,25 @@ window.Studio936StringSurface = (() => {
       openBtn.type = "button";
       openBtn.className = "s936-neck-cell open" + (relativeFret===0 ? " active" : "");
       openBtn.textContent = "0";
+      const openMidi = string.midi + (data.capo || 0);
+      openBtn.dataset.stringIndex = String(index);
+      openBtn.dataset.physicalFret = String(data.capo || 0);
+      openBtn.dataset.midi = String(openMidi);
+      openBtn.addEventListener("pointerdown",event => {
+        event.preventDefault();
+        flashCells([openBtn]);
+        if(typeof onCellPlay === "function"){
+          onCellPlay({
+            instrument,
+            midi:openMidi,
+            note:noteName(openMidi),
+            stringIndex:index,
+            physicalFret:data.capo || 0,
+            fret:0,
+            open:true
+          });
+        }
+      },{passive:false});
       openBtn.addEventListener("click",()=>editorCall("externalSetFret",index,0));
       row.appendChild(openBtn);
 
@@ -248,6 +325,26 @@ window.Studio936StringSurface = (() => {
           dot.append(note,finger);
           cell.appendChild(dot);
         }
+        const cellMidi = string.midi + physicalFret;
+        cell.dataset.stringIndex = String(index);
+        cell.dataset.physicalFret = String(physicalFret);
+        cell.dataset.midi = String(cellMidi);
+        cell.addEventListener("pointerdown",event => {
+          if(blocked) return;
+          event.preventDefault();
+          flashCells([cell]);
+          if(typeof onCellPlay === "function"){
+            onCellPlay({
+              instrument,
+              midi:cellMidi,
+              note:cellNote,
+              stringIndex:index,
+              physicalFret,
+              fret:Math.max(0,physicalFret-(data.capo||0)),
+              open:false
+            });
+          }
+        },{passive:false});
         cell.addEventListener("click",()=>{
           if(blocked) return;
           const relative = Math.max(0,physicalFret-(data.capo||0));
@@ -259,8 +356,6 @@ window.Studio936StringSurface = (() => {
             },90);
           }
         });
-        cell.dataset.stringIndex = String(index);
-        cell.dataset.physicalFret = String(physicalFret);
         row.appendChild(cell);
       }
       scroll.appendChild(row);
@@ -309,9 +404,20 @@ window.Studio936StringSurface = (() => {
     return {ok:true};
   }
 
+  function strumMidis(midis,interval=55,duration=220){
+    const list = Array.isArray(midis) ? midis.map(Number).filter(Number.isFinite) : [];
+    list.forEach((midi,index) => {
+      setTimeout(() => flashMidis([midi],"s936-strum-hit",duration), Math.max(0,index * interval));
+    });
+    return list.length;
+  }
+
   return {
-    version:"string-surface-v1.1",
+    version:"string-surface-v1.2-super-guitar-base",
     render,
-    clear
+    clear,
+    flashMidis,
+    flashPosition,
+    strumMidis
   };
 })();
