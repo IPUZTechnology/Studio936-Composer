@@ -1,4 +1,4 @@
-// Studio 936 Composer - Shared String Instrument Surface v1.5 · Strum Modes
+// Studio 936 Composer - Shared String Instrument Surface v1.6 · Precision Play
 // Renders Guitar, Ukulele and Bass as one live surface for Main and Editor.
 window.Studio936StringSurface = (() => {
   "use strict";
@@ -19,6 +19,7 @@ window.Studio936StringSurface = (() => {
     interactionMode = ["play","map","chord"].includes(String(mode)) ? String(mode) : "play";
     try { window.localStorage?.setItem?.("s936-string-mode", interactionMode); } catch (_) {}
     updateModeButtons();
+    clearTransient();
     return interactionMode;
   }
 
@@ -28,6 +29,21 @@ window.Studio936StringSurface = (() => {
     });
     const surface = document.getElementById("s936EditorGuitarSurface");
     if (surface) surface.dataset.interactionMode = interactionMode;
+  }
+
+  const TRANSIENT_CLASSES = [
+    "s936-live-hit",
+    "s936-map-hit",
+    "s936-slide-hit",
+    "s936-bend-hit",
+    "s936-strum-hit",
+    "active-chord"
+  ];
+
+  function clearTransient(root=document){
+    root.querySelectorAll?.("#s936EditorGuitarSurface .s936-neck-cell").forEach(cell => {
+      TRANSIENT_CLASSES.forEach(cls => cell.classList.remove(cls));
+    });
   }
 
   function clamp(value,min,max){
@@ -252,14 +268,19 @@ window.Studio936StringSurface = (() => {
       if(!Number.isFinite(targetFret) || targetFret === lastFret) return;
       lastFret = targetFret;
       const target = surface?.querySelector?.(`[data-string-index="${stringIndex}"][data-physical-fret="${targetFret}"]`);
+      clearTransient(surface);
       if(target) flashCells([target],"s936-slide-hit",210);
       const targetMidi = startMidi + (targetFret - startFret);
+      const relativeFret = Math.max(0,targetFret-capo);
+      if(surface?.dataset?.owner !== "main" && interactionMode !== "map"){
+        editorCall("externalSetFret",stringIndex,relativeFret);
+      }
       onCellPlay(Object.assign({},payload,{
         gesture:"slide",
         fromMidi:startMidi,
         midi:targetMidi,
         physicalFret:targetFret,
-        fret:Math.max(0,targetFret-capo)
+        fret:relativeFret
       }));
     }
 
@@ -269,6 +290,7 @@ window.Studio936StringSurface = (() => {
       if(bend === lastBend) return;
       lastBend = bend;
       if(bend <= 0) return;
+      clearTransient(surface);
       flashCells([cell],"s936-bend-hit",220);
       onCellPlay(Object.assign({},payload,{
         gesture:"bend",
@@ -283,10 +305,12 @@ window.Studio936StringSurface = (() => {
       if(!Number.isFinite(targetString) || targetString === lastStrummedString) return false;
       lastStrummedString = targetString;
       const active = activeCellForString(surface,targetString);
-      const node = active || targetCell;
+      if(!active) return false;
+      const node = active;
       const eventPayload = cellPayloadFromNode(node,payload.instrument,payload);
       if(!eventPayload) return false;
       const direction = (Number(clientY)||0) >= startY ? "down" : "up";
+      if(strumCount === 0) clearTransient(surface);
       flashCells([node],"s936-strum-hit",250);
       onCellPlay(Object.assign({},eventPayload,{
         gesture:"strum",
@@ -332,6 +356,7 @@ window.Studio936StringSurface = (() => {
   function emitCellInteraction(event,cell,payload,onCellPlay,surface){
     if(event?.preventDefault) event.preventDefault();
     const enriched = Object.assign({gesture:"tap",visualMode:interactionMode},payload);
+    clearTransient(surface);
     flashCells([cell],"s936-live-hit",220);
     if(interactionMode === "map") flashMidis([payload.midi],"s936-map-hit",560);
     if(interactionMode === "chord") {
@@ -516,10 +541,10 @@ window.Studio936StringSurface = (() => {
     const help = document.createElement("div");
     help.className = "s936-neck-help";
     help.textContent = isMainSurface
-      ? "Modo Tocar: tap = nota; arrastre vertical = strum; horizontal = slide; hacia arriba en la misma cuerda = bend. Mapa muestra equivalentes; Acorde rasguea la forma actual."
+      ? "Tocar: nota real y strum de la digitación. Mapa: muestra equivalentes sin cambiar el acorde. Acorde: rasguea la forma activa."
       : (bassLineMode
         ? "Selecciona un paso en Bass Line Pro y toca una cuerda/traste para escribir la nota."
-        : "La 1.ª cuerda está arriba. Tocar escribe/escucha; arrastrar vertical rasguea la forma; Mapa enseña notas equivalentes; Acorde reproduce la digitación.");
+        : "La 1.ª cuerda está arriba. Tocar escribe y suena; Mapa explora notas equivalentes sin editar; Acorde reproduce la digitación.");
     const modeBar = document.createElement("div");
     modeBar.className = "s936-mode-bar";
     const modeLabel = document.createElement("span");
@@ -597,7 +622,7 @@ window.Studio936StringSurface = (() => {
       muteBtn.textContent = "X";
       muteBtn.dataset.stringIndex = String(index);
       muteBtn.dataset.physicalFret = "X";
-      muteBtn.addEventListener("click",()=>{ if(!readOnly) editorCall("externalSetFret",index,null); });
+      muteBtn.addEventListener("click",()=>{ if(!readOnly && interactionMode !== "map") editorCall("externalSetFret",index,null); });
       row.appendChild(muteBtn);
 
       const openBtn = document.createElement("button");
@@ -621,7 +646,7 @@ window.Studio936StringSurface = (() => {
           capo:data.capo || 0
         },onCellPlay,surface);
       },{passive:false});
-      openBtn.addEventListener("click",()=>{ if(!readOnly) editorCall("externalSetFret",index,0); });
+      openBtn.addEventListener("click",()=>{ if(!readOnly && interactionMode !== "map") editorCall("externalSetFret",index,0); });
       row.appendChild(openBtn);
 
       const physicalSelected = relativeFret===null ? null : clamp(Number(relativeFret)||0,0,profile.maxFret)+(data.capo||0);
@@ -673,7 +698,7 @@ window.Studio936StringSurface = (() => {
         cell.addEventListener("click",()=>{
           if(blocked) return;
           const relative = Math.max(0,physicalFret-(data.capo||0));
-          if(!readOnly){
+          if(!readOnly && interactionMode !== "map"){
             editorCall("externalSetFret",index,relative);
             if(!bassLineMode){
               setTimeout(()=>{
@@ -744,7 +769,7 @@ window.Studio936StringSurface = (() => {
   }
 
   return {
-    version:"string-surface-v1.5-strum-modes",
+    version:"string-surface-v1.6-precision-play",
     render,
     clear,
     flashMidis,
