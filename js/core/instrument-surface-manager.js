@@ -1,4 +1,4 @@
-// Studio 936 Composer - Instrument Surface Manager v0.7.1.8.4 QC Final
+// Studio 936 Composer - Instrument Surface Manager v0.7.1.8.6 Guitar Instance Guard
 // Single owner for Main/Editor instrument surface visibility and lifecycle.
 window.Studio936InstrumentSurfaceManager = (() => {
   "use strict";
@@ -225,10 +225,28 @@ window.Studio936InstrumentSurfaceManager = (() => {
     if (!fretboard || !renderer?.render) {
       return { ok: false, message: "No está disponible la superficie instrumental." };
     }
-    const options = { container: fretboard, data: { ...data, instrument: value }, profiles, sectionNames };
+    const options = {
+      container: fretboard,
+      owner: "editor",
+      readOnly: false,
+      data: { ...data, instrument: value, surfaceOwner: "editor" },
+      profiles,
+      sectionNames
+    };
     state.lastStringRender = { renderer, options };
-    const result = renderer.render(options) || { ok: true };
-    enforce();
+    let result = { ok: true };
+    try {
+      // v0.7.1.8.6: render de cuerdas sin observer activo.
+      // Evita reentradas cuando Main ya tenía una SuperGuitarra montada.
+      stopObserver();
+      result = renderer.render(options) || { ok: true };
+    } catch (error) {
+      console.error("Instrument Surface Manager · String render falló:", error);
+      result = { ok:false, message:error?.message || "No se pudo montar la superficie de cuerdas." };
+    } finally {
+      startObserver();
+      enforce();
+    }
     return result;
   }
 
@@ -314,7 +332,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   function getState() {
     const { piano, fretboard } = elements();
     return {
-      version: "instrument-surface-manager-v0.7.1.8.4-qc-final",
+      version: "instrument-surface-manager-v0.7.1.8.6-guitar-instance-guard",
       configured: state.configured,
       active: state.active,
       owner: state.active ? "editor" : "main",
@@ -329,7 +347,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   }
 
   const api = {
-    version: "instrument-surface-manager-v0.7.1.8.4-qc-final",
+    version: "instrument-surface-manager-v0.7.1.8.6-guitar-instance-guard",
     configure,
     beginEditorSession,
     showEditorInstrument,
