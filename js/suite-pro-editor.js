@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.1.8.4-qc-final-guitar-drum-visual";
+  const VERSION = "editor-v0.7.1.8.5-guitar-editor-sync-drum-restore";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -1089,6 +1089,9 @@
 
     if (state.instrument === "drums") {
       const drumSection = state.sectionKey || data.sectionKey || sectionKeys[0] || "intro";
+      const sectionOptionsForDrums = (data.sectionOptions || sectionKeys.map(k => [k, humanize(k)]))
+        .filter(entry => Array.isArray(entry) && sections[entry[0]])
+        .map(entry => [entry[0], entry[1] || humanize(entry[0])]);
       const drumPattern = (data.drumPatterns && data.drumPatterns[drumSection]) || {
         kit: "studio",
         bars: 1,
@@ -1097,65 +1100,57 @@
       };
 
       const drumsHost = el(ctx, "section", "s936-ed-card s936-ed-drums-host");
-      const safeTitle = el(ctx, "h4", "", "Batería Pro · Kit visual protegido");
-      const safeText = el(ctx, "div", "s936-ed-status",
-        "El kit visual se monta en la superficie principal. El secuenciador pesado queda pausado para evitar bloqueos."
-      );
-      const safeActions = el(ctx, "div", "s936-ed-actions");
 
-      const mountVisual = () => {
+      const mountVisualOnly = (message) => {
         try { window.Studio936StringSurface?.clear?.(); } catch (_) {}
+        try { document.getElementById("s936EditorGuitarSurface")?.remove?.(); } catch (_) {}
         const response = bridge("mountEditorDrumSurface", {
           sectionKey: drumSection,
           sectionName: humanize(drumSection),
           pattern: drumPattern,
           onLaneSelect: laneId => bridge("selectEditorDrumLane", laneId),
-          onLaneTrigger: (laneId, velocity) => bridge("triggerEditorDrumLane", laneId, velocity, drumPattern)
+          onLaneTrigger: (laneId, velocity) => bridge("triggerEditorDrumLane", laneId, velocity)
         });
-        if (response?.ok === false) {
-          safeText.textContent = response.message || "No se pudo montar el kit visual de batería.";
-          safeText.classList.add("error");
-          return false;
+        if (message) {
+          drumsHost.appendChild(el(ctx, "div", "s936-ed-status", message));
         }
-        safeText.textContent = "Kit visual activo: toca bombo, caja, hats, toms, crash, ride o percusión para escuchar y seleccionar.";
-        safeText.style.color = "#bfffee";
-        return true;
+        return response;
       };
 
-      const visualBtn = button(ctx, "Reactivar kit visual", "primary", () => mountVisual());
-      const fullBtn = button(ctx, "Cargar panel completo", "", () => {
+      try {
+        mountVisualOnly();
         if (!DrumComposer) {
-          safeText.textContent = "Drum Composer Pro no está disponible.";
-          safeText.classList.add("error");
-          return;
-        }
-        while (drumsHost.firstChild) drumsHost.removeChild(drumsHost.firstChild);
-        try {
+          drumsHost.appendChild(el(ctx, "div", "s936-ed-status", "Batería Pro no está disponible. Revisa que js/suite-pro-drum-composer.js cargue antes del Editor."));
+        } else {
           activeController = DrumComposer.render({
             host: drumsHost,
             sectionKey: drumSection,
-            sectionName: humanize(drumSection),
+            sectionName: (sectionOptionsForDrums.find(entry => entry[0] === drumSection) || [drumSection,humanize(drumSection)])[1],
+            sectionOptions: sectionOptionsForDrums,
             sections,
             bpm: data.bpm || 95,
             drumPatterns: data.drumPatterns || {},
             onSectionChange:key => {
               state.sectionKey = key;
+              state.chordIndex = 0;
               bridge("selectEditorSection", key);
               renderModule(ctx, host);
             }
           });
-        } catch (error) {
-          drumsHost.appendChild(el(ctx, "div", "s936-ed-status error", "No se pudo cargar el panel completo sin bloqueo. El kit visual sigue disponible."));
-          console.warn("Studio 936 · Batería Pro completa falló:", error);
-          mountVisual();
         }
-      });
-      safeActions.append(visualBtn, fullBtn);
-      drumsHost.append(safeTitle, safeText, safeActions);
+      } catch (error) {
+        console.warn("Studio 936 · Batería Pro completa falló, usando kit visual seguro:", error);
+        while (drumsHost.firstChild) drumsHost.removeChild(drumsHost.firstChild);
+        const title = el(ctx, "h4", "", "Batería Pro · Kit visual seguro");
+        const msg = el(ctx, "div", "s936-ed-status", "El panel completo falló, pero el kit visual queda activo para tocar sin bloquear la aplicación.");
+        const retry = button(ctx, "Reintentar panel completo", "primary", () => renderModule(ctx, host));
+        drumsHost.append(title,msg,retry);
+        mountVisualOnly();
+      }
+
       shell.appendChild(drumsHost);
       host.appendChild(shell);
-      mountVisual();
-      requestAnimationFrame(() => mountVisual());
+      requestAnimationFrame(() => mountVisualOnly());
       return;
     }
 
@@ -1532,6 +1527,9 @@
       }
       dockFingerTarget = chooseFinger && normalized !== null && normalized > 0 ? index : null;
       recalculate();
+      if (isStringInstrument() && state.instrument === "guitar") {
+        scheduleVisual(currentPayload(), true);
+      }
     }
 
       function setGuitarControlFinger(stringIndex, finger) {
@@ -1542,6 +1540,9 @@
       guitarControls.fingerSelects[index].value = value;
       dockFingerTarget = null;
       recalculate();
+      if (isStringInstrument() && state.instrument === "guitar") {
+        scheduleVisual(currentPayload(), true);
+      }
     }
 
     function updateResult(name, bass, notes, shape, tab, alternativesText) {
@@ -1565,12 +1566,18 @@
       alternatives.textContent = alternativesText || "";
     }
 
-    function scheduleVisual(payload) {
+    function scheduleVisual(payload, immediate = false) {
       clearTimeout(visualTimer);
-      visualTimer = setTimeout(() => {
+      const draw = () => {
+        visualTimer = null;
         const response = bridge("showEditorChordVisual", payload);
         if (response?.ok === false) setStatus(status, response.message || "No se pudo visualizar.", true);
-      }, 55);
+      };
+      if (immediate) {
+        draw();
+        return;
+      }
+      visualTimer = setTimeout(draw, 28);
     }
 
       function recalculate() {

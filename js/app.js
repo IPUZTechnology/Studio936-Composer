@@ -1,4 +1,4 @@
-// Studio 936 Composer - extracted JavaScript from legacy v25.9 + Editor Pro bridge v1.7.1.8.4 QC Final Guitar + Drums
+// Studio 936 Composer - extracted JavaScript from legacy v25.9 + Editor Pro bridge v1.7.1.8.5 Guitar Sync + Drum Restore
 // Keep script order intact.
 
 (() => {
@@ -128,13 +128,31 @@ function selectEditorDrumLane(laneId){
 }
 function triggerEditorDrumLane(laneId, velocity=.92, pattern={}){
     const id = String(laneId || 'kick');
+    const vol = Math.max(.05,Math.min(1,Number(velocity)||.92));
     try { InstrumentSurfaceManager.selectEditorDrumLane(id); } catch(_) {}
-    try { InstrumentSurfaceManager.flashEditorDrumLane(id, velocity, 190); } catch(_) {}
+    try { InstrumentSurfaceManager.flashEditorDrumLane(id, vol, 190); } catch(_) {}
     const drum = window.Studio936DrumComposerPro;
     if(drum && typeof drum.previewLane === 'function'){
-        return drum.previewLane(id, velocity, pattern || {});
+        const response = drum.previewLane(id, vol, pattern || {});
+        if(response?.ok !== false) return response;
     }
-    return {ok:false,message:'Motor de batería no disponible.'};
+    resumeAudio();
+    const now = audioCtx.currentTime + .01;
+    const map = {
+        kick: {midi:36, dur:.16, type:'sine', gain:.9},
+        snare: {midi:38, dur:.12, type:'square', gain:.58},
+        hatClosed: {midi:42, dur:.07, type:'triangle', gain:.32},
+        hatOpen: {midi:46, dur:.18, type:'triangle', gain:.36},
+        tomHigh: {midi:48, dur:.16, type:'sine', gain:.55},
+        tomMid: {midi:45, dur:.18, type:'sine', gain:.55},
+        tomFloor: {midi:41, dur:.20, type:'sine', gain:.58},
+        crash: {midi:49, dur:.30, type:'triangle', gain:.38},
+        ride: {midi:51, dur:.22, type:'triangle', gain:.34},
+        percussion: {midi:64, dur:.10, type:'square', gain:.36}
+    };
+    const hit = map[id] || map.percussion;
+    playNote(hit.midi, hit.dur, vol * hit.gain, hit.type, now);
+    return {ok:true,laneId:id,fallback:true};
 }
 function withEditorPreviewInstrument(instrument,callback){
     const previous = editorPreviewInstrument;
@@ -2209,7 +2227,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v1.7.1.6-super-guitar-expression',
+        version: 'suite-pro-bridge-v1.7.1.8.5-guitar-sync-drum-restore',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,

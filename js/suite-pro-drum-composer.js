@@ -3,7 +3,7 @@
 (function(){
 "use strict";
 
-const VERSION = "drum-composer-v0.7.1.8.4-preview-safe";
+const VERSION = "drum-composer-v0.7.1.8.5-restore";
 const STYLE_ID = "s936DrumComposerStyles";
 const Core = window.Studio936SequencerCore;
 const DrumSurface = window.Studio936DrumSurface || null;

@@ -1,4 +1,4 @@
-// Studio 936 Composer - Drum Performance Surface v0.7.1.3
+// Studio 936 Composer - Drum Performance Surface v0.7.1.8.5
 // Visual and interactive drum kit for the main instrument area.
 window.Studio936DrumSurface = (() => {
   "use strict";
@@ -476,7 +476,7 @@ window.Studio936DrumSurface = (() => {
 
   function getState(){
     return {
-      version:"drum-performance-surface-v0.7.1.3",
+      version:"drum-performance-surface-v0.7.1.8.5",
       mounted:!!state.root,
       selectedLane:state.selectedLane,
       sectionName:state.sectionName,
@@ -485,7 +485,7 @@ window.Studio936DrumSurface = (() => {
   }
 
   return {
-    version:"drum-performance-surface-v0.7.1.3",
+    version:"drum-performance-surface-v0.7.1.8.5",
     render,
     updatePattern,
     flashLane,

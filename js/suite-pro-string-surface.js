@@ -1,4 +1,4 @@
-// Studio 936 Composer - Shared String Instrument Surface v1.8.4 · QC Final Exact Edit
+// Studio 936 Composer - Shared String Instrument Surface v1.8.5 · Editor Sync
 // Renders Guitar, Ukulele and Bass as one live surface for Main and Editor.
 window.Studio936StringSurface = (() => {
   "use strict";
@@ -818,7 +818,7 @@ window.Studio936StringSurface = (() => {
   }
 
   return {
-    version:"string-surface-v1.8.4-qc-final-exact-edit",
+    version:"string-surface-v1.8.5-editor-sync",
     render,
     clear,
     flashMidis,
