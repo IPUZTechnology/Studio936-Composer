@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.2.6-drums-editor-main-hook";
+  const VERSION = "editor-v0.7.2.7-drum-patterns-panel";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -24,6 +24,7 @@
   const BassLine = window.Studio936BassLinePro || null;
   const LeadLine = window.Studio936LeadLinePro || null;
   const DrumComposer = window.Studio936DrumComposerPro || null;
+  const DrumPatterns = window.Studio936DrumPatterns || null;
 
   function isStringInstrument(instrument = state.instrument) {
     return !!StringInstruments?.isStringInstrument?.(instrument);
@@ -250,6 +251,29 @@
 #s936EditorGuitarSurface .s936-mini-open{position:absolute;top:-15px;font-size:.42rem;color:#bfffee;transform:translateX(-50%)}
 #s936EditorGuitarSurface .s936-mini-muted{position:absolute;top:-15px;font-size:.42rem;color:#ffb9b9;transform:translateX(-50%)}
 #s936EditorGuitarSurface .s936-chart-empty{height:62px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.40);font-size:.50rem;text-align:center}
+
+#s936SuitePro .s936-ed-drum-panel{display:grid;gap:9px;margin-top:10px}
+#s936SuitePro .s936-ed-drum-panel .s936-ed-drum-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+#s936SuitePro .s936-ed-drum-panel .s936-ed-drum-head b{color:#ffd36d;font-size:.72rem;text-transform:uppercase;letter-spacing:.55px}
+#s936SuitePro .s936-ed-drum-config{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+#s936SuitePro .s936-ed-drum-actions{display:flex;flex-wrap:wrap;gap:6px}
+#s936SuitePro .s936-ed-drum-mixer{display:grid;gap:5px}
+#s936SuitePro .s936-ed-drum-lane{display:grid;grid-template-columns:22px minmax(0,1fr) 26px 26px;gap:5px;align-items:center;border:1px solid rgba(255,255,255,.09);border-radius:9px;padding:6px;background:rgba(255,255,255,.027)}
+#s936SuitePro .s936-ed-drum-lane.active{border-color:rgba(0,255,204,.62);box-shadow:0 0 0 2px rgba(0,255,204,.10)}
+#s936SuitePro .s936-ed-drum-lane.off{opacity:.42}
+#s936SuitePro .s936-ed-drum-lane b{display:block;color:#fff;font-size:.62rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#s936SuitePro .s936-ed-drum-lane input[type=range]{width:100%;accent-color:#ffd36d}
+#s936SuitePro .s936-ed-drum-mini{height:24px;border:1px solid rgba(255,255,255,.12);border-radius:7px;background:rgba(255,255,255,.05);color:#fff;font-size:.52rem;font-weight:950;cursor:pointer}
+#s936SuitePro .s936-ed-drum-mini.active{background:#ffd36d;color:#1b1300}
+#s936SuitePro .s936-ed-drum-grid-wrap{overflow:auto;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:6px;background:rgba(0,0,0,.16);max-height:300px;-webkit-overflow-scrolling:touch}
+#s936SuitePro .s936-ed-drum-grid{display:grid;gap:3px;min-width:max-content}
+#s936SuitePro .s936-ed-drum-row{display:grid;grid-template-columns:64px repeat(var(--steps),22px);gap:3px;align-items:center}
+#s936SuitePro .s936-ed-drum-row span{font-size:.50rem;color:rgba(255,255,255,.62);font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#s936SuitePro .s936-ed-drum-step{width:22px;height:22px;border:1px solid rgba(255,255,255,.10);border-radius:5px;background:rgba(255,255,255,.035);cursor:pointer;padding:0}
+#s936SuitePro .s936-ed-drum-step.beat{border-top-color:#ffd36d}
+#s936SuitePro .s936-ed-drum-step.on{background:rgba(255,185,70,.60);border-color:#ffc856}
+#s936SuitePro .s936-ed-drum-step.accent{background:#fff0a0;border-color:#fff}
+#s936SuitePro .s936-ed-drum-note{color:#bfffee;font-size:.60rem;line-height:1.35}
 
 @media(max-width:760px){
   #s936SuitePro .s936-ed-grid{grid-template-columns:1fr}
@@ -974,6 +998,293 @@
     return instruments;
   }
 
+
+  function renderDrumEditorPanel(ctx, shell, host, data, sections, sectionKeys) {
+    const sectionOptions = (data.sectionOptions || sectionKeys.map(k => [k, humanize(k)]))
+      .filter(entry => Array.isArray(entry) && sections[entry[0]])
+      .map(entry => [entry[0], entry[1] || humanize(entry[0])]);
+
+    let drumSection = state.sectionKey || data.sectionKey || sectionKeys[0] || "intro";
+    if (!sections[drumSection]) drumSection = sectionKeys[0] || "intro";
+
+    const fromStore = data.drumPatterns?.[drumSection] || {};
+    let pattern = DrumPatterns?.normalize
+      ? DrumPatterns.normalize(fromStore, {
+          sectionKey:drumSection,
+          style:fromStore.style || "auto",
+          songStyle:data.style || "funk",
+          bpm:data.bpm || 95,
+          bars:Math.max(1,Math.min(4,(sections[drumSection] || []).reduce((sum,item) => sum + (Number(item?.bars) || 1),0) || 1))
+        })
+      : fromStore;
+
+    const drumsHost = el(ctx, "section", "s936-ed-card s936-ed-drums-host");
+    const panel = el(ctx, "div", "s936-ed-drum-panel");
+    const head = el(ctx, "div", "s936-ed-drum-head");
+    head.appendChild(el(ctx, "b", "", "Batería Pro · patrón por sección"));
+    const meta = el(ctx, "span", "s936-ed-drum-note", `${data.bpm || 95} BPM · base activa de la canción`);
+    head.appendChild(meta);
+    panel.appendChild(head);
+
+    const kitOptions = DrumPatterns?.kits || [["studio","Studio acústica"],["rock","Rock"],["latin","Latin"],["electronic","Electrónica"],["soft","Soft"]];
+    const styleOptions = DrumPatterns?.styles || [["auto","Auto según canción"],["funk","Funk"],["pop","Pop"],["rock","Rock"],["bossa","Bossa"],["salsa","Salsa"],["bolero","Bolero"]];
+    const sectionSelect = makeSelect(ctx, sectionOptions, drumSection);
+    const kitSelect = makeSelect(ctx, kitOptions, pattern.kit || "studio");
+    const styleSelect = makeSelect(ctx, styleOptions, pattern.style || "auto");
+    const barsSelect = makeSelect(ctx, [["1","16 pasos"],["2","32 pasos"],["4","64 pasos"]], String(pattern.bars || 1));
+    const activeSelect = makeSelect(ctx, [["on","Batería ON"],["off","Batería OFF"]], pattern.enabled === false ? "off" : "on");
+
+    const config = el(ctx, "div", "s936-ed-drum-config");
+    config.append(
+      field(ctx, "Sección", sectionSelect),
+      field(ctx, "Kit", kitSelect),
+      field(ctx, "Estilo", styleSelect),
+      field(ctx, "Longitud", barsSelect),
+      field(ctx, "Canal base", activeSelect, true)
+    );
+    panel.appendChild(config);
+
+    const actions = el(ctx, "div", "s936-ed-drum-actions");
+    const status = el(ctx, "div", "s936-ed-status", "Elige estilo, aplica patrón y toca el kit visual para escuchar piezas.");
+    const applyBtn = button(ctx, "Aplicar patrón", "warn", () => {
+      syncConfig();
+      const styleForPattern = styleSelect.value === "auto" ? (data.style || "funk") : styleSelect.value;
+      pattern = DrumPatterns?.patternForStyle
+        ? DrumPatterns.patternForStyle(styleForPattern, drumSection, {
+            kit:kitSelect.value,
+            bars:Number(barsSelect.value) || 1,
+            bpm:data.bpm || 95,
+            enabled:activeSelect.value !== "off"
+          })
+        : pattern;
+      pattern.style = styleSelect.value;
+      persist("Patrón aplicado a la sección.");
+      redraw();
+    });
+    const clearBtn = button(ctx, "Limpiar", "danger", () => {
+      syncConfig();
+      Object.values(pattern.lanes || {}).forEach(lane => lane.hits = {});
+      pattern.style = "custom";
+      persist("Patrón limpiado.");
+      redraw();
+    });
+    const saveBtn = button(ctx, "Guardar batería", "primary", () => {
+      syncConfig();
+      persist("Batería guardada en la canción.");
+      redraw();
+    });
+    const previewBtn = button(ctx, "Escuchar golpe", "", () => {
+      const lane = selectedLane || "kick";
+      bridge("triggerEditorDrumLane", lane, .92, pattern);
+      bridge("flashEditorDrumLane", lane, .92, 180);
+    });
+    actions.append(applyBtn, saveBtn, previewBtn, clearBtn);
+    panel.append(actions,status);
+
+    const mixerTitle = el(ctx, "div", "s936-ed-drum-head");
+    mixerTitle.appendChild(el(ctx, "b", "", "Mixer por pieza"));
+    mixerTitle.appendChild(el(ctx, "span", "s936-ed-drum-note", "ON · Mute · Solo · Volumen"));
+    panel.appendChild(mixerTitle);
+
+    const mixer = el(ctx, "div", "s936-ed-drum-mixer");
+    panel.appendChild(mixer);
+
+    const gridTitle = el(ctx, "div", "s936-ed-drum-head");
+    gridTitle.appendChild(el(ctx, "b", "", "Secuenciador"));
+    gridTitle.appendChild(el(ctx, "span", "s936-ed-drum-note", "Click: normal → acento → off"));
+    panel.appendChild(gridTitle);
+
+    const gridWrap = el(ctx, "div", "s936-ed-drum-grid-wrap");
+    const grid = el(ctx, "div", "s936-ed-drum-grid");
+    gridWrap.appendChild(grid);
+    panel.appendChild(gridWrap);
+    drumsHost.appendChild(panel);
+    shell.appendChild(drumsHost);
+    host.appendChild(shell);
+
+    let selectedLane = "kick";
+
+    function lanes(){
+      return DrumPatterns?.lanes || [
+        {id:"kick",label:"Bombo",short:"BD",defaultVolume:.92},
+        {id:"snare",label:"Caja",short:"SD",defaultVolume:.82},
+        {id:"hatClosed",label:"Hi-hat cerrado",short:"CH",defaultVolume:.58},
+        {id:"hatOpen",label:"Hi-hat abierto",short:"OH",defaultVolume:.55},
+        {id:"tomHigh",label:"Tom alto",short:"HT",defaultVolume:.72},
+        {id:"tomMid",label:"Tom medio",short:"MT",defaultVolume:.74},
+        {id:"tomLow",label:"Tom piso",short:"FT",defaultVolume:.78},
+        {id:"crash",label:"Crash",short:"CR",defaultVolume:.62},
+        {id:"ride",label:"Ride",short:"RD",defaultVolume:.55},
+        {id:"percussion",label:"Percusión",short:"PC",defaultVolume:.62}
+      ];
+    }
+
+    function syncConfig(){
+      pattern = DrumPatterns?.normalize
+        ? DrumPatterns.normalize(pattern || {}, {
+            sectionKey:drumSection,
+            style:styleSelect.value,
+            songStyle:data.style || "funk",
+            kit:kitSelect.value,
+            bars:Number(barsSelect.value) || 1,
+            bpm:data.bpm || 95
+          })
+        : pattern;
+      pattern.sectionKey = drumSection;
+      pattern.kit = kitSelect.value;
+      pattern.style = styleSelect.value;
+      pattern.bars = Number(barsSelect.value) || 1;
+      pattern.bpm = data.bpm || 95;
+      pattern.enabled = activeSelect.value !== "off";
+    }
+
+    function persist(message){
+      const response = bridge("saveDrumPattern", drumSection, pattern);
+      bridge("renderMainDrumSurface");
+      if(response?.ok === false){
+        status.textContent = response.message || "No se pudo guardar la batería.";
+        status.style.color = "#ffb3b3";
+      }else{
+        status.textContent = message || response?.message || "Patrón actualizado.";
+        status.style.color = "";
+      }
+      return response;
+    }
+
+    function ensureLane(laneId, def){
+      pattern.lanes = pattern.lanes || {};
+      pattern.lanes[laneId] = pattern.lanes[laneId] || {
+        enabled:true,
+        mute:false,
+        solo:false,
+        volume:def.defaultVolume || .7,
+        hits:{}
+      };
+      pattern.lanes[laneId].hits = pattern.lanes[laneId].hits || {};
+      return pattern.lanes[laneId];
+    }
+
+    function toggleHit(laneId, step){
+      syncConfig();
+      const def = lanes().find(item => item.id === laneId) || {};
+      const lane = ensureLane(laneId, def);
+      const current = Number(lane.hits[step] || 0);
+      if(current <= 0) lane.hits[step] = .72;
+      else if(current < .9) lane.hits[step] = 1;
+      else delete lane.hits[step];
+      pattern.style = "custom";
+      persist("Golpe actualizado.");
+      redraw();
+    }
+
+    function redrawMixer(){
+      mixer.innerHTML = "";
+      lanes().forEach(def => {
+        const lane = ensureLane(def.id, def);
+        const row = el(ctx, "div", "s936-ed-drum-lane" + (def.id === selectedLane ? " active" : "") + (lane.enabled === false ? " off" : ""));
+        const enabled = document.createElement("input");
+        enabled.type = "checkbox";
+        enabled.checked = lane.enabled !== false;
+        enabled.title = `Activar ${def.label}`;
+        enabled.addEventListener("change", () => {
+          lane.enabled = enabled.checked;
+          persist("Canal actualizado.");
+          redraw();
+        });
+
+        const name = el(ctx, "div", "", "");
+        const label = el(ctx, "b", "", def.label);
+        label.addEventListener("click", () => {
+          selectedLane = def.id;
+          bridge("flashEditorDrumLane", selectedLane, .82, 160);
+          redrawMixer();
+        });
+        const volume = document.createElement("input");
+        volume.type = "range";
+        volume.min = "0";
+        volume.max = "1";
+        volume.step = ".01";
+        volume.value = String(lane.volume ?? def.defaultVolume ?? .7);
+        volume.addEventListener("input", () => {
+          lane.volume = Number(volume.value);
+          persist("Volumen actualizado.");
+        });
+        name.append(label, volume);
+
+        const mute = el(ctx, "button", "s936-ed-drum-mini" + (lane.mute ? " active" : ""), "M");
+        mute.type = "button";
+        mute.addEventListener("click", () => {
+          lane.mute = !lane.mute;
+          persist("Mute actualizado.");
+          redraw();
+        });
+        const solo = el(ctx, "button", "s936-ed-drum-mini" + (lane.solo ? " active" : ""), "S");
+        solo.type = "button";
+        solo.addEventListener("click", () => {
+          lane.solo = !lane.solo;
+          persist("Solo actualizado.");
+          redraw();
+        });
+        row.append(enabled, name, mute, solo);
+        row.addEventListener("dblclick", () => {
+          selectedLane = def.id;
+          bridge("triggerEditorDrumLane", def.id, .92, pattern);
+          redrawMixer();
+        });
+        mixer.appendChild(row);
+      });
+    }
+
+    function redrawGrid(){
+      grid.innerHTML = "";
+      const total = Math.max(16,(Number(pattern.bars) || 1) * 16);
+      grid.style.setProperty("--steps", String(total));
+      lanes().forEach(def => {
+        const lane = ensureLane(def.id, def);
+        const row = el(ctx, "div", "s936-ed-drum-row");
+        row.style.setProperty("--steps", String(total));
+        row.appendChild(el(ctx, "span", "", def.short));
+        for(let step=0; step<total; step++){
+          const velocity = Number(lane.hits?.[step] || 0);
+          const cell = el(ctx, "button", "s936-ed-drum-step" + (step % 4 === 0 ? " beat" : "") + (velocity > 0 ? " on" : "") + (velocity >= .9 ? " accent" : ""), "");
+          cell.type = "button";
+          cell.title = `${def.label} · paso ${step + 1}`;
+          cell.addEventListener("click", () => toggleHit(def.id, step));
+          row.appendChild(cell);
+        }
+        grid.appendChild(row);
+      });
+    }
+
+    function redraw(){
+      syncConfig();
+      meta.textContent = `${data.bpm || 95} BPM · ${pattern.enabled === false ? "batería OFF" : "batería ON"} · ${DrumPatterns?.countHits?.(pattern) || 0} golpes`;
+      redrawMixer();
+      redrawGrid();
+    }
+
+    sectionSelect.addEventListener("change", () => {
+      syncConfig();
+      persist("Sección anterior guardada.");
+      state.sectionKey = sectionSelect.value;
+      drumSection = sectionSelect.value;
+      bridge("selectEditorSection", drumSection);
+      renderModule(ctx, host);
+    });
+    [kitSelect, styleSelect, barsSelect, activeSelect].forEach(control => {
+      control.addEventListener("change", () => {
+        syncConfig();
+        persist("Configuración actualizada.");
+        redraw();
+      });
+    });
+
+    bridge("renderMainDrumSurface");
+    activeController = { stop(){}, destroy(){} };
+    redraw();
+  }
+
+
   function render(ctx, host) {
     installStyles();
     watchLifecycle();
@@ -1098,49 +1409,7 @@
     }
 
     if (state.instrument === "drums") {
-      const drumSection = state.sectionKey || data.sectionKey || sectionKeys[0] || "intro";
-      const sectionOptionsForDrums = (data.sectionOptions || sectionKeys.map(k => [k, humanize(k)]))
-        .filter(entry => Array.isArray(entry) && sections[entry[0]])
-        .map(entry => [entry[0], entry[1] || humanize(entry[0])]);
-      const drumPattern = (data.drumPatterns && data.drumPatterns[drumSection]) || {
-        kit: "studio",
-        bars: 1,
-        bpm: data.bpm || 95,
-        lanes: {}
-      };
-
-      const drumsHost = el(ctx, "section", "s936-ed-card s936-ed-drums-host");
-      const title = el(ctx, "h4", "", "Batería Pro · Kit visual");
-      const msg = el(ctx, "div", "s936-ed-status", "Batería enganchada al Main: el kit visual se muestra en la pantalla principal y este panel queda liviano para no bloquear la app.");
-      drumsHost.append(title,msg);
-
-      const sectionRow = el(ctx, "div", "s936-ed-row");
-      const sectionSelect = makeSelect(ctx, sectionOptionsForDrums, drumSection);
-      sectionSelect.addEventListener("change", () => {
-        state.sectionKey = sectionSelect.value;
-        bridge("selectEditorSection", state.sectionKey);
-        renderModule(ctx, host);
-      });
-      sectionRow.appendChild(labelWrap(ctx, "Sección", sectionSelect));
-      drumsHost.appendChild(sectionRow);
-
-      const actions = el(ctx, "div", "s936-ed-row");
-      const mainButton = el(ctx, "button", "s936-ed-action primary", "Reactivar kit en Main");
-      mainButton.type = "button";
-      mainButton.addEventListener("click", () => {
-        try { bridge("deactivateEditorSurface"); } catch (_) {}
-        try { bridge("renderMainDrumSurface"); } catch (_) {}
-      });
-      actions.appendChild(mainButton);
-      drumsHost.appendChild(actions);
-      drumsHost.appendChild(el(ctx, "div", "s936-ed-status", "Selector Batería del Editor = Main Batería. El secuenciador pesado queda apagado hasta aislarlo por completo."));
-
-      activeController = {
-        stop(){},
-        destroy(){}
-      };
-      shell.appendChild(drumsHost);
-      host.appendChild(shell);
+      renderDrumEditorPanel(ctx, shell, host, data, sections, sectionKeys);
       return;
     }
 

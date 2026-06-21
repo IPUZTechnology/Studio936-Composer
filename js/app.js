@@ -1,4 +1,4 @@
-// Studio 936 Composer - extracted JavaScript from legacy v25.9 + Editor Pro bridge v0.7.2 Instrument Surfaces Core
+// Studio 936 Composer - extracted JavaScript from legacy v25.9 + Editor Pro bridge v0.7.2.7 Drum Patterns Base
 // Keep script order intact.
 
 (() => {
@@ -46,6 +46,7 @@ function connectOut(node,role='music'){
 function noteRole(type){ if(type==='sine') return 'bass'; if(type==='square') return 'solo'; return 'chord'; }
 
 const styles = window.Studio936Rhythms || {}; // Loaded from js/rhythm-engine.js
+const DrumPatterns = window.Studio936DrumPatterns || null; // Loaded from js/suite-pro-drum-patterns.js
 
 const Transport = window.Studio936Transport || {};
 
@@ -625,26 +626,134 @@ function renderMainStringSurface(index=chordIdx,force=false){
 }
 let lastMainDrumRenderKey = '';
 function defaultDrumPattern(sectionKey=currentSectionKey()){
-    const stored = project.drumPatterns?.[sectionKey];
+    const key = String(sectionKey || currentSectionKey() || 'intro');
+    const stored = project.drumPatterns?.[key];
+    if(DrumPatterns?.normalize){
+        return DrumPatterns.normalize(stored || {}, {
+            sectionKey:key,
+            style:'auto',
+            songStyle:project.style || 'funk',
+            bpm:project.bpm || 95,
+            bars:Math.max(1,Math.min(4,(project.sections?.[key] || []).reduce((sum,item)=>sum+(Number(item?.bars)||1),0) || 1))
+        });
+    }
     if(stored && typeof stored === 'object') return stored;
     return {
+        enabled:true,
         kit:'studio',
+        style:'auto',
+        sectionKey:key,
         bars:1,
         bpm:project.bpm || 95,
+        masterVolume:.78,
         lanes:{
-            kick:{enabled:true,volume:.9},
-            snare:{enabled:true,volume:.75},
-            hatClosed:{enabled:true,volume:.55},
-            hatOpen:{enabled:true,volume:.50},
-            tomHigh:{enabled:true,volume:.65},
-            tomMid:{enabled:true,volume:.65},
-            tomLow:{enabled:true,volume:.65},
-            crash:{enabled:true,volume:.70},
-            ride:{enabled:true,volume:.60},
-            percussion:{enabled:true,volume:.58}
+            kick:{enabled:true,volume:.9,hits:{0:.9,8:.9}},
+            snare:{enabled:true,volume:.75,hits:{4:.86,12:.86}},
+            hatClosed:{enabled:true,volume:.55,hits:{0:.5,2:.5,4:.5,6:.5,8:.5,10:.5,12:.5,14:.5}},
+            hatOpen:{enabled:true,volume:.50,hits:{}},
+            tomHigh:{enabled:true,volume:.65,hits:{}},
+            tomMid:{enabled:true,volume:.65,hits:{}},
+            tomLow:{enabled:true,volume:.65,hits:{}},
+            crash:{enabled:true,volume:.70,hits:{0:.7}},
+            ride:{enabled:true,volume:.60,hits:{}},
+            percussion:{enabled:true,volume:.58,hits:{}}
         }
     };
 }
+
+function drumOutputGain(volume,when,decay){
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(Math.max(.0001,volume),when);
+    gain.gain.exponentialRampToValueAtTime(.0001,when + Math.max(.035,decay));
+    connectOut(gain,'music');
+    return gain;
+}
+function playDrumTone(freq,volume,when,decay,type='sine',endFreq=null){
+    try{
+        const osc = audioCtx.createOscillator();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq,when);
+        if(endFreq) osc.frequency.exponentialRampToValueAtTime(Math.max(20,endFreq),when + Math.max(.04,decay*.76));
+        osc.connect(drumOutputGain(volume,when,decay));
+        osc.start(when);
+        osc.stop(when + decay + .04);
+    }catch(_){}
+}
+function playDrumNoise(volume,when,decay,filterType='highpass',frequency=4200){
+    try{
+        const length = Math.max(1,Math.floor(audioCtx.sampleRate * Math.max(.03,decay)));
+        const buffer = audioCtx.createBuffer(1,length,audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for(let i=0;i<length;i++) data[i] = (Math.random()*2-1) * (1 - i/length);
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = filterType;
+        filter.frequency.setValueAtTime(frequency,when);
+        source.connect(filter).connect(drumOutputGain(volume,when,decay));
+        source.start(when);
+        source.stop(when + decay + .04);
+    }catch(_){}
+}
+function playSongDrumLane(laneId,velocity,pattern,when){
+    const kit = String(pattern?.kit || 'studio');
+    const v = Math.max(.01,Math.min(1,Number(velocity)||.7)) * (Number(project.grooveVol || 7) / 7) * .72;
+    switch(String(laneId)){
+        case 'kick':
+            playDrumTone(kit === 'electronic' ? 138 : 112,v,when,.22,'sine',kit === 'electronic' ? 48 : 42);
+            break;
+        case 'snare':
+            playDrumNoise(v*.72,when,.14,'bandpass',kit === 'soft' ? 1450 : 1950);
+            playDrumTone(kit === 'electronic' ? 210 : 176,v*.18,when,.10,'triangle',120);
+            break;
+        case 'hatClosed':
+            playDrumNoise(v*.42,when,.045,'highpass',kit === 'soft' ? 5200 : 6900);
+            break;
+        case 'hatOpen':
+            playDrumNoise(v*.46,when,.20,'highpass',5700);
+            break;
+        case 'tomHigh':
+            playDrumTone(190,v*.68,when,.24,'sine',118);
+            break;
+        case 'tomMid':
+            playDrumTone(145,v*.70,when,.28,'sine',86);
+            break;
+        case 'tomLow':
+            playDrumTone(105,v*.74,when,.34,'sine',62);
+            break;
+        case 'crash':
+            playDrumNoise(v*.58,when,.45,'highpass',3800);
+            break;
+        case 'ride':
+            playDrumNoise(v*.40,when,.18,'highpass',4900);
+            playDrumTone(780,v*.10,when,.14,'square');
+            break;
+        case 'percussion':
+            if(kit === 'latin'){
+                playDrumTone(315,v*.52,when,.16,'sine',205);
+                playDrumNoise(v*.14,when,.08,'bandpass',1250);
+            }else if(kit === 'electronic'){
+                playDrumTone(560,v*.45,when,.11,'square');
+            }else{
+                playDrumNoise(v*.34,when,.10,'bandpass',1500);
+            }
+            break;
+    }
+}
+function scheduleSongDrums(sectionKey,step,when){
+    const pattern = defaultDrumPattern(sectionKey);
+    if(pattern?.enabled === false || project.drumsEnabled === false) return [];
+    const hits = DrumPatterns?.hitsAtStep ? DrumPatterns.hitsAtStep(pattern,step) : [];
+    hits.forEach((hit,index) => {
+        const offset = Math.max(0,index * .006);
+        playSongDrumLane(hit.laneId,hit.velocity,pattern,when + offset);
+        if(project.instrument === 'drums'){
+            setVisual(when + offset, () => window.Studio936DrumSurface?.flashLane?.(hit.laneId,hit.velocity,170));
+        }
+    });
+    return hits;
+}
+
 function clearMainDrumSurface(){
     lastMainDrumRenderKey = '';
     const container = mainSurfaceContainer();
@@ -667,7 +776,7 @@ function renderMainDrumSurface(force=false){
     if(!container) return false;
     const sectionKey = currentSectionKey();
     const pattern = defaultDrumPattern(sectionKey);
-    const key = ['drums',sectionKey,project.bpm,pattern?.kit || 'studio',pattern?.bars || 1].join('|');
+    const key = ['drums',sectionKey,project.bpm,pattern?.kit || 'studio',pattern?.style || project.style || 'auto',pattern?.bars || 1,pattern?.enabled !== false,DrumPatterns?.countHits?.(pattern) || 0].join('|');
     if(!force && key === lastMainDrumRenderKey && document.getElementById('s936EditorDrumSurface')) return true;
     lastMainDrumRenderKey = key;
     const target = prepareMainSurface('drums') || container;
@@ -698,16 +807,23 @@ function scheduleMainDrumSurface(){
     setTimeout(() => renderMainDrumSurface(true), 360);
 }
 function flashMainDrumStep(stepBar,types={}){
-    if(project.instrument !== 'drums') return false;
-    if(!document.getElementById('s936EditorDrumSurface')) renderMainDrumSurface(false);
+    const isMainDrums = project.instrument === 'drums';
+    if(isMainDrums && !document.getElementById('s936EditorDrumSurface')) renderMainDrumSurface(false);
     const DrumSurface = window.Studio936DrumSurface;
     if(!DrumSurface?.flashLane) return false;
-    const lanes = [];
-    if(stepBar % 4 === 0) lanes.push('kick');
-    if(stepBar === 4 || stepBar === 12 || types.chord) lanes.push('snare');
-    if(stepBar % 2 === 0) lanes.push('hatClosed');
-    if(types.ghost) lanes.push('percussion');
-    [...new Set(lanes)].forEach((lane,index)=>setTimeout(()=>DrumSurface.flashLane(lane,index===0 ? .92 : .72,160),index*24));
+    const pattern = defaultDrumPattern(currentSectionKey());
+    const hits = DrumPatterns?.hitsAtStep
+        ? DrumPatterns.hitsAtStep(pattern, Number(stepInChord) || Number(stepBar) || 0)
+        : [];
+    const lanes = hits.length
+        ? hits
+        : [
+            ...(stepBar % 4 === 0 ? [{laneId:'kick',velocity:.92}] : []),
+            ...((stepBar === 4 || stepBar === 12 || types.chord) ? [{laneId:'snare',velocity:.72}] : []),
+            ...(stepBar % 2 === 0 ? [{laneId:'hatClosed',velocity:.52}] : []),
+            ...(types.ghost ? [{laneId:'percussion',velocity:.5}] : [])
+        ];
+    lanes.forEach((hit,index)=>setTimeout(()=>DrumSurface.flashLane(hit.laneId,hit.velocity || .72,160),index*24));
     return lanes.length > 0;
 }
 function flashMainStringMidis(midis,cls='s936-live-hit',dur=220){
@@ -1097,6 +1213,7 @@ function scheduleStep(time){
 
     setVisual(time,()=>updateLiveUI(item,stepBar,barNum,visualType));
     if(metroEnabled && stepBar%4===0){ playMetronomeClick(stepBar===0,time); setVisual(time,()=>pulseMetro()); }
+    scheduleSongDrums(section,stepInChord,when);
 
     if(st.bass.includes(stepBar)){
         const bassChoice = bassPatternNote(bass,chordNotes,stepBar,project.style);
@@ -1787,6 +1904,8 @@ function installStudio936AppBridge(){
             chordIndex,
             instrument,
             bpm:project.bpm,
+            style:project.style || 'funk',
+            drumsEnabled:project.drumsEnabled !== false,
             viewMode: project.viewMode || 'piano',
             fretMode: project.fretMode || 'guitar',
             sectionOptions: editorSectionOptions(),
@@ -2373,16 +2492,28 @@ function installStudio936AppBridge(){
         return {ok:true,message:'Solo de guitarra guardado en la canción actual.',line:safeClone(normalized)};
     }
 
+    function setDrumsEnabled(enabled){
+        project.drumsEnabled = enabled !== false;
+        saveProject(false);
+        if(project.instrument === 'drums') renderMainDrumSurface(true);
+        return {ok:true,drumsEnabled:project.drumsEnabled,state:getEditorState()};
+    }
+
     function saveDrumPattern(sectionKey,pattern){
         const key = String(sectionKey || els.sectionSelect?.value || 'intro');
         if(!project.sections?.[key]) return {ok:false,message:'La sección seleccionada no existe.'};
         project.drumPatterns = project.drumPatterns && typeof project.drumPatterns === 'object' ? project.drumPatterns : {};
-        const normalized = safeClone(pattern || {});
+        const normalized = DrumPatterns?.normalize
+            ? DrumPatterns.normalize(pattern || {}, {sectionKey:key, bpm:project.bpm, songStyle:project.style || 'funk'})
+            : safeClone(pattern || {});
         normalized.bpm = project.bpm;
+        normalized.sectionKey = key;
         normalized.updatedAt = new Date().toISOString();
+        project.drumsEnabled = normalized.enabled !== false;
         project.drumPatterns[key] = normalized;
         saveProject(false);
-        return {ok:true,message:'Patrón de batería guardado en la canción actual.',pattern:safeClone(normalized)};
+        if(project.instrument === 'drums') renderMainDrumSurface(true);
+        return {ok:true,message:'Patrón de batería guardado en la canción actual.',pattern:safeClone(normalized),state:getEditorState()};
     }
 
     window.Studio936DebugEditorIsolation = function(){
@@ -2402,7 +2533,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.2.3-main-bateria-direct',
+        version: 'suite-pro-bridge-v0.7.2.7-drum-patterns',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -2410,6 +2541,7 @@ function installStudio936AppBridge(){
         saveBassLine,
         saveLeadLine,
         saveDrumPattern,
+        setDrumsEnabled,
         selectEditorSection,
         selectEditorChord,
         setEditorInstrument,
