@@ -1,4 +1,4 @@
-// Studio 936 Composer - Instrument Surface Manager v0.7.1.8.6 Guitar Instance Guard
+// Studio 936 Composer - Instrument Surface Manager v0.7.1.8.8 Lifecycle Lock
 // Single owner for Main/Editor instrument surface visibility and lifecycle.
 window.Studio936InstrumentSurfaceManager = (() => {
   "use strict";
@@ -213,6 +213,8 @@ window.Studio936InstrumentSurfaceManager = (() => {
     data,
     profiles,
     sectionNames = {},
+    onCellPlay = null,
+    onChordSelect = null,
     renderer = stringSurface()
   } = {}) {
     const value = normalizeInstrument(instrument || data?.instrument);
@@ -231,7 +233,9 @@ window.Studio936InstrumentSurfaceManager = (() => {
       readOnly: false,
       data: { ...data, instrument: value, surfaceOwner: "editor" },
       profiles,
-      sectionNames
+      sectionNames,
+      onCellPlay: typeof onCellPlay === "function" ? onCellPlay : null,
+      onChordSelect: typeof onChordSelect === "function" ? onChordSelect : null
     };
     state.lastStringRender = { renderer, options };
     let result = { ok: true };
@@ -332,7 +336,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   function getState() {
     const { piano, fretboard } = elements();
     return {
-      version: "instrument-surface-manager-v0.7.1.8.6-guitar-instance-guard",
+      version: "instrument-surface-manager-v0.7.1.8.8-lifecycle-lock",
       configured: state.configured,
       active: state.active,
       owner: state.active ? "editor" : "main",
@@ -347,7 +351,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   }
 
   const api = {
-    version: "instrument-surface-manager-v0.7.1.8.6-guitar-instance-guard",
+    version: "instrument-surface-manager-v0.7.1.8.8-lifecycle-lock",
     configure,
     beginEditorSession,
     showEditorInstrument,
