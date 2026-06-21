@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.1.8.3-qc-safe-guitar-drums";
+  const VERSION = "editor-v0.7.1.8.4-qc-final-guitar-drum-visual";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -950,7 +950,7 @@
 
         let response = null;
         if (key === "lead") response = bridge("setEditorInstrument", "guitar");
-        else if (key === "drums") response = bridge("mountEditorInstrumentSurface", "drums");
+        else if (key === "drums") response = bridge("setEditorInstrument", "drums");
         else response = bridge("setEditorInstrument", key);
 
         if (response?.ok === false) {
@@ -1003,22 +1003,9 @@
     state.instrument = state.instrument || data.instrument || "piano";
     if (state.instrument === "lead") bridge("mountEditorInstrumentSurface", "guitar");
     else if (state.instrument === "drums") {
-      // QC v0.7.1.8.3:
-      // No desactivar la superficie del editor; eso dejaba la SuperGuitarra visible
-      // cuando el usuario seleccionaba Batería. Montamos solo el kit visual liviano
-      // y mantenemos pausado el panel pesado para evitar bloqueos.
-      try {
-        const drumSection = data.sectionKey || state.sectionKey || "intro";
-        bridge("mountEditorDrumSurface", {
-          sectionKey: drumSection,
-          sectionName: humanize(drumSection),
-          pattern: (data.drumPatterns && data.drumPatterns[drumSection]) || {
-            kit: "studio",
-            bars: 1,
-            lanes: {}
-          }
-        });
-      } catch (_) {}
+      try { window.Studio936StringSurface?.clear?.(); } catch (_) {}
+      try { document.getElementById("s936EditorGuitarSurface")?.remove?.(); } catch (_) {}
+      bridge("mountEditorInstrumentSurface", "drums");
     } else bridge("mountEditorInstrumentSurface", state.instrument);
 
     const seq = Array.isArray(sections[state.sectionKey]) ? sections[state.sectionKey] : [];
@@ -1105,44 +1092,70 @@
       const drumPattern = (data.drumPatterns && data.drumPatterns[drumSection]) || {
         kit: "studio",
         bars: 1,
+        bpm: data.bpm || 95,
         lanes: {}
       };
 
-      try {
-        bridge("mountEditorDrumSurface", {
-          sectionKey: drumSection,
-          sectionName: humanize(drumSection),
-          pattern: drumPattern
-        });
-      } catch (error) {
-        console.warn("Studio 936 · kit visual de batería no pudo montarse:", error);
-      }
-
       const drumsHost = el(ctx, "section", "s936-ed-card s936-ed-drums-host");
-      const safeTitle = el(ctx, "h4", "", "Batería Pro · Control seguro");
+      const safeTitle = el(ctx, "h4", "", "Batería Pro · Kit visual protegido");
       const safeText = el(ctx, "div", "s936-ed-status",
-        "Kit visual activo en la superficie principal. El panel pesado queda pausado para no congelar la aplicación mientras cerramos la integración."
+        "El kit visual se monta en la superficie principal. El secuenciador pesado queda pausado para evitar bloqueos."
       );
       const safeActions = el(ctx, "div", "s936-ed-actions");
 
-      const visualBtn = button(ctx, "Reactivar kit visual", "primary", () => {
-        bridge("mountEditorDrumSurface", {
+      const mountVisual = () => {
+        try { window.Studio936StringSurface?.clear?.(); } catch (_) {}
+        const response = bridge("mountEditorDrumSurface", {
           sectionKey: drumSection,
           sectionName: humanize(drumSection),
-          pattern: drumPattern
+          pattern: drumPattern,
+          onLaneSelect: laneId => bridge("selectEditorDrumLane", laneId),
+          onLaneTrigger: (laneId, velocity) => bridge("triggerEditorDrumLane", laneId, velocity, drumPattern)
         });
-        safeText.textContent = "Kit visual reactivado sin cargar el panel pesado.";
+        if (response?.ok === false) {
+          safeText.textContent = response.message || "No se pudo montar el kit visual de batería.";
+          safeText.classList.add("error");
+          return false;
+        }
+        safeText.textContent = "Kit visual activo: toca bombo, caja, hats, toms, crash, ride o percusión para escuchar y seleccionar.";
         safeText.style.color = "#bfffee";
+        return true;
+      };
+
+      const visualBtn = button(ctx, "Reactivar kit visual", "primary", () => mountVisual());
+      const fullBtn = button(ctx, "Cargar panel completo", "", () => {
+        if (!DrumComposer) {
+          safeText.textContent = "Drum Composer Pro no está disponible.";
+          safeText.classList.add("error");
+          return;
+        }
+        while (drumsHost.firstChild) drumsHost.removeChild(drumsHost.firstChild);
+        try {
+          activeController = DrumComposer.render({
+            host: drumsHost,
+            sectionKey: drumSection,
+            sectionName: humanize(drumSection),
+            sections,
+            bpm: data.bpm || 95,
+            drumPatterns: data.drumPatterns || {},
+            onSectionChange:key => {
+              state.sectionKey = key;
+              bridge("selectEditorSection", key);
+              renderModule(ctx, host);
+            }
+          });
+        } catch (error) {
+          drumsHost.appendChild(el(ctx, "div", "s936-ed-status error", "No se pudo cargar el panel completo sin bloqueo. El kit visual sigue disponible."));
+          console.warn("Studio 936 · Batería Pro completa falló:", error);
+          mountVisual();
+        }
       });
-
-      const note = el(ctx, "div", "s936-ed-status",
-        "QC: no se carga automáticamente el secuenciador completo porque era la causa probable del bloqueo. Siguiente paso: restaurar la batería completa en módulo aislado."
-      );
-
-      safeActions.appendChild(visualBtn);
-      drumsHost.append(safeTitle,safeText,safeActions,note);
+      safeActions.append(visualBtn, fullBtn);
+      drumsHost.append(safeTitle, safeText, safeActions);
       shell.appendChild(drumsHost);
       host.appendChild(shell);
+      mountVisual();
+      requestAnimationFrame(() => mountVisual());
       return;
     }
 

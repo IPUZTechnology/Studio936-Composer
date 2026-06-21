@@ -3,7 +3,7 @@
 (function(){
 "use strict";
 
-const VERSION = "drum-composer-v0.7.1.8.1-safe-dock";
+const VERSION = "drum-composer-v0.7.1.8.4-preview-safe";
 const STYLE_ID = "s936DrumComposerStyles";
 const Core = window.Studio936SequencerCore;
 const DrumSurface = window.Studio936DrumSurface || null;
@@ -358,6 +358,15 @@ function playLane(id,velocity,pattern,when){
       }
       break;
   }
+}
+
+
+function previewLaneExternal(laneId,velocity=.92,rawPattern={}){
+  const patternForPreview = normalizePattern(rawPattern && typeof rawPattern === "object" ? rawPattern : {}, [], rawPattern?.bpm || rawPattern?.tempo || 95);
+  if(!ensureAudio()) return {ok:false,message:"AudioContext no disponible."};
+  const when = audioCtx.currentTime + .015;
+  playLane(String(laneId || "kick"), clamp(velocity,0,1), patternForPreview, when);
+  return {ok:true,lane:String(laneId || "kick")};
 }
 
 function render(options={}){
@@ -798,5 +807,5 @@ function render(options={}){
 function stop(){activeController?.stop?.();}
 function getActiveController(){return activeController;}
 
-window.Studio936DrumComposerPro={version:VERSION,render,stop,getActiveController,lanes:clone(LANES)};
+window.Studio936DrumComposerPro={version:VERSION,render,stop,getActiveController,previewLane:previewLaneExternal,lanes:clone(LANES)};
 })();

@@ -1,4 +1,4 @@
-// Studio 936 Composer - extracted JavaScript from legacy v25.9 + Editor Pro bridge v1.7.1.7 SuperGuitarra Strum Modes
+// Studio 936 Composer - extracted JavaScript from legacy v25.9 + Editor Pro bridge v1.7.1.8.4 QC Final Guitar + Drums
 // Keep script order intact.
 
 (() => {
@@ -125,6 +125,16 @@ function flashEditorDrumLane(laneId,velocity=.82,duration=160){
 }
 function selectEditorDrumLane(laneId){
     return InstrumentSurfaceManager.selectEditorDrumLane(laneId);
+}
+function triggerEditorDrumLane(laneId, velocity=.92, pattern={}){
+    const id = String(laneId || 'kick');
+    try { InstrumentSurfaceManager.selectEditorDrumLane(id); } catch(_) {}
+    try { InstrumentSurfaceManager.flashEditorDrumLane(id, velocity, 190); } catch(_) {}
+    const drum = window.Studio936DrumComposerPro;
+    if(drum && typeof drum.previewLane === 'function'){
+        return drum.previewLane(id, velocity, pattern || {});
+    }
+    return {ok:false,message:'Motor de batería no disponible.'};
 }
 function withEditorPreviewInstrument(instrument,callback){
     const previous = editorPreviewInstrument;
@@ -1822,16 +1832,18 @@ function installStudio936AppBridge(){
             if(keyMap[midi]) keyMap[midi].classList.add('active-chord');
         });
 
-        try{
-            Fretboard.updateFretboardMap({
-                fretCells,
-                item,
-                parseNotes,
-                noteToMidi,
-                project
-            });
-        }catch(error){
-            console.warn('Editor Pro: no se pudo actualizar el diapasón.', error);
+        if(!useStringSurface){
+            try{
+                Fretboard.updateFretboardMap({
+                    fretCells,
+                    item,
+                    parseNotes,
+                    noteToMidi,
+                    project
+                });
+            }catch(error){
+                console.warn('Editor Pro: no se pudo actualizar el diapasón.', error);
+            }
         }
 
         if(useStringSurface && StringSurface && StringInstruments){
@@ -2212,6 +2224,7 @@ function installStudio936AppBridge(){
         mountEditorDrumSurface,
         flashEditorDrumLane,
         selectEditorDrumLane,
+        triggerEditorDrumLane,
         deactivateEditorSurface,
         getInstrumentSurfaceState:()=>InstrumentSurfaceManager.getState(),
         renderMainStringSurface:()=>renderMainStringSurface(chordIdx,true),
