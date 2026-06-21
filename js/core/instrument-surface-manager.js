@@ -1,4 +1,4 @@
-// Studio 936 Composer - Instrument Surface Manager v0.7.1.4 · SuperGuitarra 936 Base
+// Studio 936 Composer - Instrument Surface Manager v0.7.0.1 HOTFIX
 // Single owner for Main/Editor instrument surface visibility and lifecycle.
 window.Studio936InstrumentSurfaceManager = (() => {
   "use strict";
@@ -213,7 +213,6 @@ window.Studio936InstrumentSurfaceManager = (() => {
     data,
     profiles,
     sectionNames = {},
-    onCellPlay = null,
     renderer = stringSurface()
   } = {}) {
     const value = normalizeInstrument(instrument || data?.instrument);
@@ -225,7 +224,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
     if (!fretboard || !renderer?.render) {
       return { ok: false, message: "No está disponible la superficie instrumental." };
     }
-    const options = { container: fretboard, data: { ...data, instrument: value }, profiles, sectionNames, onCellPlay };
+    const options = { container: fretboard, data: { ...data, instrument: value }, profiles, sectionNames };
     state.lastStringRender = { renderer, options };
     const result = renderer.render(options) || { ok: true };
     enforce();
@@ -246,8 +245,17 @@ window.Studio936InstrumentSurfaceManager = (() => {
     }
     const options = { container:fretboard, pattern, sectionName, onLaneSelect, onLaneTrigger };
     state.lastDrumRender = { renderer, options };
-    const result = renderer.render(options) || { ok:true };
-    enforce();
+    let result = { ok:true };
+    try {
+      stopObserver();
+      result = renderer.render(options) || { ok:true };
+    } catch (error) {
+      console.error("Instrument Surface Manager · Drum render falló:", error);
+      result = { ok:false, message:error?.message || "No se pudo montar la superficie de batería." };
+    } finally {
+      startObserver();
+      enforce();
+    }
     return result;
   }
 
@@ -304,7 +312,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   function getState() {
     const { piano, fretboard } = elements();
     return {
-      version: "instrument-surface-manager-v0.7.1.4-super-guitar-base",
+      version: "instrument-surface-manager-v0.7.1.8.1-drum-safe",
       configured: state.configured,
       active: state.active,
       owner: state.active ? "editor" : "main",
@@ -319,7 +327,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   }
 
   const api = {
-    version: "instrument-surface-manager-v0.7.1.4-super-guitar-base",
+    version: "instrument-surface-manager-v0.7.1.8.1-drum-safe",
     configure,
     beginEditorSession,
     showEditorInstrument,
