@@ -1,4 +1,4 @@
-// Studio 936 Composer - Shared String Instrument Surface v1.6 · Precision Play
+// Studio 936 Composer - Shared String Instrument Surface v1.7 · Exact Play / Safe Map
 // Renders Guitar, Ukulele and Bass as one live surface for Main and Editor.
 window.Studio936StringSurface = (() => {
   "use strict";
@@ -176,11 +176,39 @@ window.Studio936StringSurface = (() => {
   }
 
   function flashMidis(midis,cls="s936-live-hit",duration=190){
-    const wanted = new Set((Array.isArray(midis) ? midis : [midis]).map(Number).filter(Number.isFinite).map(Math.round));
-    if(!wanted.size) return 0;
-    const cells = Array.from(document.querySelectorAll("#s936EditorGuitarSurface [data-midi]"))
-      .filter(cell => wanted.has(Number(cell.dataset.midi)));
-    return flashCells(cells,cls,duration);
+    const wanted = (Array.isArray(midis) ? midis : [midis])
+      .map(Number)
+      .filter(Number.isFinite)
+      .map(Math.round);
+    if(!wanted.length) return 0;
+
+    const surface = document.getElementById("s936EditorGuitarSurface");
+    if(!surface) return 0;
+
+    // Modo Mapa = teoría: mostrar todas las posiciones equivalentes.
+    // Modo Tocar/Acorde = instrumento real: una posición exacta por nota.
+    if(interactionMode === "map" || cls === "s936-map-hit"){
+      const all = Array.from(surface.querySelectorAll("[data-midi]"))
+        .filter(cell => wanted.includes(Math.round(Number(cell.dataset.midi))));
+      return flashCells(all,cls,duration);
+    }
+
+    const selected = [];
+    wanted.forEach(midi => {
+      const exact = Array.from(surface.querySelectorAll(
+        `.s936-neck-cell.on[data-midi="${midi}"],.s936-neck-cell.open.active[data-midi="${midi}"]`
+      ));
+      if(exact.length){
+        selected.push(exact[0]);
+        return;
+      }
+      const single = surface.querySelector(
+        `.s936-neck-cell[data-midi="${midi}"]:not(.capoblocked),.s936-neck-cell.open[data-midi="${midi}"]`
+      );
+      if(single) selected.push(single);
+    });
+
+    return flashCells(selected,cls,duration);
   }
 
   function flashPosition(stringIndex,physicalFret,cls="s936-live-hit",duration=190){
@@ -358,6 +386,18 @@ window.Studio936StringSurface = (() => {
     const enriched = Object.assign({gesture:"tap",visualMode:interactionMode},payload);
     clearTransient(surface);
     flashCells([cell],"s936-live-hit",220);
+
+    // En Editor, Modo Tocar debe escribir la cuerda/traste inmediatamente.
+    // Antes dependía del evento click; en touch/iPad podía quedarse solo en luz.
+    if(surface?.dataset?.owner !== "main" && interactionMode === "play"){
+      const relativeFret = payload.fret === null || String(payload.fret).toUpperCase?.() === "X"
+        ? null
+        : Math.max(0,Number(payload.fret)||0);
+      if(Number.isFinite(Number(payload.stringIndex))){
+        editorCall("externalSetFret",Number(payload.stringIndex),relativeFret);
+      }
+    }
+
     if(interactionMode === "map") flashMidis([payload.midi],"s936-map-hit",560);
     if(interactionMode === "chord") {
       const chordEvents = Array.from(surface?.querySelectorAll?.(".s936-neck-cell.on[data-midi],.s936-neck-cell.open.active[data-midi]") || [])
@@ -769,7 +809,7 @@ window.Studio936StringSurface = (() => {
   }
 
   return {
-    version:"string-surface-v1.6-precision-play",
+    version:"string-surface-v1.7-exact-play-safe-map",
     render,
     clear,
     flashMidis,
