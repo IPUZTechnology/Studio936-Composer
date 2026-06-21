@@ -1,4 +1,4 @@
-// Studio 936 Composer - Instrument Surface Manager v0.7.0.1 HOTFIX
+// Studio 936 Composer - Instrument Surface Manager v0.7.1.8.4 QC Final
 // Single owner for Main/Editor instrument surface visibility and lifecycle.
 window.Studio936InstrumentSurfaceManager = (() => {
   "use strict";
@@ -219,6 +219,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
     if (!["guitar","ukulele","bass"].includes(value)) {
       return { ok: false, message: "La superficie de cuerdas requiere Guitarra, Ukelele o Bajo." };
     }
+    clearEditorDrums();
     showEditorInstrument(value);
     const { fretboard } = elements();
     if (!fretboard || !renderer?.render) {
@@ -238,6 +239,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
     onLaneSelect = null,
     onLaneTrigger = null
   } = {}) {
+    clearEditorStrings();
     showEditorInstrument("drums");
     const { fretboard } = elements();
     if (!fretboard || !renderer?.render) {
@@ -312,7 +314,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   function getState() {
     const { piano, fretboard } = elements();
     return {
-      version: "instrument-surface-manager-v0.7.1.8.1-drum-safe",
+      version: "instrument-surface-manager-v0.7.1.8.4-qc-final",
       configured: state.configured,
       active: state.active,
       owner: state.active ? "editor" : "main",
@@ -327,7 +329,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   }
 
   const api = {
-    version: "instrument-surface-manager-v0.7.1.8.1-drum-safe",
+    version: "instrument-surface-manager-v0.7.1.8.4-qc-final",
     configure,
     beginEditorSession,
     showEditorInstrument,
