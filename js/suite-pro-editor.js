@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.1.8.8-lifecycle-lock";
+  const VERSION = "editor-v0.7.2-surfaces-core";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -949,8 +949,7 @@
         syncPersistentInstrumentTabs(instruments);
 
         let response = null;
-        if (key === "lead") response = bridge("setEditorInstrument", "guitar");
-        else if (key === "drums") response = bridge("setEditorInstrument", "drums");
+        if (key === "drums") response = bridge("setEditorInstrument", "drums");
         else response = bridge("setEditorInstrument", key);
 
         if (response?.ok === false) {
@@ -1001,7 +1000,7 @@
     state.sectionKey = sections[state.sectionKey] ? state.sectionKey : (data.sectionKey || sectionKeys[0]);
     state.chordIndex = state.chordIndex === null ? (Number(data.chordIndex) || 0) : (Number(state.chordIndex) || 0);
     state.instrument = state.instrument || data.instrument || "piano";
-    if (state.instrument === "lead") bridge("mountEditorInstrumentSurface", "guitar");
+    if (state.instrument === "lead") bridge("mountEditorInstrumentSurface", "lead");
     else if (state.instrument === "drums") {
       try { window.Studio936StringSurface?.clear?.(); } catch (_) {}
       try { document.getElementById("s936EditorGuitarSurface")?.remove?.(); } catch (_) {}
@@ -1100,39 +1099,48 @@
       };
 
       const drumsHost = el(ctx, "section", "s936-ed-card s936-ed-drums-host");
+      const title = el(ctx, "h4", "", "Batería Pro · Kit visual");
+      const msg = el(ctx, "div", "s936-ed-status", "Modo seguro v0.7.2: el kit visual se monta en el instrumento principal para evitar bloqueos. El secuenciador completo se reactivará después de estabilizar el ciclo Main/Editor.");
+      drumsHost.append(title,msg);
 
-      const mountVisualOnly = (message) => {
+      const sectionRow = el(ctx, "div", "s936-ed-row");
+      const sectionSelect = makeSelect(ctx, sectionOptionsForDrums, drumSection);
+      sectionSelect.addEventListener("change", () => {
+        state.sectionKey = sectionSelect.value;
+        bridge("selectEditorSection", state.sectionKey);
+        renderModule(ctx, host);
+      });
+      sectionRow.appendChild(labelWrap(ctx, "Sección", sectionSelect));
+      drumsHost.appendChild(sectionRow);
+
+      const mountVisualOnly = () => {
         try { window.Studio936StringSurface?.clear?.(); } catch (_) {}
         try { document.getElementById("s936EditorGuitarSurface")?.remove?.(); } catch (_) {}
-        const response = bridge("mountEditorDrumSurface", {
+        return bridge("mountEditorDrumSurface", {
           sectionKey: drumSection,
-          sectionName: humanize(drumSection),
+          sectionName: (sectionOptionsForDrums.find(entry => entry[0] === drumSection) || [drumSection,humanize(drumSection)])[1],
           pattern: drumPattern,
           onLaneSelect: laneId => bridge("selectEditorDrumLane", laneId),
-          onLaneTrigger: (laneId, velocity) => bridge("triggerEditorDrumLane", laneId, velocity)
+          onLaneTrigger: (laneId, velocity) => bridge("triggerEditorDrumLane", laneId, velocity, drumPattern)
         });
-        if (message) {
-          drumsHost.appendChild(el(ctx, "div", "s936-ed-status", message));
-        }
-        return response;
       };
 
       try {
-        mountVisualOnly();
-        const safeTitle = el(ctx, "h4", "", "Batería Pro · Kit visual");
-        const safeMsg = el(ctx, "div", "s936-ed-status", "Modo seguro activo: el kit visual queda disponible para tocar sin bloquear la aplicación. El secuenciador completo queda pausado hasta estabilizarlo.");
-        drumsHost.append(safeTitle, safeMsg);
+        const response = mountVisualOnly();
+        if (response?.ok === false) {
+          drumsHost.appendChild(el(ctx, "div", "s936-ed-status", response.message || "No se pudo montar el kit visual."));
+        }
       } catch (error) {
-        console.warn("Studio 936 · Batería visual falló:", error);
-        while (drumsHost.firstChild) drumsHost.removeChild(drumsHost.firstChild);
-        drumsHost.appendChild(el(ctx, "div", "s936-ed-status", "No se pudo montar el kit visual de batería, pero el Editor quedó desbloqueado."));
+        console.warn("Studio 936 · Batería visual segura falló:", error);
+        drumsHost.appendChild(el(ctx, "div", "s936-ed-status", "No se pudo montar la batería visual. Revisa la primera línea roja de consola."));
       }
 
+      activeController = {
+        stop(){},
+        destroy(){}
+      };
       shell.appendChild(drumsHost);
       host.appendChild(shell);
-      requestAnimationFrame(() => {
-        try { mountVisualOnly(); } catch(error) { console.warn("Studio 936 · remount batería visual falló:", error); }
-      });
       return;
     }
 
@@ -1628,16 +1636,6 @@
       }
     } : null;
 
-    // v0.7.1.8.8: Auto-wake de la SuperGuitarra al entrar desde Main.
-    // Evita que la superficie quede montada pero esperando una reselección manual.
-    if (isStringInstrument() && guitarControls) {
-      setTimeout(() => {
-        try { scheduleVisual(currentPayload(), true); } catch (error) {
-          console.warn("Editor Instrumental · auto-wake guitarra falló:", error);
-        }
-      }, 0);
-    }
-
     sectionSelect.addEventListener("change", () => {
       state.sectionKey = sectionSelect.value;
       state.chordIndex = 0;
@@ -1710,11 +1708,13 @@
     recalculate({ immediate:true });
     setTimeout(() => {
       if (isStringInstrument()) {
-        // v0.7.1.8.7:
-        // Cuando Main ya venía en Guitarra, llamar al selector legacy justo al abrir
-        // podía reactivar el render viejo y dejar el mástil grande pegado en la primera nota.
-        // El editor de cuerdas ya tiene su propio estado; solo refrescamos la superficie viva.
+        // v0.7.2: handshake limpio Main → Editor.
+        // Primero asegura dueño Editor; luego refresca la superficie con el payload actual.
+        bridge("mountEditorInstrumentSurface", state.instrument);
+        try { window.Studio936StringSurface?.setInteractionMode?.("play"); } catch (_) {}
+        recalculate({ immediate:true });
         scheduleVisual(currentPayload(), true);
+        setTimeout(() => scheduleVisual(currentPayload(), true), 80);
         return;
       }
       bridge("selectEditorChord", state.sectionKey, state.chordIndex);

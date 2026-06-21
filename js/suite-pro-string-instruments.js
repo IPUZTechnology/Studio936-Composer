@@ -26,6 +26,28 @@ window.Studio936StringInstruments = (() => {
       allowCapo:true,
       role:"chord"
     },
+    lead: {
+      id:"lead",
+      label:"Guitarra Lead",
+      shortLabel:"Lead",
+      shapeOrder:"6→1",
+      maxFret:24,
+      capoMax:12,
+      minSounding:1,
+      strings:[
+        {number:6,label:"E",open:"E2",midi:40},
+        {number:5,label:"A",open:"A2",midi:45},
+        {number:4,label:"D",open:"D3",midi:50},
+        {number:3,label:"G",open:"G3",midi:55},
+        {number:2,label:"B",open:"B3",midi:59},
+        {number:1,label:"e",open:"E4",midi:64}
+      ],
+      defaultFrets:[null,null,null,null,null,0],
+      defaultFingers:["","","","","","0"],
+      allowBarre:true,
+      allowCapo:true,
+      role:"lead"
+    },
     ukulele: {
       id:"ukulele",
       label:"Ukelele",
@@ -191,7 +213,7 @@ window.Studio936StringInstruments = (() => {
   }
 
   return {
-    version:"string-instruments-v1",
+    version:"string-instruments-v1.1-surfaces-core",
     profiles:PROFILES,
     profile,
     normalizeFret,

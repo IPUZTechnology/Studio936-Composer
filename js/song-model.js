@@ -63,7 +63,7 @@ function defaultArrangement(){
 }
 
 const defaultProject = () => ({
-    title:'Despertar de un Sueño', author:'Rafael Ipuz', bpm:95, style:'funk', instrument:'piano', arrangement: defaultArrangement(), grooveVol:7, viewMode:'piano', routingMode:'normal', fretMode:'guitar', tuningHz:440, voicingLibrary:normalizeVoicingLibrary(null), bassLines:{},
+    title:'Despertar de un Sueño', author:'Rafael Ipuz', bpm:95, style:'funk', instrument:'piano', arrangement: defaultArrangement(), grooveVol:7, viewMode:'piano', routingMode:'normal', fretMode:'guitar', tuningHz:440, voicingLibrary:normalizeVoicingLibrary(null), bassLines:{}, leadLines:{}, drumPatterns:{},
     soloOn:true,
     soloPhrase:'D4:1 E4:1 G4:1 A4:1 C5:1 D5:1 F5:1 E5:1 C5:1 B4:1 A4:1 G4:1 R:2 G4:1 A4:1 C5:1 D5:1 E5:1 D5:1 C5:1 B4:1 A4:1 G4:2 F4:2 E4:2 C4:4',
     soloKey:'F', soloScale:'major',
@@ -198,7 +198,7 @@ function normalizeChord(raw, fallback){
 }
 
 function normalizeVoicingLibrary(raw){
-    const instruments = ['piano','guitar','ukulele','bass'];
+    const instruments = ['piano','guitar','ukulele','bass','lead'];
     const out = {};
     instruments.forEach(instrument=>{
         out[instrument] = {};
