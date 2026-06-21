@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.2.4-editor-safe-reopen";
+  const VERSION = "editor-v0.7.2.5-drums-editor-quarantine";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -948,9 +948,16 @@
 
         syncPersistentInstrumentTabs(instruments);
 
-        let response = null;
-        if (key === "drums") response = bridge("setEditorInstrument", "drums");
-        else response = bridge("setEditorInstrument", key);
+        // v0.7.2.5: Batería en Editor queda en cuarentena segura.
+        // No llamar setEditorInstrument/mountEditorInstrumentSurface aquí:
+        // eso activaba la superficie de batería dentro del Editor y podía congelar la app.
+        if (key === "drums") {
+          try { bridge("deactivateEditorSurface"); } catch (_) {}
+          renderModule(ctx, contentHost);
+          return;
+        }
+
+        let response = bridge("setEditorInstrument", key);
 
         if (response?.ok === false) {
           setTimeout(() => renderModule(ctx, contentHost), 0);
@@ -1001,9 +1008,10 @@
     state.chordIndex = state.chordIndex === null ? (Number(data.chordIndex) || 0) : (Number(state.chordIndex) || 0);
     state.instrument = state.instrument || data.instrument || "piano";
     if (state.instrument === "drums") {
-      // v0.7.2.4: drums are already safe in Main. Do not mount a heavy editor surface here.
-      // Opening the Editor while Main is on Batería must never create a second drum kit or loop.
-      try { bridge("setEditorInstrument", "drums"); } catch (_) {}
+      // v0.7.2.5: hard quarantine.
+      // The drum kit lives safely in Main. The Editor shows a light panel only.
+      // Do not mount an editor drum surface and do not call setEditorInstrument here.
+      try { bridge("deactivateEditorSurface"); } catch (_) {}
     } else if (state.instrument === "lead") {
       bridge("mountEditorInstrumentSurface", "lead");
     } else {
@@ -1103,7 +1111,7 @@
 
       const drumsHost = el(ctx, "section", "s936-ed-card s936-ed-drums-host");
       const title = el(ctx, "h4", "", "Batería Pro · Kit visual");
-      const msg = el(ctx, "div", "s936-ed-status", "Modo seguro v0.7.2: el kit visual se monta en el instrumento principal para evitar bloqueos. El secuenciador completo se reactivará después de estabilizar el ciclo Main/Editor.");
+      const msg = el(ctx, "div", "s936-ed-status", "Modo seguro v0.7.2.5: la batería del Editor está en cuarentena para no bloquear la app. El kit visual vive en Main; el secuenciador vuelve cuando quede aislado.");
       drumsHost.append(title,msg);
 
       const sectionRow = el(ctx, "div", "s936-ed-row");
@@ -1120,12 +1128,12 @@
       const mainButton = el(ctx, "button", "s936-ed-action primary", "Ver batería en Main");
       mainButton.type = "button";
       mainButton.addEventListener("click", () => {
-        try { bridge("setEditorInstrument", "drums"); } catch (_) {}
-        try { bridge("mountEditorInstrumentSurface", "drums"); } catch (_) {}
+        try { bridge("deactivateEditorSurface"); } catch (_) {}
+        try { bridge("renderMainDrumSurface"); } catch (_) {}
       });
       actions.appendChild(mainButton);
       drumsHost.appendChild(actions);
-      drumsHost.appendChild(el(ctx, "div", "s936-ed-status", "El kit visual completo queda en Main. El editor de patrones vuelve en una versión aislada para evitar congelamientos."));
+      drumsHost.appendChild(el(ctx, "div", "s936-ed-status", "El kit visual completo queda en Main. En esta versión el Editor no monta batería pesada ni observers de batería."));
 
       activeController = {
         stop(){},
