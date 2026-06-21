@@ -1,4 +1,4 @@
-// Studio 936 Composer - extracted JavaScript from legacy v25.9 + Editor Pro bridge v0.7.2 Instrument Surfaces Core
+// Studio 936 Composer - extracted JavaScript from legacy v25.9 + Editor Pro bridge v0.7.2.1 Main Surface Isolation
 // Keep script order intact.
 
 (() => {
@@ -187,7 +187,7 @@ function buildFretboard(){
         onCellPlay:(midi,meta={}) => {
             resumeAudio();
             const instrument = meta.mode || project.instrument || 'guitar';
-            withEditorPreviewInstrument(['guitar','ukulele','bass'].includes(instrument) ? instrument : project.instrument, () => {
+            withEditorPreviewInstrument(['guitar','ukulele','bass','lead'].includes(instrument) ? instrument : project.instrument, () => {
                 playNote(midi, instrument === 'bass' ? .38 : .28, instrument === 'bass' ? .70 : .62, instrument === 'bass' ? 'sine' : 'triangle', audioCtx.currentTime);
             });
             flashFretboard([midi],'active-chord',420);
@@ -197,8 +197,8 @@ function buildFretboard(){
 function setViewMode(mode){
     if(mode === 'piano'){
         window.Studio936AppBridge?.deactivateEditorSurface?.();
-        clearMainStringSurface();
-        clearMainDrumSurface();
+        clearMainStringSurface(true);
+        clearMainDrumSurface(true);
     }
     return Fretboard.setViewMode({
         mode,
@@ -219,11 +219,16 @@ function clearFretboardActive(){
 }
 function updateFretboardMap(){
     const item = editorSeq()[Number(els.chordSelect?.value)||0] || currentItem();
-    if(stringInstrumentId(project.instrument) && !InstrumentSurfaceManager?.getState?.().active){
+    const surfaceState = InstrumentSurfaceManager?.getState?.();
+    const managerActive = !!surfaceState?.active;
+    if(managerActive && (stringInstrumentId(project.instrument) || drumInstrumentId(project.instrument))){
+        return {ok:true, surface:'editor-owned', instrument:surfaceState.editorInstrument || project.instrument};
+    }
+    if(stringInstrumentId(project.instrument)){
         renderMainStringSurface(Number(els.chordSelect?.value)||chordIdx,true);
         return {ok:true, surface:'super-string-main'};
     }
-    if(drumInstrumentId(project.instrument) && !InstrumentSurfaceManager?.getState?.().active){
+    if(drumInstrumentId(project.instrument)){
         renderMainDrumSurface(true);
         return {ok:true, surface:'super-drum-main'};
     }
@@ -470,11 +475,11 @@ function mainStringSeqVoicingPreviews(seq,instrument=project.instrument){
         return voicing?.voicing ? voicing.voicing : null;
     });
 }
-function clearMainStringSurface(){
+function clearMainStringSurface(force=false){
     lastMainStringRenderKey = '';
     const container = els.fretboardContainer || document.getElementById('fretboardContainer');
     container?.classList?.remove('s936-main-string-surface-active');
-    if(!InstrumentSurfaceManager?.getState?.().active){
+    if(force || !InstrumentSurfaceManager?.getState?.().active){
         window.Studio936StringSurface?.clear?.();
     }
 }
@@ -484,6 +489,7 @@ function renderMainStringSurface(index=chordIdx,force=false){
     const StringInstruments = window.Studio936StringInstruments;
     if(!instrument || !StringSurface?.render || !StringInstruments?.profiles) return false;
     if(InstrumentSurfaceManager?.getState?.().active) return false;
+    clearMainDrumSurface(true);
     const sectionKey = currentSectionKey();
     const seq = Array.isArray(project.sections?.[sectionKey]) ? project.sections[sectionKey] : [];
     if(!seq.length) return false;
@@ -588,11 +594,11 @@ function defaultDrumPattern(sectionKey=currentSectionKey()){
         }
     };
 }
-function clearMainDrumSurface(){
+function clearMainDrumSurface(force=false){
     lastMainDrumRenderKey = '';
     const container = els.fretboardContainer || document.getElementById('fretboardContainer');
     container?.classList?.remove('s936-main-drum-surface-active');
-    if(!InstrumentSurfaceManager?.getState?.().active){
+    if(force || !InstrumentSurfaceManager?.getState?.().active){
         window.Studio936DrumSurface?.clear?.();
     }
 }
@@ -609,7 +615,7 @@ function renderMainDrumSurface(force=false){
     const key = ['drums',sectionKey,project.bpm,pattern?.kit || 'studio',pattern?.bars || 1].join('|');
     if(!force && key === lastMainDrumRenderKey && document.getElementById('s936EditorDrumSurface')) return true;
     lastMainDrumRenderKey = key;
-    clearMainStringSurface();
+    clearMainStringSurface(true);
     if(pianoBox) pianoBox.style.display = 'none';
     container.style.display = 'flex';
     container.classList.add('s936-main-drum-surface-active');
@@ -1118,11 +1124,16 @@ function updatePartDisplay(){
 }
 function updateLiveUI(item,stepBar,barNum,types){
     els.sectionLabel.textContent = (playAllMode ? 'Canción completa · ' : '') + (playAllMode ? (activeSongPartLabel || sectionNames[currentSectionKey()] || currentSectionKey()) : (sectionNames[currentSectionKey()] || currentSectionKey()));
-    els.chordLabel.textContent = item.name || 'Acorde';
+    els.chordLabel.textContent = project.instrument === 'drums' ? (item.name || 'Beat') : (item.name || 'Acorde');
     updatePartDisplay();
     els.measureLabel.textContent = `Compás ${barNum}/${item.bars || 1} · Paso ${stepBar+1}/16`;
     updateStepGrid(stepBar,types);
-    renderMainStringSurface(chordIdx,false);
+    if(project.instrument === 'drums'){
+        renderMainDrumSurface(false);
+        flashMainDrumStep(stepBar,types || {});
+    } else {
+        renderMainStringSurface(chordIdx,false);
+    }
 }
 function updateStepGrid(activeStep=-1,types={}){
     const st = styles[project.style] || styles.funk;
@@ -1516,7 +1527,7 @@ function bind(){
     els.instrumentSelect.onchange=()=>{
         project.instrument=els.instrumentSelect.value;
         if(stringInstrumentId(project.instrument)){
-            clearMainDrumSurface();
+            clearMainDrumSurface(true);
             project.fretMode = project.instrument === 'ukulele' ? 'ukulele' : project.instrument === 'bass' ? 'bass' : project.instrument === 'lead' ? 'guitar' : 'guitar';
             if(els.fretModeSelect) els.fretModeSelect.value = project.fretMode;
             setViewMode('fretboard');
@@ -1524,7 +1535,7 @@ function bind(){
             renderMainStringSurface(chordIdx,true);
             flashStatus(project.instrument === 'ukulele' ? 'SuperUkelele 936 activo.' : project.instrument === 'bass' ? 'SuperBajo 936 activo.' : project.instrument === 'lead' ? 'SuperGuitarra Lead 936 activa.' : 'SuperGuitarra 936 activa.');
         } else if(project.instrument === 'drums'){
-            clearMainStringSurface();
+            clearMainStringSurface(true);
             setViewMode('fretboard');
             renderMainDrumSurface(true);
             flashStatus('Batería 936 activa en Main.');
@@ -2308,7 +2319,7 @@ function installStudio936AppBridge(){
     window.Studio936DebugEditorIsolation = function(){
         const surface = InstrumentSurfaceManager.getState();
         return {
-            version:'v0.7.0-surface-manager',
+            version:'v0.7.2.1-main-surface-isolation',
             editorInstrument,
             mainInstrument:project.instrument || 'piano',
             mainSelector:els.instrumentSelect?.value || '',
@@ -2322,7 +2333,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.2-surfaces-core',
+        version: 'suite-pro-bridge-v0.7.2.1-main-surface-isolation',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -3099,6 +3110,9 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     const inst=$('instrumentSelect')?.value || 'piano';
     if(inst==='ukulele') return 'ukulele';
     if(inst==='guitar') return 'guitar';
+    if(inst==='bass') return 'bass';
+    if(inst==='lead') return 'lead';
+    if(inst==='drums') return 'drums';
     const fm=$('fretModeSelect')?.value || 'guitar';
     return fm==='ukulele'?'ukulele':fm==='bass'?'bass':'guitar';
   }
@@ -3249,11 +3263,12 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     if(s936EditorSurfaceActive()) return;
     const inst=$('instrumentSelect')?.value||'piano';
     const piano=$('pianoContainer'), fret=$('fretboardContainer'), toggle=$('viewToggleBtn'), fm=$('fretModeSelect');
-    if(['guitar','ukulele','bass'].includes(inst)){
-      if(fm) fm.value=inst==='ukulele'?'ukulele':inst==='bass'?'bass':'guitar';
+    if(['guitar','ukulele','bass','lead','drums'].includes(inst)){
+      if(fm && inst!=='drums') fm.value=inst==='ukulele'?'ukulele':inst==='bass'?'bass':'guitar';
       if(piano) piano.style.display='none'; if(fret) fret.style.display='flex';
       if(toggle) toggle.textContent=tr()==='en'?'Piano view':'Vista piano';
-      setTimeout(renderChordCharts,80);
+      if(['guitar','ukulele','bass'].includes(inst)) setTimeout(renderChordCharts,80);
+      else { const box=$('v23ChordCharts'); if(box) box.style.display='none'; }
     }else if(!document.documentElement.classList.contains('v23-zoom-on')){
       if(piano) piano.style.display='flex'; if(fret) fret.style.display='none';
       if(toggle) toggle.textContent=tr()==='en'?'Fretboard view':'Vista diapasón';

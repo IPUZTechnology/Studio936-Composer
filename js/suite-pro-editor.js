@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.2-surfaces-core";
+  const VERSION = "editor-v0.7.2.1-main-surface-isolation";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -1002,9 +1002,10 @@
     state.instrument = state.instrument || data.instrument || "piano";
     if (state.instrument === "lead") bridge("mountEditorInstrumentSurface", "lead");
     else if (state.instrument === "drums") {
+      // v0.7.2.1: batería en Editor queda en modo seguro.
+      // No toma automáticamente el contenedor principal para evitar bloqueos/reentradas.
       try { window.Studio936StringSurface?.clear?.(); } catch (_) {}
       try { document.getElementById("s936EditorGuitarSurface")?.remove?.(); } catch (_) {}
-      bridge("mountEditorInstrumentSurface", "drums");
     } else bridge("mountEditorInstrumentSurface", state.instrument);
 
     const seq = Array.isArray(sections[state.sectionKey]) ? sections[state.sectionKey] : [];
@@ -1099,8 +1100,8 @@
       };
 
       const drumsHost = el(ctx, "section", "s936-ed-card s936-ed-drums-host");
-      const title = el(ctx, "h4", "", "Batería Pro · Kit visual");
-      const msg = el(ctx, "div", "s936-ed-status", "Modo seguro v0.7.2: el kit visual se monta en el instrumento principal para evitar bloqueos. El secuenciador completo se reactivará después de estabilizar el ciclo Main/Editor.");
+      const title = el(ctx, "h4", "", "Batería Pro · Modo seguro");
+      const msg = el(ctx, "div", "s936-ed-status", "Modo seguro v0.7.2.1: la batería visual vive en el Main. Este panel no monta el kit automáticamente para evitar bloqueos.");
       drumsHost.append(title,msg);
 
       const sectionRow = el(ctx, "div", "s936-ed-row");
@@ -1125,19 +1126,27 @@
         });
       };
 
-      try {
-        const response = mountVisualOnly();
-        if (response?.ok === false) {
-          drumsHost.appendChild(el(ctx, "div", "s936-ed-status", response.message || "No se pudo montar el kit visual."));
+      const showInMain = el(ctx, "button", "s936-ed-action", "Mostrar batería en Main");
+      showInMain.type = "button";
+      showInMain.addEventListener("click", () => {
+        try {
+          bridge("setEditorInstrument", "drums");
+          const response = mountVisualOnly();
+          if (response?.ok === false) {
+            drumsHost.appendChild(el(ctx, "div", "s936-ed-status", response.message || "No se pudo montar el kit visual."));
+          }
+        } catch (error) {
+          console.warn("Studio 936 · Batería visual segura falló:", error);
+          drumsHost.appendChild(el(ctx, "div", "s936-ed-status", "No se pudo montar la batería visual. Revisa la primera línea roja de consola."));
         }
-      } catch (error) {
-        console.warn("Studio 936 · Batería visual segura falló:", error);
-        drumsHost.appendChild(el(ctx, "div", "s936-ed-status", "No se pudo montar la batería visual. Revisa la primera línea roja de consola."));
-      }
+      });
+      drumsHost.appendChild(showInMain);
 
       activeController = {
         stop(){},
-        destroy(){}
+        destroy(){
+          try { window.Studio936DrumSurface?.clearActive?.(); } catch (_) {}
+        }
       };
       shell.appendChild(drumsHost);
       host.appendChild(shell);
