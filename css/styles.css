@@ -1742,3 +1742,67 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
   transform: none !important;
   white-space: nowrap !important;
 }
+
+
+/* Studio 936 v0.7.1.4 · SuperGuitarra 936 Base */
+.fretboard-wrap.s936-super-guitar-main{
+  background:
+    radial-gradient(circle at 50% 56%,rgba(255,216,77,.08),transparent 42%),
+    linear-gradient(180deg,#241406,#0b0705 68%,#030202);
+  border-color:rgba(255,216,77,.44)!important;
+  box-shadow:0 20px 70px rgba(0,0,0,.5),0 0 0 1px rgba(255,216,77,.12),0 0 34px rgba(255,216,77,.08)!important;
+}
+.fretboard-wrap.s936-super-guitar-main .fretboard-head{
+  color:#ffe8a3;
+}
+.fretboard-wrap.s936-super-guitar-main .fret-cell{
+  border-right-color:rgba(255,225,155,.28);
+  border-bottom-color:rgba(255,255,255,.08);
+  background:linear-gradient(90deg,rgba(255,255,255,.025),rgba(255,255,255,0));
+}
+.fretboard-wrap.s936-super-guitar-main .fret-cell span{
+  transition:transform .14s ease,box-shadow .14s ease,background .14s ease,color .14s ease;
+}
+.fretboard-wrap.s936-super-guitar-main .fret-cell.s936-main-voicing span,
+.fretboard-wrap.s936-super-guitar-main .fret-cell.v20-shape span{
+  background:rgba(0,255,204,.20)!important;
+  color:#bffff6!important;
+  opacity:1!important;
+  border:1px solid rgba(0,255,204,.58)!important;
+  box-shadow:0 0 18px rgba(0,255,204,.25)!important;
+}
+.fretboard-wrap.s936-super-guitar-main .fret-cell.v20-bass span,
+.fretboard-wrap.s936-super-guitar-main .fret-cell.map-bass span{
+  background:rgba(255,216,77,.30)!important;
+  color:#ffe681!important;
+  border-color:rgba(255,216,77,.85)!important;
+  box-shadow:0 0 20px rgba(255,216,77,.32)!important;
+}
+.fretboard-wrap.s936-super-guitar-main .fret-cell.s936-main-hit span,
+.fretboard-wrap.s936-super-guitar-main .fret-cell.active-chord span{
+  transform:scale(1.12);
+  background:#00ffcc!important;
+  color:#00110e!important;
+  box-shadow:0 0 28px rgba(0,255,204,.58)!important;
+}
+.fretboard-wrap.s936-super-guitar-main .fret-cell.s936-main-hit::after{
+  content:"";
+  position:absolute;
+  left:7px;
+  right:7px;
+  top:50%;
+  height:3px;
+  border-radius:999px;
+  background:rgba(255,216,77,.95);
+  box-shadow:0 0 18px rgba(255,216,77,.7);
+  transform:translateY(-50%);
+  pointer-events:none;
+}
+.fretboard-wrap.s936-super-guitar-main .string-label.s936-main-muted{
+  color:#ff8f8f!important;
+  opacity:.8;
+}
+.fretboard-wrap.s936-super-guitar-main .string-label.s936-main-string-on{
+  color:#00ffcc!important;
+  text-shadow:0 0 12px rgba(0,255,204,.32);
+}
