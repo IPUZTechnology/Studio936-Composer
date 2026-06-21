@@ -1,4 +1,4 @@
-// Studio 936 Composer - Instrument Surface Manager v0.7.0.1 HOTFIX
+// Studio 936 Composer - Instrument Surface Manager v0.7.1.4 · SuperGuitarra 936 Base
 // Single owner for Main/Editor instrument surface visibility and lifecycle.
 window.Studio936InstrumentSurfaceManager = (() => {
   "use strict";
@@ -213,6 +213,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
     data,
     profiles,
     sectionNames = {},
+    onCellPlay = null,
     renderer = stringSurface()
   } = {}) {
     const value = normalizeInstrument(instrument || data?.instrument);
@@ -224,7 +225,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
     if (!fretboard || !renderer?.render) {
       return { ok: false, message: "No está disponible la superficie instrumental." };
     }
-    const options = { container: fretboard, data: { ...data, instrument: value }, profiles, sectionNames };
+    const options = { container: fretboard, data: { ...data, instrument: value }, profiles, sectionNames, onCellPlay };
     state.lastStringRender = { renderer, options };
     const result = renderer.render(options) || { ok: true };
     enforce();
@@ -303,7 +304,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   function getState() {
     const { piano, fretboard } = elements();
     return {
-      version: "instrument-surface-manager-v0.7.1.2-drums",
+      version: "instrument-surface-manager-v0.7.1.4-super-guitar-base",
       configured: state.configured,
       active: state.active,
       owner: state.active ? "editor" : "main",
@@ -318,7 +319,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   }
 
   const api = {
-    version: "instrument-surface-manager-v0.7.1.2-drums",
+    version: "instrument-surface-manager-v0.7.1.4-super-guitar-base",
     configure,
     beginEditorSession,
     showEditorInstrument,
