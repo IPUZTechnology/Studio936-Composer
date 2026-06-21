@@ -3,7 +3,7 @@
 (function(){
 "use strict";
 
-const VERSION = "drum-composer-v0.7.1.2";
+const VERSION = "drum-composer-v0.7.1.3-live-rec";
 const STYLE_ID = "s936DrumComposerStyles";
 const Core = window.Studio936SequencerCore;
 const DrumSurface = window.Studio936DrumSurface || null;
@@ -138,6 +138,7 @@ function installStyles(){
 #s936SuitePro .s936-dc-step.on{background:rgba(255,165,55,.58);border-color:#ffbd58}
 #s936SuitePro .s936-dc-step.accent{background:#fff0a0;border-color:#fff;color:#301d00;box-shadow:0 0 10px rgba(255,210,70,.45)}
 #s936SuitePro .s936-dc-step.playing{outline:2px solid #fff;transform:translateY(-2px)}
+#s936SuitePro .s936-dc-step.selected{outline:2px solid #00ffd0;box-shadow:0 0 0 2px rgba(0,255,208,.18)}
 #s936SuitePro .s936-dc-step.disabled{opacity:.25}
 #s936SuitePro .s936-dc-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:7px;font-size:.62rem;color:rgba(255,255,255,.55)}
 #s936SuitePro .s936-dc-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px;background:rgba(255,165,55,.58)}
@@ -378,6 +379,11 @@ function render(options={}){
   const sectionOptions=state.sectionOptions||options.sectionOptions||[];
   let pattern=normalizePattern(state.drumPatterns?.[sectionKey]||{},chords,state.bpm||options.bpm||95);
   let playingStep=-1;
+  let selectedStep=0;
+  let stepRecordEnabled=false;
+  let liveRecordEnabled=false;
+  let liveRecordStartedAt=0;
+  let liveRecordCursorTimer=null;
   const laneRows=new Map();
 
   const shell=el("div","s936-dc-shell");
@@ -416,11 +422,15 @@ function render(options={}){
   );
   config.appendChild(configGrid);
 
-  const status=el("div","s936-dc-status","Activa las piezas del kit y dibuja los golpes. Un segundo clic convierte el golpe en acento.");
+  const status=el("div","s936-dc-status","Activa Step REC para grabar por pasos desde el kit visual. Live REC cuantiza tus golpes al paso más cercano.");
   const actions=el("div","s936-dc-actions");
+  const stepRecordBtn = button("Step REC OFF","warn",()=>toggleStepRecord());
+  const liveRecordBtn = button("Live REC OFF","warn",()=>toggleLiveRecord());
   actions.append(
     button("Aplicar patrón","warn",()=>{syncConfig();applyPreset(pattern,presetSelect.value);persist(false);redraw();}),
     button("Añadir fill de toms","warn",()=>{syncConfig();addTomFill(pattern);persist(false);redraw();}),
+    stepRecordBtn,
+    liveRecordBtn,
     button("Guardar batería","primary",()=>persist(true)),
     button("Escuchar","primary",()=>play()),
     button("Stop","",()=>stopPlayback()),
@@ -471,7 +481,7 @@ function render(options={}){
       sectionName:sectionLabel(),
       pattern:clone(pattern),
       onLaneSelect:laneId=>focusLane(laneId,true),
-      onLaneTrigger:(laneId,velocity)=>previewLane(laneId,velocity)
+      onLaneTrigger:(laneId,velocity)=>handleSurfaceTrigger(laneId,velocity)
     });
   }
   function focusLane(laneId,scroll=false){
@@ -498,7 +508,87 @@ function render(options={}){
     const when=audioCtx.currentTime+.015;
     playLane(laneId,clamp(velocity,0,1),pattern,when);
     bridge("flashEditorDrumLane",laneId,velocity,190);
-    setStatus(`${def.label} · vista previa`);
+    if(!stepRecordEnabled && !liveRecordEnabled) setStatus(`${def.label} · vista previa`);
+  }
+  function totalSteps(){
+    return Math.max(1,pattern.bars*16);
+  }
+  function quantizedLiveStep(){
+    const bpm=Number(state.bpm||options.bpm||95);
+    const stepMs=60/bpm/4*1000;
+    const elapsed=Math.max(0,performance.now()-liveRecordStartedAt);
+    return Math.max(0,Math.min(totalSteps()-1,Math.round(elapsed/stepMs)%totalSteps()));
+  }
+  function updateRecordButtons(){
+    stepRecordBtn.textContent=stepRecordEnabled ? "Step REC ON" : "Step REC OFF";
+    liveRecordBtn.textContent=liveRecordEnabled ? "Live REC ON" : "Live REC OFF";
+    stepRecordBtn.classList.toggle("primary",stepRecordEnabled);
+    liveRecordBtn.classList.toggle("primary",liveRecordEnabled);
+    stepRecordBtn.classList.toggle("warn",!stepRecordEnabled);
+    liveRecordBtn.classList.toggle("warn",!liveRecordEnabled);
+  }
+  function startLiveCursor(){
+    stopLiveCursor();
+    liveRecordCursorTimer=setInterval(()=>{
+      if(!liveRecordEnabled) return;
+      selectedStep=quantizedLiveStep();
+      redrawGrid();
+    },60);
+  }
+  function stopLiveCursor(){
+    if(liveRecordCursorTimer) clearInterval(liveRecordCursorTimer);
+    liveRecordCursorTimer=null;
+  }
+  function toggleStepRecord(){
+    stepRecordEnabled=!stepRecordEnabled;
+    if(stepRecordEnabled){
+      liveRecordEnabled=false;
+      stopLiveCursor();
+      setStatus(`Step REC activo · siguiente golpe en paso ${selectedStep+1}.`);
+    }else{
+      setStatus("Step REC detenido.");
+    }
+    updateRecordButtons();
+    redrawGrid();
+  }
+  function toggleLiveRecord(){
+    liveRecordEnabled=!liveRecordEnabled;
+    if(liveRecordEnabled){
+      stepRecordEnabled=false;
+      liveRecordStartedAt=performance.now();
+      selectedStep=0;
+      startLiveCursor();
+      setStatus("Live REC activo · toca el kit visual, se cuantiza a 1/16.");
+    }else{
+      stopLiveCursor();
+      setStatus("Live REC detenido.");
+    }
+    updateRecordButtons();
+    redrawGrid();
+  }
+  function writeHitFromKit(laneId,velocity,step,advance){
+    const def=LANES.find(item=>item.id===laneId);
+    const lane=pattern.lanes[laneId];
+    if(!def||!lane||lane.enabled===false) return false;
+    const safeStep=Math.max(0,Math.min(totalSteps()-1,Number(step)||0));
+    lane.hits[safeStep]=clamp(velocity,0,1) >= .9 ? 1 : .72;
+    pattern.preset="custom";
+    presetSelect.value="custom";
+    selectedStep=advance ? (safeStep+1)%totalSteps() : safeStep;
+    persist(false);
+    redraw();
+    setStatus(`${def.label} grabado en paso ${safeStep+1}${advance ? ` · siguiente ${selectedStep+1}` : " · cuantizado"}.`);
+    return true;
+  }
+  function handleSurfaceTrigger(laneId,velocity=.92){
+    previewLane(laneId,velocity);
+    if(liveRecordEnabled){
+      writeHitFromKit(laneId,velocity,quantizedLiveStep(),false);
+      return;
+    }
+    if(stepRecordEnabled){
+      writeHitFromKit(laneId,velocity,selectedStep,true);
+    }
   }
   function syncConfig(){
     pattern.kit=kitSelect.value;
@@ -531,6 +621,7 @@ function render(options={}){
     return anySolo()?lane.solo:true;
   }
   function toggleHit(laneId,step){
+    selectedStep=Math.max(0,Math.min(totalSteps()-1,Number(step)||0));
     const lane=pattern.lanes[laneId];
     if(!lane.enabled) return;
     const current=Number(lane.hits[step]||0);
@@ -600,6 +691,7 @@ function render(options={}){
         if(velocity>0) cell.classList.add("on");
         if(velocity>=.9) cell.classList.add("accent");
         if(step===playingStep) cell.classList.add("playing");
+        if(step===selectedStep && (stepRecordEnabled || liveRecordEnabled)) cell.classList.add("selected");
         if(!lane.enabled) cell.classList.add("disabled");
         cell.title=`${def.label} · paso ${step+1}${velocity?velocity>=.9?" · acento":" · golpe":""}`;
         cell.addEventListener("click",()=>toggleHit(def.id,step));
@@ -660,6 +752,9 @@ function render(options={}){
   function stopPlayback(){
     if(timer) clearTimeout(timer);
     timer=null;
+    liveRecordEnabled=false;
+    stopLiveCursor();
+    updateRecordButtons();
     visualTimers.forEach(handle=>clearTimeout(handle));
     visualTimers.clear();
     window.Studio936DrumSurface?.clearActive?.();
@@ -685,6 +780,7 @@ function render(options={}){
     selectLane:focusLane
   };
   activeController=controller;
+  updateRecordButtons();
   redraw();
   return controller;
 }

@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.1.2-drum-surface";
+  const VERSION = "editor-v0.7.1.3-navigation-live";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -90,7 +90,10 @@
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
-#s936SuitePro .s936-ed-shell{display:grid;gap:10px}
+#s936SuitePro .s936-ed-shell{display:grid;gap:10px;overflow:visible}
+#s936SuitePro .s936-ed-module,#s936SuitePro .s936-ed-card,#s936SuitePro .s936-ed-instrument-content{min-width:0;overflow:visible}
+#s936SuitePro #s936EditorInstrumentTabs{display:flex!important;visibility:visible!important;opacity:1!important;position:sticky!important;top:0!important;z-index:999!important}
+#s936SuitePro select.s936-ed-select,#s936SuitePro .s936-ed-field select,#s936SuitePro .s936-ed-card select{max-width:100%;min-width:0;position:relative;z-index:5}
 #s936SuitePro .s936-ed-instruments-persistent .s936-ed-inst{font-size:.66rem;padding:7px 4px}
 #s936SuitePro .s936-ed-lead-host,#s936SuitePro .s936-ed-drums-host{padding:10px}
 #s936SuitePro .s936-ed-card{border:1px solid rgba(255,255,255,.13);border-radius:16px;background:rgba(255,255,255,.045);padding:12px}
@@ -843,14 +846,43 @@
     }, true);
   }
 
+  function keepInstrumentTabsVisible(tabs) {
+    if (!tabs) return;
+    tabs.hidden = false;
+    tabs.removeAttribute("hidden");
+    Object.assign(tabs.style, {
+      display:"flex",
+      visibility:"visible",
+      opacity:"1",
+      position:"sticky",
+      top:"0",
+      zIndex:"999"
+    });
+    tabs.querySelectorAll(".s936-ed-inst").forEach(button => {
+      button.hidden = false;
+      button.removeAttribute("hidden");
+      Object.assign(button.style, {
+        display:"flex",
+        visibility:"visible",
+        opacity:"1",
+        position:"relative",
+        inset:"auto"
+      });
+    });
+  }
+
   function syncPersistentInstrumentTabs(tabs) {
     if (!tabs) return;
+    keepInstrumentTabsVisible(tabs);
     tabs.querySelectorAll(".s936-ed-inst").forEach(button => {
       const active = button.dataset.instrument === state.instrument;
       button.classList.toggle("active", active);
       button.setAttribute("aria-selected", String(active));
       button.tabIndex = active ? 0 : -1;
     });
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(() => keepInstrumentTabsVisible(tabs));
+    }
   }
 
   function createPersistentInstrumentTabs(ctx, contentHost) {
@@ -1637,7 +1669,10 @@
   function renderModule(ctx, host) {
     if (!host) return;
     while (host.firstChild) host.removeChild(host.firstChild);
+    const tabs = document.getElementById("s936EditorInstrumentTabs");
+    keepInstrumentTabsVisible(tabs);
     paint(ctx, host);
+    syncPersistentInstrumentTabs(tabs);
   }
 
   function register() {

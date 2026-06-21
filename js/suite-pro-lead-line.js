@@ -3,7 +3,7 @@
 (function(){
 "use strict";
 
-const VERSION = "lead-line-v0.7.1";
+const VERSION = "lead-line-v0.7.1.3-live-audio";
 const STYLE_ID = "s936LeadLineStyles";
 const Core = window.Studio936SequencerCore;
 const Strings = window.Studio936StringInstruments;

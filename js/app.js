@@ -1249,8 +1249,9 @@ function installStudio936AppBridge(){
         const data = normalizeEditorPayload(payload);
         if(!data.seq) return { ok:false, message:'La sección seleccionada no existe.', data };
         const exactMode = !!data.profile && data.exactMidis.length > 0;
-        if(exactMode && data.exactMidis.length < (data.profile.minSounding || 1)){
-            return { ok:false, message:`La digitación de ${data.profile.label.toLowerCase()} necesita al menos ${data.profile.minSounding || 1} cuerda(s) sonora(s).`, data };
+        const exactMinimum = data.surfaceMode === 'lead-line' ? 1 : (data.profile?.minSounding || 1);
+        if(exactMode && data.exactMidis.length < exactMinimum){
+            return { ok:false, message:`La digitación de ${data.profile.label.toLowerCase()} necesita al menos ${exactMinimum} cuerda(s) sonora(s).`, data };
         }
         if(data.instrument === 'piano'){
             const left = data.leftHandMidis.length ? data.leftHandMidis : parseNotes(data.bass);
@@ -1725,7 +1726,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v1.7.1.2-drum-surface',
+        version: 'suite-pro-bridge-v1.7.1.3-live-instruments',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
