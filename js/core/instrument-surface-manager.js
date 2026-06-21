@@ -1,4 +1,4 @@
-// Studio 936 Composer - Instrument Surface Manager v0.7.1.8.5 QC
+// Studio 936 Composer - Instrument Surface Manager v0.7.1.8.4 QC Final
 // Single owner for Main/Editor instrument surface visibility and lifecycle.
 window.Studio936InstrumentSurfaceManager = (() => {
   "use strict";
@@ -213,8 +213,6 @@ window.Studio936InstrumentSurfaceManager = (() => {
     data,
     profiles,
     sectionNames = {},
-    onCellPlay = null,
-    onChordSelect = null,
     renderer = stringSurface()
   } = {}) {
     const value = normalizeInstrument(instrument || data?.instrument);
@@ -227,16 +225,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
     if (!fretboard || !renderer?.render) {
       return { ok: false, message: "No está disponible la superficie instrumental." };
     }
-    const options = {
-      container: fretboard,
-      data: { ...data, instrument: value },
-      profiles,
-      sectionNames,
-      owner: "editor",
-      readOnly: false,
-      onCellPlay: typeof onCellPlay === "function" ? onCellPlay : null,
-      onChordSelect: typeof onChordSelect === "function" ? onChordSelect : null
-    };
+    const options = { container: fretboard, data: { ...data, instrument: value }, profiles, sectionNames };
     state.lastStringRender = { renderer, options };
     const result = renderer.render(options) || { ok: true };
     enforce();
@@ -325,7 +314,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   function getState() {
     const { piano, fretboard } = elements();
     return {
-      version: "instrument-surface-manager-v0.7.1.8.5-qc",
+      version: "instrument-surface-manager-v0.7.1.8.4-qc-final",
       configured: state.configured,
       active: state.active,
       owner: state.active ? "editor" : "main",
@@ -340,7 +329,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   }
 
   const api = {
-    version: "instrument-surface-manager-v0.7.1.8.5-qc",
+    version: "instrument-surface-manager-v0.7.1.8.4-qc-final",
     configure,
     beginEditorSession,
     showEditorInstrument,
