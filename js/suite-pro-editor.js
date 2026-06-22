@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.2.13-drum-section-selector";
+  const VERSION = "editor-v0.7.2.14-drum-max-icons-piano-guard";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -272,6 +272,14 @@
 #s936SuitePro .s936-ed-drum-mini.active{background:#ffd36d;color:#1b1300}
 #s936SuitePro .s936-ed-drum-grid-wrap{overflow:auto;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:5px 14px 7px 5px;background:rgba(0,0,0,.16);max-height:340px;-webkit-overflow-scrolling:touch}
 #s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-grid-wrap{max-height:none;padding:10px 18px 12px 10px}
+#s936SuitePro .s936-ed-drum-kit-legend{display:none}
+#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-grid-wrap{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:14px;align-items:start}
+#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-kit-legend{display:grid;gap:8px;position:sticky;top:10px;align-self:start}
+#s936SuitePro .s936-ed-drum-kit-card{display:grid;grid-template-columns:40px minmax(0,1fr);gap:8px;align-items:center;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:linear-gradient(135deg,rgba(0,255,204,.055),rgba(255,211,109,.035));padding:8px;color:#fff;min-width:0}
+#s936SuitePro .s936-ed-drum-kit-card.active{border-color:rgba(0,255,204,.72);box-shadow:0 0 0 2px rgba(0,255,204,.10),0 10px 22px rgba(0,0,0,.22)}
+#s936SuitePro .s936-ed-drum-kit-ico{width:38px;height:38px;border-radius:13px;display:grid;place-items:center;border:1px solid rgba(255,211,109,.25);background:rgba(0,0,0,.25);font-size:1rem}
+#s936SuitePro .s936-ed-drum-kit-card b{display:block;color:#ffd36d;font-size:.72rem;line-height:1}
+#s936SuitePro .s936-ed-drum-kit-card span{display:block;color:#bfffee;font-size:.62rem;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #s936SuitePro .s936-ed-drum-grid{display:grid;gap:3px;min-width:max-content}
 #s936SuitePro .s936-ed-drum-row{display:grid;grid-template-columns:14px 38px 22px 18px 18px repeat(var(--steps),18px);gap:2px;align-items:center}
 #s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-grid{min-width:100%;width:100%}
@@ -1137,7 +1145,8 @@
 
     const gridWrap = el(ctx, "div", "s936-ed-drum-grid-wrap");
     const grid = el(ctx, "div", "s936-ed-drum-grid");
-    gridWrap.appendChild(grid);
+    const kitLegend = el(ctx, "aside", "s936-ed-drum-kit-legend");
+    gridWrap.append(grid, kitLegend);
     panel.appendChild(gridWrap);
     drumsHost.appendChild(panel);
     shell.appendChild(drumsHost);
@@ -1217,6 +1226,30 @@
       pattern.style = "custom";
       persist("Golpe actualizado.");
       redraw();
+    }
+
+    function redrawLegend(){
+      if(!kitLegend) return;
+      const icons = {
+        kick:"🥁", snare:"◉", hatClosed:"▰", hatOpen:"◒",
+        tomHigh:"⬤", tomMid:"●", tomLow:"⬣",
+        crash:"✦", ride:"◌", percussion:"◆"
+      };
+      kitLegend.innerHTML = "";
+      lanes().forEach(def => {
+        const lane = ensureLane(def.id, def);
+        const card = el(ctx, "button", "s936-ed-drum-kit-card" + (def.id === selectedLane ? " active" : ""), "");
+        card.type = "button";
+        card.title = `Seleccionar ${def.label}`;
+        card.innerHTML = `<i class="s936-ed-drum-kit-ico">${icons[def.id] || "•"}</i><span><b>${def.short || ""}</b><span>${def.label || def.id}${lane.mute ? " · Mute" : lane.solo ? " · Solo" : ""}</span></span>`;
+        card.addEventListener("click", () => {
+          selectedLane = def.id;
+          bridge("triggerEditorDrumLane", def.id, .92, pattern);
+          bridge("flashEditorDrumLane", selectedLane, .82, 160);
+          redraw();
+        });
+        kitLegend.appendChild(card);
+      });
     }
 
     function redrawMixer(){
@@ -1324,6 +1357,7 @@
         }
         grid.appendChild(row);
       });
+      redrawLegend();
     }
 
     function redraw(){

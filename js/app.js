@@ -1726,7 +1726,21 @@ function bind(){
             scheduleMainDrumSurface();
             flashStatus('Batería 936 activa en Main.');
         } else {
+            clearMainStringSurface();
+            clearMainDrumSurface();
+            resetMainSurfaceClasses();
             setViewMode('piano');
+            if(els.pianoContainer) els.pianoContainer.style.display = 'flex';
+            if(els.fretboardContainer) els.fretboardContainer.style.display = 'none';
+            requestAnimationFrame(() => {
+                try {
+                    clearMainStringSurface();
+                    clearMainDrumSurface();
+                    resetMainSurfaceClasses();
+                    if(els.pianoContainer) els.pianoContainer.style.display = 'flex';
+                    if(els.fretboardContainer) els.fretboardContainer.style.display = 'none';
+                } catch(_) {}
+            });
             flashStatus(project.instrument === 'piano' ? 'Vista de piano activa.' : 'Vista de teclado activa para ' + (instruments[project.instrument]?.label || project.instrument) + '.');
         }
         updateStyleHelp(); saveProject(false);
@@ -2996,7 +3010,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     instrument.dataset.v20Return='1';
     instrument.addEventListener('change',()=>{
       const p=load(); p.instrument=instrument.value;
-      if(!['guitar','ukulele','bass'].includes(instrument.value)){
+      if(!['guitar','ukulele','bass','lead','drums'].includes(instrument.value)){
         p.viewMode='piano'; save(p);
         const piano=$('pianoContainer'), fret=$('fretboardContainer'), toggle=$('viewToggleBtn');
         if(piano) piano.style.display='flex';
@@ -3150,13 +3164,18 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     const fret = $('fretboardContainer');
     const fretMode = $('fretModeSelect');
     const viewBtn = $('viewToggleBtn');
-    const wantsFret = inst === 'guitar' || inst === 'ukulele' || inst === 'bass';
-    if(wantsFret){
-      if(fretMode) fretMode.value = inst === 'ukulele' ? 'ukulele' : 'guitar';
+    const wantsMainSurface = inst === 'guitar' || inst === 'ukulele' || inst === 'bass' || inst === 'lead' || inst === 'drums';
+    if(wantsMainSurface){
+      if(fretMode && inst !== 'drums') fretMode.value = inst === 'ukulele' ? 'ukulele' : inst === 'bass' ? 'bass' : 'guitar';
       if(piano) piano.style.display = 'none';
       if(fret) fret.style.display = 'flex';
       if(viewBtn) viewBtn.textContent = (document.documentElement.lang||'es').startsWith('en') ? 'Piano view' : 'Vista piano';
+      try {
+        if(inst === 'drums') scheduleMainDrumSurface();
+        else renderMainStringSurface(chordIdx,true);
+      } catch(_) {}
     } else {
+      try { clearMainStringSurface(); clearMainDrumSurface(); resetMainSurfaceClasses(); } catch(_) {}
       if(piano) piano.style.display = 'flex';
       if(fret) fret.style.display = 'none';
       if(viewBtn) viewBtn.textContent = (document.documentElement.lang||'es').startsWith('en') ? 'Fretboard view' : 'Vista diapasón';
