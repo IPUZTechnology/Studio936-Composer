@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.2.11-drum-panel-master-sync";
+  const VERSION = "editor-v0.7.2.13-drum-section-selector";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -256,9 +256,12 @@
 #s936SuitePro .s936-ed-drum-panel .s936-ed-drum-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 #s936SuitePro .s936-ed-drum-panel .s936-ed-drum-head b{color:#ffd36d;font-size:.72rem;text-transform:uppercase;letter-spacing:.55px}
 #s936SuitePro .s936-ed-drum-config{display:grid;grid-template-columns:1fr;gap:7px}
-#s936SuitePro .s936-ed-drum-config.clean{grid-template-columns:1fr 1fr;align-items:end}
-#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-config.clean{grid-template-columns:minmax(240px,.55fr) minmax(160px,.35fr);align-items:end;max-width:720px}
-#s936SuitePro .s936-ed-drum-actions{display:flex;flex-wrap:wrap;gap:6px}
+#s936SuitePro .s936-ed-drum-config.clean{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 92px;align-items:end;gap:6px}
+#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-config.clean{grid-template-columns:minmax(240px,.35fr) minmax(260px,.42fr) minmax(140px,.18fr);align-items:end;max-width:960px}
+#s936SuitePro .s936-ed-drum-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;align-items:center}
+#s936SuitePro .s936-ed-drum-actions .s936-ed-btn{padding:6px 4px;font-size:.50rem;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-actions{display:flex;gap:7px;flex-wrap:wrap}
+#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-actions .s936-ed-btn{padding:8px 12px;font-size:.62rem}
 #s936SuitePro .s936-ed-drum-mixer{display:grid;gap:5px}
 #s936SuitePro .s936-ed-drum-lane{display:grid;grid-template-columns:22px minmax(0,1fr) 26px 26px;gap:5px;align-items:center;border:1px solid rgba(255,255,255,.09);border-radius:9px;padding:6px;background:rgba(255,255,255,.027)}
 #s936SuitePro .s936-ed-drum-lane.active{border-color:rgba(0,255,204,.62);box-shadow:0 0 0 2px rgba(0,255,204,.10)}
@@ -268,10 +271,11 @@
 #s936SuitePro .s936-ed-drum-mini{height:24px;border:1px solid rgba(255,255,255,.12);border-radius:7px;background:rgba(255,255,255,.05);color:#fff;font-size:.52rem;font-weight:950;cursor:pointer}
 #s936SuitePro .s936-ed-drum-mini.active{background:#ffd36d;color:#1b1300}
 #s936SuitePro .s936-ed-drum-grid-wrap{overflow:auto;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:5px 14px 7px 5px;background:rgba(0,0,0,.16);max-height:340px;-webkit-overflow-scrolling:touch}
+#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-grid-wrap{max-height:none;padding:10px 18px 12px 10px}
 #s936SuitePro .s936-ed-drum-grid{display:grid;gap:3px;min-width:max-content}
 #s936SuitePro .s936-ed-drum-row{display:grid;grid-template-columns:14px 38px 22px 18px 18px repeat(var(--steps),18px);gap:2px;align-items:center}
 #s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-grid{min-width:100%;width:100%}
-#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-row{grid-template-columns:20px 142px 34px 30px 30px repeat(var(--steps),minmax(18px,1fr));gap:4px;width:100%}
+#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-row{grid-template-columns:20px 172px 38px 32px 32px repeat(var(--steps),minmax(22px,1fr));gap:4px;width:100%}
 #s936SuitePro .s936-ed-drum-row.off{opacity:.42}
 #s936SuitePro .s936-ed-drum-row.active{filter:drop-shadow(0 0 8px rgba(0,255,204,.22))}
 #s936SuitePro .s936-ed-drum-row span{font-size:.50rem;color:rgba(255,255,255,.62);font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -279,14 +283,14 @@
 #s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-row .s936-ed-drum-lane-chip{justify-content:flex-start;padding:0 8px;height:28px}
 #s936SuitePro .s936-ed-drum-row.active .s936-ed-drum-lane-chip{border-color:rgba(0,255,204,.70);box-shadow:0 0 0 2px rgba(0,255,204,.10)}
 #s936SuitePro .s936-ed-drum-row .s936-ed-drum-lane-chip em{font-style:normal;color:#ffd36d;font-size:.50rem;min-width:18px;text-align:center} #s936SuitePro .s936-ed-drum-row .s936-ed-drum-lane-chip span{display:none}
-#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-row .s936-ed-drum-lane-chip span{display:inline;color:#bfffee;font-size:.58rem;max-width:104px;overflow:hidden;text-overflow:ellipsis}
+#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-row .s936-ed-drum-lane-chip span{display:inline;color:#bfffee;font-size:.66rem;max-width:132px;overflow:hidden;text-overflow:ellipsis}
 #s936SuitePro .s936-ed-drum-row input[type=checkbox]{width:13px;height:13px;accent-color:#00ffd0}
 #s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-row input[type=checkbox]{width:16px;height:16px}
 #s936SuitePro .s936-ed-drum-row input[type=range]{width:74px;accent-color:#ffd36d}
 #s936SuitePro .s936-ed-drum-row .s936-ed-drum-mini{height:19px;width:18px;padding:0;font-size:.45rem}
 #s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-row .s936-ed-drum-mini{height:28px;width:28px;font-size:.58rem}
 #s936SuitePro .s936-ed-drum-step{width:18px;height:18px;border:1px solid rgba(255,255,255,.10);border-radius:5px;background:rgba(255,255,255,.035);cursor:pointer;padding:0}
-#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-step{width:100%;height:24px} #s936SuitePro .s936-ed-drum-step.half-a{background:rgba(255,255,255,.032)} #s936SuitePro .s936-ed-drum-step.half-b{background:rgba(0,255,204,.045)} #s936SuitePro .s936-ed-drum-step.bar-start{border-left-color:rgba(255,211,109,.78);box-shadow:-1px 0 0 rgba(255,211,109,.35)} #s936SuitePro .s936-ed-drum-step.mid{border-left-color:rgba(0,255,204,.75);box-shadow:-1px 0 0 rgba(0,255,204,.25)}
+#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-step{width:100%;height:28px} #s936SuitePro .s936-ed-drum-step.half-a{background:rgba(255,255,255,.032)} #s936SuitePro .s936-ed-drum-step.half-b{background:rgba(0,255,204,.045)} #s936SuitePro .s936-ed-drum-step.bar-start{border-left-color:rgba(255,211,109,.78);box-shadow:-1px 0 0 rgba(255,211,109,.35)} #s936SuitePro .s936-ed-drum-step.mid{border-left-color:rgba(0,255,204,.75);box-shadow:-1px 0 0 rgba(0,255,204,.25)}
 #s936SuitePro .s936-ed-drum-step.beat{border-top-color:#ffd36d}
 #s936SuitePro .s936-ed-drum-step.on{background:rgba(255,185,70,.60);border-color:#ffc856}
 #s936SuitePro .s936-ed-drum-step.accent{background:#fff0a0;border-color:#fff}
@@ -1070,19 +1074,20 @@
     const barsSelect = makeSelect(ctx, [["1","16 pasos"],["2","32 pasos"],["4","64 pasos"]], String(pattern.bars || 1));
 
     const config = el(ctx, "div", "s936-ed-drum-config clean");
+    const sectionField = field(ctx, "Sección", sectionSelect);
     const kitField = field(ctx, "Kit", kitSelect);
     const barsField = field(ctx, "Longitud", barsSelect);
-    config.append(kitField, barsField);
+    config.append(sectionField, kitField, barsField);
     panel.appendChild(config);
 
     const editorContext = el(ctx, "div", "s936-ed-drum-master",
-      `Editando: ${humanize(drumSection)} · patrón maestro ${humanize(data.style || "funk")} · batería base ${pattern.enabled === false ? "OFF" : "ON"}`
+      `Editando batería de: ${humanize(drumSection)} · patrón maestro ${humanize(data.style || "funk")} · batería base ${pattern.enabled === false ? "OFF" : "ON"}`
     );
     panel.appendChild(editorContext);
 
     const actions = el(ctx, "div", "s936-ed-drum-actions");
-    const status = el(ctx, "div", "s936-ed-status", "Elige estilo, aplica patrón y toca el kit visual para escuchar piezas.");
-    const applyBtn = button(ctx, "Aplicar patrón", "warn", () => {
+    const status = el(ctx, "div", "s936-ed-status", "Listo para editar el patrón de la sección actual.");
+    const applyBtn = button(ctx, "Aplicar", "warn", () => {
       syncConfig();
       const styleForPattern = data.style || pattern.style || "funk";
       pattern = DrumPatterns?.patternForStyle
@@ -1104,21 +1109,25 @@
       persist("Patrón limpiado.");
       redraw();
     });
-    const saveBtn = button(ctx, "Guardar batería", "primary", () => {
+    const saveBtn = button(ctx, "Guardar", "primary", () => {
       syncConfig();
       persist("Batería guardada en la canción.");
       redraw();
     });
-    const previewBtn = button(ctx, "Escuchar golpe", "", () => {
+    const previewBtn = button(ctx, "Golpe", "", () => {
       const lane = selectedLane || "kick";
       bridge("triggerEditorDrumLane", lane, .92, pattern);
       bridge("flashEditorDrumLane", lane, .92, 180);
     });
+    applyBtn.title = "Aplicar el patrón maestro a esta sección";
+    saveBtn.title = "Guardar la batería editada en la canción";
+    previewBtn.title = "Escuchar la pieza seleccionada";
+    clearBtn.title = "Limpiar golpes de esta sección";
     actions.append(applyBtn, saveBtn, previewBtn, clearBtn);
     panel.append(actions,status);
 
     const mixer = el(ctx, "div", "s936-ed-drum-mixer");
-    // v0.7.2.8: el mixer vive ahora integrado en cada fila del secuenciador.
+    // v0.7.2.13: selector de sección restaurado; mixer integrado en cada fila del secuenciador.
     // Se conserva esta referencia para compatibilidad interna, pero no se monta como bloque separado.
 
     const gridTitle = el(ctx, "div", "s936-ed-drum-head");
@@ -1320,8 +1329,8 @@
     function redraw(){
       syncConfig();
       const styleForPattern = data.style || pattern.style || "funk";
-      meta.textContent = `${data.bpm || 95} BPM · ${humanize(drumSection)} · patrón ${humanize(styleForPattern)} · ${pattern.enabled === false ? "batería OFF" : "batería ON"} · ${DrumPatterns?.countHits?.(pattern) || 0} golpes`;
-      editorContext.innerHTML = `Editando: <b>${humanize(drumSection)}</b> · patrón maestro <b>${humanize(styleForPattern)}</b> · kit <b>${humanize(kitSelect.value)}</b> · ${pattern.enabled === false ? "base OFF" : "base ON"}`;
+      meta.textContent = `${data.bpm || 95} BPM · editando ${humanize(drumSection)} · patrón ${humanize(styleForPattern)} · ${pattern.enabled === false ? "batería OFF" : "batería ON"} · ${DrumPatterns?.countHits?.(pattern) || 0} golpes`;
+      editorContext.innerHTML = `Editando batería de: <b>${humanize(drumSection)}</b> · patrón maestro <b>${humanize(styleForPattern)}</b> · kit <b>${humanize(kitSelect.value)}</b> · ${pattern.enabled === false ? "base OFF" : "base ON"}`;
       redrawMixer();
       redrawGrid();
     }
