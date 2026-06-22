@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.2.9-drum-minimixer-guide";
+  const VERSION = "editor-v0.7.2.10-drum-clean-layout";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -255,7 +255,10 @@
 #s936SuitePro .s936-ed-drum-panel{display:grid;gap:9px;margin-top:10px}
 #s936SuitePro .s936-ed-drum-panel .s936-ed-drum-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 #s936SuitePro .s936-ed-drum-panel .s936-ed-drum-head b{color:#ffd36d;font-size:.72rem;text-transform:uppercase;letter-spacing:.55px}
-#s936SuitePro .s936-ed-drum-config{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+#s936SuitePro .s936-ed-drum-config{display:grid;grid-template-columns:1fr;gap:7px}
+#s936SuitePro .s936-ed-drum-config.clean{grid-template-columns:1fr}
+#s936SuitePro .s936-ed-drum-config.clean .s936-ed-field[data-kind="pattern"]{display:grid}
+#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-config.clean{grid-template-columns:1.2fr 1fr 1fr;align-items:end}
 #s936SuitePro .s936-ed-drum-actions{display:flex;flex-wrap:wrap;gap:6px}
 #s936SuitePro .s936-ed-drum-mixer{display:grid;gap:5px}
 #s936SuitePro .s936-ed-drum-lane{display:grid;grid-template-columns:22px minmax(0,1fr) 26px 26px;gap:5px;align-items:center;border:1px solid rgba(255,255,255,.09);border-radius:9px;padding:6px;background:rgba(255,255,255,.027)}
@@ -265,24 +268,30 @@
 #s936SuitePro .s936-ed-drum-lane input[type=range]{width:100%;accent-color:#ffd36d}
 #s936SuitePro .s936-ed-drum-mini{height:24px;border:1px solid rgba(255,255,255,.12);border-radius:7px;background:rgba(255,255,255,.05);color:#fff;font-size:.52rem;font-weight:950;cursor:pointer}
 #s936SuitePro .s936-ed-drum-mini.active{background:#ffd36d;color:#1b1300}
-#s936SuitePro .s936-ed-drum-grid-wrap{overflow:auto;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:5px;background:rgba(0,0,0,.16);max-height:340px;-webkit-overflow-scrolling:touch}
+#s936SuitePro .s936-ed-drum-grid-wrap{overflow:auto;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:5px 14px 7px 5px;background:rgba(0,0,0,.16);max-height:340px;-webkit-overflow-scrolling:touch}
 #s936SuitePro .s936-ed-drum-grid{display:grid;gap:3px;min-width:max-content}
-#s936SuitePro .s936-ed-drum-row{display:grid;grid-template-columns:16px 48px 24px 20px 20px repeat(var(--steps),18px);gap:2px;align-items:center}
+#s936SuitePro .s936-ed-drum-row{display:grid;grid-template-columns:14px 38px 22px 18px 18px repeat(var(--steps),18px);gap:2px;align-items:center}
+#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-row{grid-template-columns:18px 92px 28px 22px 22px repeat(var(--steps),20px);gap:3px}
 #s936SuitePro .s936-ed-drum-row.off{opacity:.42}
 #s936SuitePro .s936-ed-drum-row.active{filter:drop-shadow(0 0 8px rgba(0,255,204,.22))}
 #s936SuitePro .s936-ed-drum-row span{font-size:.50rem;color:rgba(255,255,255,.62);font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #s936SuitePro .s936-ed-drum-row .s936-ed-drum-lane-chip{height:22px;border:1px solid rgba(0,255,204,.20);border-radius:7px;background:rgba(0,255,204,.055);color:#fff;font-size:.48rem;font-weight:950;display:flex;align-items:center;justify-content:center;gap:3px;padding:0 3px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-row .s936-ed-drum-lane-chip{justify-content:flex-start;padding:0 6px;height:24px}
 #s936SuitePro .s936-ed-drum-row.active .s936-ed-drum-lane-chip{border-color:rgba(0,255,204,.70);box-shadow:0 0 0 2px rgba(0,255,204,.10)}
 #s936SuitePro .s936-ed-drum-row .s936-ed-drum-lane-chip em{font-style:normal;color:#ffd36d;font-size:.50rem;min-width:18px;text-align:center} #s936SuitePro .s936-ed-drum-row .s936-ed-drum-lane-chip span{display:none}
+#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-row .s936-ed-drum-lane-chip span{display:inline;color:#bfffee;font-size:.48rem;max-width:58px;overflow:hidden;text-overflow:ellipsis}
 #s936SuitePro .s936-ed-drum-row input[type=checkbox]{width:13px;height:13px;accent-color:#00ffd0}
 #s936SuitePro .s936-ed-drum-row input[type=range]{width:74px;accent-color:#ffd36d}
-#s936SuitePro .s936-ed-drum-row .s936-ed-drum-mini{height:20px;width:20px;padding:0;font-size:.47rem}
-#s936SuitePro .s936-ed-drum-step{width:18px;height:18px;border:1px solid rgba(255,255,255,.10);border-radius:5px;background:rgba(255,255,255,.035);cursor:pointer;padding:0} #s936SuitePro .s936-ed-drum-step.half-a{background:rgba(255,255,255,.032)} #s936SuitePro .s936-ed-drum-step.half-b{background:rgba(0,255,204,.045)} #s936SuitePro .s936-ed-drum-step.bar-start{border-left-color:rgba(255,211,109,.78);box-shadow:-1px 0 0 rgba(255,211,109,.35)} #s936SuitePro .s936-ed-drum-step.mid{border-left-color:rgba(0,255,204,.75);box-shadow:-1px 0 0 rgba(0,255,204,.25)}
+#s936SuitePro .s936-ed-drum-row .s936-ed-drum-mini{height:19px;width:18px;padding:0;font-size:.45rem}
+#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-row .s936-ed-drum-mini{height:22px;width:22px;font-size:.50rem}
+#s936SuitePro .s936-ed-drum-step{width:18px;height:18px;border:1px solid rgba(255,255,255,.10);border-radius:5px;background:rgba(255,255,255,.035);cursor:pointer;padding:0}
+#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-step{width:20px;height:20px} #s936SuitePro .s936-ed-drum-step.half-a{background:rgba(255,255,255,.032)} #s936SuitePro .s936-ed-drum-step.half-b{background:rgba(0,255,204,.045)} #s936SuitePro .s936-ed-drum-step.bar-start{border-left-color:rgba(255,211,109,.78);box-shadow:-1px 0 0 rgba(255,211,109,.35)} #s936SuitePro .s936-ed-drum-step.mid{border-left-color:rgba(0,255,204,.75);box-shadow:-1px 0 0 rgba(0,255,204,.25)}
 #s936SuitePro .s936-ed-drum-step.beat{border-top-color:#ffd36d}
 #s936SuitePro .s936-ed-drum-step.on{background:rgba(255,185,70,.60);border-color:#ffc856}
 #s936SuitePro .s936-ed-drum-step.accent{background:#fff0a0;border-color:#fff}
 #s936SuitePro .s936-ed-drum-vol{position:relative;display:flex;justify-content:center}
-#s936SuitePro .s936-ed-drum-vol-btn{width:22px;height:20px;border:1px solid rgba(255,255,255,.12);border-radius:7px;background:rgba(255,255,255,.055);color:#ffd36d;font-size:.62rem;line-height:1;cursor:pointer;padding:0}
+#s936SuitePro .s936-ed-drum-vol-btn{width:20px;height:19px;border:1px solid rgba(255,255,255,.12);border-radius:7px;background:rgba(255,255,255,.055);color:#ffd36d;font-size:.58rem;line-height:1;cursor:pointer;padding:0}
+#s936SuitePro .s936-ed-drum-panel.wide .s936-ed-drum-vol-btn{width:24px;height:22px;font-size:.64rem}
 #s936SuitePro .s936-ed-drum-vol input[type=range]{position:absolute;left:24px;top:-5px;width:88px;display:none;background:rgba(0,0,0,.88);border:1px solid rgba(255,211,109,.25);border-radius:7px;padding:4px;z-index:8}
 #s936SuitePro .s936-ed-drum-vol.open input[type=range],#s936SuitePro .s936-ed-drum-vol:focus-within input[type=range],#s936SuitePro .s936-ed-drum-vol:hover input[type=range]{display:block}
 #s936SuitePro .s936-ed-drum-ruler{opacity:.72}
@@ -1037,6 +1046,14 @@
 
     const drumsHost = el(ctx, "section", "s936-ed-card s936-ed-drums-host");
     const panel = el(ctx, "div", "s936-ed-drum-panel");
+    const syncPanelWidth = () => {
+      const suite = document.getElementById("s936SuitePro");
+      const width = suite?.getBoundingClientRect?.().width || panel.getBoundingClientRect?.().width || window.innerWidth || 0;
+      panel.classList.toggle("wide", width > 760);
+    };
+    syncPanelWidth();
+    setTimeout(syncPanelWidth, 80);
+    window.addEventListener("resize", syncPanelWidth, {passive:true});
     const head = el(ctx, "div", "s936-ed-drum-head");
     head.appendChild(el(ctx, "b", "", "Batería Pro · patrón por sección"));
     const meta = el(ctx, "span", "s936-ed-drum-note", `${data.bpm || 95} BPM · base activa de la canción`);
@@ -1051,15 +1068,18 @@
     const barsSelect = makeSelect(ctx, [["1","16 pasos"],["2","32 pasos"],["4","64 pasos"]], String(pattern.bars || 1));
     const activeSelect = makeSelect(ctx, [["on","Batería ON"],["off","Batería OFF"]], pattern.enabled === false ? "off" : "on");
 
-    const config = el(ctx, "div", "s936-ed-drum-config");
-    config.append(
-      field(ctx, "Sección", sectionSelect),
-      field(ctx, "Kit", kitSelect),
-      field(ctx, "Estilo", styleSelect),
-      field(ctx, "Longitud", barsSelect),
-      field(ctx, "Canal base", activeSelect, true)
-    );
+    const config = el(ctx, "div", "s936-ed-drum-config clean");
+    const kitField = field(ctx, "Kit", kitSelect);
+    const styleField = field(ctx, "Patrón", styleSelect);
+    styleField.setAttribute("data-kind", "pattern");
+    const barsField = field(ctx, "Longitud", barsSelect);
+    config.append(kitField, styleField, barsField);
     panel.appendChild(config);
+
+    const editorContext = el(ctx, "div", "s936-ed-status",
+      `Usando sección superior: ${humanize(drumSection)} · estilo de canción: ${humanize(data.style || "funk")} · canal base ${pattern.enabled === false ? "OFF" : "ON"}`
+    );
+    panel.appendChild(editorContext);
 
     const actions = el(ctx, "div", "s936-ed-drum-actions");
     const status = el(ctx, "div", "s936-ed-status", "Elige estilo, aplica patrón y toca el kit visual para escuchar piezas.");
@@ -1321,7 +1341,7 @@
     });
 
     bridge("renderMainDrumSurface");
-    activeController = { stop(){}, destroy(){} };
+    activeController = { stop(){ window.removeEventListener("resize", syncPanelWidth); }, destroy(){ window.removeEventListener("resize", syncPanelWidth); } };
     redraw();
   }
 
