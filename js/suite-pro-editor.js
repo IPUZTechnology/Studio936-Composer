@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.2.8-drum-compact-rows";
+  const VERSION = "editor-v0.7.2.9-drum-minimixer-guide";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -265,22 +265,31 @@
 #s936SuitePro .s936-ed-drum-lane input[type=range]{width:100%;accent-color:#ffd36d}
 #s936SuitePro .s936-ed-drum-mini{height:24px;border:1px solid rgba(255,255,255,.12);border-radius:7px;background:rgba(255,255,255,.05);color:#fff;font-size:.52rem;font-weight:950;cursor:pointer}
 #s936SuitePro .s936-ed-drum-mini.active{background:#ffd36d;color:#1b1300}
-#s936SuitePro .s936-ed-drum-grid-wrap{overflow:auto;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:6px;background:rgba(0,0,0,.16);max-height:300px;-webkit-overflow-scrolling:touch}
-#s936SuitePro .s936-ed-drum-grid{display:grid;gap:4px;min-width:max-content}
-#s936SuitePro .s936-ed-drum-row{display:grid;grid-template-columns:22px 92px 70px 24px 24px repeat(var(--steps),22px);gap:3px;align-items:center}
+#s936SuitePro .s936-ed-drum-grid-wrap{overflow:auto;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:5px;background:rgba(0,0,0,.16);max-height:340px;-webkit-overflow-scrolling:touch}
+#s936SuitePro .s936-ed-drum-grid{display:grid;gap:3px;min-width:max-content}
+#s936SuitePro .s936-ed-drum-row{display:grid;grid-template-columns:16px 48px 24px 20px 20px repeat(var(--steps),18px);gap:2px;align-items:center}
 #s936SuitePro .s936-ed-drum-row.off{opacity:.42}
 #s936SuitePro .s936-ed-drum-row.active{filter:drop-shadow(0 0 8px rgba(0,255,204,.22))}
 #s936SuitePro .s936-ed-drum-row span{font-size:.50rem;color:rgba(255,255,255,.62);font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#s936SuitePro .s936-ed-drum-row .s936-ed-drum-lane-chip{height:24px;border:1px solid rgba(0,255,204,.20);border-radius:8px;background:rgba(0,255,204,.055);color:#fff;font-size:.54rem;font-weight:950;display:flex;align-items:center;gap:5px;padding:0 6px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#s936SuitePro .s936-ed-drum-row .s936-ed-drum-lane-chip{height:22px;border:1px solid rgba(0,255,204,.20);border-radius:7px;background:rgba(0,255,204,.055);color:#fff;font-size:.48rem;font-weight:950;display:flex;align-items:center;justify-content:center;gap:3px;padding:0 3px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #s936SuitePro .s936-ed-drum-row.active .s936-ed-drum-lane-chip{border-color:rgba(0,255,204,.70);box-shadow:0 0 0 2px rgba(0,255,204,.10)}
-#s936SuitePro .s936-ed-drum-row .s936-ed-drum-lane-chip em{font-style:normal;color:#ffd36d;font-size:.48rem;min-width:20px}
-#s936SuitePro .s936-ed-drum-row input[type=checkbox]{width:14px;height:14px;accent-color:#00ffd0}
-#s936SuitePro .s936-ed-drum-row input[type=range]{width:70px;accent-color:#ffd36d}
-#s936SuitePro .s936-ed-drum-row .s936-ed-drum-mini{height:22px;width:24px;padding:0}
-#s936SuitePro .s936-ed-drum-step{width:22px;height:22px;border:1px solid rgba(255,255,255,.10);border-radius:5px;background:rgba(255,255,255,.035);cursor:pointer;padding:0}
+#s936SuitePro .s936-ed-drum-row .s936-ed-drum-lane-chip em{font-style:normal;color:#ffd36d;font-size:.50rem;min-width:18px;text-align:center} #s936SuitePro .s936-ed-drum-row .s936-ed-drum-lane-chip span{display:none}
+#s936SuitePro .s936-ed-drum-row input[type=checkbox]{width:13px;height:13px;accent-color:#00ffd0}
+#s936SuitePro .s936-ed-drum-row input[type=range]{width:74px;accent-color:#ffd36d}
+#s936SuitePro .s936-ed-drum-row .s936-ed-drum-mini{height:20px;width:20px;padding:0;font-size:.47rem}
+#s936SuitePro .s936-ed-drum-step{width:18px;height:18px;border:1px solid rgba(255,255,255,.10);border-radius:5px;background:rgba(255,255,255,.035);cursor:pointer;padding:0} #s936SuitePro .s936-ed-drum-step.half-a{background:rgba(255,255,255,.032)} #s936SuitePro .s936-ed-drum-step.half-b{background:rgba(0,255,204,.045)} #s936SuitePro .s936-ed-drum-step.bar-start{border-left-color:rgba(255,211,109,.78);box-shadow:-1px 0 0 rgba(255,211,109,.35)} #s936SuitePro .s936-ed-drum-step.mid{border-left-color:rgba(0,255,204,.75);box-shadow:-1px 0 0 rgba(0,255,204,.25)}
 #s936SuitePro .s936-ed-drum-step.beat{border-top-color:#ffd36d}
 #s936SuitePro .s936-ed-drum-step.on{background:rgba(255,185,70,.60);border-color:#ffc856}
 #s936SuitePro .s936-ed-drum-step.accent{background:#fff0a0;border-color:#fff}
+#s936SuitePro .s936-ed-drum-vol{position:relative;display:flex;justify-content:center}
+#s936SuitePro .s936-ed-drum-vol-btn{width:22px;height:20px;border:1px solid rgba(255,255,255,.12);border-radius:7px;background:rgba(255,255,255,.055);color:#ffd36d;font-size:.62rem;line-height:1;cursor:pointer;padding:0}
+#s936SuitePro .s936-ed-drum-vol input[type=range]{position:absolute;left:24px;top:-5px;width:88px;display:none;background:rgba(0,0,0,.88);border:1px solid rgba(255,211,109,.25);border-radius:7px;padding:4px;z-index:8}
+#s936SuitePro .s936-ed-drum-vol.open input[type=range],#s936SuitePro .s936-ed-drum-vol:focus-within input[type=range],#s936SuitePro .s936-ed-drum-vol:hover input[type=range]{display:block}
+#s936SuitePro .s936-ed-drum-ruler{opacity:.72}
+#s936SuitePro .s936-ed-drum-ruler .s936-ed-drum-ruler-spacer{height:13px}
+#s936SuitePro .s936-ed-drum-ruler .s936-ed-drum-step{height:13px;font-size:.42rem;color:rgba(255,255,255,.55);cursor:default;background:transparent;border-color:transparent;text-align:center}
+#s936SuitePro .s936-ed-drum-ruler .s936-ed-drum-step.bar-start{color:#ffd36d;border-left-color:rgba(255,211,109,.55)}
+#s936SuitePro .s936-ed-drum-ruler .s936-ed-drum-step.mid{color:#00ffd0;border-left-color:rgba(0,255,204,.55)}
 #s936SuitePro .s936-ed-drum-note{color:#bfffee;font-size:.60rem;line-height:1.35}
 
 @media(max-width:760px){
@@ -1095,7 +1104,7 @@
 
     const gridTitle = el(ctx, "div", "s936-ed-drum-head");
     gridTitle.appendChild(el(ctx, "b", "", "Mixer + secuenciador por pieza"));
-    gridTitle.appendChild(el(ctx, "span", "s936-ed-drum-note", "Una fila: ON · pieza · volumen · M/S · pasos"));
+    gridTitle.appendChild(el(ctx, "span", "s936-ed-drum-note", "Una fila compacta: ON · pieza · 🔊 · M/S · pasos guiados"));
     panel.appendChild(gridTitle);
 
     const gridWrap = el(ctx, "div", "s936-ed-drum-grid-wrap");
@@ -1190,6 +1199,17 @@
       grid.innerHTML = "";
       const total = Math.max(16,(Number(pattern.bars) || 1) * 16);
       grid.style.setProperty("--steps", String(total));
+
+      const ruler = el(ctx, "div", "s936-ed-drum-row s936-ed-drum-ruler");
+      ruler.style.setProperty("--steps", String(total));
+      for (let i = 0; i < 5; i++) ruler.appendChild(el(ctx, "span", "s936-ed-drum-ruler-spacer", ""));
+      for(let step=0; step<total; step++){
+        const pos = step % 16;
+        const label = pos === 0 ? "1" : pos === 4 ? "2" : pos === 8 ? "3" : pos === 12 ? "4" : "";
+        ruler.appendChild(el(ctx, "span", "s936-ed-drum-step " + (pos < 8 ? "half-a " : "half-b ") + (pos % 4 === 0 ? "bar-start " : "") + (pos === 8 ? "mid " : ""), label));
+      }
+      grid.appendChild(ruler);
+
       lanes().forEach(def => {
         const lane = ensureLane(def.id, def);
         const row = el(ctx, "div", "s936-ed-drum-row" + (def.id === selectedLane ? " active" : "") + (lane.enabled === false ? " off" : ""));
@@ -1210,6 +1230,7 @@
         chip.type = "button";
         chip.title = `${def.label} · tocar / seleccionar`;
         chip.innerHTML = `<em>${def.short || ""}</em><span>${def.label || def.id}</span>`;
+        chip.setAttribute("aria-label", def.label || def.id);
         chip.addEventListener("click", () => {
           selectedLane = def.id;
           bridge("triggerEditorDrumLane", def.id, .92, pattern);
@@ -1218,6 +1239,10 @@
         });
         row.appendChild(chip);
 
+        const volWrap = el(ctx, "div", "s936-ed-drum-vol");
+        const volBtn = el(ctx, "button", "s936-ed-drum-vol-btn", "🔊");
+        volBtn.type = "button";
+        volBtn.title = `Volumen ${def.label}`;
         const volume = document.createElement("input");
         volume.type = "range";
         volume.min = "0";
@@ -1225,11 +1250,19 @@
         volume.step = ".01";
         volume.value = String(lane.volume ?? def.defaultVolume ?? .7);
         volume.title = `Volumen ${def.label}`;
+        volBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          document.querySelectorAll("#s936SuitePro .s936-ed-drum-vol.open").forEach(node => {
+            if (node !== volWrap) node.classList.remove("open");
+          });
+          volWrap.classList.toggle("open");
+        });
         volume.addEventListener("input", () => {
           lane.volume = Number(volume.value);
           persist("Volumen actualizado.");
         });
-        row.appendChild(volume);
+        volWrap.append(volBtn, volume);
+        row.appendChild(volWrap);
 
         const mute = el(ctx, "button", "s936-ed-drum-mini" + (lane.mute ? " active" : ""), "M");
         mute.type = "button";
@@ -1253,7 +1286,8 @@
 
         for(let step=0; step<total; step++){
           const velocity = Number(lane.hits?.[step] || 0);
-          const cell = el(ctx, "button", "s936-ed-drum-step" + (step % 4 === 0 ? " beat" : "") + (velocity > 0 ? " on" : "") + (velocity >= .9 ? " accent" : ""), "");
+          const pos = step % 16;
+          const cell = el(ctx, "button", "s936-ed-drum-step" + (pos < 8 ? " half-a" : " half-b") + (pos % 4 === 0 ? " beat bar-start" : "") + (pos === 8 ? " mid" : "") + (velocity > 0 ? " on" : "") + (velocity >= .9 ? " accent" : ""), "");
           cell.type = "button";
           cell.title = `${def.label} · paso ${step + 1}`;
           cell.addEventListener("click", () => toggleHit(def.id, step));
