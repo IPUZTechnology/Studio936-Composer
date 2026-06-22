@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.2.15-piano-reopen-final";
+  const VERSION = "editor-v0.7.2.16-piano-visual-wake";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -2094,11 +2094,12 @@
       }
 
       if (state.instrument === "piano") {
-        // v0.7.2.15 — Piano Reopen Guard:
-        // No llamar selectEditorChord aquí. Esa función dispara eventos del editor
-        // legacy y, al volver desde Batería/Guitarra, puede entrar en un ciclo.
-        bridge("mountEditorInstrumentSurface", "piano");
+        // v0.7.2.16 — Piano Visual Wake:
+        // El piano vive en Main. Al abrir Piano desde el Editor, despertar su
+        // visual sin disparar selectEditorChord ni ciclos legacy.
+        bridge("wakeMainPianoSurface", "editor-piano-open");
         recalculate({ immediate:true });
+        setTimeout(() => bridge("wakeMainPianoSurface", "editor-piano-confirm"), 80);
         return;
       }
 
