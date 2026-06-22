@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.2.14-drum-max-icons-piano-guard";
+  const VERSION = "editor-v0.7.2.15-piano-reopen-final";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -2092,6 +2092,16 @@
         setTimeout(() => scheduleVisual(currentPayload(), true), 80);
         return;
       }
+
+      if (state.instrument === "piano") {
+        // v0.7.2.15 — Piano Reopen Guard:
+        // No llamar selectEditorChord aquí. Esa función dispara eventos del editor
+        // legacy y, al volver desde Batería/Guitarra, puede entrar en un ciclo.
+        bridge("mountEditorInstrumentSurface", "piano");
+        recalculate({ immediate:true });
+        return;
+      }
+
       bridge("selectEditorChord", state.sectionKey, state.chordIndex);
       recalculate();
     }, 0);

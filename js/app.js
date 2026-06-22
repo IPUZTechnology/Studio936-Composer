@@ -109,6 +109,25 @@ function captureEditorSurfaceSession(){
 function mountEditorInstrumentSurface(instrument){
     const value = EDITOR_SURFACE_IDS.includes(instrument) ? instrument : 'piano';
     editorInstrument = value;
+
+    // v0.7.2.15 — Piano Editor Guard:
+    // Piano is the native main surface, not a custom Editor surface.
+    // Keeping the Surface Manager observer active on Piano could freeze the app
+    // when returning from Batería/Guitarra to Editor → Piano.
+    if(value === 'piano'){
+        try { InstrumentSurfaceManager.endEditorSession({ restore:false }); } catch(_) {}
+        try { clearMainStringSurface(); } catch(_) {}
+        try { clearMainDrumSurface(); } catch(_) {}
+        try { resetMainSurfaceClasses(); } catch(_) {}
+        try { showLegacyFretboardShell(); } catch(_) {}
+        if(els.pianoContainer) els.pianoContainer.style.display = 'flex';
+        if(els.fretboardContainer) els.fretboardContainer.style.display = 'none';
+        document.body?.classList?.remove?.('s936-editor-guitar-surface','s936-editor-drum-surface');
+        document.body?.removeAttribute?.('data-s936-editor-instrument');
+        document.body?.removeAttribute?.('data-s936-surface-owner');
+        return { ok:true, instrument:value, owner:'main-piano', pianoNative:true };
+    }
+
     return InstrumentSurfaceManager.showEditorInstrument(value);
 }
 function mountEditorDrumSurface(payload={}){
