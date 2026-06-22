@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.2.7-drum-patterns-panel";
+  const VERSION = "editor-v0.7.2.8-drum-compact-rows";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -266,9 +266,17 @@
 #s936SuitePro .s936-ed-drum-mini{height:24px;border:1px solid rgba(255,255,255,.12);border-radius:7px;background:rgba(255,255,255,.05);color:#fff;font-size:.52rem;font-weight:950;cursor:pointer}
 #s936SuitePro .s936-ed-drum-mini.active{background:#ffd36d;color:#1b1300}
 #s936SuitePro .s936-ed-drum-grid-wrap{overflow:auto;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:6px;background:rgba(0,0,0,.16);max-height:300px;-webkit-overflow-scrolling:touch}
-#s936SuitePro .s936-ed-drum-grid{display:grid;gap:3px;min-width:max-content}
-#s936SuitePro .s936-ed-drum-row{display:grid;grid-template-columns:64px repeat(var(--steps),22px);gap:3px;align-items:center}
+#s936SuitePro .s936-ed-drum-grid{display:grid;gap:4px;min-width:max-content}
+#s936SuitePro .s936-ed-drum-row{display:grid;grid-template-columns:22px 92px 70px 24px 24px repeat(var(--steps),22px);gap:3px;align-items:center}
+#s936SuitePro .s936-ed-drum-row.off{opacity:.42}
+#s936SuitePro .s936-ed-drum-row.active{filter:drop-shadow(0 0 8px rgba(0,255,204,.22))}
 #s936SuitePro .s936-ed-drum-row span{font-size:.50rem;color:rgba(255,255,255,.62);font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#s936SuitePro .s936-ed-drum-row .s936-ed-drum-lane-chip{height:24px;border:1px solid rgba(0,255,204,.20);border-radius:8px;background:rgba(0,255,204,.055);color:#fff;font-size:.54rem;font-weight:950;display:flex;align-items:center;gap:5px;padding:0 6px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#s936SuitePro .s936-ed-drum-row.active .s936-ed-drum-lane-chip{border-color:rgba(0,255,204,.70);box-shadow:0 0 0 2px rgba(0,255,204,.10)}
+#s936SuitePro .s936-ed-drum-row .s936-ed-drum-lane-chip em{font-style:normal;color:#ffd36d;font-size:.48rem;min-width:20px}
+#s936SuitePro .s936-ed-drum-row input[type=checkbox]{width:14px;height:14px;accent-color:#00ffd0}
+#s936SuitePro .s936-ed-drum-row input[type=range]{width:70px;accent-color:#ffd36d}
+#s936SuitePro .s936-ed-drum-row .s936-ed-drum-mini{height:22px;width:24px;padding:0}
 #s936SuitePro .s936-ed-drum-step{width:22px;height:22px;border:1px solid rgba(255,255,255,.10);border-radius:5px;background:rgba(255,255,255,.035);cursor:pointer;padding:0}
 #s936SuitePro .s936-ed-drum-step.beat{border-top-color:#ffd36d}
 #s936SuitePro .s936-ed-drum-step.on{background:rgba(255,185,70,.60);border-color:#ffc856}
@@ -1081,17 +1089,13 @@
     actions.append(applyBtn, saveBtn, previewBtn, clearBtn);
     panel.append(actions,status);
 
-    const mixerTitle = el(ctx, "div", "s936-ed-drum-head");
-    mixerTitle.appendChild(el(ctx, "b", "", "Mixer por pieza"));
-    mixerTitle.appendChild(el(ctx, "span", "s936-ed-drum-note", "ON · Mute · Solo · Volumen"));
-    panel.appendChild(mixerTitle);
-
     const mixer = el(ctx, "div", "s936-ed-drum-mixer");
-    panel.appendChild(mixer);
+    // v0.7.2.8: el mixer vive ahora integrado en cada fila del secuenciador.
+    // Se conserva esta referencia para compatibilidad interna, pero no se monta como bloque separado.
 
     const gridTitle = el(ctx, "div", "s936-ed-drum-head");
-    gridTitle.appendChild(el(ctx, "b", "", "Secuenciador"));
-    gridTitle.appendChild(el(ctx, "span", "s936-ed-drum-note", "Click: normal → acento → off"));
+    gridTitle.appendChild(el(ctx, "b", "", "Mixer + secuenciador por pieza"));
+    gridTitle.appendChild(el(ctx, "span", "s936-ed-drum-note", "Una fila: ON · pieza · volumen · M/S · pasos"));
     panel.appendChild(gridTitle);
 
     const gridWrap = el(ctx, "div", "s936-ed-drum-grid-wrap");
@@ -1178,10 +1182,19 @@
     }
 
     function redrawMixer(){
-      mixer.innerHTML = "";
+      // v0.7.2.8: controles compactos integrados por fila en redrawGrid().
+      if (mixer) mixer.innerHTML = "";
+    }
+
+    function redrawGrid(){
+      grid.innerHTML = "";
+      const total = Math.max(16,(Number(pattern.bars) || 1) * 16);
+      grid.style.setProperty("--steps", String(total));
       lanes().forEach(def => {
         const lane = ensureLane(def.id, def);
-        const row = el(ctx, "div", "s936-ed-drum-lane" + (def.id === selectedLane ? " active" : "") + (lane.enabled === false ? " off" : ""));
+        const row = el(ctx, "div", "s936-ed-drum-row" + (def.id === selectedLane ? " active" : "") + (lane.enabled === false ? " off" : ""));
+        row.style.setProperty("--steps", String(total));
+
         const enabled = document.createElement("input");
         enabled.type = "checkbox";
         enabled.checked = lane.enabled !== false;
@@ -1191,59 +1204,53 @@
           persist("Canal actualizado.");
           redraw();
         });
+        row.appendChild(enabled);
 
-        const name = el(ctx, "div", "", "");
-        const label = el(ctx, "b", "", def.label);
-        label.addEventListener("click", () => {
+        const chip = el(ctx, "button", "s936-ed-drum-lane-chip", "");
+        chip.type = "button";
+        chip.title = `${def.label} · tocar / seleccionar`;
+        chip.innerHTML = `<em>${def.short || ""}</em><span>${def.label || def.id}</span>`;
+        chip.addEventListener("click", () => {
           selectedLane = def.id;
+          bridge("triggerEditorDrumLane", def.id, .92, pattern);
           bridge("flashEditorDrumLane", selectedLane, .82, 160);
-          redrawMixer();
+          redraw();
         });
+        row.appendChild(chip);
+
         const volume = document.createElement("input");
         volume.type = "range";
         volume.min = "0";
         volume.max = "1";
         volume.step = ".01";
         volume.value = String(lane.volume ?? def.defaultVolume ?? .7);
+        volume.title = `Volumen ${def.label}`;
         volume.addEventListener("input", () => {
           lane.volume = Number(volume.value);
           persist("Volumen actualizado.");
         });
-        name.append(label, volume);
+        row.appendChild(volume);
 
         const mute = el(ctx, "button", "s936-ed-drum-mini" + (lane.mute ? " active" : ""), "M");
         mute.type = "button";
+        mute.title = `Mute ${def.label}`;
         mute.addEventListener("click", () => {
           lane.mute = !lane.mute;
           persist("Mute actualizado.");
           redraw();
         });
+        row.appendChild(mute);
+
         const solo = el(ctx, "button", "s936-ed-drum-mini" + (lane.solo ? " active" : ""), "S");
         solo.type = "button";
+        solo.title = `Solo ${def.label}`;
         solo.addEventListener("click", () => {
           lane.solo = !lane.solo;
           persist("Solo actualizado.");
           redraw();
         });
-        row.append(enabled, name, mute, solo);
-        row.addEventListener("dblclick", () => {
-          selectedLane = def.id;
-          bridge("triggerEditorDrumLane", def.id, .92, pattern);
-          redrawMixer();
-        });
-        mixer.appendChild(row);
-      });
-    }
+        row.appendChild(solo);
 
-    function redrawGrid(){
-      grid.innerHTML = "";
-      const total = Math.max(16,(Number(pattern.bars) || 1) * 16);
-      grid.style.setProperty("--steps", String(total));
-      lanes().forEach(def => {
-        const lane = ensureLane(def.id, def);
-        const row = el(ctx, "div", "s936-ed-drum-row");
-        row.style.setProperty("--steps", String(total));
-        row.appendChild(el(ctx, "span", "", def.short));
         for(let step=0; step<total; step++){
           const velocity = Number(lane.hits?.[step] || 0);
           const cell = el(ctx, "button", "s936-ed-drum-step" + (step % 4 === 0 ? " beat" : "") + (velocity > 0 ? " on" : "") + (velocity >= .9 ? " accent" : ""), "");
