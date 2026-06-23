@@ -295,15 +295,23 @@ window.Studio936InstrumentSurfaceManager = (() => {
     return !!renderer?.selectLane?.(laneId,false);
   }
 
+  function clearSurfaceContainer() {
+    const { fretboard } = elements();
+    if (!fretboard) return;
+    fretboard.querySelectorAll("#s936EditorGuitarSurface,#s936EditorDrumSurface,.s936-finger-pop").forEach(node => node.remove());
+  }
+
   function clearEditorStrings() {
     state.lastStringRender = null;
     stringSurface()?.clear?.();
+    clearSurfaceContainer();
     document.querySelectorAll(".s936-finger-pop").forEach(node => node.remove());
   }
 
   function clearEditorDrums() {
     state.lastDrumRender = null;
     drumSurface()?.clear?.();
+    clearSurfaceContainer();
   }
 
   function restoreSnapshot() {
