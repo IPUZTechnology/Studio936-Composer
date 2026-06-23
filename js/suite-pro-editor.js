@@ -1135,8 +1135,8 @@
 
         syncPersistentInstrumentTabs(instruments);
 
-        // v0.7.3.6: todas las pestañas del Editor pasan por el mismo guard.
-        // Evita que Piano/Batería queden posicionados en Guitarra.
+        // v0.7.3.8: todos los botones pasan por el mismo puente.
+        // Evita que Batería/Piano queden visualmente en modo Guitarra.
         let response = bridge("setEditorInstrument", key);
 
         if (response?.ok === false) {
@@ -1510,7 +1510,7 @@
     watchLifecycle();
 
     const initialData = getEditorState();
-    state.instrument = canonicalInstrumentId(initialData.instrument || state.instrument || "piano");
+    state.instrument = canonicalInstrumentId(state.instrument || initialData.instrument || "piano");
 
     const mount = el(ctx, "div", "s936-ed-module");
     const contentHost = el(ctx, "div", "s936-ed-instrument-content");
@@ -1537,9 +1537,13 @@
 
     state.sectionKey = sections[state.sectionKey] ? state.sectionKey : (data.sectionKey || sectionKeys[0]);
     state.chordIndex = state.chordIndex === null ? (Number(data.chordIndex) || 0) : (Number(state.chordIndex) || 0);
+    // v0.7.3.8: Editor/Main comparten un solo instrumento activo.
+    // Si Main cambia a Piano/Batería, el Editor no puede quedarse pegado a Guitarra.
     state.instrument = canonicalInstrumentId(data.instrument || state.instrument || "piano");
     if (state.instrument === "drums") {
-      try { bridge("setEditorInstrument", "drums"); } catch (_) {}
+      // v0.7.2.6: enganchar el Editor al kit visual del Main.
+      // Esto limpia la guitarra/lead anterior y muestra batería sin cargar el panel pesado.
+      try { bridge("deactivateEditorSurface"); } catch (_) {}
       try { bridge("renderMainDrumSurface"); } catch (_) {}
     } else if (state.instrument === "lead") {
       bridge("mountEditorInstrumentSurface", "lead");
