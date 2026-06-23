@@ -2625,7 +2625,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.3.5-editor-main-sync',
+        version: 'suite-pro-bridge-v0.7.3.7-editor-sync-chart-guard',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -3497,17 +3497,24 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     return owner === 'editor' || document.body?.classList?.contains('s936-editor-guitar-surface') || document.body?.classList?.contains('s936-editor-drum-surface') || !!document.querySelector?.('#s936EditorGuitarSurface, #s936EditorDrumPanel, [data-s936-editor-surface="1"]');
   }
   function renderChordCharts(){
-    if(s936EditorSurfaceActive()){
-      const box=$('v23ChordCharts');
-      if(box) box.style.display='none';
+    const boxExisting=$('v23ChordCharts');
+    const selectedInstrument = canonicalInstrumentId($('instrumentSelect')?.value || project.instrument || 'piano');
+    if(selectedInstrument !== 'guitar' || s936EditorSurfaceActive()){
+      if(boxExisting){
+        boxExisting.style.display='none';
+        boxExisting.innerHTML='';
+      }
       return;
     }
     const cont=$('fretboardContainer'); if(!cont) return;
     const visible=getComputedStyle(cont).display!=='none';
     const box=ensureChartBox(); if(!box) return;
-    const seq=getSeq(); const m=mode(); const idx=currentIndex();
-    box.style.display = (visible && ['guitar','ukulele','bass'].includes(m)) ? 'block' : 'none';
-    if(box.style.display==='none') return;
+    const seq=getSeq(); const m='guitar'; const idx=currentIndex();
+    box.style.display = visible ? 'block' : 'none';
+    if(box.style.display==='none'){
+      box.innerHTML='';
+      return;
+    }
     box.innerHTML=`<div class="v23-chart-head"><span>${T('charts')} · ${m.toUpperCase()}</span><span class="v23-chart-sub">${T('hint')}</span></div><div class="v23-chart-row">${seq.map((ch,i)=>chartHtml(ch,i,i===idx,m)).join('')}</div>`;
     qa('[data-v23-chart]',box).forEach(btn=>{
       btn.addEventListener('click',()=>{
