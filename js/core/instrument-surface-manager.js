@@ -298,16 +298,14 @@ window.Studio936InstrumentSurfaceManager = (() => {
   function clearEditorStrings() {
     state.lastStringRender = null;
     stringSurface()?.clear?.();
-    document.getElementById("s936EditorGuitarSurface")?.remove();
+    document.getElementById("s936EditorGuitarSurface")?.remove?.();
     document.querySelectorAll(".s936-finger-pop").forEach(node => node.remove());
-    const charts = document.getElementById("v23ChordCharts");
-    if (charts) { charts.innerHTML = ""; charts.style.display = "none"; }
   }
 
   function clearEditorDrums() {
     state.lastDrumRender = null;
     drumSurface()?.clear?.();
-    document.getElementById("s936EditorDrumSurface")?.remove();
+    document.getElementById("s936EditorDrumSurface")?.remove?.();
   }
 
   function restoreSnapshot() {
