@@ -1174,6 +1174,16 @@
         })
       : fromStore;
 
+    // v0.7.3.9: al abrir Batería en Editor, montar el kit visual del Editor,
+    // no reutilizar la superficie de guitarra ni el Main.
+    bridge("mountEditorDrumSurface", {
+      pattern,
+      sectionKey:drumSection,
+      sectionName:humanize(drumSection),
+      onLaneSelect:laneId => bridge("selectEditorDrumLane", laneId),
+      onLaneTrigger:(laneId, velocity) => bridge("triggerEditorDrumLane", laneId, velocity, pattern)
+    });
+
     const drumsHost = el(ctx, "section", "s936-ed-card s936-ed-drums-host");
     const panel = el(ctx, "div", "s936-ed-drum-panel");
     const syncPanelWidth = () => {
@@ -1541,10 +1551,12 @@
     // Si Main cambia a Piano/Batería, el Editor no puede quedarse pegado a Guitarra.
     state.instrument = canonicalInstrumentId(data.instrument || state.instrument || "piano");
     if (state.instrument === "drums") {
-      // v0.7.2.6: enganchar el Editor al kit visual del Main.
-      // Esto limpia la guitarra/lead anterior y muestra batería sin cargar el panel pesado.
-      try { bridge("deactivateEditorSurface"); } catch (_) {}
-      try { bridge("renderMainDrumSurface"); } catch (_) {}
+      // v0.7.3.9: Editor debe montar su propia superficie de batería.
+      // No usar renderMainDrumSurface aquí, porque deja el Editor pegado a la guitarra previa.
+      try { bridge("mountEditorInstrumentSurface", "drums"); } catch (_) {}
+    } else if (state.instrument === "piano") {
+      // Piano nativo: cerrar cualquier superficie editor de guitarra/batería.
+      try { bridge("mountEditorInstrumentSurface", "piano"); } catch (_) {}
     } else if (state.instrument === "lead") {
       bridge("mountEditorInstrumentSurface", "lead");
     } else {

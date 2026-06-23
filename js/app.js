@@ -140,6 +140,16 @@ function mountEditorInstrumentSurface(instrument){
         return { ok:true, instrument:value, owner:'main-piano', pianoNative:true };
     }
 
+    if(value === 'drums'){
+        const sectionKey = els.sectionSelect?.value || 'intro';
+        const pattern = project.drumPatterns?.[sectionKey] || {};
+        return mountEditorDrumSurface({
+            pattern,
+            sectionKey,
+            sectionName:sectionNames[sectionKey] || sectionKey
+        });
+    }
+
     return InstrumentSurfaceManager.showEditorInstrument(value);
 }
 function mountEditorDrumSurface(payload={}){
