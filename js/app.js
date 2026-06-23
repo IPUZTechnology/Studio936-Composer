@@ -796,15 +796,6 @@ function clearMainDrumSurface(){
 }
 function renderMainDrumSurface(force=false){
     if(project.instrument !== 'drums') return false;
-
-    // v0.7.3.6 — al montar Batería, destruir restos visuales de cuerdas/charts.
-    try { clearMainStringSurface(); } catch(_) {}
-    const chordBox = document.getElementById('v23ChordCharts');
-    if(chordBox){
-        chordBox.innerHTML = '';
-        chordBox.style.display = 'none';
-    }
-
     if(InstrumentSurfaceManager?.getState?.().active){
         if(force) forceMainSurfaceOwnership('drums-force');
         else return false;
@@ -2098,11 +2089,57 @@ function installStudio936AppBridge(){
     function clearExactVoicingMap(){
         return deactivateEditorSurface();
     }
+    function syncEditorInstrumentTabsFromMain(value){
+        const selected = canonicalInstrumentId(value || project.instrument || 'piano');
+        if(!EDITOR_SURFACE_IDS.includes(selected)) return;
+
+        // Solo sincronizar si el Editor Instrumental está realmente montado.
+        const tabs = document.getElementById('s936EditorInstrumentTabs');
+        const editorRoot = document.querySelector('#s936SuitePro .s936-ed-module');
+        if(!tabs || !editorRoot) return;
+
+        // Evita que queden superficies fantasmas al cambiar desde el selector principal.
+        try {
+            if(selected === 'piano' || selected === 'drums'){
+                document.getElementById('s936EditorGuitarSurface')?.remove?.();
+                document.getElementById('v23ChordCharts')?.style && (document.getElementById('v23ChordCharts').style.display = 'none');
+                document.body?.classList?.remove?.('s936-editor-guitar-surface');
+            }
+            if(selected === 'piano'){
+                document.getElementById('s936EditorDrumSurface')?.remove?.();
+                document.body?.classList?.remove?.('s936-editor-drum-surface');
+            }
+        } catch(_) {}
+
+        const button = tabs.querySelector(`.s936-ed-inst[data-instrument="${selected}"]`);
+        if(!button) return;
+
+        // Si ya está activo, reaviva la superficie correcta. Si no, dispara el tab del Editor.
+        if(button.classList.contains('active')){
+            if(selected === 'drums'){
+                try { InstrumentSurfaceManager.endEditorSession({restore:false}); } catch(_) {}
+                try { renderMainDrumSurface(true); } catch(_) {}
+            }else if(selected === 'piano'){
+                try { mountEditorInstrumentSurface('piano'); } catch(_) {}
+            }
+            return;
+        }
+
+        setTimeout(() => {
+            try { button.click(); } catch(error) {
+                console.warn('Studio936 Editor: no pude sincronizar el tab con el instrumento principal.', selected, error);
+            }
+        }, 0);
+    }
+
     function installEditorSurfaceCleanup(){
         if(window.__s936EditorSurfaceCleanupBound) return;
         window.__s936EditorSurfaceCleanupBound = true;
-        els.instrumentSelect?.addEventListener('change', () => {
+        els.instrumentSelect?.addEventListener('change', event => {
+            const selected = canonicalInstrumentId(event?.target?.value || project.instrument || 'piano');
             try { InstrumentSurfaceManager.endEditorSession({restore:false}); } catch(_) {}
+            setTimeout(() => syncEditorInstrumentTabsFromMain(selected), 0);
+            setTimeout(() => syncEditorInstrumentTabsFromMain(selected), 90);
         }, true);
         document.addEventListener('click', event => {
             const button = event.target?.closest?.('button');
@@ -2588,7 +2625,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.2.7-drum-patterns',
+        version: 'suite-pro-bridge-v0.7.3.5-editor-main-sync',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -3460,28 +3497,19 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     return owner === 'editor' || document.body?.classList?.contains('s936-editor-guitar-surface') || document.body?.classList?.contains('s936-editor-drum-surface') || !!document.querySelector?.('#s936EditorGuitarSurface, #s936EditorDrumPanel, [data-s936-editor-surface="1"]');
   }
   function renderChordCharts(){
-    const box=$('v23ChordCharts');
-    const m=mode();
-
-    // v0.7.3.6 — Surface Destroy Guard:
-    // Los charts de acordes pertenecen solo a Guitarra.
-    // Al entrar a Piano/Batería/Ukelele/Bajo/Lead se vacían para evitar cruces visuales.
-    if(m !== 'guitar' || s936EditorSurfaceActive()){
-      if(box){
-        box.innerHTML='';
-        box.style.display='none';
-      }
+    if(s936EditorSurfaceActive()){
+      const box=$('v23ChordCharts');
+      if(box) box.style.display='none';
       return;
     }
-
     const cont=$('fretboardContainer'); if(!cont) return;
     const visible=getComputedStyle(cont).display!=='none';
-    const safeBox=ensureChartBox(); if(!safeBox) return;
-    const seq=getSeq(); const idx=currentIndex();
-    safeBox.style.display = visible ? 'block' : 'none';
-    if(safeBox.style.display==='none') return;
-    safeBox.innerHTML=`<div class="v23-chart-head"><span>${T('charts')} · ${m.toUpperCase()}</span><span class="v23-chart-sub">${T('hint')}</span></div><div class="v23-chart-row">${seq.map((ch,i)=>chartHtml(ch,i,i===idx,m)).join('')}</div>`;
-    qa('[data-v23-chart]',safeBox).forEach(btn=>{
+    const box=ensureChartBox(); if(!box) return;
+    const seq=getSeq(); const m=mode(); const idx=currentIndex();
+    box.style.display = (visible && ['guitar','ukulele','bass'].includes(m)) ? 'block' : 'none';
+    if(box.style.display==='none') return;
+    box.innerHTML=`<div class="v23-chart-head"><span>${T('charts')} · ${m.toUpperCase()}</span><span class="v23-chart-sub">${T('hint')}</span></div><div class="v23-chart-row">${seq.map((ch,i)=>chartHtml(ch,i,i===idx,m)).join('')}</div>`;
+    qa('[data-v23-chart]',box).forEach(btn=>{
       btn.addEventListener('click',()=>{
         const i=Number(btn.dataset.v23Chart)||0;
         const sel=$('chordSelect'); if(sel){ sel.value=i; sel.dispatchEvent(new Event('change',{bubbles:true})); }
