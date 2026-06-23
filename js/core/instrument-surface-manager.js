@@ -37,7 +37,13 @@ window.Studio936InstrumentSurfaceManager = (() => {
   }
 
   function normalizeInstrument(instrument) {
-    return VALID_EDITOR_INSTRUMENTS.has(instrument) ? instrument : "piano";
+    const value = String(instrument || "").trim().toLowerCase();
+    if (value === "uke" || value === "ukelele" || value === "ukulele") return "ukulele";
+    if (value === "guitarra" || value === "guitar") return "guitar";
+    if (value === "guitar-lead" || value === "guitarra-lead" || value === "g.lead" || value === "glead") return "lead";
+    if (value === "bajo" || value === "bass") return "bass";
+    if (value === "drum" || value === "drums" || value === "bateria" || value === "batería") return "drums";
+    return VALID_EDITOR_INSTRUMENTS.has(value) ? value : "piano";
   }
 
   function readDisplay(element) {
