@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.3-superukelele";
+  const VERSION = "editor-v0.7.3.2-superukelele-editor-wake";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -1949,8 +1949,13 @@
         payload.bass = latestCalculation.bass;
         payload.notes = latestCalculation.notes;
         payload.exactMidis = latestCalculation.exactMidis;
-        payload.exactFrets = latestCalculation.strings.map(s => s.fret);
-        payload.exactStrings = latestCalculation.strings;
+        const profile = stringProfile();
+        payload.instrument = profile.id;
+        payload.exactFrets = latestCalculation.strings
+          .slice(0, profile.strings.length)
+          .map(s => s?.fret === undefined ? null : s.fret);
+        while (payload.exactFrets.length < profile.strings.length) payload.exactFrets.push(null);
+        payload.exactStrings = latestCalculation.strings.slice(0, profile.strings.length);
         payload.capo = latestCalculation.voicing.capo;
         payload.barre = latestCalculation.voicing.barre;
         payload.rootPitchClass = latestCalculation.detection.rootPc;
@@ -2047,6 +2052,25 @@
         return;
       }
       visualTimer = setTimeout(draw, 36);
+    }
+
+    function wakeStringEditorSurface(reason = "wake") {
+      if (!isStringInstrument()) return;
+      const payload = currentPayload();
+      payload.instrument = stringProfile().id;
+      bridge("mountEditorInstrumentSurface", payload.instrument);
+      try { window.Studio936StringSurface?.setInteractionMode?.("play"); } catch (_) {}
+      scheduleVisual(payload, true);
+      // Ukelele en Editor podía quedar sin imagen porque el primer render llegaba
+      // antes de que el contenedor del editor terminara de despertar. Este segundo
+      // pulso no cambia datos: solo asegura la imagen.
+      setTimeout(() => scheduleVisual(currentPayload(), true), 80);
+      setTimeout(() => {
+        const surface = document.getElementById("s936EditorGuitarSurface");
+        if (!surface || surface.dataset.instrument !== payload.instrument) {
+          scheduleVisual(currentPayload(), true);
+        }
+      }, 180);
     }
 
       function recalculate(options = {}) {
@@ -2190,13 +2214,10 @@
     recalculate({ immediate:true });
     setTimeout(() => {
       if (isStringInstrument()) {
-        // v0.7.2: handshake limpio Main → Editor.
-        // Primero asegura dueño Editor; luego refresca la superficie con el payload actual.
-        bridge("mountEditorInstrumentSurface", state.instrument);
-        try { window.Studio936StringSurface?.setInteractionMode?.("play"); } catch (_) {}
+        // v0.7.3.2: wake explícito para Ukelele/Guitarra/Bajo/Lead en Editor.
+        // Evita que el Ukelele quede en blanco al entrar desde Main.
         recalculate({ immediate:true });
-        scheduleVisual(currentPayload(), true);
-        setTimeout(() => scheduleVisual(currentPayload(), true), 80);
+        wakeStringEditorSurface("initial");
         return;
       }
 

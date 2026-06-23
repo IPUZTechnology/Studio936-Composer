@@ -1,4 +1,4 @@
-// Studio 936 Composer - Shared String Instrument Surface v1.9.1 · String Neck Accuracy
+// Studio 936 Composer - Shared String Instrument Surface v1.9.2 · SuperUkelele Editor Wake
 // Renders Guitar, Ukulele and Bass as one live surface for Main and Editor.
 window.Studio936StringSurface = (() => {
   "use strict";
@@ -579,10 +579,28 @@ window.Studio936StringSurface = (() => {
     const instrument = data?.instrument;
     const isMainSurface = owner === "main" || data?.surfaceOwner === "main" || data?.surfaceMode === "main-practice";
     const profile = profiles?.[instrument];
-    if(!container || !profile || !Array.isArray(data?.exactFrets) || data.exactFrets.length !== profile.strings.length){
+
+    // v0.7.3.2 — SuperUkelele Editor Wake:
+    // El editor no debe quedar en blanco si llega un voicing viejo/incompleto
+    // de guitarra o bajo. Normalizamos la cantidad de cuerdas al perfil real
+    // antes de renderizar. Ukelele = 4 cuerdas, guitarra/lead = 6, bajo = 4.
+    if(!container || !profile || !Array.isArray(profile.strings) || !profile.strings.length){
       clear();
-      return {ok:false};
+      return {ok:false,message:"Perfil de instrumento no disponible."};
     }
+    const rawFrets = Array.isArray(data?.exactFrets) ? data.exactFrets : [];
+    const safeFrets = profile.strings.map((_, index) => {
+      const value = rawFrets[index];
+      if(value === null || value === undefined || String(value).trim().toUpperCase() === "X" || String(value).trim().toUpperCase() === "M") return null;
+      return clamp(Number(value) || 0, 0, profile.maxFret || 24);
+    });
+    const rawStrings = Array.isArray(data?.exactStrings) ? data.exactStrings : [];
+    data = {
+      ...(data || {}),
+      instrument,
+      exactFrets: safeFrets,
+      exactStrings: rawStrings.slice(0, profile.strings.length)
+    };
 
     const targetOwner = isMainSurface ? "main" : "editor";
     let surface = document.getElementById("s936EditorGuitarSurface");
@@ -681,6 +699,8 @@ window.Studio936StringSurface = (() => {
     const barrePhysicalFret = clamp(Number(barre.fret)||1,1,profile.maxFret)+(data.capo||0);
     const barreHigh = Math.max(clamp(Number(barre.fromString)||profile.strings.length,1,profile.strings.length),clamp(Number(barre.toString)||1,1,profile.strings.length));
     const barreLow = Math.min(clamp(Number(barre.fromString)||profile.strings.length,1,profile.strings.length),clamp(Number(barre.toString)||1,1,profile.strings.length));
+    // Mantiene una fila por cuerda real. La cuerda 1 queda arriba visualmente,
+    // pero ninguna cuerda desaparece en Editor/Main.
     const displayOrder = profile.strings.map((_,index)=>index).reverse();
 
     displayOrder.forEach(index => {
@@ -865,7 +885,7 @@ window.Studio936StringSurface = (() => {
   }
 
   return {
-    version:"string-surface-v1.9.1-string-neck-accuracy",
+    version:"string-surface-v1.9.2-superukelele-editor-wake",
     render,
     clear,
     flashMidis,
