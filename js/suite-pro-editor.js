@@ -1135,15 +1135,8 @@
 
         syncPersistentInstrumentTabs(instruments);
 
-        // v0.7.2.6: Batería en Editor se engancha al kit visual seguro del Main.
-        // No monta superficie pesada dentro del dock; solo cambia el Main a batería.
-        if (key === "drums") {
-          try { bridge("deactivateEditorSurface"); } catch (_) {}
-          try { bridge("renderMainDrumSurface"); } catch (_) {}
-          renderModule(ctx, contentHost);
-          return;
-        }
-
+        // v0.7.3.6: todas las pestañas del Editor pasan por el mismo guard.
+        // Evita que Piano/Batería queden posicionados en Guitarra.
         let response = bridge("setEditorInstrument", key);
 
         if (response?.ok === false) {
@@ -1517,7 +1510,7 @@
     watchLifecycle();
 
     const initialData = getEditorState();
-    state.instrument = canonicalInstrumentId(state.instrument || initialData.instrument || "piano");
+    state.instrument = canonicalInstrumentId(initialData.instrument || state.instrument || "piano");
 
     const mount = el(ctx, "div", "s936-ed-module");
     const contentHost = el(ctx, "div", "s936-ed-instrument-content");
@@ -1544,11 +1537,9 @@
 
     state.sectionKey = sections[state.sectionKey] ? state.sectionKey : (data.sectionKey || sectionKeys[0]);
     state.chordIndex = state.chordIndex === null ? (Number(data.chordIndex) || 0) : (Number(state.chordIndex) || 0);
-    state.instrument = canonicalInstrumentId(state.instrument || data.instrument || "piano");
+    state.instrument = canonicalInstrumentId(data.instrument || state.instrument || "piano");
     if (state.instrument === "drums") {
-      // v0.7.2.6: enganchar el Editor al kit visual del Main.
-      // Esto limpia la guitarra/lead anterior y muestra batería sin cargar el panel pesado.
-      try { bridge("deactivateEditorSurface"); } catch (_) {}
+      try { bridge("setEditorInstrument", "drums"); } catch (_) {}
       try { bridge("renderMainDrumSurface"); } catch (_) {}
     } else if (state.instrument === "lead") {
       bridge("mountEditorInstrumentSurface", "lead");

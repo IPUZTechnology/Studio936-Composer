@@ -796,6 +796,15 @@ function clearMainDrumSurface(){
 }
 function renderMainDrumSurface(force=false){
     if(project.instrument !== 'drums') return false;
+
+    // v0.7.3.6 — al montar Batería, destruir restos visuales de cuerdas/charts.
+    try { clearMainStringSurface(); } catch(_) {}
+    const chordBox = document.getElementById('v23ChordCharts');
+    if(chordBox){
+        chordBox.innerHTML = '';
+        chordBox.style.display = 'none';
+    }
+
     if(InstrumentSurfaceManager?.getState?.().active){
         if(force) forceMainSurfaceOwnership('drums-force');
         else return false;
@@ -3451,23 +3460,28 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     return owner === 'editor' || document.body?.classList?.contains('s936-editor-guitar-surface') || document.body?.classList?.contains('s936-editor-drum-surface') || !!document.querySelector?.('#s936EditorGuitarSurface, #s936EditorDrumPanel, [data-s936-editor-surface="1"]');
   }
   function renderChordCharts(){
-    const inst=$('instrumentSelect')?.value || 'piano';
-    if(inst !== 'guitar' || s936EditorSurfaceActive()){
-      const box=$('v23ChordCharts');
+    const box=$('v23ChordCharts');
+    const m=mode();
+
+    // v0.7.3.6 — Surface Destroy Guard:
+    // Los charts de acordes pertenecen solo a Guitarra.
+    // Al entrar a Piano/Batería/Ukelele/Bajo/Lead se vacían para evitar cruces visuales.
+    if(m !== 'guitar' || s936EditorSurfaceActive()){
       if(box){
-        box.style.display='none';
         box.innerHTML='';
+        box.style.display='none';
       }
       return;
     }
+
     const cont=$('fretboardContainer'); if(!cont) return;
     const visible=getComputedStyle(cont).display!=='none';
-    const box=ensureChartBox(); if(!box) return;
-    const seq=getSeq(); const m='guitar'; const idx=currentIndex();
-    box.style.display = visible ? 'block' : 'none';
-    if(box.style.display==='none') return;
-    box.innerHTML=`<div class="v23-chart-head"><span>${T('charts')} · ${m.toUpperCase()}</span><span class="v23-chart-sub">${T('hint')}</span></div><div class="v23-chart-row">${seq.map((ch,i)=>chartHtml(ch,i,i===idx,m)).join('')}</div>`;
-    qa('[data-v23-chart]',box).forEach(btn=>{
+    const safeBox=ensureChartBox(); if(!safeBox) return;
+    const seq=getSeq(); const idx=currentIndex();
+    safeBox.style.display = visible ? 'block' : 'none';
+    if(safeBox.style.display==='none') return;
+    safeBox.innerHTML=`<div class="v23-chart-head"><span>${T('charts')} · ${m.toUpperCase()}</span><span class="v23-chart-sub">${T('hint')}</span></div><div class="v23-chart-row">${seq.map((ch,i)=>chartHtml(ch,i,i===idx,m)).join('')}</div>`;
+    qa('[data-v23-chart]',safeBox).forEach(btn=>{
       btn.addEventListener('click',()=>{
         const i=Number(btn.dataset.v23Chart)||0;
         const sel=$('chordSelect'); if(sel){ sel.value=i; sel.dispatchEvent(new Event('change',{bubbles:true})); }
