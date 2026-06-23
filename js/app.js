@@ -122,6 +122,17 @@ function mountEditorInstrumentSurface(instrument){
     const value = EDITOR_SURFACE_IDS.includes(requested) ? requested : 'piano';
     editorInstrument = value;
 
+    if(value === 'drums'){
+        try { InstrumentSurfaceManager.endEditorSession({ restore:false }); } catch(_) {}
+        try { clearMainStringSurface(); } catch(_) {}
+        try { resetMainSurfaceClasses(); } catch(_) {}
+        try { renderMainDrumSurface(true); } catch(_) {}
+        document.body?.classList?.remove?.('s936-editor-guitar-surface');
+        document.body?.classList?.add?.('s936-editor-drum-surface');
+        document.body?.setAttribute?.('data-s936-editor-instrument','drums');
+        return { ok:true, instrument:value, owner:'main-drums', drumsNative:true };
+    }
+
     // v0.7.2.15 — Piano Editor Guard:
     // Piano is the native main surface, not a custom Editor surface.
     // Keeping the Surface Manager observer active on Piano could freeze the app
@@ -1947,7 +1958,11 @@ function installStudio936AppBridge(){
         syncProjectFromControls(false);
         const sectionKey = els.sectionSelect?.value || 'intro';
         const seq = Array.isArray(project.sections?.[sectionKey]) ? project.sections[sectionKey] : [];
-        const instrument = editorInstrument || (EDITOR_INSTRUMENT_IDS.includes(project.instrument) ? project.instrument : 'piano');
+        const mainInstrument = canonicalInstrumentId(project.instrument || els.instrumentSelect?.value || 'piano');
+        const instrument = EDITOR_SURFACE_IDS.includes(mainInstrument)
+            ? mainInstrument
+            : (EDITOR_SURFACE_IDS.includes(editorInstrument) ? editorInstrument : 'piano');
+        editorInstrument = instrument;
         if(VoicingStore){
             VoicingStore.ensure(project);
             seq.forEach(item => VoicingStore.hydrateChord(project,item,instrument));

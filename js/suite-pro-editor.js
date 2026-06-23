@@ -1520,7 +1520,7 @@
     watchLifecycle();
 
     const initialData = getEditorState();
-    state.instrument = canonicalInstrumentId(state.instrument || initialData.instrument || "piano");
+    state.instrument = canonicalInstrumentId(initialData.instrument || state.instrument || "piano");
 
     const mount = el(ctx, "div", "s936-ed-module");
     const contentHost = el(ctx, "div", "s936-ed-instrument-content");
