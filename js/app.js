@@ -3446,6 +3446,10 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     if(!box){ box=document.createElement('div'); box.id='v23ChordCharts'; cont.appendChild(box); }
     return box;
   }
+  function s936EditorSurfaceActive(){
+    const owner = document.body?.getAttribute?.('data-s936-surface-owner');
+    return owner === 'editor' || document.body?.classList?.contains('s936-editor-guitar-surface') || document.body?.classList?.contains('s936-editor-drum-surface') || !!document.querySelector?.('#s936EditorGuitarSurface, #s936EditorDrumPanel, [data-s936-editor-surface="1"]');
+  }
   function renderChordCharts(){
     if(s936EditorSurfaceActive()){
       const box=$('v23ChordCharts');

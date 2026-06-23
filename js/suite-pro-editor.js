@@ -627,6 +627,7 @@
   function scoreProfileShape(frets, targetPcs, bassPc, profile) {
     const strings = profile?.strings || GUITAR_STRINGS;
     const sounded = [];
+    if (!Array.isArray(frets)) return -Infinity;
     frets.forEach((fret, i) => {
       if (fret === null) return;
       const string = strings[i];
@@ -645,7 +646,7 @@
     const openCount = sounded.filter(x => x.fret === 0).length;
     const muted = strings.length - sounded.length;
     const distinctFrets = new Set(fretted.map(x => x.fret)).size;
-    const lowest = sounded.reduce((a,b) => a.midi <= b.midi ? a : b, null);
+    const lowest = sounded.length ? sounded.reduce((a,b) => a.midi <= b.midi ? a : b) : null;
 
     let score = coverage * 24 - missing * 30;
     score += sounded.length * 5 + openCount * 2;
