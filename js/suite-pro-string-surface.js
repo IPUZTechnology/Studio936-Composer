@@ -1,4 +1,4 @@
-// Studio 936 Composer - Shared String Instrument Surface v1.9.2 · SuperUkelele Editor Wake
+// Studio 936 Composer - Shared String Instrument Surface v1.9.3 · SuperUkelele Editor Visible
 // Renders Guitar, Ukulele and Bass as one live surface for Main and Editor.
 window.Studio936StringSurface = (() => {
   "use strict";
@@ -10,6 +10,15 @@ window.Studio936StringSurface = (() => {
   };
   let interactionMode = "play";
   let activeSurfaceOwner = null;
+
+  function canonicalInstrumentId(id){
+    const value = String(id || "").trim().toLowerCase();
+    if(value === "uke" || value === "ukelele" || value === "ukulele") return "ukulele";
+    if(value === "guitarra" || value === "guitar") return "guitar";
+    if(value === "guitar-lead" || value === "guitarra-lead" || value === "g.lead" || value === "glead") return "lead";
+    if(value === "bajo" || value === "bass") return "bass";
+    return value;
+  }
 
   try {
     const saved = window.localStorage?.getItem?.("s936-string-mode");
@@ -78,7 +87,7 @@ window.Studio936StringSurface = (() => {
         gap:11px;
         box-sizing:border-box;
         width:100%;
-        min-height:100%;
+        min-height:360px;
         padding:14px;
         background:radial-gradient(circle at 48% 28%,rgba(0,255,204,.045),transparent 38%),#050707;
         color:#fff;
@@ -576,7 +585,7 @@ window.Studio936StringSurface = (() => {
 
   function render({container,data,profiles,sectionNames={},onCellPlay=null,onChordSelect=null,readOnly=false,owner="editor"}={}){
     installStyles();
-    const instrument = data?.instrument;
+    const instrument = canonicalInstrumentId(data?.instrument);
     const isMainSurface = owner === "main" || data?.surfaceOwner === "main" || data?.surfaceMode === "main-practice";
     const profile = profiles?.[instrument];
 
@@ -885,7 +894,7 @@ window.Studio936StringSurface = (() => {
   }
 
   return {
-    version:"string-surface-v1.9.2-superukelele-editor-wake",
+    version:"string-surface-v1.9.3-superukelele-editor-visible",
     render,
     clear,
     flashMidis,

@@ -91,6 +91,17 @@ let project = loadProject();
 const EDITOR_INSTRUMENT_IDS = ['piano','guitar','ukulele','bass','lead'];
 const EDITOR_SURFACE_IDS = [...EDITOR_INSTRUMENT_IDS,'drums'];
 let editorInstrument = [...EDITOR_INSTRUMENT_IDS,'drums'].includes(project.instrument) ? project.instrument : 'piano';
+function canonicalInstrumentId(value){
+    const id = String(value || '').trim().toLowerCase();
+    if(id === 'uke' || id === 'ukelele' || id === 'ukulele') return 'ukulele';
+    if(id === 'guitarra' || id === 'guitar') return 'guitar';
+    if(id === 'guitar-lead' || id === 'guitarra-lead' || id === 'g.lead' || id === 'glead') return 'lead';
+    if(id === 'bajo' || id === 'bass') return 'bass';
+    if(id === 'drum' || id === 'drums' || id === 'bateria' || id === 'batería') return 'drums';
+    if(id === 'piano') return 'piano';
+    return id;
+}
+
 const InstrumentSurfaceManager = window.Studio936InstrumentSurfaceManager;
 if(!InstrumentSurfaceManager || typeof InstrumentSurfaceManager.configure !== 'function'){
     throw new Error('Studio936InstrumentSurfaceManager no está cargado. Revisa el orden de scripts antes de js/app.js.');
@@ -106,53 +117,27 @@ InstrumentSurfaceManager.configure({
 function captureEditorSurfaceSession(){
     return InstrumentSurfaceManager.beginEditorSession(editorInstrument);
 }
-function wakeMainPianoSurface(reason='editor-piano'){
-    editorInstrument = 'piano';
-    project.instrument = 'piano';
-    project.viewMode = 'piano';
-    try { InstrumentSurfaceManager.endEditorSession({ restore:false }); } catch(_) {}
-    try { clearMainStringSurface(); } catch(_) {}
-    try { clearMainDrumSurface(); } catch(_) {}
-    try { resetMainSurfaceClasses(); } catch(_) {}
-    try { showLegacyFretboardShell(); } catch(_) {}
-
-    const pianoBox = els.pianoContainer || document.getElementById('pianoContainer');
-    const fretBox = els.fretboardContainer || document.getElementById('fretboardContainer');
-
-    if(pianoBox){
-        pianoBox.hidden = false;
-        pianoBox.removeAttribute('hidden');
-        pianoBox.style.display = 'flex';
-        pianoBox.style.visibility = 'visible';
-        pianoBox.style.opacity = '1';
-        pianoBox.style.pointerEvents = '';
-    }
-    if(fretBox){
-        fretBox.style.display = 'none';
-        fretBox.classList?.remove?.('s936-editor-surface-active','s936-main-string-surface-active','s936-main-drum-surface-active');
-        fretBox.removeAttribute?.('data-s936-editor-surface');
-    }
-    if(els.viewToggleBtn) els.viewToggleBtn.textContent = 'Vista diapasón';
-    if(els.instrumentSelect && els.instrumentSelect.value !== 'piano') els.instrumentSelect.value = 'piano';
-    document.body?.classList?.remove?.('s936-editor-guitar-surface','s936-editor-drum-surface');
-    document.body?.removeAttribute?.('data-s936-editor-instrument');
-    document.body?.removeAttribute?.('data-s936-surface-owner');
-    try { buildPiano(); } catch(error) { console.warn('Studio936 Piano wake: no pude reconstruir el piano.', error); }
-    try { clearKeys(); } catch(_) {}
-    try { updateHeldChordVisual(); } catch(_) {}
-    try { saveProject(false); } catch(_) {}
-    return { ok:true, instrument:'piano', owner:'main-piano', pianoNative:true, reason };
-}
-
 function mountEditorInstrumentSurface(instrument){
-    const value = EDITOR_SURFACE_IDS.includes(instrument) ? instrument : 'piano';
+    const requested = canonicalInstrumentId(instrument);
+    const value = EDITOR_SURFACE_IDS.includes(requested) ? requested : 'piano';
     editorInstrument = value;
 
-    // v0.7.2.16 — Piano Visual Wake:
-    // Piano is native Main UI. When Editor returns to Piano, force a clean
-    // main piano wake so the dock can stay open without leaving a blank center.
+    // v0.7.2.15 — Piano Editor Guard:
+    // Piano is the native main surface, not a custom Editor surface.
+    // Keeping the Surface Manager observer active on Piano could freeze the app
+    // when returning from Batería/Guitarra to Editor → Piano.
     if(value === 'piano'){
-        return wakeMainPianoSurface('mount-editor-piano');
+        try { InstrumentSurfaceManager.endEditorSession({ restore:false }); } catch(_) {}
+        try { clearMainStringSurface(); } catch(_) {}
+        try { clearMainDrumSurface(); } catch(_) {}
+        try { resetMainSurfaceClasses(); } catch(_) {}
+        try { showLegacyFretboardShell(); } catch(_) {}
+        if(els.pianoContainer) els.pianoContainer.style.display = 'flex';
+        if(els.fretboardContainer) els.fretboardContainer.style.display = 'none';
+        document.body?.classList?.remove?.('s936-editor-guitar-surface','s936-editor-drum-surface');
+        document.body?.removeAttribute?.('data-s936-editor-instrument');
+        document.body?.removeAttribute?.('data-s936-surface-owner');
+        return { ok:true, instrument:value, owner:'main-piano', pianoNative:true };
     }
 
     return InstrumentSurfaceManager.showEditorInstrument(value);
@@ -2136,7 +2121,8 @@ function installStudio936AppBridge(){
         saveProject(false);
     }
     function setEditorInstrument(instrument){
-        const value = EDITOR_SURFACE_IDS.includes(instrument) ? instrument : 'piano';
+        const requested = canonicalInstrumentId(instrument);
+        const value = EDITOR_SURFACE_IDS.includes(requested) ? requested : 'piano';
         syncMainInstrumentFromEditor(value);
         mountEditorInstrumentSurface(value);
         return Object.assign({
@@ -2593,7 +2579,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.2.16-piano-visual-wake',
+        version: 'suite-pro-bridge-v0.7.2.7-drum-patterns',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -2606,7 +2592,6 @@ function installStudio936AppBridge(){
         selectEditorChord,
         setEditorInstrument,
         mountEditorInstrumentSurface,
-        wakeMainPianoSurface,
         mountEditorDrumSurface,
         flashEditorDrumLane,
         selectEditorDrumLane,

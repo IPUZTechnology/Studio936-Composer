@@ -1,4 +1,4 @@
-// Studio 936 Composer - String Instrument Profiles and Voicing Engine v1.0
+// Studio 936 Composer - String Instrument Profiles and Voicing Engine v1.1.3 · Ukelele Alias Guard
 // Shared by Guitar, Ukulele and Bass editors.
 window.Studio936StringInstruments = (() => {
   "use strict";
@@ -106,12 +106,21 @@ window.Studio936StringInstruments = (() => {
     return clamp(Number(text)||0, 0, maxFret);
   }
 
+  function canonicalInstrumentId(id){
+    const value = String(id || "").trim().toLowerCase();
+    if(value === "uke" || value === "ukelele" || value === "ukulele") return "ukulele";
+    if(value === "guitarra" || value === "guitar") return "guitar";
+    if(value === "guitar-lead" || value === "guitarra-lead" || value === "glead" || value === "g.lead") return "lead";
+    if(value === "bajo" || value === "bass") return "bass";
+    return PROFILES[value] ? value : "guitar";
+  }
+
   function profile(id){
-    return PROFILES[id] || PROFILES.guitar;
+    return PROFILES[canonicalInstrumentId(id)] || PROFILES.guitar;
   }
 
   function normalizeDraft(item, instrument){
-    const p = profile(instrument);
+    const p = profile(canonicalInstrumentId(instrument));
     const saved = item?.voicings?.[p.id] || null;
     const frets = Array.isArray(saved?.frets) && saved.frets.length === p.strings.length
       ? saved.frets.map(value => normalizeFret(value,p.maxFret))
@@ -136,7 +145,7 @@ window.Studio936StringInstruments = (() => {
   }
 
   function calculate(draft, instrument, helpers={}){
-    const p = profile(instrument);
+    const p = profile(canonicalInstrumentId(instrument));
     const noteNameFromMidi = typeof helpers.noteNameFromMidi === "function"
       ? helpers.noteNameFromMidi
       : midi => String(midi);
@@ -209,13 +218,14 @@ window.Studio936StringInstruments = (() => {
   }
 
   function isStringInstrument(id){
-    return !!PROFILES[id];
+    return !!PROFILES[canonicalInstrumentId(id)];
   }
 
   return {
-    version:"string-instruments-v1.1-surfaces-core",
+    version:"string-instruments-v1.1.3-ukulele-alias-guard",
     profiles:PROFILES,
     profile,
+    canonicalInstrumentId,
     normalizeFret,
     normalizeDraft,
     calculate,

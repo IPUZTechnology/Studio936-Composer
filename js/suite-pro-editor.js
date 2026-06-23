@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.3.2-superukelele-editor-wake";
+  const VERSION = "editor-v0.7.3.3-superukelele-editor-visible";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -26,12 +26,25 @@
   const DrumComposer = window.Studio936DrumComposerPro || null;
   const DrumPatterns = window.Studio936DrumPatterns || null;
 
+  function canonicalInstrumentId(id){
+    const fromEngine = StringInstruments?.canonicalInstrumentId?.(id);
+    if (fromEngine && StringInstruments?.isStringInstrument?.(fromEngine)) return fromEngine;
+    const value = String(id || "").trim().toLowerCase();
+    if(value === "uke" || value === "ukelele" || value === "ukulele") return "ukulele";
+    if(value === "guitarra" || value === "guitar") return "guitar";
+    if(value === "guitar-lead" || value === "guitarra-lead" || value === "g.lead" || value === "glead") return "lead";
+    if(value === "bajo" || value === "bass") return "bass";
+    if(value === "drum" || value === "drums" || value === "bateria" || value === "batería") return "drums";
+    if(value === "piano") return "piano";
+    return value || "piano";
+  }
+
   function isStringInstrument(instrument = state.instrument) {
-    return !!StringInstruments?.isStringInstrument?.(instrument);
+    return !!StringInstruments?.isStringInstrument?.(canonicalInstrumentId(instrument));
   }
 
   function stringProfile(instrument = state.instrument) {
-    return StringInstruments?.profile?.(instrument) || {
+    return StringInstruments?.profile?.(canonicalInstrumentId(instrument)) || {
       id:"guitar", label:"Guitarra", shortLabel:"Guitarra", shapeOrder:"6→1",
       maxFret:24, capoMax:12, minSounding:2, allowBarre:true, allowCapo:true,
       strings:GUITAR_STRINGS,
@@ -1115,7 +1128,7 @@
         try { activeController?.destroy?.(); } catch (error) {}
         activeController = null;
 
-        state.instrument = key;
+        state.instrument = canonicalInstrumentId(key);
         state.miniStartFret = null;
         if (key === "bass") state.bassMode = "line";
 
@@ -1503,7 +1516,7 @@
     watchLifecycle();
 
     const initialData = getEditorState();
-    state.instrument = state.instrument || initialData.instrument || "piano";
+    state.instrument = canonicalInstrumentId(state.instrument || initialData.instrument || "piano");
 
     const mount = el(ctx, "div", "s936-ed-module");
     const contentHost = el(ctx, "div", "s936-ed-instrument-content");
@@ -1530,7 +1543,7 @@
 
     state.sectionKey = sections[state.sectionKey] ? state.sectionKey : (data.sectionKey || sectionKeys[0]);
     state.chordIndex = state.chordIndex === null ? (Number(data.chordIndex) || 0) : (Number(state.chordIndex) || 0);
-    state.instrument = state.instrument || data.instrument || "piano";
+    state.instrument = canonicalInstrumentId(state.instrument || data.instrument || "piano");
     if (state.instrument === "drums") {
       // v0.7.2.6: enganchar el Editor al kit visual del Main.
       // Esto limpia la guitarra/lead anterior y muestra batería sin cargar el panel pesado.
@@ -1939,7 +1952,7 @@
         bass:controls.bass.value.trim(),
         notes:controls.notes.value.trim(),
         bars:clamp(controls.bars.value,1,16),
-        instrument:state.instrument || "piano"
+        instrument:canonicalInstrumentId(state.instrument || "piano")
       };
 
       if (isStringInstrument() && latestCalculation) {
@@ -2054,6 +2067,29 @@
       visualTimer = setTimeout(draw, 36);
     }
 
+    function forceStringSurfaceVisible(payload) {
+      const profile = stringProfile(payload?.instrument || state.instrument);
+      const container = document.getElementById("fretboardContainer");
+      if (!container || !profile || !window.Studio936StringSurface?.render) return false;
+      try {
+        container.style.display = "flex";
+        container.classList.add("s936-editor-surface-active");
+        document.body?.classList?.add?.("s936-editor-guitar-surface");
+        window.Studio936StringSurface.render({
+          container,
+          owner:"editor",
+          readOnly:false,
+          data:{ ...(payload || {}), instrument:profile.id, surfaceOwner:"editor" },
+          profiles:StringInstruments?.profiles || {},
+          sectionNames:{}
+        });
+        return true;
+      } catch (error) {
+        console.warn("Editor Pro: wake directo de Ukelele/cuerdas falló.", error);
+        return false;
+      }
+    }
+
     function wakeStringEditorSurface(reason = "wake") {
       if (!isStringInstrument()) return;
       const payload = currentPayload();
@@ -2061,16 +2097,26 @@
       bridge("mountEditorInstrumentSurface", payload.instrument);
       try { window.Studio936StringSurface?.setInteractionMode?.("play"); } catch (_) {}
       scheduleVisual(payload, true);
-      // Ukelele en Editor podía quedar sin imagen porque el primer render llegaba
-      // antes de que el contenedor del editor terminara de despertar. Este segundo
-      // pulso no cambia datos: solo asegura la imagen.
-      setTimeout(() => scheduleVisual(currentPayload(), true), 80);
+
+      // v0.7.3.3: Ukelele en Editor puede llegar con alias o render tardío.
+      // Se hace un wake directo y repetido hasta que el cuello real exista.
       setTimeout(() => {
+        const current = currentPayload();
+        current.instrument = stringProfile().id;
+        scheduleVisual(current, true);
         const surface = document.getElementById("s936EditorGuitarSurface");
-        if (!surface || surface.dataset.instrument !== payload.instrument) {
-          scheduleVisual(currentPayload(), true);
+        if (!surface || surface.dataset.instrument !== current.instrument || !surface.querySelector(".s936-neck-grid")) {
+          forceStringSurfaceVisible(current);
         }
-      }, 180);
+      }, 80);
+      setTimeout(() => {
+        const current = currentPayload();
+        current.instrument = stringProfile().id;
+        const surface = document.getElementById("s936EditorGuitarSurface");
+        if (!surface || surface.dataset.instrument !== current.instrument || !surface.querySelector(".s936-neck-grid")) {
+          forceStringSurfaceVisible(current);
+        }
+      }, 220);
     }
 
       function recalculate(options = {}) {
