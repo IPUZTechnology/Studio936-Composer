@@ -1,4 +1,4 @@
-// Studio 936 Composer - Shared String Instrument Surface v1.8.6 · Guitar Instance Guard
+// Studio 936 Composer - Shared String Instrument Surface v1.9.0 · SuperUkelele 936
 // Renders Guitar, Ukulele and Bass as one live surface for Main and Editor.
 window.Studio936StringSurface = (() => {
   "use strict";
@@ -546,6 +546,33 @@ window.Studio936StringSurface = (() => {
     card.appendChild(chart);
   }
 
+
+  function surfaceTitle(profile, isMainSurface, bassLineMode) {
+    const id = profile?.id || "guitar";
+    if (bassLineMode) return "Cuello de Bajo · línea por sección";
+    const brand = id === "ukulele"
+      ? "SuperUkelele 936"
+      : id === "bass"
+        ? "Bajo 936"
+        : id === "lead"
+          ? "Guitarra Lead 936"
+          : "SuperGuitarra 936";
+    return isMainSurface ? `${brand} · ${profile.label}` : `Cuello interactivo · ${profile.label}`;
+  }
+
+  function surfaceHelp(profile, isMainSurface, bassLineMode) {
+    const id = profile?.id || "guitar";
+    if (bassLineMode) return "Selecciona un paso en Bass Line Pro y toca una cuerda/traste para escribir la nota.";
+    if (id === "ukulele") {
+      return isMainSurface
+        ? "Ukelele vivo: toca cuerda/traste, rasguea verticalmente, usa Mapa para equivalentes y Acorde para la forma activa."
+        : "Ukelele 4 cuerdas reales. Tocar escribe y suena; Mapa explora equivalentes; Acorde rasguea la digitación.";
+    }
+    return isMainSurface
+      ? "Tocar: nota real y strum de la digitación. Mapa: muestra equivalentes sin cambiar el acorde. Acorde: rasguea la forma activa."
+      : "La 1.ª cuerda está arriba. Tocar escribe y suena; Mapa explora notas equivalentes sin editar; Acorde reproduce la digitación.";
+  }
+
   function render({container,data,profiles,sectionNames={},onCellPlay=null,onChordSelect=null,readOnly=false,owner="editor"}={}){
     installStyles();
     const instrument = data?.instrument;
@@ -589,9 +616,7 @@ window.Studio936StringSurface = (() => {
     const title = document.createElement("div");
     title.className = "s936-neck-title";
     const bassLineMode = data.surfaceMode === "bass-line";
-    title.textContent = isMainSurface
-      ? `SuperGuitarra 936 · ${profile.label}`
-      : (bassLineMode ? "Cuello de Bajo · línea por sección" : `Cuello interactivo · ${profile.label}`);
+    title.textContent = surfaceTitle(profile, isMainSurface, bassLineMode);
     const meta = document.createElement("div");
     meta.className = "s936-neck-meta";
     const shape = data.exactFrets.map(value => value === null ? "X" : String(value)).join(" ");
@@ -603,11 +628,7 @@ window.Studio936StringSurface = (() => {
     identity.append(title,meta);
     const help = document.createElement("div");
     help.className = "s936-neck-help";
-    help.textContent = isMainSurface
-      ? "Tocar: nota real y strum de la digitación. Mapa: muestra equivalentes sin cambiar el acorde. Acorde: rasguea la forma activa."
-      : (bassLineMode
-        ? "Selecciona un paso en Bass Line Pro y toca una cuerda/traste para escribir la nota."
-        : "La 1.ª cuerda está arriba. Tocar escribe y suena; Mapa explora notas equivalentes sin editar; Acorde reproduce la digitación.");
+    help.textContent = surfaceHelp(profile, isMainSurface, bassLineMode);
     const modeBar = document.createElement("div");
     modeBar.className = "s936-mode-bar";
     const modeLabel = document.createElement("span");
@@ -832,7 +853,7 @@ window.Studio936StringSurface = (() => {
   }
 
   return {
-    version:"string-surface-v1.8.6-guitar-instance-guard",
+    version:"string-surface-v1.9.0-superukelele",
     render,
     clear,
     flashMidis,

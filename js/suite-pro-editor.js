@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.2.16-piano-visual-wake";
+  const VERSION = "editor-v0.7.3-superukelele";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -610,6 +610,96 @@
     return { frets, fingers:assignSuggestedFingers(frets), flats };
   }
 
+
+  function scoreProfileShape(frets, targetPcs, bassPc, profile) {
+    const strings = profile?.strings || GUITAR_STRINGS;
+    const sounded = [];
+    frets.forEach((fret, i) => {
+      if (fret === null) return;
+      const string = strings[i];
+      if (!string) return;
+      sounded.push({ midi:Number(string.midi) + Number(fret), fret, stringIndex:i });
+    });
+    const minSounding = Math.max(1, Number(profile?.minSounding) || Math.min(3, strings.length));
+    if (sounded.length < minSounding) return -Infinity;
+
+    const pcs = new Set(sounded.map(x => x.midi % 12));
+    let coverage = 0;
+    targetPcs.forEach(pc => { if (pcs.has(pc)) coverage++; });
+    const missing = targetPcs.length - coverage;
+    const fretted = sounded.filter(x => x.fret > 0);
+    const span = fretted.length ? Math.max(...fretted.map(x => x.fret)) - Math.min(...fretted.map(x => x.fret)) : 0;
+    const openCount = sounded.filter(x => x.fret === 0).length;
+    const muted = strings.length - sounded.length;
+    const distinctFrets = new Set(fretted.map(x => x.fret)).size;
+    const lowest = sounded.reduce((a,b) => a.midi <= b.midi ? a : b, null);
+
+    let score = coverage * 24 - missing * 30;
+    score += sounded.length * 5 + openCount * 2;
+    score -= span * 5 + muted * 2.2 + distinctFrets * .8;
+    score -= fretted.reduce((sum,x) => sum + x.fret, 0) / Math.max(1, fretted.length || 1) * .45;
+    if (lowest && lowest.midi % 12 === bassPc) score += 12;
+    if (profile?.id === "ukulele") {
+      if (sounded.length === 4) score += 10;
+      if (span <= 3) score += 6;
+      if (fretted.every(x => x.fret <= 7)) score += 4;
+    }
+    return score;
+  }
+
+  function suggestProfileShape(item, profile) {
+    const p = profile || stringProfile();
+    const noteMidis = parseNoteMidis(item?.notes || "");
+    const bassMidi = noteTokenToMidi(item?.bass || "");
+    const all = noteMidis.slice();
+    if (Number.isFinite(bassMidi)) all.push(bassMidi);
+    const targetPcs = [...new Set(all.map(m => ((m % 12) + 12) % 12))];
+    const fallback = {
+      frets:(p.defaultFrets || p.strings.map(() => 0)).slice(),
+      fingers:(p.defaultFingers || []).slice()
+    };
+    if (!targetPcs.length) return fallback;
+
+    const bassPc = Number.isFinite(bassMidi) ? ((bassMidi % 12) + 12) % 12 : targetPcs[0];
+    const maxFret = Number(p.maxFret) || 20;
+    const span = p.id === "ukulele" ? 4 : 4;
+    let best = null;
+    let bestScore = -Infinity;
+
+    function optionsForString(string, start) {
+      const values = [null];
+      for (let fret = 0; fret <= Math.min(maxFret, 12); fret++) {
+        if (fret !== 0 && (fret < start || fret > start + span)) continue;
+        const midi = Number(string.midi) + fret;
+        if (targetPcs.includes(((midi % 12) + 12) % 12)) values.push(fret);
+      }
+      return [...new Set(values)];
+    }
+
+    for (let start = 0; start <= 8; start++) {
+      const options = p.strings.map(string => optionsForString(string, start));
+      function walk(index, shape) {
+        if (index === options.length) {
+          const score = scoreProfileShape(shape, targetPcs, bassPc, p);
+          if (score > bestScore) {
+            bestScore = score;
+            best = shape.slice();
+          }
+          return;
+        }
+        options[index].forEach(value => {
+          shape.push(value);
+          walk(index + 1, shape);
+          shape.pop();
+        });
+      }
+      walk(0, []);
+    }
+
+    const frets = best || fallback.frets;
+    return { frets, fingers:assignSuggestedFingers(frets), flats:preferFlatsFrom(item?.name) };
+  }
+
   function normalizeGuitarDraft(item) {
     const profile = stringProfile();
     const saved = item?.voicings?.[profile.id] || null;
@@ -617,6 +707,23 @@
       return StringInstruments.normalizeDraft(item, profile.id);
     }
     if (profile.id !== "guitar") {
+      if (profile.role === "chord") {
+        const suggested = suggestProfileShape(item || {}, profile);
+        return {
+          instrument:profile.id,
+          tuning:profile.strings.map(s => s.open),
+          frets:suggested.frets.map(value => StringInstruments.normalizeFret(value, profile.maxFret)),
+          fingers:suggested.fingers.slice(),
+          capo:0,
+          barre:{
+            enabled:false,
+            fret:1,
+            fromString:profile.strings.length,
+            toString:1,
+            finger:"1"
+          }
+        };
+      }
       return StringInstruments.normalizeDraft(item, profile.id);
     }
     const suggested = suggestGuitarShape(item || {});
@@ -2094,12 +2201,11 @@
       }
 
       if (state.instrument === "piano") {
-        // v0.7.2.16 — Piano Visual Wake:
-        // El piano vive en Main. Al abrir Piano desde el Editor, despertar su
-        // visual sin disparar selectEditorChord ni ciclos legacy.
-        bridge("wakeMainPianoSurface", "editor-piano-open");
+        // v0.7.2.15 — Piano Reopen Guard:
+        // No llamar selectEditorChord aquí. Esa función dispara eventos del editor
+        // legacy y, al volver desde Batería/Guitarra, puede entrar en un ciclo.
+        bridge("mountEditorInstrumentSurface", "piano");
         recalculate({ immediate:true });
-        setTimeout(() => bridge("wakeMainPianoSurface", "editor-piano-confirm"), 80);
         return;
       }
 
