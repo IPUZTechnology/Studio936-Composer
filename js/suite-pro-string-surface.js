@@ -1,4 +1,4 @@
-// Studio 936 Composer - Shared String Instrument Surface v1.9.0 · SuperUkelele 936
+// Studio 936 Composer - Shared String Instrument Surface v1.9.1 · String Neck Accuracy
 // Renders Guitar, Ukulele and Bass as one live surface for Main and Editor.
 window.Studio936StringSurface = (() => {
   "use strict";
@@ -97,6 +97,7 @@ window.Studio936StringSurface = (() => {
       #s936EditorGuitarSurface .s936-neck-scroll{overflow:auto;border:1px solid rgba(255,216,77,.36);border-radius:19px;background:linear-gradient(180deg,rgba(68,31,15,.96),rgba(29,15,9,.98) 48%,rgba(55,25,13,.96));padding:10px 11px 13px;box-shadow:0 18px 45px rgba(0,0,0,.32),inset 0 0 40px rgba(255,171,71,.045);position:relative}
       #s936EditorGuitarSurface .s936-neck-scroll::before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(7deg,transparent 0 11px,rgba(255,255,255,.018) 12px,transparent 13px 25px);mix-blend-mode:screen}
       #s936EditorGuitarSurface .s936-neck-ruler,#s936EditorGuitarSurface .s936-neck-row{display:grid;grid-template-columns:72px 34px 38px repeat(24,minmax(44px,1fr));min-width:1200px;width:100%;box-sizing:border-box;align-items:center;position:relative;z-index:1}
+      #s936EditorGuitarSurface .s936-neck-row::after{content:"";position:absolute;left:144px;right:0;top:50%;height:var(--row-string-width,1.55px);background:linear-gradient(90deg,#f4f4f4,#8f8f8f 34%,#ffffff 65%,#8e8e8e);transform:translateY(-50%);opacity:.58;box-shadow:0 1px 0 rgba(0,0,0,.55);pointer-events:none;z-index:0}
       #s936EditorGuitarSurface .s936-neck-ruler{margin-bottom:5px}
       #s936EditorGuitarSurface .s936-neck-ruler span{font-size:.48rem;color:rgba(255,255,255,.45);text-align:center}
       #s936EditorGuitarSurface .s936-neck-ruler .mark{color:#00ffcc;font-weight:950}
@@ -104,7 +105,7 @@ window.Studio936StringSurface = (() => {
       #s936EditorGuitarSurface .s936-neck-string-label{font-size:.58rem;font-weight:950;color:#fff;padding-right:8px}
       #s936EditorGuitarSurface .s936-neck-string-label small{display:block;color:rgba(255,255,255,.45);font-size:.46rem;font-weight:700}
       #s936EditorGuitarSurface .s936-neck-cell{height:36px;border:0;border-right:2px solid rgba(214,182,136,.57);background:rgba(255,255,255,.016);color:rgba(255,255,255,.32);font-size:.45rem;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;padding:0}
-      #s936EditorGuitarSurface .s936-neck-cell::before{content:"";position:absolute;left:-1px;right:-1px;top:50%;height:var(--string-width,1px);background:linear-gradient(90deg,#e7e7e7,#868686 34%,#efefef 65%,#8e8e8e);transform:translateY(-50%);opacity:.86;box-shadow:0 1px 0 rgba(0,0,0,.48)}
+      #s936EditorGuitarSurface .s936-neck-cell::before{content:"";position:absolute;left:-1px;right:-1px;top:50%;height:var(--row-string-width,var(--string-width,1.45px));background:linear-gradient(90deg,#e7e7e7,#868686 34%,#efefef 65%,#8e8e8e);transform:translateY(-50%);opacity:.94;box-shadow:0 1px 0 rgba(0,0,0,.52);z-index:0}
       #s936EditorGuitarSurface .s936-neck-cell:hover{background:rgba(0,255,204,.10);color:#fff}
       #s936EditorGuitarSurface .s936-neck-cell.capoblocked{opacity:.22;cursor:not-allowed}
       #s936EditorGuitarSurface .s936-neck-cell.open,#s936EditorGuitarSurface .s936-neck-cell.mute{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.045);margin:2px;border-radius:7px;height:29px;color:rgba(255,255,255,.75);font-weight:950}
@@ -690,7 +691,13 @@ window.Studio936StringSurface = (() => {
       row.dataset.stringNumber = String(string.number);
       row.style.gridTemplateColumns = `72px 34px 38px repeat(${profile.maxFret},minmax(44px,1fr))`;
       row.style.minWidth = `${72+34+38+profile.maxFret*44}px`;
-      row.style.setProperty("--string-width",`${Math.max(.8,.8+(profile.strings.length-1-index)*.55)}px`);
+      const visualWidth = profile.id === "ukulele"
+        ? 1.9
+        : profile.id === "bass"
+          ? Math.max(2.0, 2.0 + (profile.strings.length - 1 - index) * .65)
+          : Math.max(1.45, 1.45 + (profile.strings.length - 1 - index) * .42);
+      row.style.setProperty("--string-width",`${visualWidth}px`);
+      row.style.setProperty("--row-string-width",`${visualWidth}px`);
 
       const label = document.createElement("div");
       label.className = "s936-neck-string-label";
@@ -754,7 +761,12 @@ window.Studio936StringSurface = (() => {
           const stringData = exactStrings[index] || {};
           if(Number.isFinite(stringData.midi) && stringData.midi===bassMidi) dot.classList.add("bass");
           const note = document.createElement("span");
-          note.textContent = stringData.note || cellNote;
+          const selectedMidi = string.midi + physicalFret;
+          const storedMidi = Number(stringData.midi);
+          const noteLabel = Number.isFinite(storedMidi) && Math.round(storedMidi) === Math.round(selectedMidi)
+            ? (stringData.note || cellNote)
+            : cellNote;
+          note.textContent = noteLabel;
           const finger = document.createElement("span");
           finger.className = "finger";
           finger.textContent = stringData.finger ? `D${stringData.finger}` : "dedo";
@@ -853,7 +865,7 @@ window.Studio936StringSurface = (() => {
   }
 
   return {
-    version:"string-surface-v1.9.0-superukelele",
+    version:"string-surface-v1.9.1-string-neck-accuracy",
     render,
     clear,
     flashMidis,
