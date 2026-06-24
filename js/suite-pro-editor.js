@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.4.8-piano-drums-panel-restore";
+  const VERSION = "editor-v0.7.3.3-superukelele-editor-visible";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -217,9 +217,6 @@
 /* Editor Pro guitar surface outside Suite Pro */
 #fretboardContainer.s936-editor-surface-active{display:block!important;overflow:hidden!important;padding:0!important;background:#050707!important}
 #fretboardContainer.s936-editor-surface-active > *:not(#s936EditorGuitarSurface):not(#s936EditorDrumSurface){display:none!important}
-/* v0.7.3.11: Piano no usa fretboard — forzar ocultamiento aunque tenga s936-editor-surface-active */
-[data-s936-editor-instrument="piano"] #fretboardContainer{display:none!important}
-[data-s936-editor-instrument="piano"] #pianoContainer{display:flex!important}
 #s936EditorGuitarSurface{display:flex;flex-direction:column;gap:11px;box-sizing:border-box;width:100%;min-height:100%;padding:14px;background:radial-gradient(circle at 48% 28%,rgba(0,255,204,.045),transparent 38%),#050707;color:#fff}
 #s936EditorGuitarSurface .s936-neck-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:2px 2px 0}
 #s936EditorGuitarSurface .s936-neck-title{color:#8affff;font-size:.76rem;font-weight:950;text-transform:uppercase;letter-spacing:.8px}
@@ -1168,8 +1165,8 @@
 
         syncPersistentInstrumentTabs(instruments);
 
-        // v0.7.4.8: El ISM cambia la superficie, pero el panel visual lo reconstruye renderModule.
-        // Importante: state.instrument ya fue seteado arriba; paint() respeta Piano/Drums y no cae a guitarra.
+        // v0.7.3.8: todos los botones pasan por el mismo puente.
+        // Evita que Batería/Piano queden visualmente en modo Guitarra.
         let response = bridge("setEditorInstrument", key);
 
         if (response?.ok === false) {
