@@ -2205,6 +2205,24 @@ function installStudio936AppBridge(){
             if(keyMap[midi]) keyMap[midi].classList.add('active-chord');
         });
 
+        if(data.instrument === 'piano'){
+            // v0.7.4.2: Piano del Editor no debe tocar el diapasón.
+            // Fretboard.updateFretboardMap reactivaba la superficie de guitarra.
+            if(els.chordLabel) els.chordLabel.textContent = item.name || 'Acorde';
+            return {
+                ok:true,
+                item:safeClone(item),
+                notes:safeClone(notes),
+                bass,
+                piano:true
+            };
+        }
+
+        if(data.instrument === 'drums'){
+            // Batería del Editor se monta por mountEditorDrumSurface, nunca por mapa de guitarra.
+            return mountEditorInstrumentSurface('drums') || { ok:true, drums:true };
+        }
+
         if(!useStringSurface){
             try{
                 Fretboard.updateFretboardMap({
