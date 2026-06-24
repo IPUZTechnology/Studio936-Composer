@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.5.3-paint-router-hardening";
+  const VERSION = "editor-v0.7.5.4-lazy-deps";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -18,13 +18,34 @@
   };
   let activeController = null;
   let lifecycleObserver = null;
-  const StringInstruments = window.Studio936StringInstruments || null;
-  const PianoEditor = window.Studio936SuiteProPianoEditor || null;
-  const VoicingStore = window.Studio936VoicingStore || null;
-  const BassLine = window.Studio936BassLinePro || null;
-  const LeadLine = window.Studio936LeadLinePro || null;
-  const DrumComposer = window.Studio936DrumComposerPro || null;
-  const DrumPatterns = window.Studio936DrumPatterns || null;
+  // v0.7.5.4: Getters lazy — se resuelven en cada llamada, no al cargar el script.
+  // Esto elimina el bug donde PianoEditor/DrumComposer/DrumPatterns quedaban null
+  // permanentemente si algún módulo tardaba en registrarse en window.
+  const deps = {
+    get StringInstruments() { return window.Studio936StringInstruments || null; },
+    get PianoEditor()       { return window.Studio936SuiteProPianoEditor || null; },
+    get VoicingStore()      { return window.Studio936VoicingStore || null; },
+    get BassLine()          { return window.Studio936BassLinePro || null; },
+    get LeadLine()          { return window.Studio936LeadLinePro || null; },
+    get DrumComposer()      { return window.Studio936DrumComposerPro || null; },
+    get DrumPatterns()      { return window.Studio936DrumPatterns || null; }
+  };
+  // Aliases directos para no reescribir todas las referencias existentes
+  const StringInstruments = deps.StringInstruments;
+  let PianoEditor   = null;
+  let VoicingStore  = null;
+  let BassLine      = null;
+  let LeadLine      = null;
+  let DrumComposer  = null;
+  let DrumPatterns  = null;
+  function refreshDeps() {
+    PianoEditor  = deps.PianoEditor;
+    VoicingStore = deps.VoicingStore;
+    BassLine     = deps.BassLine;
+    LeadLine     = deps.LeadLine;
+    DrumComposer = deps.DrumComposer;
+    DrumPatterns = deps.DrumPatterns;
+  }
 
   function canonicalInstrumentId(id){
     const fromEngine = StringInstruments?.canonicalInstrumentId?.(id);
@@ -1572,6 +1593,7 @@
   }
 
   function paint(ctx, host) {
+    refreshDeps(); // v0.7.5.4: resolver módulos en tiempo de ejecución
     installStyles();
     try { activeController?.stop?.(); } catch (error) {}
     try { activeController?.destroy?.(); } catch (error) {}
