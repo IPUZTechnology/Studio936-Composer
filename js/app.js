@@ -2132,9 +2132,10 @@ function installStudio936AppBridge(){
     function setEditorInstrument(instrument){
         const requested = canonicalInstrumentId(instrument);
         const value = EDITOR_SURFACE_IDS.includes(requested) ? requested : 'piano';
-        syncMainInstrumentFromEditor(value);
-        // v0.7.3.10: Garantizar que el ISM esté activo antes de cambiar instrumento.
-        // Sin esto, showEditorInstrument() sale en enforce() porque active===false.
+        // v0.7.3.11: NO llamar syncMainInstrumentFromEditor aquí.
+        // Cambiar project.instrument dispara renderMainStringSurface/renderMainDrumSurface
+        // que sobreescribe la superficie del editor y deja el ISM en estado incorrecto.
+        // El editor es independiente del Main — solo controla su propia superficie.
         if(!InstrumentSurfaceManager.getState().active){
             InstrumentSurfaceManager.beginEditorSession(value);
         }
@@ -2593,7 +2594,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.3.10-surface-fix',
+        version: 'suite-pro-bridge-v0.7.3.11-editor-isolated',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
