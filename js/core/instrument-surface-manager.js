@@ -212,27 +212,42 @@ window.Studio936InstrumentSurfaceManager = (() => {
 
   function showEditorInstrument(instrument) {
     const value = normalizeInstrument(instrument);
-    if (!state.active) beginEditorSession(value);
-    const previous = state.editorInstrument;
-    if (previous !== value) {
-      clearEditorStrings();
-      clearEditorDrums();
+
+    // v0.7.4.6 — Observer Safe Switch
+    // Cambiar Piano/Batería modifica style/class/childList en los contenedores
+    // que observa el MutationObserver. Si el observer queda activo durante el
+    // cambio, puede reentrar en enforce() y congelar el navegador.
+    stopObserver();
+    try {
+      if (!state.active) {
+        captureSnapshot();
+        removeEditorMarkers();
+        state.active = true;
+      }
+
+      const previous = state.editorInstrument;
+      if (previous !== value) {
+        clearEditorStrings();
+        clearEditorDrums();
+      }
+
+      if (value === "piano") {
+        clearEditorStrings();
+        clearEditorDrums();
+        state.lastStringRender = null;
+        state.lastDrumRender = null;
+      } else if (value === "drums") {
+        clearEditorStrings();
+      } else {
+        clearEditorDrums();
+      }
+
+      state.editorInstrument = value;
+      enforce();
+      return { ok: true, instrument: value, owner: "editor" };
+    } finally {
+      if (state.active) startObserver();
     }
-    if (value === "piano") {
-      clearEditorStrings();
-      clearEditorDrums();
-    } else if (value === "drums") {
-      clearEditorStrings();
-    } else {
-      clearEditorDrums();
-    }
-    state.editorInstrument = value;
-    if (value === "piano") {
-      state.lastStringRender = null;
-      state.lastDrumRender = null;
-    }
-    enforce();
-    return { ok: true, instrument: value, owner: "editor" };
   }
 
   function renderEditorStrings({
@@ -360,7 +375,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   function getState() {
     const { piano, fretboard } = elements();
     return {
-      version: "instrument-surface-manager-v0.7.2-surfaces-core",
+      version: "instrument-surface-manager-v0.7.4.6-observer-safe-switch",
       configured: state.configured,
       active: state.active,
       owner: state.active ? "editor" : "main",
@@ -375,7 +390,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   }
 
   const api = {
-    version: "instrument-surface-manager-v0.7.2-surfaces-core",
+    version: "instrument-surface-manager-v0.7.4.6-observer-safe-switch",
     configure,
     beginEditorSession,
     showEditorInstrument,
@@ -385,6 +400,8 @@ window.Studio936InstrumentSurfaceManager = (() => {
     selectEditorDrumLane,
     clearEditorStrings,
     clearEditorDrums,
+    stopObserver,
+    startObserver,
     endEditorSession,
     getState
   };
