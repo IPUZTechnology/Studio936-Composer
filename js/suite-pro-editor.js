@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.5.0-chords-visible-on-open";
+  const VERSION = "editor-v0.7.5.2-panel-router-separation";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -1168,19 +1168,17 @@
 
         syncPersistentInstrumentTabs(instruments);
 
-        // v0.7.3.12: Piano y Drums no necesitan renderModule — el ISM maneja su superficie.
-        // renderModule para estos instrumentos vuelve a correr paint() que llama guitar otra vez.
-        const surfaceOnly = key === "piano" || key === "drums";
+        // v0.7.5.2: el visor derecho y el panel izquierdo son rutas separadas.
+        // setEditorInstrument monta la superficie; renderModule repinta el panel con el mismo key.
+        // Importante: state.instrument ya fue fijado arriba, por eso Piano/Batería no caen al panel de guitarra.
         let response = bridge("setEditorInstrument", key);
 
         if (response?.ok === false) {
-          if(!surfaceOnly) setTimeout(() => renderModule(ctx, contentHost), 0);
+          setTimeout(() => renderModule(ctx, contentHost), 0);
           return;
         }
 
-        if(!surfaceOnly){
-          renderModule(ctx, contentHost);
-        }
+        renderModule(ctx, contentHost);
       });
 
       instruments.appendChild(btn);
@@ -2312,20 +2310,6 @@
         // Evita que el Ukelele quede en blanco al entrar desde Main.
         recalculate({ immediate:true });
         wakeStringEditorSurface("initial");
-
-        // v0.7.5.0: Guitarra/Ukelele deben mostrar los acordes de la sección al abrir,
-        // no esperar al primer toque del mástil. Bajo y Lead ya tenían su flujo estable.
-        if (state.instrument === "guitar" || state.instrument === "ukulele") {
-          [140, 360, 720].forEach(delay => {
-            setTimeout(() => {
-              if (!(state.instrument === "guitar" || state.instrument === "ukulele")) return;
-              const current = currentPayload();
-              current.instrument = stringProfile().id;
-              bridge("mountEditorInstrumentSurface", current.instrument);
-              scheduleVisual(current, true);
-            }, delay);
-          });
-        }
         return;
       }
 
