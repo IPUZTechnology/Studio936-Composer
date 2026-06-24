@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.5.4-lazy-deps";
+  const VERSION = "editor-v0.7.5.5-data-source-of-truth";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -14,7 +14,8 @@
     manualName: false,
     manualPanelOpen: false,
     miniStartFret: null,
-    bassMode: "line"
+    bassMode: "line",
+    _userPicked: false
   };
   let activeController = null;
   let lifecycleObserver = null;
@@ -1189,6 +1190,7 @@
         // no vuelva a caer al instrumento anterior ni al fallback de guitarra.
         state.instrument = nextInstrument;
         state.panelInstrument = nextInstrument;
+        state._userPicked = true; // v0.7.5.5: marca que el usuario clickeó un botón
         state.miniStartFret = null;
         if (nextInstrument === "bass") state.bassMode = "line";
 
@@ -1609,10 +1611,13 @@
 
     state.sectionKey = sections[state.sectionKey] ? state.sectionKey : (data.sectionKey || sectionKeys[0]);
     state.chordIndex = state.chordIndex === null ? (Number(data.chordIndex) || 0) : (Number(state.chordIndex) || 0);
-    // v0.7.5.3: Router duro del panel izquierdo.
-    // Prioridad: botón del Editor -> estado del Editor -> datos externos.
-    // Así Piano/Batería no vuelven al panel de guitarra por fallback.
-    const requestedInstrument = canonicalInstrumentId(state.panelInstrument || state.instrument || data.editorInstrument || data.instrument || "piano");
+    // v0.7.5.5: data.instrument (app.js) es la fuente de verdad.
+    // state.panelInstrument solo gana si el usuario clickeó un botón del Editor
+    // en esta sesión (flag state._userPicked). Evita que state residual de guitar
+    // sobreescriba piano/drums al abrir el Editor.
+    const requestedInstrument = canonicalInstrumentId(
+      (state._userPicked ? state.panelInstrument : null) || data.instrument || data.editorInstrument || "piano"
+    );
     state.instrument = requestedInstrument;
     state.panelInstrument = requestedInstrument;
     if (state.instrument === "drums") {
