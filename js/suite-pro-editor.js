@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.3.11-piano-drums-surface-fix";
+  const VERSION = "editor-v0.7.3.12-no-rendermodule-piano-drums";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -1168,16 +1168,19 @@
 
         syncPersistentInstrumentTabs(instruments);
 
-        // v0.7.3.8: todos los botones pasan por el mismo puente.
-        // Evita que Batería/Piano queden visualmente en modo Guitarra.
+        // v0.7.3.12: Piano y Drums no necesitan renderModule — el ISM maneja su superficie.
+        // renderModule para estos instrumentos vuelve a correr paint() que llama guitar otra vez.
+        const surfaceOnly = key === "piano" || key === "drums";
         let response = bridge("setEditorInstrument", key);
 
         if (response?.ok === false) {
-          setTimeout(() => renderModule(ctx, contentHost), 0);
+          if(!surfaceOnly) setTimeout(() => renderModule(ctx, contentHost), 0);
           return;
         }
 
-        renderModule(ctx, contentHost);
+        if(!surfaceOnly){
+          renderModule(ctx, contentHost);
+        }
       });
 
       instruments.appendChild(btn);

@@ -2150,7 +2150,14 @@ function installStudio936AppBridge(){
     }
     function showEditorChordVisual(payload={}){
         const data = normalizeEditorPayload(payload);
-        mountEditorInstrumentSurface(data.instrument);
+        // v0.7.3.12: No pisar la superficie si el editor ya está en piano o drums.
+        // data.instrument viene de project.instrument (Main) y sobreescribía el Editor.
+        const ismState = InstrumentSurfaceManager.getState();
+        const editorLocked = ismState.active &&
+            (ismState.editorInstrument === 'piano' || ismState.editorInstrument === 'drums');
+        if(!editorLocked){
+            mountEditorInstrumentSurface(data.instrument);
+        }
         const seqItem = data.seq?.[data.chordIndex] || {};
         const item = {
             name: data.name || seqItem.name || 'Acorde',
@@ -2204,24 +2211,6 @@ function installStudio936AppBridge(){
         notes.forEach(midi => {
             if(keyMap[midi]) keyMap[midi].classList.add('active-chord');
         });
-
-        if(data.instrument === 'piano'){
-            // v0.7.4.2: Piano del Editor no debe tocar el diapasón.
-            // Fretboard.updateFretboardMap reactivaba la superficie de guitarra.
-            if(els.chordLabel) els.chordLabel.textContent = item.name || 'Acorde';
-            return {
-                ok:true,
-                item:safeClone(item),
-                notes:safeClone(notes),
-                bass,
-                piano:true
-            };
-        }
-
-        if(data.instrument === 'drums'){
-            // Batería del Editor se monta por mountEditorDrumSurface, nunca por mapa de guitarra.
-            return mountEditorInstrumentSurface('drums') || { ok:true, drums:true };
-        }
 
         if(!useStringSurface){
             try{
@@ -2612,7 +2601,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.3.11-editor-isolated',
+        version: 'suite-pro-bridge-v0.7.3.12-chord-visual-fix',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
