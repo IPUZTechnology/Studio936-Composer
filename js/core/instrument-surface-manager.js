@@ -65,6 +65,15 @@ window.Studio936InstrumentSurfaceManager = (() => {
     if (element && element.style.display !== value) element.style.display = value;
   }
 
+  function removeEditorStringSurfaceNodes() {
+    document.querySelectorAll("#s936EditorGuitarSurface").forEach(node => node.remove());
+    document.querySelectorAll(".s936-finger-pop").forEach(node => node.remove());
+  }
+
+  function removeEditorDrumSurfaceNodes() {
+    document.querySelectorAll("#s936EditorDrumSurface").forEach(node => node.remove());
+  }
+
   function setAttributeIfChanged(element, name, value) {
     if (!element) return;
     if (element.getAttribute(name) !== String(value)) {
@@ -120,10 +129,13 @@ window.Studio936InstrumentSurfaceManager = (() => {
       if (instrument === "piano") {
         stringSurface()?.clear?.();
         drumSurface()?.clear?.();
+        removeEditorStringSurfaceNodes();
+        removeEditorDrumSurfaceNodes();
         setDisplay(fretboard, "none");
         setDisplay(piano, "flex");
       } else if (instrument === "drums") {
         stringSurface()?.clear?.();
+        removeEditorStringSurfaceNodes();
         setDisplay(piano, "none");
         setDisplay(fretboard, "flex");
         const exact = document.getElementById("s936EditorDrumSurface");
@@ -133,6 +145,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
         }
       } else {
         drumSurface()?.clear?.();
+        removeEditorDrumSurfaceNodes();
         setDisplay(piano, "none");
         setDisplay(fretboard, "flex");
         const exact = document.getElementById("s936EditorGuitarSurface");
@@ -203,6 +216,14 @@ window.Studio936InstrumentSurfaceManager = (() => {
     const previous = state.editorInstrument;
     if (previous !== value) {
       clearEditorStrings();
+      clearEditorDrums();
+    }
+    if (value === "piano") {
+      clearEditorStrings();
+      clearEditorDrums();
+    } else if (value === "drums") {
+      clearEditorStrings();
+    } else {
       clearEditorDrums();
     }
     state.editorInstrument = value;
@@ -298,14 +319,13 @@ window.Studio936InstrumentSurfaceManager = (() => {
   function clearEditorStrings() {
     state.lastStringRender = null;
     stringSurface()?.clear?.();
-    document.getElementById("s936EditorGuitarSurface")?.remove?.();
-    document.querySelectorAll(".s936-finger-pop").forEach(node => node.remove());
+    removeEditorStringSurfaceNodes();
   }
 
   function clearEditorDrums() {
     state.lastDrumRender = null;
     drumSurface()?.clear?.();
-    document.getElementById("s936EditorDrumSurface")?.remove?.();
+    removeEditorDrumSurfaceNodes();
   }
 
   function restoreSnapshot() {
