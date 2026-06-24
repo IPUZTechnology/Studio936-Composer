@@ -112,10 +112,12 @@ window.Studio936StringInstruments = (() => {
     if(value === "guitarra" || value === "guitar") return "guitar";
     if(value === "guitar-lead" || value === "guitarra-lead" || value === "glead" || value === "g.lead") return "lead";
     if(value === "bajo" || value === "bass") return "bass";
-    return PROFILES[value] ? value : "guitar";
+    // v1.1.4: piano/drums/otros instrumentos no son de cuerda — no caer a "guitar"
+    return PROFILES[value] ? value : null;
   }
 
   function profile(id){
+    // Para string instruments devuelve su perfil; para piano/drums devuelve guitar como fallback seguro
     return PROFILES[canonicalInstrumentId(id)] || PROFILES.guitar;
   }
 
@@ -222,7 +224,7 @@ window.Studio936StringInstruments = (() => {
   }
 
   return {
-    version:"string-instruments-v1.1.3-ukulele-alias-guard",
+    version:"string-instruments-v1.1.4-piano-drums-not-string",
     profiles:PROFILES,
     profile,
     canonicalInstrumentId,
