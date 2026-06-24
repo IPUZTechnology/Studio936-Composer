@@ -345,15 +345,45 @@
 
   function bridge(name, ...args) {
     const api = window.Studio936AppBridge;
+    const manager = window.Studio936InstrumentSurfaceManager || null;
+    const fallback = () => {
+      if (!manager) return null;
+      if (name === "captureEditorSurfaceSession") {
+        return manager.beginEditorSession?.(state.instrument || "piano") || null;
+      }
+      if (name === "setEditorInstrument" || name === "mountEditorInstrumentSurface") {
+        return manager.showEditorInstrument?.(args[0]) || null;
+      }
+      if (name === "mountEditorDrumSurface") {
+        const payload = args[0] || {};
+        return manager.renderEditorDrums?.({
+          pattern: payload.pattern,
+          sectionName: payload.sectionName,
+          onLaneSelect: payload.onLaneSelect,
+          onLaneTrigger: payload.onLaneTrigger
+        }) || null;
+      }
+      if (name === "flashEditorDrumLane") {
+        return manager.flashEditorDrumLane?.(...args) || null;
+      }
+      if (name === "selectEditorDrumLane") {
+        return manager.selectEditorDrumLane?.(...args) || null;
+      }
+      return null;
+    };
+
     if (!api || typeof api[name] !== "function") {
+      const direct = fallback();
+      if (direct) return direct;
       console.warn("Suite Pro Editor: bridge method unavailable:", name);
       return null;
     }
     try {
-      return api[name](...args);
+      const response = api[name](...args);
+      return response ?? fallback();
     } catch (error) {
       console.error("Suite Pro Editor bridge error:", name, error);
-      return null;
+      return fallback();
     }
   }
 
@@ -1551,9 +1581,9 @@
 
     state.sectionKey = sections[state.sectionKey] ? state.sectionKey : (data.sectionKey || sectionKeys[0]);
     state.chordIndex = state.chordIndex === null ? (Number(data.chordIndex) || 0) : (Number(state.chordIndex) || 0);
-    // v0.7.3.8: Editor/Main comparten un solo instrumento activo.
-    // Si Main cambia a Piano/Batería, el Editor no puede quedarse pegado a Guitarra.
-    state.instrument = canonicalInstrumentId(data.instrument || state.instrument || "piano");
+    // v0.7.4.4: El selector del Editor manda su propia superficie.
+    // Main puede servir como referencia inicial, pero no debe pisar Piano/Batería del Editor.
+    state.instrument = canonicalInstrumentId(state.instrument || data.editorInstrument || data.instrument || "piano");
     if (state.instrument === "drums") {
       // v0.7.3.9: Editor debe montar su propia superficie de batería.
       // No usar renderMainDrumSurface aquí, porque deja el Editor pegado a la guitarra previa.
