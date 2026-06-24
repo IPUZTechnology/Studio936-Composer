@@ -118,46 +118,30 @@ function captureEditorSurfaceSession(){
     return InstrumentSurfaceManager.beginEditorSession(editorInstrument);
 }
 function mountEditorInstrumentSurface(instrument){
+    // v0.7.3.10 — Fix: Piano y Batería pasan por el SurfaceManager correctamente.
+    // Bug anterior: Piano hacía endEditorSession+manejo manual → ISM perdía control.
+    // Bug anterior: Drums llamaba renderMainDrumSurface → montaba batería del Main, no del Editor.
+    // Bug anterior: segundo bloque if(drums) nunca ejecutaba (primer bloque retornaba antes).
     const requested = canonicalInstrumentId(instrument);
     const value = EDITOR_SURFACE_IDS.includes(requested) ? requested : 'piano';
     editorInstrument = value;
 
-    if(value === 'drums'){
-        try { InstrumentSurfaceManager.endEditorSession({ restore:false }); } catch(_) {}
-        try { clearMainStringSurface(); } catch(_) {}
-        try { resetMainSurfaceClasses(); } catch(_) {}
-        try { renderMainDrumSurface(true); } catch(_) {}
-        document.body?.classList?.remove?.('s936-editor-guitar-surface');
-        document.body?.classList?.add?.('s936-editor-drum-surface');
-        document.body?.setAttribute?.('data-s936-editor-instrument','drums');
-        return { ok:true, instrument:value, owner:'main-drums', drumsNative:true };
-    }
-
-    // v0.7.2.15 — Piano Editor Guard:
-    // Piano is the native main surface, not a custom Editor surface.
-    // Keeping the Surface Manager observer active on Piano could freeze the app
-    // when returning from Batería/Guitarra to Editor → Piano.
     if(value === 'piano'){
-        try { InstrumentSurfaceManager.endEditorSession({ restore:false }); } catch(_) {}
+        // Limpiar superficies de editor de cuerdas/batería antes de mostrar piano
         try { clearMainStringSurface(); } catch(_) {}
         try { clearMainDrumSurface(); } catch(_) {}
-        try { resetMainSurfaceClasses(); } catch(_) {}
-        try { showLegacyFretboardShell(); } catch(_) {}
-        if(els.pianoContainer) els.pianoContainer.style.display = 'flex';
-        if(els.fretboardContainer) els.fretboardContainer.style.display = 'none';
-        document.body?.classList?.remove?.('s936-editor-guitar-surface','s936-editor-drum-surface');
-        document.body?.removeAttribute?.('data-s936-editor-instrument');
-        document.body?.removeAttribute?.('data-s936-surface-owner');
-        return { ok:true, instrument:value, owner:'main-piano', pianoNative:true };
+        // El SurfaceManager maneja visibilidad de pianoContainer y fretboardContainer
+        return InstrumentSurfaceManager.showEditorInstrument('piano');
     }
 
     if(value === 'drums'){
+        // Usar renderEditorDrums vía ISM — nunca renderMainDrumSurface desde el Editor
         const sectionKey = els.sectionSelect?.value || 'intro';
         const pattern = project.drumPatterns?.[sectionKey] || {};
         return mountEditorDrumSurface({
             pattern,
             sectionKey,
-            sectionName:sectionNames[sectionKey] || sectionKey
+            sectionName: sectionNames[sectionKey] || sectionKey
         });
     }
 
