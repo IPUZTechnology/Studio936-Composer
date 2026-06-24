@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.5.2-panel-router-separation";
+  const VERSION = "editor-v0.7.5.3-paint-router-hardening";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -1156,22 +1156,24 @@
       });
 
       btn.addEventListener("click", () => {
-        if (state.instrument === key) return;
+        const nextInstrument = canonicalInstrumentId(key);
+        if (state.instrument === nextInstrument) return;
 
         try { activeController?.stop?.(); } catch (error) {}
         try { activeController?.destroy?.(); } catch (error) {}
         activeController = null;
 
-        state.instrument = canonicalInstrumentId(key);
+        // v0.7.5.3: el botón del Editor es dueño del panel izquierdo.
+        // Guardamos el instrumento pedido antes de renderModule(), para que paint()
+        // no vuelva a caer al instrumento anterior ni al fallback de guitarra.
+        state.instrument = nextInstrument;
+        state.panelInstrument = nextInstrument;
         state.miniStartFret = null;
-        if (key === "bass") state.bassMode = "line";
+        if (nextInstrument === "bass") state.bassMode = "line";
 
         syncPersistentInstrumentTabs(instruments);
 
-        // v0.7.5.2: el visor derecho y el panel izquierdo son rutas separadas.
-        // setEditorInstrument monta la superficie; renderModule repinta el panel con el mismo key.
-        // Importante: state.instrument ya fue fijado arriba, por eso Piano/Batería no caen al panel de guitarra.
-        let response = bridge("setEditorInstrument", key);
+        let response = bridge("setEditorInstrument", nextInstrument);
 
         if (response?.ok === false) {
           setTimeout(() => renderModule(ctx, contentHost), 0);
@@ -1585,9 +1587,12 @@
 
     state.sectionKey = sections[state.sectionKey] ? state.sectionKey : (data.sectionKey || sectionKeys[0]);
     state.chordIndex = state.chordIndex === null ? (Number(data.chordIndex) || 0) : (Number(state.chordIndex) || 0);
-    // v0.7.4.4: El selector del Editor manda su propia superficie.
-    // Main puede servir como referencia inicial, pero no debe pisar Piano/Batería del Editor.
-    state.instrument = canonicalInstrumentId(state.instrument || data.editorInstrument || data.instrument || "piano");
+    // v0.7.5.3: Router duro del panel izquierdo.
+    // Prioridad: botón del Editor -> estado del Editor -> datos externos.
+    // Así Piano/Batería no vuelven al panel de guitarra por fallback.
+    const requestedInstrument = canonicalInstrumentId(state.panelInstrument || state.instrument || data.editorInstrument || data.instrument || "piano");
+    state.instrument = requestedInstrument;
+    state.panelInstrument = requestedInstrument;
     if (state.instrument === "drums") {
       // v0.7.3.9: Editor debe montar su propia superficie de batería.
       // No usar renderMainDrumSurface aquí, porque deja el Editor pegado a la guitarra previa.
@@ -2342,6 +2347,13 @@
     const buttons = Array.from(document.querySelectorAll("#s936SuitePro .s936-ed-inst"));
     return {
       version:VERSION,
+      state:{
+        instrument:state.instrument,
+        panelInstrument:state.panelInstrument || "",
+        sectionKey:state.sectionKey,
+        chordIndex:state.chordIndex,
+        bassMode:state.bassMode
+      },
       count:buttons.length,
       instruments:buttons.map(button => ({
         key:button.dataset.instrument || "",
