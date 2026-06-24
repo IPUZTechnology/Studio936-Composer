@@ -65,6 +65,21 @@ window.Studio936InstrumentSurfaceManager = (() => {
     if (element && element.style.display !== value) element.style.display = value;
   }
 
+  function debugSwitch(label, extra = {}) {
+    try {
+      const enabled = window.S936_SURFACE_DEBUG !== false;
+      if (!enabled) return;
+      console.log("[S936 Surface]", label, {
+        editorInstrument: state.editorInstrument,
+        active: state.active,
+        enforcing: state.enforcing,
+        enforceQueued: state.enforceQueued,
+        hasObserver: !!state.observer,
+        ...extra
+      });
+    } catch (_) {}
+  }
+
   function removeEditorStringSurfaceNodes() {
     document.querySelectorAll("#s936EditorGuitarSurface").forEach(node => node.remove());
     document.querySelectorAll(".s936-finger-pop").forEach(node => node.remove());
@@ -122,40 +137,66 @@ window.Studio936InstrumentSurfaceManager = (() => {
   function enforce() {
     if (!state.active || state.enforcing) return;
     state.enforcing = true;
+    const startedAt = performance?.now?.() || Date.now();
     try {
       const { piano, fretboard } = elements();
       const instrument = state.editorInstrument;
+      debugSwitch("enforce:start", { instrument });
       applyEditorMarkers(instrument);
+      debugSwitch("enforce:markers-applied", { instrument });
+
       if (instrument === "piano") {
+        debugSwitch("enforce:piano:before-string-clear");
         stringSurface()?.clear?.();
+        debugSwitch("enforce:piano:after-string-clear");
+
+        debugSwitch("enforce:piano:before-drum-clear");
         drumSurface()?.clear?.();
+        debugSwitch("enforce:piano:after-drum-clear");
+
+        debugSwitch("enforce:piano:before-remove-nodes");
         removeEditorStringSurfaceNodes();
         removeEditorDrumSurfaceNodes();
+        debugSwitch("enforce:piano:after-remove-nodes");
+
+        debugSwitch("enforce:piano:before-display");
         setDisplay(fretboard, "none");
         setDisplay(piano, "flex");
+        debugSwitch("enforce:piano:after-display");
       } else if (instrument === "drums") {
+        debugSwitch("enforce:drums:before-string-clear");
         stringSurface()?.clear?.();
+        debugSwitch("enforce:drums:after-string-clear");
+
         removeEditorStringSurfaceNodes();
         setDisplay(piano, "none");
         setDisplay(fretboard, "flex");
         const exact = document.getElementById("s936EditorDrumSurface");
         if (!exact && state.lastDrumRender) {
+          debugSwitch("enforce:drums:before-render");
           const renderer = state.lastDrumRender.renderer || drumSurface();
           renderer?.render?.(state.lastDrumRender.options);
+          debugSwitch("enforce:drums:after-render");
         }
       } else {
+        debugSwitch("enforce:strings:before-drum-clear", { instrument });
         drumSurface()?.clear?.();
+        debugSwitch("enforce:strings:after-drum-clear", { instrument });
+
         removeEditorDrumSurfaceNodes();
         setDisplay(piano, "none");
         setDisplay(fretboard, "flex");
         const exact = document.getElementById("s936EditorGuitarSurface");
         if (!exact && state.lastStringRender) {
+          debugSwitch("enforce:strings:before-render", { instrument });
           const renderer = state.lastStringRender.renderer || stringSurface();
           renderer?.render?.(state.lastStringRender.options);
+          debugSwitch("enforce:strings:after-render", { instrument });
         }
       }
     } finally {
       state.enforcing = false;
+      debugSwitch("enforce:done", { ms: Math.round(((performance?.now?.() || Date.now()) - startedAt) * 10) / 10 });
     }
   }
 
@@ -213,40 +254,58 @@ window.Studio936InstrumentSurfaceManager = (() => {
   function showEditorInstrument(instrument) {
     const value = normalizeInstrument(instrument);
 
-    // v0.7.4.6 — Observer Safe Switch
-    // Cambiar Piano/Batería modifica style/class/childList en los contenedores
-    // que observa el MutationObserver. Si el observer queda activo durante el
-    // cambio, puede reentrar en enforce() y congelar el navegador.
+    // v0.7.4.7 — Diagnóstico de congelamiento Piano/Batería.
+    // Mantiene el cambio de v0.7.4.6: observer apagado durante el switch.
+    debugSwitch("show:start", { requested: instrument, value });
     stopObserver();
+    debugSwitch("show:observer-stopped", { value });
+
     try {
       if (!state.active) {
+        debugSwitch("show:begin-session-lite", { value });
         captureSnapshot();
         removeEditorMarkers();
         state.active = true;
       }
 
       const previous = state.editorInstrument;
+      debugSwitch("show:previous", { previous, value });
+
       if (previous !== value) {
+        debugSwitch("show:before-clear-previous", { previous, value });
         clearEditorStrings();
+        debugSwitch("show:after-clear-strings", { previous, value });
         clearEditorDrums();
+        debugSwitch("show:after-clear-drums", { previous, value });
       }
 
       if (value === "piano") {
+        debugSwitch("show:piano:before-clear");
         clearEditorStrings();
+        debugSwitch("show:piano:after-clear-strings");
         clearEditorDrums();
+        debugSwitch("show:piano:after-clear-drums");
         state.lastStringRender = null;
         state.lastDrumRender = null;
       } else if (value === "drums") {
+        debugSwitch("show:drums:before-clear-strings");
         clearEditorStrings();
+        debugSwitch("show:drums:after-clear-strings");
       } else {
+        debugSwitch("show:strings:before-clear-drums", { value });
         clearEditorDrums();
+        debugSwitch("show:strings:after-clear-drums", { value });
       }
 
       state.editorInstrument = value;
+      debugSwitch("show:before-enforce", { value });
       enforce();
+      debugSwitch("show:after-enforce", { value });
       return { ok: true, instrument: value, owner: "editor" };
     } finally {
+      debugSwitch("show:finally-before-observer", { value });
       if (state.active) startObserver();
+      debugSwitch("show:done", { value });
     }
   }
 
@@ -375,7 +434,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   function getState() {
     const { piano, fretboard } = elements();
     return {
-      version: "instrument-surface-manager-v0.7.4.6-observer-safe-switch",
+      version: "instrument-surface-manager-v0.7.4.7-piano-freeze-diagnostics",
       configured: state.configured,
       active: state.active,
       owner: state.active ? "editor" : "main",
@@ -390,7 +449,7 @@ window.Studio936InstrumentSurfaceManager = (() => {
   }
 
   const api = {
-    version: "instrument-surface-manager-v0.7.4.6-observer-safe-switch",
+    version: "instrument-surface-manager-v0.7.4.7-piano-freeze-diagnostics",
     configure,
     beginEditorSession,
     showEditorInstrument,
