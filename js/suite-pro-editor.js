@@ -1522,6 +1522,10 @@
     const initialData = getEditorState();
     state.instrument = canonicalInstrumentId(initialData.instrument || state.instrument || "piano");
 
+    // v0.7.3.10: Activar sesión del ISM al montar el editor.
+    // Sin esto, showEditorInstrument() no hace nada (active===false en enforce()).
+    bridge("captureEditorSurfaceSession");
+
     const mount = el(ctx, "div", "s936-ed-module");
     const contentHost = el(ctx, "div", "s936-ed-instrument-content");
     const tabs = createPersistentInstrumentTabs(ctx, contentHost);

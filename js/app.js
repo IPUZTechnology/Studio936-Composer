@@ -2133,6 +2133,11 @@ function installStudio936AppBridge(){
         const requested = canonicalInstrumentId(instrument);
         const value = EDITOR_SURFACE_IDS.includes(requested) ? requested : 'piano';
         syncMainInstrumentFromEditor(value);
+        // v0.7.3.10: Garantizar que el ISM esté activo antes de cambiar instrumento.
+        // Sin esto, showEditorInstrument() sale en enforce() porque active===false.
+        if(!InstrumentSurfaceManager.getState().active){
+            InstrumentSurfaceManager.beginEditorSession(value);
+        }
         mountEditorInstrumentSurface(value);
         return Object.assign({
             ok:true,
@@ -2588,7 +2593,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.2.7-drum-patterns',
+        version: 'suite-pro-bridge-v0.7.3.10-surface-fix',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -2600,6 +2605,7 @@ function installStudio936AppBridge(){
         selectEditorSection,
         selectEditorChord,
         setEditorInstrument,
+        captureEditorSurfaceSession,
         mountEditorInstrumentSurface,
         mountEditorDrumSurface,
         flashEditorDrumLane,
