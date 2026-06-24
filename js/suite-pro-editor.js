@@ -6,7 +6,7 @@
   "use strict";
 
   const STYLE_ID = "s936SuiteProEditorStyles";
-  const VERSION = "editor-v0.7.3.12-no-rendermodule-piano-drums";
+  const VERSION = "editor-v0.7.4.8-piano-drums-panel-restore";
   const state = {
     sectionKey: "",
     chordIndex: null,
@@ -1168,19 +1168,16 @@
 
         syncPersistentInstrumentTabs(instruments);
 
-        // v0.7.3.12: Piano y Drums no necesitan renderModule — el ISM maneja su superficie.
-        // renderModule para estos instrumentos vuelve a correr paint() que llama guitar otra vez.
-        const surfaceOnly = key === "piano" || key === "drums";
+        // v0.7.4.8: El ISM cambia la superficie, pero el panel visual lo reconstruye renderModule.
+        // Importante: state.instrument ya fue seteado arriba; paint() respeta Piano/Drums y no cae a guitarra.
         let response = bridge("setEditorInstrument", key);
 
         if (response?.ok === false) {
-          if(!surfaceOnly) setTimeout(() => renderModule(ctx, contentHost), 0);
+          setTimeout(() => renderModule(ctx, contentHost), 0);
           return;
         }
 
-        if(!surfaceOnly){
-          renderModule(ctx, contentHost);
-        }
+        renderModule(ctx, contentHost);
       });
 
       instruments.appendChild(btn);
