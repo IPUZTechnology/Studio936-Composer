@@ -60,6 +60,17 @@ window.Studio936SuiteProChart = (() => {
     document.head.appendChild(s);
   }
 
+  // Leer compases por sección desde el draft de estructura
+  function getSectionBars() {
+    try {
+      const d = JSON.parse(localStorage.getItem('s936_suitepro_structure_v4') || '{}');
+      const parts = d?.draft?.parts || [];
+      const map = {};
+      parts.forEach(p => { if (p.section) map[p.section] = Number(p.bars) || 4; });
+      return map;
+    } catch(_) { return {}; }
+  }
+
   function parseChord(name) {
     if (!name) return { root: "—", qual: "" };
     const m = name.match(/^([A-G][b#]?)(.*)$/);
@@ -168,11 +179,18 @@ window.Studio936SuiteProChart = (() => {
     const body = document.createElement("div");
     body.className = "s936-ch-body";
 
+    const sectionBars = getSectionBars();
+
     arrangement.forEach(item => {
       const chords = sections[item.section];
       if (!Array.isArray(chords) || !chords.length) return;
       const measures = expandMeasures(chords);
-      const totalMeasures = measures.length;
+      // Total de compases definido en estructura, o suma de bars de acordes como fallback
+      const totalMeasures = sectionBars[item.section] || measures.length;
+      // Rellenar con compases vacíos si hay menos acordes que compases definidos
+      while (measures.length < totalMeasures) {
+        measures.push({ chord: null, isSlash: false, isEmpty: true, ci: -1, barNum: measures.length + 1 });
+      }
 
       const sec = document.createElement("div");
       sec.className = "s936-ch-sec";
@@ -186,6 +204,10 @@ window.Studio936SuiteProChart = (() => {
       const sinfo = document.createElement("span");
       sinfo.className = "s936-ch-sec-info";
       sinfo.textContent = chords.length + " acordes · " + totalMeasures + " comp.";
+      // Mostrar si hay compases definidos vs usados
+      if (sectionBars[item.section] && sectionBars[item.section] !== measures.length - (totalMeasures - measures.length)) {
+        // ya está correcto
+      }
       hd.append(badge, sinfo);
       sec.appendChild(hd);
 
@@ -201,6 +223,17 @@ window.Studio936SuiteProChart = (() => {
             // Celda vacía para completar la fila
             const empty = document.createElement("div");
             empty.style.cssText = "border-right:1px solid rgba(255,255,255,.1);min-height:72px";
+            line.appendChild(empty);
+            continue;
+          }
+
+          if (m.isEmpty) {
+            const empty = document.createElement("div");
+            empty.style.cssText = "border-right:1px solid rgba(255,255,255,.1);min-height:72px;position:relative";
+            const num = document.createElement("span");
+            num.className = "s936-ch-num";
+            num.textContent = m.barNum;
+            empty.appendChild(num);
             line.appendChild(empty);
             continue;
           }
