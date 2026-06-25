@@ -361,19 +361,19 @@ window.Studio936SuiteProChart = (() => {
     if (pianoContainer) pianoContainer.style.display = "none";
 
     // Crear o mostrar el chart como hermano en el mismo contenedor padre
-    let chartEl = document.getElementById("s936ChartContainer");
-    if (!chartEl) {
-      chartEl = document.createElement("div");
-      chartEl.id = "s936ChartContainer";
-      // Insertar después del fretboardContainer
-      fretContainer.parentElement.insertBefore(chartEl, fretContainer.nextSibling);
-    }
-    // Copiar clases y estilos del fretboardContainer para que el layout sea idéntico
-    chartEl.className = fretContainer.className;
-    chartEl.style.cssText = fretContainer.getAttribute("style") || "";
-    chartEl.style.display = "block";
-    chartEl.style.overflow = "hidden auto";
-    chartEl.style.background = "#090b11";
+    // Siempre recrear el elemento para aplicar estilos frescos
+    const oldChart = document.getElementById("s936ChartContainer");
+    if (oldChart) oldChart.remove();
+    const chartEl = document.createElement("div");
+    chartEl.id = "s936ChartContainer";
+    document.body.appendChild(chartEl);
+
+    // Posicionar exactamente en el área del main, a la derecha del Suite Pro
+    const suiteEl = document.getElementById("s936SuitePro");
+    const mainEl = document.querySelector("main");
+    const suiteRight = suiteEl ? suiteEl.getBoundingClientRect().right : 430;
+    const mainTop = mainEl ? mainEl.getBoundingClientRect().top : 357;
+    chartEl.style.cssText = "display:block!important;position:fixed;top:" + Math.round(mainTop) + "px;left:" + Math.round(suiteRight) + "px;right:0;bottom:0;z-index:50;background:#090b11;overflow-y:auto";
 
     const edState = window.Studio936AppBridge?.getEditorState?.() || {};
     render({ container: chartEl, instrument: edState.instrument, onChordEdit });
