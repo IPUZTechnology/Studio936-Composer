@@ -348,22 +348,27 @@ window.Studio936SuiteProChart = (() => {
   let _savedPianoDisplay = null;
 
   function mountInRightPanel({ onChordEdit } = {}) {
+    // v1.2.1: montar en body con position:fixed para evitar que CSS del app lo oculte
     const fretContainer = document.getElementById("fretboardContainer");
     const pianoContainer = document.getElementById("pianoContainer");
-    if (!fretContainer) return { ok: false };
 
-    _savedFretDisplay = fretContainer.style.display;
+    // Guardar y ocultar instrumentos del main
+    _savedFretDisplay = fretContainer ? fretContainer.style.display : null;
     _savedPianoDisplay = pianoContainer ? pianoContainer.style.display : null;
-    fretContainer.style.cssText = "display:flex!important;position:relative;width:100%;height:100%;overflow:hidden";
+    if (fretContainer) fretContainer.style.display = "none";
     if (pianoContainer) pianoContainer.style.display = "none";
 
     let chartEl = document.getElementById("s936ChartContainer");
     if (!chartEl) {
       chartEl = document.createElement("div");
       chartEl.id = "s936ChartContainer";
-      fretContainer.appendChild(chartEl);
+      document.body.appendChild(chartEl);
     }
-    chartEl.style.display = "block";
+
+    // Posicionar sobre el área del main (derecha de la pantalla)
+    const suitePanel = document.getElementById("s936SuitePro");
+    const suiteWidth = suitePanel ? (suitePanel.getBoundingClientRect().right) : 400;
+    chartEl.style.cssText = "display:block!important;position:fixed;top:0;left:" + Math.round(suiteWidth) + "px;right:0;bottom:0;z-index:100;background:#090b11;overflow-y:auto";
 
     const edState = window.Studio936AppBridge?.getEditorState?.() || {};
     render({ container: chartEl, instrument: edState.instrument, onChordEdit });
@@ -376,7 +381,6 @@ window.Studio936SuiteProChart = (() => {
     const fretContainer = document.getElementById("fretboardContainer");
     const pianoContainer = document.getElementById("pianoContainer");
     if (fretContainer && _savedFretDisplay !== null) {
-      fretContainer.style.cssText = "";
       fretContainer.style.display = _savedFretDisplay;
       _savedFretDisplay = null;
     }
