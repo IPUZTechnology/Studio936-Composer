@@ -282,18 +282,26 @@ window.Studio936SuiteProChart = (() => {
   }
 
   // Montar en el panel derecho (fretboardContainer)
+  let _savedFretDisplay = null;
+  let _savedPianoDisplay = null;
+
   function mountInRightPanel({ onChordEdit } = {}) {
-    const bridge = window.Studio936AppBridge;
     const fretContainer = document.getElementById("fretboardContainer");
     const pianoContainer = document.getElementById("pianoContainer");
     if (!fretContainer) return { ok: false };
+
+    // Guardar display original y forzar visibilidad
+    _savedFretDisplay = fretContainer.style.display;
+    _savedPianoDisplay = pianoContainer ? pianoContainer.style.display : null;
+    fretContainer.style.display = "flex";
+    if (pianoContainer) pianoContainer.style.display = "none";
 
     // Crear contenedor del chart si no existe
     let chartEl = document.getElementById("s936ChartContainer");
     if (!chartEl) {
       chartEl = document.createElement("div");
       chartEl.id = "s936ChartContainer";
-      chartEl.style.cssText = "width:100%;height:100%;overflow:hidden;position:absolute;top:0;left:0;z-index:5";
+      chartEl.style.cssText = "width:100%;height:100%;overflow-y:auto;position:absolute;top:0;left:0;right:0;bottom:0;z-index:5;background:#0b0d14";
       fretContainer.style.position = "relative";
       fretContainer.appendChild(chartEl);
     }
@@ -303,8 +311,7 @@ window.Studio936SuiteProChart = (() => {
       container: chartEl,
       onChordEdit: (sectionKey, chordIndex, newName) => {
         if (typeof onChordEdit === "function") onChordEdit(sectionKey, chordIndex, newName);
-        // Re-render después de edición
-        setTimeout(() => render({ container: chartEl, onChordEdit: arguments.callee }), 100);
+        setTimeout(() => render({ container: chartEl }), 100);
       }
     });
 
@@ -314,6 +321,17 @@ window.Studio936SuiteProChart = (() => {
   function unmountFromRightPanel() {
     const chartEl = document.getElementById("s936ChartContainer");
     if (chartEl) chartEl.style.display = "none";
+    // Restaurar display original
+    const fretContainer = document.getElementById("fretboardContainer");
+    const pianoContainer = document.getElementById("pianoContainer");
+    if (fretContainer && _savedFretDisplay !== null) {
+      fretContainer.style.display = _savedFretDisplay;
+      _savedFretDisplay = null;
+    }
+    if (pianoContainer && _savedPianoDisplay !== null) {
+      pianoContainer.style.display = _savedPianoDisplay;
+      _savedPianoDisplay = null;
+    }
   }
 
   return {
