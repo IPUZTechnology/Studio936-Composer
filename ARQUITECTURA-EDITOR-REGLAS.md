@@ -113,3 +113,76 @@ console.assert(SI.canonicalInstrumentId("piano") === null, "FALLO: piano no reto
 ---
 
 *Última actualización: v0.7.5.5 · Resonancia asegurada.*
+
+---
+
+## Bug 2 documentado · Charts Guitar/Ukelele no aparecen al abrir · v0.7.5.9
+
+### Síntoma
+Al abrir el Editor en Guitarra o Ukelele, los charts de acordes de la sección
+aparecían un instante y desaparecían. Solo quedaban al tocar el mástil.
+
+### Causa raíz — secuencia de eventos en `app.js`
+
+```
+mountEditorInstrumentSurface(value)
+  → showEditorInstrument(value)      ← borra DOM con clearEditorStrings()
+  → enforce()                        ← rerenderiza SIN seq → charts vacíos
+  → setTimeout(showEditorChordVisual) ← llega tarde, enforce() ya borró todo
+```
+
+El `setTimeout(0)` llegaba DESPUÉS de que `enforce()` ya había rerenderizado
+la superficie sin `seq`. `lastStringRender` quedaba con `options` sin `seq`
+→ cada `enforce()` posterior reproducía el render vacío.
+
+### Fix aplicado — v0.7.5.9
+
+```javascript
+// ❌ ANTES — setTimeout llegaba tarde
+InstrumentSurfaceManager.showEditorInstrument(value);
+setTimeout(() => { showEditorChordVisual({...}); }, 0);
+
+// ✅ AHORA — renderEditorStrings directo y síncrono
+InstrumentSurfaceManager.renderEditorStrings({
+    instrument: value,
+    data: { seq, seqVoicings, exactFrets, exactMidis, ... },
+    profiles, sectionNames, onCellPlay, renderer
+});
+```
+
+`renderEditorStrings` guarda `lastStringRender` con `seq` ANTES de que
+`enforce()` corra → charts persisten en todos los rerenders posteriores.
+
+### Regla
+**NUNCA usar `setTimeout` para pasar datos al StringSurface después de montar.**
+El ISM llama `enforce()` sincrónicamente y borra cualquier DOM pendiente.
+Siempre usar `renderEditorStrings` directamente con todos los datos necesarios.
+
+---
+
+## Bug 3 documentado · onCellPlay no pasaba al renderer · v0.7.4.8
+
+### Síntoma
+Tocar el mástil en el Editor no producía sonido.
+
+### Causa raíz — `instrument-surface-manager.js`
+
+```javascript
+// ❌ ANTES — onCellPlay no estaba en la firma ni en options
+function renderEditorStrings({ instrument, data, profiles, sectionNames, renderer }) {
+    const options = { container, owner, data, profiles, sectionNames }; // onCellPlay ausente
+    renderer.render(options); // callback de audio descartado silenciosamente
+}
+
+// ✅ AHORA
+function renderEditorStrings({ ..., onCellPlay, onChordSelect, renderer }) {
+    const options = { ..., onCellPlay, onChordSelect };
+    renderer.render(options);
+}
+```
+
+### Regla
+**Cualquier callback que necesite el StringSurface debe pasar explícitamente
+por la firma de `renderEditorStrings` en el ISM.**
+El ISM es el único punto de entrada al renderer — los callbacks no llegan
+de ninguna otra forma.
