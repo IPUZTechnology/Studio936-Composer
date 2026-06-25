@@ -348,27 +348,32 @@ window.Studio936SuiteProChart = (() => {
   let _savedPianoDisplay = null;
 
   function mountInRightPanel({ onChordEdit } = {}) {
-    // v1.2.1: montar en body con position:fixed para evitar que CSS del app lo oculte
+    // v1.2.2: montar como hermano del fretboardContainer, ocultando piano y fretboard
     const fretContainer = document.getElementById("fretboardContainer");
     const pianoContainer = document.getElementById("pianoContainer");
+    if (!fretContainer) return { ok: false };
 
-    // Guardar y ocultar instrumentos del main
-    _savedFretDisplay = fretContainer ? fretContainer.style.display : null;
+    _savedFretDisplay = fretContainer.style.display;
     _savedPianoDisplay = pianoContainer ? pianoContainer.style.display : null;
-    if (fretContainer) fretContainer.style.display = "none";
+
+    // Ocultar instrumentos actuales
+    fretContainer.style.display = "none";
     if (pianoContainer) pianoContainer.style.display = "none";
 
+    // Crear o mostrar el chart como hermano en el mismo contenedor padre
     let chartEl = document.getElementById("s936ChartContainer");
     if (!chartEl) {
       chartEl = document.createElement("div");
       chartEl.id = "s936ChartContainer";
-      document.body.appendChild(chartEl);
+      // Insertar después del fretboardContainer
+      fretContainer.parentElement.insertBefore(chartEl, fretContainer.nextSibling);
     }
-
-    // Posicionar sobre el área del main (derecha de la pantalla)
-    const suitePanel = document.getElementById("s936SuitePro");
-    const suiteWidth = suitePanel ? (suitePanel.getBoundingClientRect().right) : 400;
-    chartEl.style.cssText = "display:block!important;position:fixed;top:0;left:" + Math.round(suiteWidth) + "px;right:0;bottom:0;z-index:100;background:#090b11;overflow-y:auto";
+    // Copiar clases y estilos del fretboardContainer para que el layout sea idéntico
+    chartEl.className = fretContainer.className;
+    chartEl.style.cssText = fretContainer.getAttribute("style") || "";
+    chartEl.style.display = "block";
+    chartEl.style.overflow = "hidden auto";
+    chartEl.style.background = "#090b11";
 
     const edState = window.Studio936AppBridge?.getEditorState?.() || {};
     render({ container: chartEl, instrument: edState.instrument, onChordEdit });
