@@ -145,7 +145,30 @@ function mountEditorInstrumentSurface(instrument){
         });
     }
 
-    return InstrumentSurfaceManager.showEditorInstrument(value);
+    // v0.7.5.6: Al montar un instrumento de cuerda en el Editor, disparar
+    // showEditorChordVisual con el acorde actual para que los charts de sección
+    // aparezcan inmediatamente sin necesitar tocar el mástil.
+    InstrumentSurfaceManager.showEditorInstrument(value);
+    setTimeout(() => {
+        try {
+            const sectionKey = els.sectionSelect?.value || 'intro';
+            const seq = Array.isArray(project.sections?.[sectionKey]) ? project.sections[sectionKey] : [];
+            const chordIndex = Math.max(0, Math.min(seq.length - 1, Number(els.chordSelect?.value) || 0));
+            const item = seq[chordIndex];
+            if (item && stringInstrumentId(value) && typeof showEditorChordVisual === 'function') {
+                showEditorChordVisual({
+                    instrument: value,
+                    sectionKey,
+                    chordIndex,
+                    name: item.name,
+                    bass: item.bass,
+                    notes: item.notes,
+                    bars: item.bars
+                });
+            }
+        } catch(_) {}
+    }, 0);
+    return { ok: true };
 }
 function mountEditorDrumSurface(payload={}){
     editorInstrument = 'drums';
