@@ -653,19 +653,9 @@
       .map((item) => String(item?.name || item?.chord || "").trim())
       .filter(Boolean);
 
+    // v0.8.3: chips de acordes ocultos — el Chart muestra los acordes en el panel derecho
     const chordWrap = ctx.el("div", "s936-struct-chords s936-struct-chords-inline");
-    if (chords.length) {
-      chords.forEach((name, chordIndex) => {
-        const chip = ctx.el(
-          "span",
-          "s936-struct-chord-chip" + (chordIndex === 0 ? " root" : ""),
-          name
-        );
-        chordWrap.appendChild(chip);
-      });
-    } else {
-      chordWrap.appendChild(ctx.el("span", "s936-struct-no-chords", "Sin acordes"));
-    }
+    chordWrap.style.display = "none";
     line.appendChild(chordWrap);
 
     const actions = ctx.el("div", "s936-struct-mini-actions");
