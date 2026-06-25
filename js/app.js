@@ -145,39 +145,56 @@ function mountEditorInstrumentSurface(instrument){
         });
     }
 
-    // v0.7.5.6: Al montar un instrumento de cuerda en el Editor, disparar
-    // showEditorChordVisual con el acorde actual para que los charts de sección
-    // aparezcan inmediatamente sin necesitar tocar el mástil.
-    InstrumentSurfaceManager.showEditorInstrument(value);
-    setTimeout(() => {
-        try {
-            const sectionKey = els.sectionSelect?.value || 'intro';
-            const seq = Array.isArray(project.sections?.[sectionKey]) ? project.sections[sectionKey] : [];
-            const chordIndex = Math.max(0, Math.min(seq.length - 1, Number(els.chordSelect?.value) || 0));
-            const item = seq[chordIndex];
-            if (item && stringInstrumentId(value) && typeof showEditorChordVisual === 'function') {
-                // v0.7.5.8: usar exactStringVoicing para pasar exactFrets/exactMidis
-                // Esto activa hasExactStringNotes=true → renderEditorStrings con seq completo
-                // → lastStringRender queda guardado con seq → enforce() preserva los charts.
-                const voicing = exactStringVoicing(item, value);
-                showEditorChordVisual({
+    // v0.7.5.9: renderizar directamente via ISM con seq completo.
+    // No usar setTimeout — el enforce() del ISM borraba el DOM antes que corriera.
+    // Llamar renderEditorStrings directamente garantiza que lastStringRender quede
+    // guardado con seq → enforce() preserva los charts en rerenders posteriores.
+    try {
+        const sectionKey = els.sectionSelect?.value || 'intro';
+        const seq = Array.isArray(project.sections?.[sectionKey]) ? project.sections[sectionKey] : [];
+        const chordIndex = Math.max(0, Math.min(seq.length - 1, Number(els.chordSelect?.value) || 0));
+        const item = seq[chordIndex];
+        if (item && stringInstrumentId(value) && window.Studio936StringInstruments && window.Studio936StringSurface) {
+            const voicing = exactStringVoicing(item, value);
+            InstrumentSurfaceManager.renderEditorStrings({
+                instrument: value,
+                data: {
                     instrument: value,
                     sectionKey,
                     chordIndex,
+                    seq,
                     name: item.name,
                     bass: item.bass,
                     notes: item.notes,
                     bars: item.bars,
                     exactFrets: voicing ? voicing.voicing.frets : null,
-                    exactMidis: voicing ? voicing.midis : null,
+                    exactMidis: voicing ? voicing.midis : [],
                     exactStrings: voicing ? voicing.strings : null,
                     capo: voicing ? (voicing.voicing.capo || 0) : 0,
-                    barre: voicing ? (voicing.voicing.barre || null) : null,
-                    voicings: item.voicings || null
-                });
-            }
-        } catch(_) {}
-    }, 0);
+                    seqVoicings: mainStringSeqVoicingPreviews(seq, value)
+                },
+                profiles: window.Studio936StringInstruments.profiles,
+                sectionNames,
+                onCellPlay: event => {
+                    const midi = Number(event?.midi);
+                    if(!Number.isFinite(midi)) return;
+                    resumeAudio();
+                    withEditorPreviewInstrument(value, () => {
+                        playNote(midi, value === 'bass' ? .34 : .24, value === 'bass' ? .72 : .64,
+                            value === 'bass' ? 'sine' : 'triangle', audioCtx.currentTime);
+                    });
+                    if(Number.isFinite(Number(event?.stringIndex)) && Number.isFinite(Number(event?.physicalFret))){
+                        window.Studio936StringSurface?.flashPosition?.(Number(event.stringIndex), Number(event.physicalFret), 's936-live-hit', 220);
+                    }
+                },
+                renderer: window.Studio936StringSurface
+            });
+        } else {
+            InstrumentSurfaceManager.showEditorInstrument(value);
+        }
+    } catch(_) {
+        InstrumentSurfaceManager.showEditorInstrument(value);
+    }
     return { ok: true };
 }
 function mountEditorDrumSurface(payload={}){
