@@ -368,12 +368,18 @@ window.Studio936SuiteProChart = (() => {
     chartEl.id = "s936ChartContainer";
     document.body.appendChild(chartEl);
 
-    // Posicionar exactamente en el área del main, a la derecha del Suite Pro
-    const suiteEl = document.getElementById("s936SuitePro");
-    const mainEl = document.querySelector("main");
-    const suiteRight = suiteEl ? suiteEl.getBoundingClientRect().right : 430;
-    const mainTop = mainEl ? mainEl.getBoundingClientRect().top : 357;
-    chartEl.style.cssText = "display:block!important;position:fixed;top:" + Math.round(mainTop) + "px;left:" + Math.round(suiteRight) + "px;right:0;bottom:0;z-index:50;background:#090b11;overflow-y:auto";
+    // Posicionar en el área libre del main — a la derecha del Suite Pro si está visible
+    function getChartPosition() {
+      const suiteEl = document.getElementById("s936SuitePro");
+      const mainEl = document.querySelector("main");
+      const mainTop = mainEl ? mainEl.getBoundingClientRect().top : 357;
+      // Suite Pro visible si tiene clase is-open y ancho > 0
+      const suiteRect = suiteEl ? suiteEl.getBoundingClientRect() : null;
+      const suiteRight = (suiteRect && suiteRect.width > 50) ? suiteRect.right : 0;
+      return { top: Math.round(mainTop), left: Math.round(suiteRight) };
+    }
+    const pos = getChartPosition();
+    chartEl.style.cssText = "display:block!important;position:fixed;top:" + pos.top + "px;left:" + pos.left + "px;right:0;bottom:0;z-index:50;background:#090b11;overflow-y:auto";
 
     const edState = window.Studio936AppBridge?.getEditorState?.() || {};
     render({ container: chartEl, instrument: edState.instrument, onChordEdit });
