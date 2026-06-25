@@ -346,6 +346,7 @@ window.Studio936SuiteProChart = (() => {
 
   let _savedFretDisplay = null;
   let _savedPianoDisplay = null;
+  let _chartActive = false; // true solo cuando montado intencionalmente desde Estructura
 
   function mountInRightPanel({ onChordEdit } = {}) {
     // v1.2.4: montar dentro de fretboardContainer con position:absolute
@@ -374,10 +375,12 @@ window.Studio936SuiteProChart = (() => {
 
     const edState = window.Studio936AppBridge?.getEditorState?.() || {};
     render({ container: chartEl, instrument: edState.instrument, onChordEdit });
+    _chartActive = true;
     return { ok: true };
   }
 
   function unmountFromRightPanel() {
+    _chartActive = false;
     const chartEl = document.getElementById("s936-chart-view-panel");
     if (chartEl) chartEl.remove();
     // También limpiar el ID viejo si existe
@@ -397,5 +400,5 @@ window.Studio936SuiteProChart = (() => {
     }
   }
 
-  return { version: VERSION, render, mountInRightPanel, unmountFromRightPanel };
+  return { version: VERSION, render, mountInRightPanel, unmountFromRightPanel, isActive: () => _chartActive };
 })();

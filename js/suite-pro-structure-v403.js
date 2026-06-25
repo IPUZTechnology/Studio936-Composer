@@ -420,17 +420,19 @@
     renderBuilder(ctx, root, s, parts);
     shell.appendChild(root);
 
-    // v0.8.3: chart en panel derecho (fretboardContainer)
+    // v0.8.4: chart en panel derecho — pequeño delay para que el ISM termine de configurar el DOM
     const Chart = window.Studio936SuiteProChart;
     if (Chart && typeof Chart.mountInRightPanel === "function") {
-      Chart.mountInRightPanel({
-        onChordEdit: (sectionKey, chordIndex, newName) => {
-          try {
-            window.Studio936AppBridge?.selectEditorSection?.(sectionKey);
-            window.Studio936AppBridge?.selectEditorChord?.(chordIndex);
-          } catch(_) {}
-        }
-      });
+      setTimeout(() => {
+        Chart.mountInRightPanel({
+          onChordEdit: (sectionKey, chordIndex, newName) => {
+            try {
+              window.Studio936AppBridge?.selectEditorSection?.(sectionKey);
+              window.Studio936AppBridge?.selectEditorChord?.(chordIndex);
+            } catch(_) {}
+          }
+        });
+      }, 50);
     }
   }
 

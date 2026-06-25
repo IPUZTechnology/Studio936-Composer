@@ -119,6 +119,8 @@ function captureEditorSurfaceSession(){
     return InstrumentSurfaceManager.beginEditorSession(editorInstrument);
 }
 function mountEditorInstrumentSurface(instrument){
+    // Desmontar chart si estaba activo desde Estructura
+    try { if(window.Studio936SuiteProChart?.isActive?.()) window.Studio936SuiteProChart.unmountFromRightPanel(); } catch(_) {}
     // v0.7.3.10 — Fix: Piano y Batería pasan por el SurfaceManager correctamente.
     // Bug anterior: Piano hacía endEditorSession+manejo manual → ISM perdía control.
     // Bug anterior: Drums llamaba renderMainDrumSurface → montaba batería del Main, no del Editor.
