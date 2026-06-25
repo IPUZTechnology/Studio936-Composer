@@ -187,11 +187,19 @@ window.Studio936InstrumentSurfaceManager = (() => {
         setDisplay(piano, "none");
         setDisplay(fretboard, "flex");
         const exact = document.getElementById("s936EditorGuitarSurface");
+        // v0.7.5.8: no rerenderizar si ya existe la superficie con charts cargados.
+        // Esto evita que enforce() borre los charts que showEditorChordVisual acaba de pintar.
+        const hasCharts = exact?.querySelector?.(".s936-chart-row")?.children?.length > 0;
         if (!exact && state.lastStringRender) {
           debugSwitch("enforce:strings:before-render", { instrument });
           const renderer = state.lastStringRender.renderer || stringSurface();
           renderer?.render?.(state.lastStringRender.options);
           debugSwitch("enforce:strings:after-render", { instrument });
+        } else if (exact && !hasCharts && state.lastStringRender) {
+          // Surface existe pero sin charts — rerenderizar para recuperarlos
+          debugSwitch("enforce:strings:recharts-render", { instrument });
+          const renderer = state.lastStringRender.renderer || stringSurface();
+          renderer?.render?.(state.lastStringRender.options);
         }
       }
     } finally {
