@@ -795,9 +795,17 @@
 
   function renderStructureModule(ctx, shell) {
     // v0.8.1: Estructura absorbe Plantillas e Inspiración como subtabs
+    // v0.8.2: siempre arrancar en "song" salvo que el usuario haya clickeado Plantillas/Inspiración
     const subtool = ctx.state.structureSubtool || "song";
-    if (subtool === "templates") return renderTemplates(ctx, shell);
-    if (subtool === "inspire") return renderInspire(ctx, shell);
+    // limpiar después de renderizar para que la próxima entrada sea siempre Estructura
+    if (subtool === "templates") {
+      ctx.state.structureSubtool = "song";
+      return renderTemplates(ctx, shell);
+    }
+    if (subtool === "inspire") {
+      ctx.state.structureSubtool = "song";
+      return renderInspire(ctx, shell);
+    }
 
     const mod = window.Studio936SuiteProStructure || window.Studio936SuiteProModules?.structure;
     if (mod && typeof mod.render === "function") {
