@@ -348,25 +348,29 @@ window.Studio936SuiteProChart = (() => {
   let _savedPianoDisplay = null;
 
   function mountInRightPanel({ onChordEdit } = {}) {
-    // v1.2.3: montar dentro del main como hijo directo, sin position:fixed
-    const mainEl = document.querySelector("main");
+    // v1.2.4: montar dentro de fretboardContainer con position:absolute
+    // Usar ID único que no sea tocado por el CSS del app
     const fretContainer = document.getElementById("fretboardContainer");
     const pianoContainer = document.getElementById("pianoContainer");
-    if (!mainEl) return { ok: false };
+    if (!fretContainer) return { ok: false };
 
     // Guardar y ocultar instrumentos
-    _savedFretDisplay = fretContainer ? fretContainer.style.display : null;
+    _savedFretDisplay = fretContainer.style.display;
     _savedPianoDisplay = pianoContainer ? pianoContainer.style.display : null;
-    if (fretContainer) fretContainer.style.display = "none";
     if (pianoContainer) pianoContainer.style.display = "none";
 
-    // Limpiar chart anterior y crear nuevo
-    const old = document.getElementById("s936ChartContainer");
+    // Asegurar que fretboard sea visible y relative
+    fretContainer.style.display = "block";
+    fretContainer.style.position = "relative";
+    fretContainer.style.overflow = "hidden";
+
+    // Limpiar y crear chart con ID que el app no conoce
+    const old = document.getElementById("s936-chart-view-panel");
     if (old) old.remove();
     const chartEl = document.createElement("div");
-    chartEl.id = "s936ChartContainer";
-    chartEl.style.cssText = "width:100%;height:100%;overflow-y:auto;background:#090b11;";
-    mainEl.appendChild(chartEl);
+    chartEl.id = "s936-chart-view-panel";
+    chartEl.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;overflow-y:auto;background:#090b11;z-index:10";
+    fretContainer.appendChild(chartEl);
 
     const edState = window.Studio936AppBridge?.getEditorState?.() || {};
     render({ container: chartEl, instrument: edState.instrument, onChordEdit });
@@ -374,12 +378,17 @@ window.Studio936SuiteProChart = (() => {
   }
 
   function unmountFromRightPanel() {
-    const chartEl = document.getElementById("s936ChartContainer");
+    const chartEl = document.getElementById("s936-chart-view-panel");
     if (chartEl) chartEl.remove();
+    // También limpiar el ID viejo si existe
+    const oldChart = document.getElementById("s936ChartContainer");
+    if (oldChart) oldChart.remove();
     const fretContainer = document.getElementById("fretboardContainer");
     const pianoContainer = document.getElementById("pianoContainer");
     if (fretContainer && _savedFretDisplay !== null) {
       fretContainer.style.display = _savedFretDisplay;
+      fretContainer.style.position = "";
+      fretContainer.style.overflow = "";
       _savedFretDisplay = null;
     }
     if (pianoContainer && _savedPianoDisplay !== null) {
