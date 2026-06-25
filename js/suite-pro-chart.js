@@ -112,6 +112,25 @@ window.Studio936SuiteProChart = (() => {
     } catch(_) {}
   }
 
+  // Pre-poblar beats desde acordes del Editor si no hay datos guardados
+  function prepopulateFromEditor(sectionKey, chords) {
+    try {
+      const d = JSON.parse(localStorage.getItem('s936_chart_beats_v1') || '{}');
+      // Solo pre-poblar si la sección no tiene beats guardados
+      if (d[sectionKey] && Object.keys(d[sectionKey]).length > 0) return;
+      if (!Array.isArray(chords) || !chords.length) return;
+      if (!d[sectionKey]) d[sectionKey] = {};
+      let barIndex = 0;
+      chords.forEach(chord => {
+        const bars = Math.max(1, Number(chord.bars) || 1);
+        // Poner el acorde en el tiempo 1 del primer compás
+        d[sectionKey][barIndex + "_0"] = chord.name || "";
+        barIndex += bars;
+      });
+      localStorage.setItem('s936_chart_beats_v1', JSON.stringify(d));
+    } catch(_) {}
+  }
+
   // Construir compases desde totalBars definido en estructura
   function buildMeasures(totalBars) {
     const measures = [];
@@ -217,6 +236,8 @@ window.Studio936SuiteProChart = (() => {
     arrangement.forEach(item => {
       const chords = sections[item.section];
       const totalMeasures = sectionBars[item.section] || (Array.isArray(chords) ? chords.reduce((s,c)=>s+(Number(c.bars)||1),0) : 4);
+      // Pre-poblar desde Editor si no hay beats guardados
+      prepopulateFromEditor(item.section, chords);
       const beatsData = getBeatsData(item.section);
       const measures = buildMeasures(totalMeasures);
 
