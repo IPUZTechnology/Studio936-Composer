@@ -120,6 +120,10 @@
 #s936SuitePro .s936-struct-workbench{padding:16px}
 #s936SuitePro .s936-struct-headline{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 #s936SuitePro .s936-struct-meta-form{display:grid;grid-template-columns:minmax(240px,1.35fr) minmax(170px,.75fr) minmax(220px,.9fr);gap:10px;align-items:end;margin:12px 0}
+#s936SuitePro .s936-struct-meta-form-inline{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:nowrap}
+#s936SuitePro .s936-struct-title-inline{flex:1 1 0;min-width:0}
+#s936SuitePro .s936-struct-select-inline{flex:0 0 140px}
+#s936SuitePro .s936-struct-bpm-inline{flex:0 0 60px;text-align:center}
 #s936SuitePro .s936-struct-bpm-wrap{display:grid;grid-template-columns:minmax(130px,1fr) 72px auto;gap:8px;align-items:center}
 #s936SuitePro .s936-struct-bpm-range{width:100%;accent-color:#00ffcc}
 #s936SuitePro .s936-struct-bpm-number{padding-left:8px!important;padding-right:8px!important}
@@ -419,60 +423,41 @@
     const card = ctx.el("section", "s936-struct-card main s936-struct-workbench s936-struct-workbench-compact");
     const meta = state.draft.meta || {};
 
-    const metaForm = ctx.el("div", "s936-struct-meta-form s936-struct-meta-form-compact");
+    // v0.8.1: header ultra-compacto — todo en una sola fila
+    const metaForm = ctx.el("div", "s936-struct-meta-form-inline");
 
-    const titleField = field(ctx, "Título de la canción");
-    const titleInput = ctx.el("input", "s936-struct-input");
+    const titleInput = ctx.el("input", "s936-struct-input s936-struct-title-inline");
     titleInput.value = meta.title || "";
-    titleInput.placeholder = "Nombre de la canción";
-    titleInput.oninput = () => {
-      state.draft.meta.title = titleInput.value;
-      saveState();
-    };
-    titleField.appendChild(titleInput);
+    titleInput.placeholder = "Título de la canción";
+    titleInput.title = "Título de la canción";
+    titleInput.oninput = () => { state.draft.meta.title = titleInput.value; saveState(); };
 
-    const styleField = field(ctx, "Ritmo / estilo");
-    const styleSelect = ctx.el("select", "s936-struct-select");
+    const styleSelect = ctx.el("select", "s936-struct-select s936-struct-select-inline");
+    styleSelect.title = "Ritmo / Estilo";
     styleOptions(ctx, s).forEach((item) => {
       const option = ctx.el("option", "", item.label);
       option.value = item.value;
       if (String(item.value) === String(meta.style || "pop")) option.selected = true;
       styleSelect.appendChild(option);
     });
-    styleSelect.onchange = () => {
-      state.draft.meta.style = styleSelect.value;
-      saveState();
-    };
-    styleField.appendChild(styleSelect);
+    styleSelect.onchange = () => { state.draft.meta.style = styleSelect.value; saveState(); };
 
-    const bpmField = field(ctx, "Tempo");
-    const bpmWrap = ctx.el("div", "s936-struct-bpm-wrap");
-    const bpmRange = ctx.el("input", "s936-struct-bpm-range");
-    bpmRange.type = "range";
-    bpmRange.min = "50";
-    bpmRange.max = "180";
-    bpmRange.step = "1";
-    bpmRange.value = String(Math.max(50, Math.min(180, Number(meta.bpm) || 95)));
-
-    const bpmNumber = ctx.el("input", "s936-struct-input s936-struct-bpm-number");
+    const bpmNumber = ctx.el("input", "s936-struct-input s936-struct-bpm-inline");
     bpmNumber.type = "number";
     bpmNumber.min = "50";
     bpmNumber.max = "180";
-    bpmNumber.value = bpmRange.value;
-
+    bpmNumber.value = String(Math.max(50, Math.min(180, Number(meta.bpm) || 95)));
+    bpmNumber.title = "Tempo BPM";
     const setBpmDraft = (value) => {
       const bpm = Math.max(50, Math.min(180, Number(value) || 95));
-      bpmRange.value = String(bpm);
       bpmNumber.value = String(bpm);
       state.draft.meta.bpm = bpm;
       saveState();
     };
-    bpmRange.oninput = () => setBpmDraft(bpmRange.value);
     bpmNumber.oninput = () => setBpmDraft(bpmNumber.value);
-    bpmWrap.append(bpmRange, bpmNumber, ctx.el("span", "s936-struct-bpm-unit", "BPM"));
-    bpmField.appendChild(bpmWrap);
+    const bpmLabel = ctx.el("span", "s936-struct-bpm-unit", "BPM");
 
-    metaForm.append(titleField, styleField, bpmField);
+    metaForm.append(titleInput, styleSelect, bpmNumber, bpmLabel);
     card.appendChild(metaForm);
 
     const creator = ctx.el("div", "s936-struct-create-strip s936-struct-create-strip-compact");
@@ -575,7 +560,15 @@
       fileInput.value = "";
     };
     actions.appendChild(fileInput);
-    button(ctx, actions, "Cargar estructura", () => fileInput.click(), "s936-struct-btn secondary");
+    button(ctx, actions, "Cargar canción", () => {
+      // v0.8.1: intentar abrir librería primero; fallback a archivo
+      const lib = window.Studio936SuiteProLibrary || window.Studio936SuiteProModules?.library;
+      if (lib && typeof lib.openPicker === "function") {
+        lib.openPicker((song) => { if (song) loadStructureFromSong(ctx, song); });
+      } else {
+        fileInput.click();
+      }
+    }, "s936-struct-btn secondary");
 
     const compactStatus = ctx.el(
       "span",
@@ -851,6 +844,36 @@
     a.remove();
     URL.revokeObjectURL(url);
     toast(ctx, "Estructura guardada en JSON.");
+  }
+
+  function loadStructureFromSong(ctx, song) {
+    // v0.8.1: cargar canción desde librería
+    try {
+      if (!song || typeof song !== "object") return;
+      const parts = Array.isArray(song.arrangement) ? song.arrangement : readArrangement(song);
+      const clones = {};
+      parts.forEach(p => {
+        if (song.sections?.[p.section]) {
+          clones[p.section] = { source:"", items: song.sections[p.section], createdAt: new Date().toISOString() };
+        }
+      });
+      state.draft = {
+        createdAt: new Date().toISOString(),
+        parts,
+        clones,
+        notes: {},
+        meta: {
+          title: song.title || song.project?.title || "Canción",
+          style: song.style || song.project?.style || "pop",
+          bpm: Number(song.bpm || song.project?.bpm || 95)
+        },
+        importedLyrics: song.lyrics || {},
+        importedSolos: song.solos || {}
+      };
+      state.editingIndex = -1;
+      saveState();
+      renderAgain(ctx);
+    } catch(e) { console.warn("loadStructureFromSong error:", e); }
   }
 
   function loadStructureFile(ctx, file) {

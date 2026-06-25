@@ -796,16 +796,16 @@
   function renderStructureModule(ctx, shell) {
     // v0.8.1: Estructura absorbe Plantillas e Inspiración como subtabs
     const subtool = ctx.state.structureSubtool || "song";
-    const subtabs = [
-      ["song", "Estructura"],
-      ["templates", "Plantillas"],
-      ["inspire", "Inspiración"]
-    ];
+    // Subtabs opcionales: Plantillas e Inspiración como herramientas de apoyo
     const subnav = ctx.el("div", "s936-cmp-subnav");
+    const subtabs = [["templates", "Plantillas"], ["inspire", "Inspiración"]];
     subtabs.forEach(([key, label]) => {
       const btn = ctx.el("button", "s936-cmp-subtab" + (subtool === key ? " active" : ""), label);
       btn.type = "button";
-      btn.onclick = () => { ctx.state.structureSubtool = key; render(ctx); };
+      btn.onclick = () => {
+        ctx.state.structureSubtool = subtool === key ? "song" : key;
+        render(ctx);
+      };
       subnav.appendChild(btn);
     });
     shell.appendChild(subnav);
