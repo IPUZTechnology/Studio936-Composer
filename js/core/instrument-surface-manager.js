@@ -314,6 +314,8 @@ window.Studio936InstrumentSurfaceManager = (() => {
     data,
     profiles,
     sectionNames = {},
+    onCellPlay = null,
+    onChordSelect = null,
     renderer = stringSurface()
   } = {}) {
     const value = normalizeInstrument(instrument || data?.instrument);
@@ -332,7 +334,9 @@ window.Studio936InstrumentSurfaceManager = (() => {
       readOnly: false,
       data: { ...data, instrument: value, surfaceOwner: "editor" },
       profiles,
-      sectionNames
+      sectionNames,
+      onCellPlay: typeof onCellPlay === "function" ? onCellPlay : null,
+      onChordSelect: typeof onChordSelect === "function" ? onChordSelect : null
     };
     state.lastStringRender = { renderer, options };
     let result = { ok: true };
