@@ -416,37 +416,22 @@
     const s = snap(ctx);
     const parts = ensureDraft(ctx);
 
+    renderHeader(ctx, root, s, parts);
+    renderBuilder(ctx, root, s, parts);
+    shell.appendChild(root);
+
+    // v0.8.3: chart en panel derecho (fretboardContainer)
     const Chart = window.Studio936SuiteProChart;
-    if (Chart && typeof Chart.render === "function") {
-      // v0.8.2: layout dos columnas — izquierda: workbench, derecha: chart
-      const layout = document.createElement("div");
-      layout.className = "s936-struct-with-chart";
-
-      const leftCol = document.createElement("div");
-      leftCol.className = "s936-struct-left-col";
-      renderHeader(ctx, leftCol, s, parts);
-      renderBuilder(ctx, leftCol, s, parts);
-      layout.appendChild(leftCol);
-
-      const rightCol = document.createElement("div");
-      rightCol.className = "s936-struct-right-col";
-      Chart.render({
-        container: rightCol,
-        onChordClick: (section, chordIndex) => {
+    if (Chart && typeof Chart.mountInRightPanel === "function") {
+      Chart.mountInRightPanel({
+        onChordEdit: (sectionKey, chordIndex, newName) => {
           try {
-            window.Studio936AppBridge?.selectEditorSection?.(section);
+            window.Studio936AppBridge?.selectEditorSection?.(sectionKey);
             window.Studio936AppBridge?.selectEditorChord?.(chordIndex);
           } catch(_) {}
         }
       });
-      layout.appendChild(rightCol);
-      root.appendChild(layout);
-    } else {
-      renderHeader(ctx, root, s, parts);
-      renderBuilder(ctx, root, s, parts);
     }
-
-    shell.appendChild(root);
   }
 
   function renderHeader(ctx, root, s, parts) {

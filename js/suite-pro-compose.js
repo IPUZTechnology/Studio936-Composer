@@ -290,6 +290,10 @@
     if (active !== "editor") {
       safe(() => window.Studio936AppBridge?.deactivateEditorSurface?.(), null);
     }
+    // v0.8.3: desmontar chart del panel derecho cuando no estamos en Estructura
+    if (active !== "structure") {
+      try { window.Studio936SuiteProChart?.unmountFromRightPanel?.(); } catch(_) {}
+    }
     const map = {
       templates: renderTemplates,
       inspire: renderInspire,
