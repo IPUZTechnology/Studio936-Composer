@@ -156,6 +156,10 @@ function mountEditorInstrumentSurface(instrument){
             const chordIndex = Math.max(0, Math.min(seq.length - 1, Number(els.chordSelect?.value) || 0));
             const item = seq[chordIndex];
             if (item && stringInstrumentId(value) && typeof showEditorChordVisual === 'function') {
+                // v0.7.5.8: usar exactStringVoicing para pasar exactFrets/exactMidis
+                // Esto activa hasExactStringNotes=true → renderEditorStrings con seq completo
+                // → lastStringRender queda guardado con seq → enforce() preserva los charts.
+                const voicing = exactStringVoicing(item, value);
                 showEditorChordVisual({
                     instrument: value,
                     sectionKey,
@@ -164,8 +168,12 @@ function mountEditorInstrumentSurface(instrument){
                     bass: item.bass,
                     notes: item.notes,
                     bars: item.bars,
-                    seq,                          // v0.7.5.7: pasar seq para que los charts aparezcan
-                    sections: project.sections    // contexto completo de secciones
+                    exactFrets: voicing ? voicing.voicing.frets : null,
+                    exactMidis: voicing ? voicing.midis : null,
+                    exactStrings: voicing ? voicing.strings : null,
+                    capo: voicing ? (voicing.voicing.capo || 0) : 0,
+                    barre: voicing ? (voicing.voicing.barre || null) : null,
+                    voicings: item.voicings || null
                 });
             }
         } catch(_) {}
