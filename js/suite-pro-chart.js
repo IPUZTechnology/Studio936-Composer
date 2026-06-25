@@ -93,16 +93,31 @@ window.Studio936SuiteProChart = (() => {
     return wrap;
   }
 
-  // Expandir acordes en compases individuales
-  function expandMeasures(chords) {
+  // Leer beats guardados por sección/compás
+  function getBeatsData(sectionKey) {
+    try {
+      const d = JSON.parse(localStorage.getItem('s936_chart_beats_v1') || '{}');
+      return d[sectionKey] || {};
+    } catch(_) { return {}; }
+  }
+
+  function saveBeatsData(sectionKey, barIndex, beatIndex, value) {
+    try {
+      const d = JSON.parse(localStorage.getItem('s936_chart_beats_v1') || '{}');
+      if (!d[sectionKey]) d[sectionKey] = {};
+      const key = barIndex + "_" + beatIndex;
+      if (value) d[sectionKey][key] = value;
+      else delete d[sectionKey][key];
+      localStorage.setItem('s936_chart_beats_v1', JSON.stringify(d));
+    } catch(_) {}
+  }
+
+  // Construir compases desde totalBars definido en estructura
+  function buildMeasures(totalBars) {
     const measures = [];
-    let barNum = 1;
-    chords.forEach((chord, ci) => {
-      const bars = Math.max(1, Number(chord.bars) || 1);
-      for (let b = 0; b < bars; b++) {
-        measures.push({ chord: b === 0 ? chord : null, isSlash: b > 0, ci, barNum: barNum++ });
-      }
-    });
+    for (let i = 0; i < totalBars; i++) {
+      measures.push({ barNum: i + 1, barIndex: i });
+    }
     return measures;
   }
 
@@ -110,28 +125,46 @@ window.Studio936SuiteProChart = (() => {
     document.querySelectorAll(".s936-ch-pop").forEach(p => p.remove());
   }
 
-  function showEditPopup(barEl, ci, chord, onSave) {
+  function showBeatEditor(beatEl, sectionKey, barIndex, beatIndex, currentVal, onSave) {
     closePopups();
     const pop = document.createElement("div");
     pop.className = "s936-ch-pop";
+    pop.style.cssText = "position:absolute;top:0;left:0;right:0;background:#131726;border:1px solid rgba(0,255,204,.5);border-radius:6px;z-index:30;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,.8);min-width:80px";
+
+    const label = document.createElement("div");
+    label.style.cssText = "font-size:.44rem;color:rgba(255,255,255,.4);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px";
+    label.textContent = "Tiempo " + (beatIndex + 1);
+    pop.appendChild(label);
+
     const inp = document.createElement("input");
-    inp.value = chord.name || "";
-    inp.placeholder = "Ej: Cmaj7, Dm7, G7alt";
+    inp.className = "s936-ch-pop-inp";
+    inp.style.cssText = "width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:4px;color:#fff;font-size:.72rem;font-weight:700;padding:4px 6px;outline:none;box-sizing:border-box";
+    inp.value = currentVal || "";
+    inp.placeholder = "Ej: Cm7";
+    inp.setAttribute("autocomplete","off");
     pop.appendChild(inp);
+
     const acts = document.createElement("div");
-    acts.className = "s936-ch-pop-acts";
+    acts.style.cssText = "display:flex;gap:3px;margin-top:5px";
+
     const ok = document.createElement("button");
-    ok.className = "s936-ch-pop-btn ok"; ok.textContent = "Guardar";
-    const cancel = document.createElement("button");
-    cancel.className = "s936-ch-pop-btn cancel"; cancel.textContent = "Cancelar";
-    acts.append(ok, cancel);
+    ok.style.cssText = "flex:1;background:rgba(0,255,204,.15);border:1px solid rgba(0,255,204,.35);border-radius:4px;color:#bfffee;font-size:.48rem;font-weight:700;padding:4px;cursor:pointer";
+    ok.textContent = "OK";
+
+    const del = document.createElement("button");
+    del.style.cssText = "flex:0 0 auto;background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.3);border-radius:4px;color:#ff8080;font-size:.48rem;font-weight:700;padding:4px 6px;cursor:pointer";
+    del.textContent = "×";
+
+    acts.append(ok, del);
     pop.appendChild(acts);
-    ok.onclick = () => { const v = inp.value.trim(); if (v && onSave) onSave(ci, v); closePopups(); };
-    cancel.onclick = closePopups;
+
+    ok.onclick = () => { const v = inp.value.trim(); onSave(v); closePopups(); };
+    del.onclick = () => { onSave(""); closePopups(); };
     inp.onkeydown = e => { if (e.key === "Enter") ok.onclick(); if (e.key === "Escape") closePopups(); };
-    barEl.style.position = "relative";
-    barEl.appendChild(pop);
-    setTimeout(() => inp.focus(), 0);
+
+    beatEl.style.position = "relative";
+    beatEl.appendChild(pop);
+    setTimeout(() => { inp.focus(); inp.select(); }, 0);
   }
 
   function render({ container, instrument, onChordEdit } = {}) {
@@ -183,14 +216,9 @@ window.Studio936SuiteProChart = (() => {
 
     arrangement.forEach(item => {
       const chords = sections[item.section];
-      if (!Array.isArray(chords) || !chords.length) return;
-      const measures = expandMeasures(chords);
-      // Total de compases definido en estructura, o suma de bars de acordes como fallback
-      const totalMeasures = sectionBars[item.section] || measures.length;
-      // Rellenar con compases vacíos si hay menos acordes que compases definidos
-      while (measures.length < totalMeasures) {
-        measures.push({ chord: null, isSlash: false, isEmpty: true, ci: -1, barNum: measures.length + 1 });
-      }
+      const totalMeasures = sectionBars[item.section] || (Array.isArray(chords) ? chords.reduce((s,c)=>s+(Number(c.bars)||1),0) : 4);
+      const beatsData = getBeatsData(item.section);
+      const measures = buildMeasures(totalMeasures);
 
       const sec = document.createElement("div");
       sec.className = "s936-ch-sec";
@@ -211,7 +239,7 @@ window.Studio936SuiteProChart = (() => {
       hd.append(badge, sinfo);
       sec.appendChild(hd);
 
-      // Filas de 4 compases
+      // Filas de 4 compases, cada compás con 4 beats
       const COLS = 4;
       for (let i = 0; i < measures.length; i += COLS) {
         const line = document.createElement("div");
@@ -220,96 +248,62 @@ window.Studio936SuiteProChart = (() => {
         for (let j = 0; j < COLS; j++) {
           const m = measures[i + j];
           if (!m) {
-            // Celda vacía para completar la fila
             const empty = document.createElement("div");
-            empty.style.cssText = "border-right:1px solid rgba(255,255,255,.1);min-height:72px";
+            empty.style.cssText = "border-right:1px solid rgba(255,255,255,.1);min-height:88px";
             line.appendChild(empty);
-            continue;
-          }
-
-          if (m.isEmpty) {
-            const empty = document.createElement("div");
-            empty.style.cssText = "border-right:1px solid rgba(255,255,255,.1);min-height:72px;position:relative";
-            const num = document.createElement("span");
-            num.className = "s936-ch-num";
-            num.textContent = m.barNum;
-            empty.appendChild(num);
-            line.appendChild(empty);
-            continue;
-          }
-
-          if (m.isSlash) {
-            const slash = document.createElement("div");
-            slash.className = "s936-ch-slash";
-            const num = document.createElement("span");
-            num.className = "s936-ch-num";
-            num.textContent = m.barNum;
-            slash.appendChild(num);
-            slash.appendChild(document.createTextNode("/ / / /"));
-            line.appendChild(slash);
             continue;
           }
 
           const bar = document.createElement("div");
-          bar.className = "s936-ch-bar" +
-            (i + j === 0 ? " s936-cb-open" : "") +
-            (edState.sectionKey === item.section && edState.chordIndex === m.ci ? " s936-cb-hit" : "");
+          bar.className = "s936-ch-bar" + (i + j === 0 ? " s936-cb-open" : "");
+          bar.style.padding = "4px 4px 4px";
 
+          // Número de compás
           const num = document.createElement("span");
           num.className = "s936-ch-num";
           num.textContent = m.barNum;
           bar.appendChild(num);
 
-          // Acorde
-          const chord = m.chord;
-          const parsed = parseChord(chord.name);
-          const nameWrap = document.createElement("div");
-          nameWrap.className = "s936-ch-root";
-          const rootSpan = document.createElement("span");
-          rootSpan.textContent = parsed.root;
-          const qualSpan = document.createElement("span");
-          qualSpan.className = "s936-ch-qual";
-          qualSpan.textContent = parsed.qual;
-          nameWrap.append(rootSpan, qualSpan);
-          bar.appendChild(nameWrap);
+          // 4 subceldas de beats
+          const beatsRow = document.createElement("div");
+          beatsRow.style.cssText = "display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin-top:14px";
 
-          if (chord.bass) {
-            const bassNote = chord.bass.replace(/\d/, "");
-            if (bassNote !== parsed.root) {
-              const bassEl = document.createElement("div");
-              bassEl.className = "s936-ch-bass";
-              bassEl.textContent = "/" + bassNote;
-              bar.appendChild(bassEl);
+          for (let b = 0; b < 4; b++) {
+            const beatKey = m.barIndex + "_" + b;
+            const beatVal = beatsData[beatKey] || "";
+            const beat = document.createElement("div");
+            beat.style.cssText = "background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:3px;min-height:44px;cursor:pointer;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2px;transition:background .1s";
+            beat.title = "Tiempo " + (b+1);
+
+            if (beatVal) {
+              const parsed = parseChord(beatVal);
+              const rEl = document.createElement("div");
+              rEl.style.cssText = "font-size:.62rem;font-weight:900;color:#fff;line-height:1;text-align:center";
+              rEl.textContent = parsed.root;
+              const qEl = document.createElement("div");
+              qEl.style.cssText = "font-size:.42rem;color:rgba(255,255,255,.6);text-align:center";
+              qEl.textContent = parsed.qual;
+              beat.append(rEl, qEl);
+              beat.style.background = "rgba(0,255,204,.08)";
+              beat.style.borderColor = "rgba(0,255,204,.25)";
+            } else {
+              const plus = document.createElement("span");
+              plus.textContent = "+";
+              plus.style.cssText = "font-size:.7rem;color:rgba(255,255,255,.15)";
+              beat.appendChild(plus);
             }
-          }
 
-          if (chord.bars > 1) {
-            const dur = document.createElement("div");
-            dur.className = "s936-ch-dur";
-            dur.textContent = chord.bars + " comp.";
-            bar.appendChild(dur);
-          }
-
-          // Mini piano diagram
-          if (inst === "piano" && chord.notes) {
-            const diag = document.createElement("div");
-            diag.className = "s936-ch-diag";
-            diag.appendChild(miniPiano(chord.notes));
-            bar.appendChild(diag);
-          }
-
-          // Click → seleccionar en editor
-          bar.addEventListener("click", (e) => {
-            e.stopPropagation();
-            try {
-              bridge.selectEditorSection?.(item.section);
-              bridge.selectEditorChord?.(m.ci);
-            } catch(_) {}
-            showEditPopup(bar, m.ci, chord, (ci, newName) => {
-              if (typeof onChordEdit === "function") onChordEdit(item.section, ci, newName);
+            beat.addEventListener("click", (e) => {
+              e.stopPropagation();
+              showBeatEditor(beat, item.section, m.barIndex, b, beatVal, (val) => {
+                saveBeatsData(item.section, m.barIndex, b, val);
+                render({ container, instrument, onChordEdit });
+              });
             });
-          });
 
+            beatsRow.appendChild(beat);
+          }
+          bar.appendChild(beatsRow);
           line.appendChild(bar);
         }
         sec.appendChild(line);
