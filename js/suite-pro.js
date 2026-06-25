@@ -23,12 +23,10 @@
   const ROMAN_INDEX = { I:0, ii:1, iii:2, IV:3, V:4, vi:5, vii:6 };
 
   const AREAS = [
-    ["command", "Mapa Maestro"],
     ["compose", "Compose"],
-    ["arrange", "Arrange"],
-    ["practice", "Practice"],
     ["studio", "Studio"],
-    ["export", "Export"]
+    ["command", "Mapa Maestro"]
+    // arrange, practice, export: ocultos temporalmente v0.8.1
   ];
 
   const TEMPLATES = [

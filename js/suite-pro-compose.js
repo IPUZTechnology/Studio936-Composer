@@ -217,6 +217,10 @@
 #s936SuitePro .s936-cmp-btn.secondary{border-color:rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:#fff}
 #s936SuitePro .s936-cmp-select,#s936SuitePro .s936-cmp-input{width:100%;border:1px solid rgba(255,255,255,.16);border-radius:12px;background:rgba(0,0,0,.26);color:#fff;padding:8px 10px;font-size:.75rem;font-weight:800}
 #s936SuitePro .s936-cmp-toolbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px}
+#s936SuitePro .s936-cmp-subnav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.08)}
+#s936SuitePro .s936-cmp-subtab{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:20px;color:rgba(255,255,255,.65);font-size:.62rem;font-weight:700;padding:5px 14px;cursor:pointer;text-transform:uppercase;letter-spacing:.5px;transition:all .15s}
+#s936SuitePro .s936-cmp-subtab.active{background:rgba(0,255,204,.15);border-color:#00ffcc;color:#bfffee}
+#s936SuitePro .s936-cmp-subtab:hover:not(.active){background:rgba(255,255,255,.1);color:#fff}
 #s936SuitePro .s936-cmp-field label{display:block;color:#ffe066;font-size:.58rem;font-weight:950;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px}
 #s936SuitePro .s936-cmp-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 #s936SuitePro .s936-cmp-chip{border:1px solid rgba(0,255,204,.38);border-radius:999px;background:rgba(0,255,204,.08);color:#bfffee;padding:5px 8px;font-size:.62rem;font-weight:900}
@@ -264,14 +268,11 @@
     const shell = ctx.el("div", "s936-cmp-shell");
 
     const tools = [
-      ["templates","Plantillas"],
-      ["inspire","Inspiración"],
-      ["transpose","Transponer"],
-      ["structure","Estructura"],
-      ["editor","Editor"],
-      ["chordAI","Acordes IA"],
-      ["theory","Teoría"],
-      ["scales","Escalas"]
+      ["structure","Estructura"],   // principal — absorbe Plantillas e Inspiración
+      ["editor","Editor"],          // acordes por sección
+      ["theory","Teoría"],          // absorbe Escalas
+      // transpose → Main (control global)
+      // templates, inspire, scales, chordAI → integrados en sus tabs padre
     ];
 
     const nav = ctx.toolNav(tools, ctx.state.composeTool || state.tool, (v) => {
@@ -281,8 +282,11 @@
     });
     shell.appendChild(nav);
 
-    let active = ctx.state.composeTool || state.tool || "templates";
+    let active = ctx.state.composeTool || state.tool || "structure";
     if (active === "songDNA") active = "structure";
+    // redirigir tools movidos a sus nuevos tabs padre
+    if (active === "templates" || active === "inspire") active = "structure";
+    if (active === "scales" || active === "chordAI" || active === "transpose") active = "theory";
     if (active !== "editor") {
       safe(() => window.Studio936AppBridge?.deactivateEditorSurface?.(), null);
     }
@@ -790,6 +794,25 @@
 
 
   function renderStructureModule(ctx, shell) {
+    // v0.8.1: Estructura absorbe Plantillas e Inspiración como subtabs
+    const subtool = ctx.state.structureSubtool || "song";
+    const subtabs = [
+      ["song", "Estructura"],
+      ["templates", "Plantillas"],
+      ["inspire", "Inspiración"]
+    ];
+    const subnav = ctx.el("div", "s936-cmp-subnav");
+    subtabs.forEach(([key, label]) => {
+      const btn = ctx.el("button", "s936-cmp-subtab" + (subtool === key ? " active" : ""), label);
+      btn.type = "button";
+      btn.onclick = () => { ctx.state.structureSubtool = key; render(ctx); };
+      subnav.appendChild(btn);
+    });
+    shell.appendChild(subnav);
+
+    if (subtool === "templates") return renderTemplates(ctx, shell);
+    if (subtool === "inspire") return renderInspire(ctx, shell);
+
     const mod = window.Studio936SuiteProStructure || window.Studio936SuiteProModules?.structure;
     if (mod && typeof mod.render === "function") {
       return mod.render(ctx, shell);
@@ -820,7 +843,7 @@
     const topActions = actions(ctx, card);
     btn(ctx, topActions, "Abrir estructura", () => ctx.callBridge?.("openStructure", () => false), "s936-cmp-btn warn");
     btn(ctx, topActions, "Abrir editor", () => ctx.callBridge?.("openEditor", () => false), "s936-cmp-btn secondary");
-    btn(ctx, topActions, "Ir a Plantillas", () => { ctx.state.composeTool = "templates"; state.tool = "templates"; saveState(); render(ctx); }, "s936-cmp-btn secondary");
+    btn(ctx, topActions, "Plantillas", () => { ctx.state.composeTool = "structure"; ctx.state.structureSubtool = "templates"; state.tool = "structure"; saveState(); render(ctx); }, "s936-cmp-btn secondary");
     shell.appendChild(card);
 
     const grid = ctx.el("div", "s936-cmp-grid two");
@@ -956,6 +979,25 @@ function renderChordAI(ctx, shell) {
   }
 
   function renderTheory(ctx, shell) {
+    // v0.8.1: Teoría absorbe Escalas y Acordes IA como subtabs
+    const subtool = ctx.state.theorySubtool || "theory";
+    const subtabs = [
+      ["theory", "Teoría"],
+      ["scales", "Escalas"],
+      ["chordAI", "Acordes IA"]
+    ];
+    const subnav = ctx.el("div", "s936-cmp-subnav");
+    subtabs.forEach(([key, label]) => {
+      const btn = ctx.el("button", "s936-cmp-subtab" + (subtool === key ? " active" : ""), label);
+      btn.type = "button";
+      btn.onclick = () => { ctx.state.theorySubtool = key; render(ctx); };
+      subnav.appendChild(btn);
+    });
+    shell.appendChild(subnav);
+
+    if (subtool === "scales") return renderScales(ctx, shell);
+    if (subtool === "chordAI") return renderChordAI(ctx, shell);
+
     const key = keyOf(ctx);
     const grid = ctx.el("div", "s936-cmp-grid two");
     [
