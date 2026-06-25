@@ -91,6 +91,7 @@ let project = loadProject();
 const EDITOR_INSTRUMENT_IDS = ['piano','guitar','ukulele','bass','lead'];
 const EDITOR_SURFACE_IDS = [...EDITOR_INSTRUMENT_IDS,'drums'];
 let editorInstrument = [...EDITOR_INSTRUMENT_IDS,'drums'].includes(project.instrument) ? project.instrument : 'piano';
+let _mainInstrumentBeforeEditor = null; // v0.8.0: instrumento original del Main antes de abrir el Editor
 function canonicalInstrumentId(value){
     const id = String(value || '').trim().toLowerCase();
     if(id === 'uke' || id === 'ukelele' || id === 'ukulele') return 'ukulele';
@@ -2120,6 +2121,12 @@ function installStudio936AppBridge(){
     }
     function deactivateEditorSurface(){
         const result = InstrumentSurfaceManager.endEditorSession({restore:true});
+        // v0.8.0: restaurar instrumento original del Main al cerrar el Editor
+        if(_mainInstrumentBeforeEditor !== null){
+            project.instrument = _mainInstrumentBeforeEditor;
+            if(els.instrumentSelect) els.instrumentSelect.value = _mainInstrumentBeforeEditor;
+            _mainInstrumentBeforeEditor = null;
+        }
         const mainInstrument = project.instrument || 'piano';
         if(['guitar','ukulele','bass','lead'].includes(mainInstrument)){
             project.fretMode = mainInstrument === 'lead' ? 'guitar' : mainInstrument;
@@ -2182,19 +2189,31 @@ function installStudio936AppBridge(){
     function setEditorInstrument(instrument){
         const requested = canonicalInstrumentId(instrument);
         const value = EDITOR_SURFACE_IDS.includes(requested) ? requested : 'piano';
-        // v0.7.3.11: NO llamar syncMainInstrumentFromEditor aquí.
-        // Cambiar project.instrument dispara renderMainStringSurface/renderMainDrumSurface
-        // que sobreescribe la superficie del editor y deja el ISM en estado incorrecto.
-        // El editor es independiente del Main — solo controla su propia superficie.
+        // v0.8.0: Guardar instrumento original del Main la primera vez que se abre el Editor.
+        // Al cerrar el Editor, deactivateEditorSurface lo restaura.
+        if(_mainInstrumentBeforeEditor === null){
+            _mainInstrumentBeforeEditor = project.instrument || 'piano';
+        }
         if(!InstrumentSurfaceManager.getState().active){
             InstrumentSurfaceManager.beginEditorSession(value);
         }
         mountEditorInstrumentSurface(value);
+        // Sincronizar el Main con el instrumento del Editor
+        // mountEditorInstrumentSurface ya controla la superficie — solo actualizamos
+        // project.instrument y el dropdown para que el groove suene en el instrumento correcto.
+        if(value !== 'drums'){
+            project.instrument = value;
+            if(els.instrumentSelect && els.instrumentSelect.value !== value){
+                els.instrumentSelect.value = value;
+            }
+            project.fretMode = value === 'ukulele' ? 'ukulele' : value === 'bass' ? 'bass' : value === 'lead' ? 'guitar' : 'guitar';
+            if(els.fretModeSelect) els.fretModeSelect.value = project.fretMode;
+        }
         return Object.assign({
             ok:true,
             instrument:value,
             mainInstrument:project.instrument || 'piano',
-            isolated:true,
+            isolated:false,
             synced:true
         }, getEditorState());
     }
