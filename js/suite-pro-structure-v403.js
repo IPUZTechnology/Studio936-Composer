@@ -526,6 +526,15 @@
 
     const actions = ctx.el("div", "s936-struct-actions s936-struct-main-actions s936-struct-main-actions-compact");
     button(ctx, actions, "Aplicar estructura", () => applyDraft(ctx), "s936-struct-btn warn");
+    // v0.8.1: Plantillas e Inspiración en la fila de acciones
+    button(ctx, actions, "Plantillas", () => {
+      if(ctx.state) { ctx.state.composeTool = "structure"; ctx.state.structureSubtool = "templates"; }
+      if(typeof render === "function") render(ctx);
+    }, "s936-struct-btn secondary");
+    button(ctx, actions, "Inspiración", () => {
+      if(ctx.state) { ctx.state.composeTool = "structure"; ctx.state.structureSubtool = "inspire"; }
+      if(typeof render === "function") render(ctx);
+    }, "s936-struct-btn secondary");
 
     const reread = button(ctx, actions, "Releer canción", () => {
       if (!window.confirm("¿Descartar los cambios del tablero y volver a leer la estructura actual de la canción?")) return;

@@ -264,7 +264,7 @@
   function render(ctx) {
     installStyles();
     const c = ctx.clearContent();
-    ctx.title(c, "Composición Pro", "Centro creativo modular: crear, estructurar, editar, transformar y analizar la canción.");
+    ctx.title(c, "Composición Pro", "");
     const shell = ctx.el("div", "s936-cmp-shell");
 
     const tools = [
@@ -796,20 +796,6 @@
   function renderStructureModule(ctx, shell) {
     // v0.8.1: Estructura absorbe Plantillas e Inspiración como subtabs
     const subtool = ctx.state.structureSubtool || "song";
-    // Subtabs opcionales: Plantillas e Inspiración como herramientas de apoyo
-    const subnav = ctx.el("div", "s936-cmp-subnav");
-    const subtabs = [["templates", "Plantillas"], ["inspire", "Inspiración"]];
-    subtabs.forEach(([key, label]) => {
-      const btn = ctx.el("button", "s936-cmp-subtab" + (subtool === key ? " active" : ""), label);
-      btn.type = "button";
-      btn.onclick = () => {
-        ctx.state.structureSubtool = subtool === key ? "song" : key;
-        render(ctx);
-      };
-      subnav.appendChild(btn);
-    });
-    shell.appendChild(subnav);
-
     if (subtool === "templates") return renderTemplates(ctx, shell);
     if (subtool === "inspire") return renderInspire(ctx, shell);
 
