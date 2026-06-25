@@ -163,7 +163,9 @@ function mountEditorInstrumentSurface(instrument){
                     name: item.name,
                     bass: item.bass,
                     notes: item.notes,
-                    bars: item.bars
+                    bars: item.bars,
+                    seq,                          // v0.7.5.7: pasar seq para que los charts aparezcan
+                    sections: project.sections    // contexto completo de secciones
                 });
             }
         } catch(_) {}
@@ -2193,7 +2195,10 @@ function installStudio936AppBridge(){
         const isEmptySequencerSurface = (data.surfaceMode === 'bass-line' || data.surfaceMode === 'lead-line')
             && !!data.profile
             && Array.isArray(data.exactFrets);
-        const useStringSurface = hasExactStringNotes || isEmptySequencerSurface;
+        // v0.7.5.7: al abrir Editor en instrumento de cuerda sin digitación exacta,
+        // renderizar igual para mostrar los charts de sección desde el primer momento.
+        const isInitialStringMount = !!data.profile && !!stringInstrumentId(data.instrument) && Array.isArray(data.seq) && data.seq.length > 0;
+        const useStringSurface = hasExactStringNotes || isEmptySequencerSurface || isInitialStringMount;
         if(data.profile && Array.isArray(data.seq)){
             data.seqVoicings = mainStringSeqVoicingPreviews(data.seq,data.instrument);
             if(data.voicings?.[data.instrument]) data.seqVoicings[data.chordIndex] = data.voicings[data.instrument];
