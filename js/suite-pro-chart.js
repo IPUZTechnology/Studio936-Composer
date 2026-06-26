@@ -360,6 +360,9 @@ window.Studio936SuiteProChart = (() => {
     _savedPianoDisplay = pianoContainer ? pianoContainer.style.display : null;
     if (pianoContainer) pianoContainer.style.display = "none";
 
+    // Parar ISM observer — evita que enforce() revierta los cambios del chart
+    try { window.Studio936InstrumentSurfaceManager?.stopObserver?.(); } catch(_) {}
+
     // Ocultar todos los hijos actuales del fretboard (mástil, batería, editor strings, etc.)
     [...fretContainer.children].forEach(child => {
       if (child.id !== "s936-chart-view-panel") {
@@ -389,6 +392,8 @@ window.Studio936SuiteProChart = (() => {
 
   function unmountFromRightPanel() {
     _chartActive = false;
+    // Reactivar el ISM observer
+    try { window.Studio936InstrumentSurfaceManager?.startObserver?.(); } catch(_) {}
     const chartEl = document.getElementById("s936-chart-view-panel");
     if (chartEl) chartEl.remove();
     const oldChart = document.getElementById("s936ChartContainer");
