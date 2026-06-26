@@ -360,6 +360,14 @@ window.Studio936SuiteProChart = (() => {
     _savedPianoDisplay = pianoContainer ? pianoContainer.style.display : null;
     if (pianoContainer) pianoContainer.style.display = "none";
 
+    // Ocultar todos los hijos actuales del fretboard (mástil, batería, editor strings, etc.)
+    [...fretContainer.children].forEach(child => {
+      if (child.id !== "s936-chart-view-panel") {
+        child._savedDisplay = child.style.display;
+        child.style.display = "none";
+      }
+    });
+
     // Asegurar que fretboard sea visible y relative
     fretContainer.style.display = "block";
     fretContainer.style.position = "relative";
@@ -383,16 +391,24 @@ window.Studio936SuiteProChart = (() => {
     _chartActive = false;
     const chartEl = document.getElementById("s936-chart-view-panel");
     if (chartEl) chartEl.remove();
-    // También limpiar el ID viejo si existe
     const oldChart = document.getElementById("s936ChartContainer");
     if (oldChart) oldChart.remove();
     const fretContainer = document.getElementById("fretboardContainer");
     const pianoContainer = document.getElementById("pianoContainer");
-    if (fretContainer && _savedFretDisplay !== null) {
-      fretContainer.style.display = _savedFretDisplay;
-      fretContainer.style.position = "";
-      fretContainer.style.overflow = "";
-      _savedFretDisplay = null;
+    if (fretContainer) {
+      // Restaurar hijos del fretboard
+      [...fretContainer.children].forEach(child => {
+        if (child._savedDisplay !== undefined) {
+          child.style.display = child._savedDisplay;
+          delete child._savedDisplay;
+        }
+      });
+      if (_savedFretDisplay !== null) {
+        fretContainer.style.display = _savedFretDisplay;
+        fretContainer.style.position = "";
+        fretContainer.style.overflow = "";
+        _savedFretDisplay = null;
+      }
     }
     if (pianoContainer && _savedPianoDisplay !== null) {
       pianoContainer.style.display = _savedPianoDisplay;
