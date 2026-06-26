@@ -1,8 +1,8 @@
-// Studio 936 Composer - Chart View v1.2.0
+// Studio 936 Composer - Chart View v1.3.1
 // Lead sheet iReal Book — panel derecho completo
 window.Studio936SuiteProChart = (() => {
   "use strict";
-  const VERSION = "chart-v1.2.0";
+  const VERSION = "chart-v1.3.1";
   const STYLE_ID = "s936-chart-v12";
 
   function installStyles() {
@@ -384,7 +384,7 @@ window.Studio936SuiteProChart = (() => {
       const suiteEl = document.getElementById("s936SuitePro");
       const suiteRight = (suiteEl && suiteEl.getBoundingClientRect().width > 50)
         ? suiteEl.getBoundingClientRect().right : 0;
-      const left = Math.max(suiteRight, mainRect.left);
+      const left = Math.max(suiteRight, mainRect.left) + 4; // +4px margen para scrollbar
       const top = mainRect.top;
       const width = window.innerWidth - left;
       const height = mainRect.height;
