@@ -349,40 +349,44 @@ window.Studio936SuiteProChart = (() => {
   let _chartActive = false; // true solo cuando montado intencionalmente desde Estructura
 
   function mountInRightPanel({ onChordEdit } = {}) {
-    // v1.2.4: montar dentro de fretboardContainer con position:absolute
-    // Usar ID único que no sea tocado por el CSS del app
+    // v1.3.0: montar FUERA del fretboardContainer como hermano, con dimensiones explícitas
     const fretContainer = document.getElementById("fretboardContainer");
     const pianoContainer = document.getElementById("pianoContainer");
     if (!fretContainer) return { ok: false };
 
-    // Guardar y ocultar instrumentos
-    _savedFretDisplay = fretContainer.style.display;
-    _savedPianoDisplay = pianoContainer ? pianoContainer.style.display : null;
-    if (pianoContainer) pianoContainer.style.display = "none";
-
-    // Parar ISM observer — evita que enforce() revierta los cambios del chart
+    // Parar ISM observer
     try { window.Studio936InstrumentSurfaceManager?.stopObserver?.(); } catch(_) {}
 
-    // Ocultar todos los hijos actuales del fretboard (mástil, batería, editor strings, etc.)
-    [...fretContainer.children].forEach(child => {
-      if (child.id !== "s936-chart-view-panel") {
-        child._savedDisplay = child.style.display;
-        child.style.display = "none";
-      }
-    });
+    // Guardar display original
+    _savedFretDisplay = fretContainer.style.display;
+    _savedPianoDisplay = pianoContainer ? pianoContainer.style.display : null;
 
-    // Asegurar que fretboard sea visible y relative
-    fretContainer.style.display = "block";
-    fretContainer.style.position = "relative";
-    fretContainer.style.overflow = "hidden";
+    // Ocultar instrumentos
+    fretContainer.style.display = "none";
+    if (pianoContainer) pianoContainer.style.display = "none";
 
-    // Limpiar y crear chart con ID que el app no conoce
+    // Limpiar chart anterior
     const old = document.getElementById("s936-chart-view-panel");
     if (old) old.remove();
+
+    // Crear chart como hermano del fretboardContainer
     const chartEl = document.createElement("div");
     chartEl.id = "s936-chart-view-panel";
-    chartEl.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;overflow-y:auto;background:#090b11;z-index:10";
-    fretContainer.appendChild(chartEl);
+
+    // Tomar dimensiones exactas del fretboardContainer
+    const rect = fretContainer.getBoundingClientRect();
+    chartEl.style.cssText = [
+      "position:fixed",
+      "top:" + Math.round(rect.top) + "px",
+      "left:" + Math.round(rect.left) + "px",
+      "width:" + Math.round(rect.width) + "px",
+      "height:" + Math.round(rect.height) + "px",
+      "overflow-y:auto",
+      "background:#090b11",
+      "z-index:200"
+    ].join(";");
+
+    document.body.appendChild(chartEl);
 
     const edState = window.Studio936AppBridge?.getEditorState?.() || {};
     render({ container: chartEl, instrument: edState.instrument, onChordEdit });
@@ -392,28 +396,14 @@ window.Studio936SuiteProChart = (() => {
 
   function unmountFromRightPanel() {
     _chartActive = false;
-    // Reactivar el ISM observer
     try { window.Studio936InstrumentSurfaceManager?.startObserver?.(); } catch(_) {}
     const chartEl = document.getElementById("s936-chart-view-panel");
     if (chartEl) chartEl.remove();
-    const oldChart = document.getElementById("s936ChartContainer");
-    if (oldChart) oldChart.remove();
     const fretContainer = document.getElementById("fretboardContainer");
     const pianoContainer = document.getElementById("pianoContainer");
-    if (fretContainer) {
-      // Restaurar hijos del fretboard
-      [...fretContainer.children].forEach(child => {
-        if (child._savedDisplay !== undefined) {
-          child.style.display = child._savedDisplay;
-          delete child._savedDisplay;
-        }
-      });
-      if (_savedFretDisplay !== null) {
-        fretContainer.style.display = _savedFretDisplay;
-        fretContainer.style.position = "";
-        fretContainer.style.overflow = "";
-        _savedFretDisplay = null;
-      }
+    if (fretContainer && _savedFretDisplay !== null) {
+      fretContainer.style.display = _savedFretDisplay;
+      _savedFretDisplay = null;
     }
     if (pianoContainer && _savedPianoDisplay !== null) {
       pianoContainer.style.display = _savedPianoDisplay;
