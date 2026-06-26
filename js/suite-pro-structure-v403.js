@@ -420,19 +420,27 @@
     renderBuilder(ctx, root, s, parts);
     shell.appendChild(root);
 
-    // v0.8.4: chart en panel derecho — pequeño delay para que el ISM termine de configurar el DOM
+    // v0.8.5: montar chart con reintentos hasta que el fretboardContainer tenga dimensiones
     const Chart = window.Studio936SuiteProChart;
     if (Chart && typeof Chart.mountInRightPanel === "function") {
-      setTimeout(() => {
-        Chart.mountInRightPanel({
-          onChordEdit: (sectionKey, chordIndex, newName) => {
-            try {
-              window.Studio936AppBridge?.selectEditorSection?.(sectionKey);
-              window.Studio936AppBridge?.selectEditorChord?.(chordIndex);
-            } catch(_) {}
-          }
-        });
-      }, 50);
+      const onEdit = (sectionKey, chordIndex, newName) => {
+        try {
+          window.Studio936AppBridge?.selectEditorSection?.(sectionKey);
+          window.Studio936AppBridge?.selectEditorChord?.(chordIndex);
+        } catch(_) {}
+      };
+      let attempts = 0;
+      const tryMount = () => {
+        const fc = document.getElementById("fretboardContainer");
+        const h = fc ? fc.getBoundingClientRect().height : 0;
+        if (h > 50 || attempts >= 8) {
+          Chart.mountInRightPanel({ onChordEdit: onEdit });
+        } else {
+          attempts++;
+          setTimeout(tryMount, 80);
+        }
+      };
+      setTimeout(tryMount, 80);
     }
   }
 
