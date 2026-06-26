@@ -3108,6 +3108,8 @@ function normalizeNoteName(value) {
     const panel = byId(PANEL_ID);
     state.open = false;
     if (panel) panel.classList.remove("is-open");
+    // v0.8.5: desmontar chart al cerrar Suite Pro
+    try { window.Studio936SuiteProChart?.unmountFromRightPanel?.(); } catch(_) {}
   }
 
   function toggle() {
