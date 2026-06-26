@@ -369,22 +369,41 @@ window.Studio936SuiteProChart = (() => {
     const old = document.getElementById("s936-chart-view-panel");
     if (old) old.remove();
 
-    // Crear chart como hermano del fretboardContainer
+    // Crear chart en body con dimensiones dinámicas
     const chartEl = document.createElement("div");
     chartEl.id = "s936-chart-view-panel";
 
-    // Tomar dimensiones exactas del fretboardContainer
-    const rect = fretContainer.getBoundingClientRect();
-    chartEl.style.cssText = [
-      "position:fixed",
-      "top:" + Math.round(rect.top) + "px",
-      "left:" + Math.round(rect.left) + "px",
-      "width:" + Math.round(rect.width) + "px",
-      "height:" + Math.round(rect.height) + "px",
-      "overflow-y:auto",
-      "background:#090b11",
-      "z-index:200"
-    ].join(";");
+    // Función para calcular y aplicar posición correcta
+    function applyChartPosition() {
+      const fc = document.getElementById("fretboardContainer");
+      if (!fc || !document.getElementById("s936-chart-view-panel")) return;
+      const rect = fc.getBoundingClientRect();
+      // Si fretboard está oculto, usar el área del main
+      const mainEl = document.querySelector("main");
+      const mainRect = mainEl ? mainEl.getBoundingClientRect() : rect;
+      const suiteEl = document.getElementById("s936SuitePro");
+      const suiteRight = (suiteEl && suiteEl.getBoundingClientRect().width > 50)
+        ? suiteEl.getBoundingClientRect().right : 0;
+      const left = Math.max(suiteRight, mainRect.left);
+      const top = mainRect.top;
+      const width = window.innerWidth - left;
+      const height = mainRect.height;
+      document.getElementById("s936-chart-view-panel").style.cssText = [
+        "position:fixed",
+        "top:" + Math.round(top) + "px",
+        "left:" + Math.round(left) + "px",
+        "width:" + Math.round(width) + "px",
+        "height:" + Math.round(height) + "px",
+        "overflow-y:auto",
+        "background:#090b11",
+        "z-index:200"
+      ].join(";");
+    }
+
+    applyChartPosition();
+    // Recalcular si cambia el tamaño de ventana o el Suite Pro
+    chartEl._resizeHandler = () => applyChartPosition();
+    window.addEventListener("resize", chartEl._resizeHandler);
 
     document.body.appendChild(chartEl);
 
@@ -398,7 +417,10 @@ window.Studio936SuiteProChart = (() => {
     _chartActive = false;
     try { window.Studio936InstrumentSurfaceManager?.startObserver?.(); } catch(_) {}
     const chartEl = document.getElementById("s936-chart-view-panel");
-    if (chartEl) chartEl.remove();
+    if (chartEl) {
+      if (chartEl._resizeHandler) window.removeEventListener("resize", chartEl._resizeHandler);
+      chartEl.remove();
+    }
     const fretContainer = document.getElementById("fretboardContainer");
     const pianoContainer = document.getElementById("pianoContainer");
     if (fretContainer && _savedFretDisplay !== null) {
