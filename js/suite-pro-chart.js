@@ -349,7 +349,9 @@ window.Studio936SuiteProChart = (() => {
   let _chartActive = false; // true solo cuando montado intencionalmente desde Estructura
 
   function mountInRightPanel({ onChordEdit } = {}) {
-    // v1.3.0: montar FUERA del fretboardContainer como hermano, con dimensiones explícitas
+    // v1.3.3: estrategia dual DOCK/MAX
+    // - DOCK: overlay fixed en body (z-index 200, junto al panel lateral)
+    // - MAX:  slot absoluto DENTRO del panel (#s936SuitePro) para no quedar bajo su z-index
     const fretContainer = document.getElementById("fretboardContainer");
     const pianoContainer = document.getElementById("pianoContainer");
     if (!fretContainer) return { ok: false };
@@ -366,14 +368,13 @@ window.Studio936SuiteProChart = (() => {
     if (pianoContainer) pianoContainer.style.display = "none";
 
     // Limpiar chart anterior
-    const old = document.getElementById("s936-chart-view-panel");
-    if (old) old.remove();
+    const prev = document.getElementById("s936-chart-view-panel");
+    if (prev) prev.remove();
 
-    // Crear chart en body con dimensiones dinámicas
+    // Crear el contenedor del chart
     const chartEl = document.createElement("div");
     chartEl.id = "s936-chart-view-panel";
 
-    // Función para calcular y aplicar posición correcta
     function applyChartPosition() {
       const chartPanel = document.getElementById("s936-chart-view-panel");
       if (!chartPanel) return;
@@ -382,43 +383,43 @@ window.Studio936SuiteProChart = (() => {
       const isMax = suiteEl && suiteEl.classList.contains("is-max");
 
       if (isMax) {
-        // En modo MAX: chart ocupa la mitad derecha del panel maximizado
+        // MAX: slot absoluto dentro del panel — ocupa mitad derecha del s936-sp-content
+        // Reubicar el chartEl dentro del panel si aún está en body
+        if (chartPanel.parentElement !== suiteEl) {
+          suiteEl.appendChild(chartPanel);
+        }
         const suiteRect = suiteEl.getBoundingClientRect();
         const halfWidth = Math.round(suiteRect.width / 2);
-        const left = Math.round(suiteRect.left) + halfWidth;
-        const top = Math.round(suiteRect.top);
-        const width = Math.round(suiteRect.width) - halfWidth;
-        const height = Math.round(suiteRect.height);
+        // Altura = panel completo menos header (~60px) y tabs (~44px)
+        const headerH = 60 + 44;
         chartPanel.style.cssText = [
-          "position:fixed",
-          "top:" + top + "px",
-          "left:" + left + "px",
-          "width:" + width + "px",
-          "height:" + height + "px",
+          "position:absolute",
+          "top:" + headerH + "px",
+          "right:0",
+          "width:" + halfWidth + "px",
+          "bottom:0",
           "overflow-y:auto",
           "background:#090b11",
           "border-left:1px solid rgba(0,255,204,.18)",
           "border-radius:0 22px 22px 0",
-          "z-index:600"
+          "z-index:2"  // sobre el contenido del panel, bajo ningún overlay externo
         ].join(";");
       } else {
-        // En modo DOCK normal: chart flota a la derecha del panel lateral
-        const fc = document.getElementById("fretboardContainer");
+        // DOCK: overlay fixed en body, a la derecha del panel lateral
+        if (chartPanel.parentElement !== document.body) {
+          document.body.appendChild(chartPanel);
+        }
         const mainEl = document.querySelector("main");
-        const fallbackRect = { top: 0, height: window.innerHeight };
-        const mainRect = mainEl ? mainEl.getBoundingClientRect() : fallbackRect;
+        const mainRect = mainEl ? mainEl.getBoundingClientRect() : { top: 0, height: window.innerHeight, left: 0 };
         const suiteRight = (suiteEl && suiteEl.getBoundingClientRect().width > 50)
           ? suiteEl.getBoundingClientRect().right : 0;
         const left = Math.max(suiteRight, mainRect.left) + 4;
-        const top = mainRect.top;
-        const width = window.innerWidth - left;
-        const height = mainRect.height;
         chartPanel.style.cssText = [
           "position:fixed",
-          "top:" + Math.round(top) + "px",
+          "top:" + Math.round(mainRect.top) + "px",
           "left:" + Math.round(left) + "px",
-          "width:" + Math.round(width) + "px",
-          "height:" + Math.round(height) + "px",
+          "width:" + Math.round(window.innerWidth - left) + "px",
+          "height:" + Math.round(mainRect.height) + "px",
           "overflow-y:auto",
           "background:#090b11",
           "z-index:200"
@@ -426,12 +427,18 @@ window.Studio936SuiteProChart = (() => {
       }
     }
 
-    document.body.appendChild(chartEl);
+    // Montar en el lugar correcto según el modo actual
+    const suiteEl = document.getElementById("s936SuitePro");
+    if (suiteEl && suiteEl.classList.contains("is-max")) {
+      suiteEl.appendChild(chartEl);
+    } else {
+      document.body.appendChild(chartEl);
+    }
+
     applyChartPosition();
-    // Recalcular después de que el DOM se estabilice
     setTimeout(applyChartPosition, 100);
     setTimeout(applyChartPosition, 400);
-    // Recalcular si cambia el tamaño de ventana
+
     chartEl._resizeHandler = () => applyChartPosition();
     window.addEventListener("resize", chartEl._resizeHandler);
 
