@@ -371,7 +371,7 @@
   border:1px solid rgba(0,255,204,.35);
   border-radius:10px;
   padding:6px;
-  z-index:200;
+  z-index:9999;
   min-width:160px;
   box-shadow:0 8px 24px rgba(0,0,0,.7);
 }

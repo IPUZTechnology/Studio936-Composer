@@ -270,9 +270,9 @@
     const tools = [
       ["structure","Estructura"],
       ["editor","Editor"],
-      ["theory","Teoría"],
       ["scales","Escalas"],
       ["tabpro","Tab Pro"],
+      ["theory","Teoría"],
     ];
 
     const nav = ctx.toolNav(tools, ctx.state.composeTool || state.tool, (v) => {
