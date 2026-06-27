@@ -360,6 +360,13 @@
   display:flex;align-items:center;justify-content:center;
   transition:border-color .15s,background .15s;
   position:relative;
+  overflow:visible;
+}
+#s936SuitePro .s936-ckpt-topbar{
+  overflow:visible!important;
+}
+#s936SuitePro .s936-ckpt-shell{
+  overflow:visible!important;
 }
 #s936SuitePro .s936-ckpt-menu-btn:hover{border-color:rgba(255,224,102,.7);color:#ffe066;background:rgba(255,224,102,.12)}
 /* Dropdown del menú */
