@@ -288,6 +288,198 @@
   }
 }
 
+/* ── COCKPIT HEADER v4.1 ── */
+#s936SuitePro .s936-ckpt-shell{
+  background:rgba(0,0,0,.32);
+  border:1px solid rgba(0,255,204,.22);
+  border-radius:14px;
+  padding:0;
+  overflow:hidden;
+}
+/* Fila superior: título + estilo + BPM + menú */
+#s936SuitePro .s936-ckpt-topbar{
+  display:grid;
+  grid-template-columns:minmax(0,1.4fr) minmax(0,.8fr) 72px 32px;
+  gap:6px;
+  align-items:center;
+  padding:8px 10px;
+  background:rgba(0,255,204,.04);
+  border-bottom:1px solid rgba(255,255,255,.07);
+}
+#s936SuitePro .s936-ckpt-input{
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:8px;
+  color:#fff;
+  font-size:.75rem;
+  font-weight:700;
+  padding:5px 8px;
+  width:100%;
+  outline:none;
+  transition:border-color .15s;
+}
+#s936SuitePro .s936-ckpt-input:focus{border-color:rgba(0,255,204,.6)}
+#s936SuitePro .s936-ckpt-select{
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:8px;
+  color:#fff;
+  font-size:.72rem;
+  font-weight:700;
+  padding:5px 8px;
+  width:100%;
+  outline:none;
+}
+#s936SuitePro .s936-ckpt-bpm{
+  background:rgba(0,255,204,.08);
+  border:1px solid rgba(0,255,204,.3);
+  border-radius:8px;
+  color:#00ffcc;
+  font-size:.82rem;
+  font-weight:900;
+  padding:5px 6px;
+  width:100%;
+  text-align:center;
+  outline:none;
+}
+/* Botón menú ⚙ */
+#s936SuitePro .s936-ckpt-menu-btn{
+  width:32px;height:32px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.06);
+  color:rgba(255,255,255,.7);
+  font-size:.85rem;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:border-color .15s,background .15s;
+  position:relative;
+}
+#s936SuitePro .s936-ckpt-menu-btn:hover{border-color:rgba(0,255,204,.5);color:#00ffcc}
+/* Dropdown del menú */
+#s936SuitePro .s936-ckpt-dropdown{
+  display:none;
+  position:absolute;
+  top:38px;right:0;
+  background:#0d1117;
+  border:1px solid rgba(0,255,204,.35);
+  border-radius:10px;
+  padding:6px;
+  z-index:200;
+  min-width:160px;
+  box-shadow:0 8px 24px rgba(0,0,0,.7);
+}
+#s936SuitePro .s936-ckpt-dropdown.open{display:block}
+#s936SuitePro .s936-ckpt-dd-item{
+  display:block;width:100%;
+  text-align:left;
+  background:transparent;
+  border:none;
+  color:rgba(255,255,255,.82);
+  font-size:.68rem;
+  font-weight:800;
+  padding:7px 10px;
+  border-radius:7px;
+  cursor:pointer;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  transition:background .12s,color .12s;
+}
+#s936SuitePro .s936-ckpt-dd-item:hover{background:rgba(0,255,204,.1);color:#00ffcc}
+#s936SuitePro .s936-ckpt-dd-item.warn{color:#ffe066}
+#s936SuitePro .s936-ckpt-dd-item.warn:hover{background:rgba(255,224,102,.12)}
+#s936SuitePro .s936-ckpt-dd-sep{height:1px;background:rgba(255,255,255,.08);margin:4px 0}
+/* Fila ADD: nueva parte — colapsable */
+#s936SuitePro .s936-ckpt-add-toggle{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 10px;
+  cursor:pointer;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  color:rgba(255,224,102,.8);
+  font-size:.63rem;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.6px;
+  user-select:none;
+  transition:background .12s;
+}
+#s936SuitePro .s936-ckpt-add-toggle:hover{background:rgba(255,224,102,.05)}
+#s936SuitePro .s936-ckpt-add-toggle .s936-ckpt-chevron{
+  margin-left:auto;
+  font-size:.7rem;
+  transition:transform .2s;
+  color:rgba(255,255,255,.35);
+}
+#s936SuitePro .s936-ckpt-add-toggle.open .s936-ckpt-chevron{transform:rotate(180deg)}
+/* Formulario de nueva parte */
+#s936SuitePro .s936-ckpt-add-body{
+  display:none;
+  grid-template-columns:minmax(0,.7fr) minmax(0,1.2fr) 60px auto;
+  gap:6px;
+  align-items:end;
+  padding:8px 10px;
+  background:rgba(255,224,102,.03);
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+#s936SuitePro .s936-ckpt-add-body.open{display:grid}
+#s936SuitePro .s936-ckpt-add-label{
+  display:block;
+  color:rgba(255,255,255,.45);
+  font-size:.55rem;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  margin-bottom:3px;
+}
+#s936SuitePro .s936-ckpt-add-btn{
+  background:rgba(255,224,102,.14);
+  border:1px solid rgba(255,224,102,.5);
+  border-radius:8px;
+  color:#ffe066;
+  font-size:.65rem;
+  font-weight:900;
+  padding:6px 10px;
+  cursor:pointer;
+  text-transform:uppercase;
+  white-space:nowrap;
+  transition:background .12s;
+  height:100%;
+}
+#s936SuitePro .s936-ckpt-add-btn:hover{background:rgba(255,224,102,.24)}
+/* Fila de status compacta */
+#s936SuitePro .s936-ckpt-status{
+  display:flex;align-items:center;gap:8px;
+  padding:5px 10px;
+  color:rgba(255,255,255,.38);
+  font-size:.58rem;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+#s936SuitePro .s936-ckpt-status-dot{
+  width:5px;height:5px;border-radius:50%;
+  background:#00ffcc;
+  box-shadow:0 0 4px #00ffcc;
+  flex-shrink:0;
+}
+/* Botón primario aplicar */
+#s936SuitePro .s936-ckpt-apply-btn{
+  margin-left:auto;
+  background:rgba(0,255,204,.12);
+  border:1px solid rgba(0,255,204,.45);
+  border-radius:7px;
+  color:#00ffcc;
+  font-size:.58rem;
+  font-weight:900;
+  padding:3px 10px;
+  cursor:pointer;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  transition:background .12s;
+}
+#s936SuitePro .s936-ckpt-apply-btn:hover{background:rgba(0,255,204,.22)}
+
 `;
     document.head.appendChild(style);
   }
@@ -444,57 +636,161 @@
     }
   }
 
+  // v4.1 — COCKPIT HEADER: topbar compacta + menú ⚙ + add colapsable
   function renderHeader(ctx, root, s, parts) {
-    const card = ctx.el("section", "s936-struct-card main s936-struct-workbench s936-struct-workbench-compact");
     const meta = state.draft.meta || {};
 
-    // v0.8.1: header ultra-compacto — todo en una sola fila
-    const metaForm = ctx.el("div", "s936-struct-meta-form-inline");
+    const shell = ctx.el("div", "s936-ckpt-shell");
 
-    const titleInput = ctx.el("input", "s936-struct-input s936-struct-title-inline");
+    // ── TOP BAR: título · estilo · BPM · menú ──
+    const topbar = ctx.el("div", "s936-ckpt-topbar");
+
+    const titleInput = ctx.el("input", "s936-ckpt-input");
     titleInput.value = meta.title || "";
-    titleInput.placeholder = "Título de la canción";
+    titleInput.placeholder = "Título";
     titleInput.title = "Título de la canción";
     titleInput.oninput = () => { state.draft.meta.title = titleInput.value; saveState(); };
 
-    const styleSelect = ctx.el("select", "s936-struct-select s936-struct-select-inline");
+    const styleSelect = ctx.el("select", "s936-ckpt-select");
     styleSelect.title = "Ritmo / Estilo";
     styleOptions(ctx, s).forEach((item) => {
-      const option = ctx.el("option", "", item.label);
-      option.value = item.value;
-      if (String(item.value) === String(meta.style || "pop")) option.selected = true;
-      styleSelect.appendChild(option);
+      const opt = ctx.el("option", "", item.label);
+      opt.value = item.value;
+      if (String(item.value) === String(meta.style || "pop")) opt.selected = true;
+      styleSelect.appendChild(opt);
     });
     styleSelect.onchange = () => { state.draft.meta.style = styleSelect.value; saveState(); };
 
-    const bpmNumber = ctx.el("input", "s936-struct-input s936-struct-bpm-inline");
-    bpmNumber.type = "number";
-    bpmNumber.min = "50";
-    bpmNumber.max = "180";
-    bpmNumber.value = String(Math.max(50, Math.min(180, Number(meta.bpm) || 95)));
-    bpmNumber.title = "Tempo BPM";
-    const setBpmDraft = (value) => {
-      const bpm = Math.max(50, Math.min(180, Number(value) || 95));
-      bpmNumber.value = String(bpm);
-      state.draft.meta.bpm = bpm;
-      saveState();
+    const bpmInput = ctx.el("input", "s936-ckpt-bpm");
+    bpmInput.type = "number";
+    bpmInput.min = "50"; bpmInput.max = "220";
+    bpmInput.value = String(Math.max(50, Math.min(220, Number(meta.bpm) || 95)));
+    bpmInput.title = "BPM";
+    bpmInput.oninput = () => {
+      const v = Math.max(50, Math.min(220, Number(bpmInput.value) || 95));
+      state.draft.meta.bpm = v; saveState();
     };
-    bpmNumber.oninput = () => setBpmDraft(bpmNumber.value);
-    const bpmLabel = ctx.el("span", "s936-struct-bpm-unit", "BPM");
 
-    metaForm.append(titleInput, styleSelect, bpmNumber, bpmLabel);
-    card.appendChild(metaForm);
+    // Botón menú ⚙ con dropdown
+    const menuBtn = ctx.el("button", "s936-ckpt-menu-btn");
+    menuBtn.title = "Opciones";
+    menuBtn.innerHTML = "⚙";
+    menuBtn.setAttribute("aria-label", "Opciones de estructura");
 
-    const creator = ctx.el("div", "s936-struct-create-strip s936-struct-create-strip-compact");
-    const createForm = ctx.el("div", "s936-struct-create-form");
+    const dropdown = ctx.el("div", "s936-ckpt-dropdown");
+    dropdown.id = "s936CkptDropdown";
 
-    const typeField = field(ctx, "Nueva parte");
-    const typeSelect = ctx.el("select", "s936-struct-select");
+    const ddApply = ctx.el("button", "s936-ckpt-dd-item warn", "▶ Aplicar estructura");
+    ddApply.onclick = () => { dropdown.classList.remove("open"); applyDraft(ctx); };
+
+    const ddReleer = ctx.el("button", "s936-ckpt-dd-item", "↺ Releer canción");
+    ddReleer.onclick = () => {
+      dropdown.classList.remove("open");
+      if (!window.confirm("¿Descartar cambios y releer la canción actual?")) return;
+      const fresh = snap(ctx);
+      state.draft = {
+        createdAt: new Date().toISOString(),
+        parts: readArrangement(fresh),
+        clones: {}, notes: {},
+        meta: {
+          title: fresh.title || fresh.project?.title || document.getElementById("songTitle")?.value || "Canción sin nombre",
+          style: fresh.style || fresh.project?.style || document.getElementById("styleSelect")?.value || "pop",
+          bpm: Number(fresh.bpm || fresh.project?.bpm || document.getElementById("bpmSlider")?.value || 95)
+        },
+        importedLyrics: {}, importedSolos: {}
+      };
+      state.editingIndex = -1;
+      saveState(); renderAgain(ctx);
+    };
+
+    const ddSep1 = ctx.el("div", "s936-ckpt-dd-sep");
+
+    const ddGuardar = ctx.el("button", "s936-ckpt-dd-item", "💾 Guardar estructura");
+    ddGuardar.onclick = () => { dropdown.classList.remove("open"); saveStructureFile(ctx, s, parts); };
+
+    const ddCargar = ctx.el("button", "s936-ckpt-dd-item", "📂 Cargar canción");
+    const fileInput = ctx.el("input", "s936-struct-hidden-file");
+    fileInput.type = "file"; fileInput.accept = "application/json,.json";
+    fileInput.onchange = () => { const f = fileInput.files?.[0]; if (f) loadStructureFile(ctx, f); fileInput.value = ""; };
+    ddCargar.onclick = () => {
+      dropdown.classList.remove("open");
+      const lib = window.Studio936SuiteProLibrary || window.Studio936SuiteProModules?.library;
+      if (lib && typeof lib.openPicker === "function") {
+        lib.openPicker((song) => { if (song) loadStructureFromSong(ctx, song); });
+      } else { fileInput.click(); }
+    };
+
+    const ddSep2 = ctx.el("div", "s936-ckpt-dd-sep");
+
+    const ddPlantillas = ctx.el("button", "s936-ckpt-dd-item", "🎼 Plantillas");
+    ddPlantillas.onclick = () => {
+      dropdown.classList.remove("open");
+      if (ctx.state) { ctx.state.composeTool = "structure"; ctx.state.structureSubtool = "templates"; }
+      if (typeof render === "function") render(ctx);
+    };
+
+    const ddInspiracion = ctx.el("button", "s936-ckpt-dd-item", "✨ Inspiración");
+    ddInspiracion.onclick = () => {
+      dropdown.classList.remove("open");
+      if (ctx.state) { ctx.state.composeTool = "structure"; ctx.state.structureSubtool = "inspire"; }
+      if (typeof render === "function") render(ctx);
+    };
+
+    dropdown.append(ddApply, ddReleer, ddSep1, ddGuardar, ddCargar, ddSep2, ddPlantillas, ddInspiracion, fileInput);
+
+    // Toggle dropdown
+    menuBtn.onclick = (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle("open");
+    };
+    // Cerrar al click fuera
+    document.addEventListener("click", function closeDD(e) {
+      if (!menuBtn.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.classList.remove("open");
+      }
+    }, { once: false, capture: false });
+
+    menuBtn.appendChild(dropdown);
+    topbar.append(titleInput, styleSelect, bpmInput, menuBtn);
+    shell.appendChild(topbar);
+
+    // ── STATUS BAR ──
+    const statusBar = ctx.el("div", "s936-ckpt-status");
+    const dot = ctx.el("span", "s936-ckpt-status-dot");
+    const statusText = ctx.el("span", "", `${parts.length} partes · ${totalBars(parts)} compases · ${uniqueSectionCount(parts)} secciones`);
+    const applyBtn = ctx.el("button", "s936-ckpt-apply-btn", "▶ Aplicar");
+    applyBtn.title = "Aplicar estructura a la canción";
+    applyBtn.onclick = () => applyDraft(ctx);
+    statusBar.append(dot, statusText, applyBtn);
+    shell.appendChild(statusBar);
+
+    // ── ADD TOGGLE (colapsable) ──
+    const addToggle = ctx.el("div", "s936-ckpt-add-toggle");
+    addToggle.innerHTML = `<span>+ Nueva parte</span><span class="s936-ckpt-chevron">▾</span>`;
+    // Recordar estado del panel add en localStorage
+    const addOpenKey = "s936_ckpt_add_open";
+    const addIsOpen = localStorage.getItem(addOpenKey) === "1";
+    if (addIsOpen) addToggle.classList.add("open");
+
+    const addBody = ctx.el("div", "s936-ckpt-add-body" + (addIsOpen ? " open" : ""));
+
+    addToggle.onclick = () => {
+      const now = !addToggle.classList.contains("open");
+      addToggle.classList.toggle("open", now);
+      addBody.classList.toggle("open", now);
+      localStorage.setItem(addOpenKey, now ? "1" : "0");
+    };
+    shell.appendChild(addToggle);
+
+    // Formulario dentro del add
+    const typeField = ctx.el("div", "");
+    const typeLabel = ctx.el("span", "s936-ckpt-add-label", "Tipo");
+    const typeSelect = ctx.el("select", "s936-ckpt-select");
     PART_OPTIONS.forEach(([value, label]) => {
-      const option = ctx.el("option", "", label);
-      option.value = value;
-      if (value === state.newType) option.selected = true;
-      typeSelect.appendChild(option);
+      const opt = ctx.el("option", "", label);
+      opt.value = value;
+      if (value === state.newType) opt.selected = true;
+      typeSelect.appendChild(opt);
     });
     typeSelect.onchange = () => {
       state.newType = typeSelect.value;
@@ -502,37 +798,31 @@
       barsInput.value = String(state.newBars);
       saveState();
     };
-    typeField.appendChild(typeSelect);
+    typeField.append(typeLabel, typeSelect);
 
-    const nameField = field(ctx, "Nombre visible");
-    const nameInput = ctx.el("input", "s936-struct-input");
+    const nameField = ctx.el("div", "");
+    const nameLabel = ctx.el("span", "s936-ckpt-add-label", "Nombre");
+    const nameInput = ctx.el("input", "s936-ckpt-input");
     nameInput.value = state.newLabel || "";
-    nameInput.placeholder = "Ej. Coro final, Puente instrumental";
-    nameInput.oninput = () => {
-      state.newLabel = nameInput.value;
-      saveState();
-    };
-    nameField.appendChild(nameInput);
+    nameInput.placeholder = "Ej. Coro final";
+    nameInput.oninput = () => { state.newLabel = nameInput.value; saveState(); };
+    nameField.append(nameLabel, nameInput);
 
-    const barsField = field(ctx, "Compases");
-    const barsInput = ctx.el("input", "s936-struct-input");
-    barsInput.type = "number";
-    barsInput.min = "1";
-    barsInput.max = "64";
+    const barsField = ctx.el("div", "");
+    const barsLabel = ctx.el("span", "s936-ckpt-add-label", "Comp.");
+    const barsInput = ctx.el("input", "s936-ckpt-bpm");
+    barsInput.type = "number"; barsInput.min = "1"; barsInput.max = "64";
     barsInput.value = String(state.newBars || suggestedBars(state.newType));
-    barsInput.oninput = () => {
-      state.newBars = Math.max(1, Number(barsInput.value) || 8);
-      saveState();
-    };
-    barsField.appendChild(barsInput);
+    barsInput.oninput = () => { state.newBars = Math.max(1, Number(barsInput.value) || 8); saveState(); };
+    barsField.append(barsLabel, barsInput);
 
-    const createAction = ctx.el("div", "s936-struct-create-action");
-    button(ctx, createAction, "Añadir parte", () => {
+    const addBtn = ctx.el("button", "s936-ckpt-add-btn", "+ Añadir");
+    addBtn.onclick = () => {
       const type = typeSelect.value || "verse";
       const visible = (nameInput.value || (type === "custom" ? "Parte nueva" : labelFor(type))).trim();
       const section = uniqueSectionKey(s, parts, type === "custom" ? visible : type);
       const bars = Math.max(1, Number(barsInput.value) || suggestedBars(type));
-      parts.push({ section, label: visible, bars, independent:true, type });
+      parts.push({ section, label: visible, bars, independent: true, type });
       state.draft.parts = parts;
       state.draft.clones[section] = {
         source: "",
@@ -541,78 +831,13 @@
       };
       state.newLabel = "";
       state.editingIndex = parts.length - 1;
-      saveState();
-      renderAgain(ctx);
-    }, "s936-struct-btn warn");
-
-    createForm.append(typeField, nameField, barsField, createAction);
-    creator.appendChild(createForm);
-    card.appendChild(creator);
-
-    const actions = ctx.el("div", "s936-struct-actions s936-struct-main-actions s936-struct-main-actions-compact");
-    button(ctx, actions, "Aplicar estructura", () => applyDraft(ctx), "s936-struct-btn warn");
-    // v0.8.1: Plantillas e Inspiración en la fila de acciones
-    button(ctx, actions, "Plantillas", () => {
-      if(ctx.state) { ctx.state.composeTool = "structure"; ctx.state.structureSubtool = "templates"; }
-      if(typeof render === "function") render(ctx);
-    }, "s936-struct-btn secondary");
-    button(ctx, actions, "Inspiración", () => {
-      if(ctx.state) { ctx.state.composeTool = "structure"; ctx.state.structureSubtool = "inspire"; }
-      if(typeof render === "function") render(ctx);
-    }, "s936-struct-btn secondary");
-
-    const reread = button(ctx, actions, "Releer canción", () => {
-      if (!window.confirm("¿Descartar los cambios del tablero y volver a leer la estructura actual de la canción?")) return;
-      const fresh = snap(ctx);
-      state.draft = {
-        createdAt: new Date().toISOString(),
-        parts: readArrangement(fresh),
-        clones: {},
-        notes: {},
-        meta: {
-          title: fresh.title || fresh.project?.title || document.getElementById("songTitle")?.value || "Canción sin nombre",
-          style: fresh.style || fresh.project?.style || document.getElementById("styleSelect")?.value || "pop",
-          bpm: Number(fresh.bpm || fresh.project?.bpm || document.getElementById("bpmSlider")?.value || 95)
-        },
-        importedLyrics: {},
-        importedSolos: {}
-      };
-      state.editingIndex = -1;
-      saveState();
-      renderAgain(ctx);
-    }, "s936-struct-btn secondary");
-    reread.title = "Descarta cambios todavía no aplicados y vuelve a leer el proyecto central.";
-
-    button(ctx, actions, "Guardar estructura", () => saveStructureFile(ctx, s, parts), "s936-struct-btn secondary");
-
-    const fileInput = ctx.el("input", "s936-struct-hidden-file");
-    fileInput.type = "file";
-    fileInput.accept = "application/json,.json";
-    fileInput.onchange = () => {
-      const file = fileInput.files?.[0];
-      if (file) loadStructureFile(ctx, file);
-      fileInput.value = "";
+      saveState(); renderAgain(ctx);
     };
-    actions.appendChild(fileInput);
-    button(ctx, actions, "Cargar canción", () => {
-      // v0.8.1: intentar abrir librería primero; fallback a archivo
-      const lib = window.Studio936SuiteProLibrary || window.Studio936SuiteProModules?.library;
-      if (lib && typeof lib.openPicker === "function") {
-        lib.openPicker((song) => { if (song) loadStructureFromSong(ctx, song); });
-      } else {
-        fileInput.click();
-      }
-    }, "s936-struct-btn secondary");
 
-    const compactStatus = ctx.el(
-      "span",
-      "s936-struct-compact-status",
-      `${parts.length} partes · ${totalBars(parts)} compases · ${uniqueSectionCount(parts)} secciones`
-    );
-    actions.appendChild(compactStatus);
+    addBody.append(typeField, nameField, barsField, addBtn);
+    shell.appendChild(addBody);
 
-    card.appendChild(actions);
-    root.appendChild(card);
+    root.appendChild(shell);
   }
 
   function renderBuilder(ctx, root, s, parts) {
