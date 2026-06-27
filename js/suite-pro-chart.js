@@ -375,29 +375,55 @@ window.Studio936SuiteProChart = (() => {
 
     // Función para calcular y aplicar posición correcta
     function applyChartPosition() {
-      const fc = document.getElementById("fretboardContainer");
-      if (!fc || !document.getElementById("s936-chart-view-panel")) return;
-      const rect = fc.getBoundingClientRect();
-      // Si fretboard está oculto, usar el área del main
-      const mainEl = document.querySelector("main");
-      const mainRect = mainEl ? mainEl.getBoundingClientRect() : rect;
+      const chartPanel = document.getElementById("s936-chart-view-panel");
+      if (!chartPanel) return;
+
       const suiteEl = document.getElementById("s936SuitePro");
-      const suiteRight = (suiteEl && suiteEl.getBoundingClientRect().width > 50)
-        ? suiteEl.getBoundingClientRect().right : 0;
-      const left = Math.max(suiteRight, mainRect.left) + 4; // +4px margen para scrollbar
-      const top = mainRect.top;
-      const width = window.innerWidth - left;
-      const height = mainRect.height;
-      document.getElementById("s936-chart-view-panel").style.cssText = [
-        "position:fixed",
-        "top:" + Math.round(top) + "px",
-        "left:" + Math.round(left) + "px",
-        "width:" + Math.round(width) + "px",
-        "height:" + Math.round(height) + "px",
-        "overflow-y:auto",
-        "background:#090b11",
-        "z-index:200"
-      ].join(";");
+      const isMax = suiteEl && suiteEl.classList.contains("is-max");
+
+      if (isMax) {
+        // En modo MAX: chart ocupa la mitad derecha del panel maximizado
+        const suiteRect = suiteEl.getBoundingClientRect();
+        const halfWidth = Math.round(suiteRect.width / 2);
+        const left = Math.round(suiteRect.left) + halfWidth;
+        const top = Math.round(suiteRect.top);
+        const width = Math.round(suiteRect.width) - halfWidth;
+        const height = Math.round(suiteRect.height);
+        chartPanel.style.cssText = [
+          "position:fixed",
+          "top:" + top + "px",
+          "left:" + left + "px",
+          "width:" + width + "px",
+          "height:" + height + "px",
+          "overflow-y:auto",
+          "background:#090b11",
+          "border-left:1px solid rgba(0,255,204,.18)",
+          "border-radius:0 22px 22px 0",
+          "z-index:600"
+        ].join(";");
+      } else {
+        // En modo DOCK normal: chart flota a la derecha del panel lateral
+        const fc = document.getElementById("fretboardContainer");
+        const mainEl = document.querySelector("main");
+        const fallbackRect = { top: 0, height: window.innerHeight };
+        const mainRect = mainEl ? mainEl.getBoundingClientRect() : fallbackRect;
+        const suiteRight = (suiteEl && suiteEl.getBoundingClientRect().width > 50)
+          ? suiteEl.getBoundingClientRect().right : 0;
+        const left = Math.max(suiteRight, mainRect.left) + 4;
+        const top = mainRect.top;
+        const width = window.innerWidth - left;
+        const height = mainRect.height;
+        chartPanel.style.cssText = [
+          "position:fixed",
+          "top:" + Math.round(top) + "px",
+          "left:" + Math.round(left) + "px",
+          "width:" + Math.round(width) + "px",
+          "height:" + Math.round(height) + "px",
+          "overflow-y:auto",
+          "background:#090b11",
+          "z-index:200"
+        ].join(";");
+      }
     }
 
     document.body.appendChild(chartEl);

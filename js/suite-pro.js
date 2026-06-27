@@ -1779,6 +1779,11 @@ function normalizeNoteName(value) {
     panel.classList.toggle("is-max", state.mode === "max");
     const btn = q("[data-role='mode']", panel);
     if (btn) btn.textContent = state.mode === "max" ? "DOCK" : "MAX";
+    // v0.8.6: reubicar chart cuando cambia el modo MAX/DOCK
+    const chartEl = document.getElementById("s936-chart-view-panel");
+    if (chartEl && chartEl._resizeHandler) {
+      setTimeout(chartEl._resizeHandler, 50);
+    }
   }
 
   function setArea(area) {
