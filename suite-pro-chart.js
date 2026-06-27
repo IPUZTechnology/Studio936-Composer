@@ -2,7 +2,7 @@
 // iReal Book style: 4 compases × 4 tiempos + voicings + selector instrumento
 window.Studio936SuiteProChart = (() => {
   "use strict";
-  const VERSION = "chart-v1.4.1";
+  const VERSION = "chart-v1.4.5";
   const STYLE_ID = "s936-chart-v141";
 
   const INSTRUMENTS = [
@@ -78,58 +78,67 @@ window.Studio936SuiteProChart = (() => {
 /* ── Compás ── */
 .s936-ch-bar{
   border-right:1px solid rgba(255,255,255,.12);
-  padding:3px 3px 5px 5px;position:relative;
-  min-height:110px;box-sizing:border-box;transition:background .1s;cursor:pointer
+  padding:2px 2px 4px 2px;position:relative;
+  box-sizing:border-box;transition:background .1s
 }
 .s936-ch-bar:last-child{border-right:2px solid rgba(255,255,255,.3)}
-.s936-ch-bar:hover{background:rgba(0,255,204,.04)}
-.s936-ch-bar.s936-cb-active{background:rgba(0,255,204,.14)!important;outline:2px solid rgba(0,255,204,.45);outline-offset:-2px}
-.s936-ch-bar.s936-cb-open::before{content:"";position:absolute;left:0;top:4px;bottom:4px;width:3px;background:#ffe066;border-radius:0 2px 2px 0}
+.s936-ch-bar:hover{background:rgba(0,255,204,.03)}
+.s936-ch-bar.s936-cb-active{background:rgba(0,255,204,.13)!important;outline:2px solid rgba(0,255,204,.45);outline-offset:-2px}
+.s936-ch-bar.s936-cb-open::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:#ffe066;border-radius:0 2px 2px 0}
 
 /* Número de compás */
-.s936-ch-num{font-size:.38rem;color:rgba(255,255,255,.2);font-weight:700;line-height:1;position:absolute;top:3px;left:5px}
+.s936-ch-num{font-size:.38rem;color:rgba(255,255,255,.22);font-weight:700;line-height:1;margin-bottom:2px;padding-left:4px;display:block}
 
-/* ── Figura rítmica (zona superior del compás) ── */
-.s936-ch-rhythm-row{height:18px;display:flex;align-items:flex-end;padding-left:12px;margin-bottom:2px}
-.s936-ch-note-fig{display:inline-block;opacity:.8}
+/* Figura rítmica */
+.s936-ch-rhythm-row{height:16px;display:flex;align-items:flex-end;padding-left:4px;margin-bottom:1px}
+.s936-ch-note-fig{display:inline-block;opacity:.85}
 .s936-ch-note-fig svg{display:block}
 
-/* ── Acorde principal del compás ── */
-.s936-ch-main-chord{display:flex;align-items:baseline;gap:1px;margin-bottom:3px;padding-left:2px;min-height:26px}
-.s936-ch-root{font-size:1.1rem;font-weight:900;color:#fff;line-height:1}
-.s936-ch-qual{font-size:.6rem;font-weight:700;color:rgba(255,255,255,.58);vertical-align:super;line-height:1}
-.s936-ch-bass-note{font-size:.46rem;color:#ff5bea;font-weight:700;align-self:flex-end;padding-bottom:1px}
-.s936-ch-dash{font-size:.9rem;color:rgba(255,255,255,.15);padding:4px 6px;align-self:center}
-
-/* ── 4 tiempos por compás ── */
-.s936-ch-beats{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin-bottom:4px}
+/* ── 4 beats como columnas verticales ── */
+.s936-ch-beats{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:0 2px}
 .s936-ch-beat{
   background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
-  border-radius:3px;min-height:20px;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;padding:2px;cursor:pointer;
-  transition:background .1s;position:relative
+  border-radius:4px;display:flex;flex-direction:column;
+  padding:4px 3px 3px;cursor:pointer;
+  transition:background .1s,border-color .1s;position:relative;min-width:0
 }
-.s936-ch-beat:hover{background:rgba(0,255,204,.08);border-color:rgba(0,255,204,.25)}
-.s936-ch-beat.has-chord{background:rgba(0,255,204,.07);border-color:rgba(0,255,204,.2)}
-.s936-ch-beat-root{font-size:.56rem;font-weight:900;color:#fff;line-height:1;text-align:center}
-.s936-ch-beat-qual{font-size:.38rem;color:rgba(255,255,255,.55);text-align:center;line-height:1}
-.s936-ch-beat-dot{width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.15)}
-.s936-ch-beat-num{font-size:.32rem;color:rgba(255,255,255,.2);position:absolute;top:1px;left:2px;line-height:1}
+.s936-ch-beat:hover{background:rgba(0,255,204,.1);border-color:rgba(0,255,204,.35)}
+.s936-ch-beat.has-chord{background:rgba(0,255,204,.08);border-color:rgba(0,255,204,.28)}
+.s936-ch-beat.active-beat{background:rgba(0,255,204,.18)!important;border-color:rgba(0,255,204,.6)!important}
 
-/* ── Mini piano ── */
-.s936-ch-piano-wrap{height:22px;position:relative;margin-top:2px;border:1px solid rgba(255,255,255,.2);border-radius:2px;overflow:hidden;background:#1a1a1a}
+/* Número de tiempo */
+.s936-ch-beat-num{font-size:.34rem;color:rgba(255,255,255,.28);font-weight:700;line-height:1;margin-bottom:2px}
+
+/* Nombre del acorde en el beat */
+.s936-ch-beat-chord{display:flex;align-items:baseline;gap:1px;min-height:18px;margin-bottom:2px}
+.s936-ch-beat-root{font-size:.8rem;font-weight:900;color:#fff;line-height:1}
+.s936-ch-beat-qual{font-size:.44rem;font-weight:700;color:rgba(255,255,255,.6);vertical-align:super;line-height:1}
+.s936-ch-beat-bass{font-size:.38rem;color:#ff5bea;font-weight:700}
+.s936-ch-beat-dash{font-size:.65rem;color:rgba(255,255,255,.12);align-self:center}
+.s936-ch-beat-dot{width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.15);margin:7px auto 2px}
+.s936-ch-beat-repeat{font-size:.8rem;color:rgba(255,255,255,.2);font-weight:900;text-align:center;line-height:1;margin:4px auto}
+/* Sugerencias popup */
+.s936-ch-suggestions{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
+.s936-ch-sug-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:4px;color:rgba(255,255,255,.7);font-size:.46rem;font-weight:700;padding:3px 5px;cursor:pointer;text-transform:uppercase}
+.s936-ch-sug-btn:hover{background:rgba(0,255,204,.15);border-color:rgba(0,255,204,.4);color:#00ffcc}
+.s936-ch-validation{font-size:.42rem;margin-top:3px;min-height:12px}
+.s936-ch-validation.ok{color:rgba(0,255,204,.7)}
+.s936-ch-validation.err{color:rgba(255,120,80,.8)}
+
+/* ── Mini piano por beat ── */
+.s936-ch-piano-mini{height:18px;position:relative;border:1px solid rgba(255,255,255,.2);border-radius:2px;overflow:hidden;background:#1e1e1e;margin-top:2px}
 .s936-ch-pw{position:absolute;top:0;bottom:0;box-sizing:border-box}
-.s936-ch-pw.white-k{background:#ddd;border-right:1px solid #555}
-.s936-ch-pw.black-k{background:#111;z-index:2;top:0;height:62%;border-radius:0 0 2px 2px}
+.s936-ch-pw.white-k{background:#ccc;border-right:1px solid #666}
+.s936-ch-pw.black-k{background:#1a1a1a;z-index:2;top:0;height:58%;border-radius:0 0 2px 2px;border:1px solid #555}
 .s936-ch-pw.hit-k{background:#00ffcc!important;box-shadow:0 0 6px rgba(0,255,204,.8)}
 
-/* ── Mini fretboard ── */
-.s936-ch-fret-wrap{height:28px;position:relative;border:1px solid rgba(86,96,106,.5);border-radius:3px;margin-top:2px;overflow:hidden;background:linear-gradient(90deg,rgba(139,91,49,.4),rgba(70,45,26,.2))}
+/* ── Mini fretboard por beat ── */
+.s936-ch-fret-mini{height:28px;position:relative;border:1px solid rgba(86,96,106,.5);border-radius:3px;margin-top:2px;overflow:hidden;background:linear-gradient(90deg,rgba(139,91,49,.4),rgba(70,45,26,.2))}
 .s936-ch-fs{position:absolute;left:2%;right:0;height:1px;background:rgba(200,180,140,.5)}
 .s936-ch-ff{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.15)}
-.s936-ch-fd{position:absolute;width:8px;height:8px;border-radius:50%;background:#00ffcc;transform:translate(-50%,-50%);box-shadow:0 0 5px rgba(0,255,204,.7)}
-.s936-ch-fm{position:absolute;color:rgba(255,80,80,.8);font-size:.44rem;font-weight:900;transform:translateX(-50%)}
-.s936-ch-capo{position:absolute;left:0;top:0;bottom:0;width:4px;background:rgba(255,224,102,.6);border-radius:0 2px 2px 0}
+.s936-ch-fd{position:absolute;width:7px;height:7px;border-radius:50%;background:#00ffcc;transform:translate(-50%,-50%);box-shadow:0 0 4px rgba(0,255,204,.7)}
+.s936-ch-fm{position:absolute;color:rgba(255,80,80,.8);font-size:.42rem;font-weight:900;transform:translateX(-50%)}
+.s936-ch-capo{position:absolute;left:0;top:0;bottom:0;width:3px;background:rgba(255,224,102,.6);border-radius:0 2px 2px 0}
 
 /* ── Popup edición ── */
 .s936-ch-pop{
@@ -211,6 +220,137 @@ window.Studio936SuiteProChart = (() => {
       : { root: m[1], qual: m[2] || "", bass: "" };
   }
 
+  // Calcular pitch classes de un acorde desde el nombre (para iluminar piano sin voicing guardado)
+  const PC = {C:0,"C#":1,DB:1,D:2,"D#":3,EB:3,E:4,FB:4,"E#":5,F:5,"F#":6,GB:6,G:7,"G#":8,AB:8,A:9,"A#":10,BB:10,B:11,CB:11,"B#":0};
+  function chordPitchClasses(chordName) {
+    if (!chordName) return new Set();
+    // Usar MusicTheory si está disponible
+    const MT = window.Studio936MusicTheory;
+    if (MT?.chordVoicing) {
+      try {
+        const notes = MT.chordVoicing(chordName);
+        // chordVoicing devuelve "C3 E3 G3" etc.
+        const pcs = new Set(
+          notes.split(" ").map(n => {
+            const m2 = n.match(/^([A-G][b#]?)/i);
+            if (!m2) return -1;
+            return PC[m2[1].toUpperCase().replace("b","B")] ?? -1;
+          }).filter(p => p >= 0)
+        );
+        return pcs;
+      } catch(_) {}
+    }
+    // Fallback: raíz + tercera + quinta básica
+    const m = String(chordName).match(/^([A-G][b#]?)(.*)/);
+    if (!m) return new Set();
+    const rootPc = PC[m[1].toUpperCase().replace("b","B")] ?? 0;
+    const qual = m[2].toLowerCase();
+    let ints = [0, 4, 7]; // mayor por defecto
+    if (qual.includes("m") && !qual.includes("maj")) ints = [0, 3, 7];
+    if (qual.includes("dim")) ints = [0, 3, 6];
+    if (qual.includes("aug")) ints = [0, 4, 8];
+    if (qual.includes("sus4")) ints = [0, 5, 7];
+    if (qual.includes("sus2")) ints = [0, 2, 7];
+    if (qual.includes("7")) ints.push(qual.includes("maj") ? 11 : 10);
+    if (qual.includes("9")) ints.push(2);
+    if (qual.includes("11")) ints.push(5);
+    if (qual.includes("13")) ints.push(9);
+    if (qual.includes("6") && !qual.includes("13")) ints.push(9);
+    return new Set(ints.map(i => ((rootPc + i) % 12 + 12) % 12));
+  }
+
+  // ─── VOICINGS CALCULADOS PARA INSTRUMENTOS DE CUERDA ────────────────────
+  // Afinación estándar: guitar E2 A2 D3 G3 B3 E4 (midis: 40,45,50,55,59,64)
+  // ukulele G4 C4 E4 A4 (67,60,64,69), bass E1 A1 D2 G2 (28,33,38,43)
+  const STRING_OPEN_MIDI = {
+    guitar:  [40, 45, 50, 55, 59, 64],
+    ukulele: [67, 60, 64, 69],
+    bass:    [28, 33, 38, 43]
+  };
+
+  // Diccionario de shapes básicos open chords para guitarra (cuerda 6→1, null=mute)
+  const GUITAR_SHAPES = {
+    "C":    [null,3,2,0,1,0], "C#":[null,4,3,1,2,1], "DB":[null,4,3,1,2,1],
+    "D":    [null,null,0,2,3,2], "D#":[null,null,1,3,4,3], "EB":[null,null,1,3,4,3],
+    "E":    [0,2,2,1,0,0], "F":[1,3,3,2,1,1], "F#":[2,4,4,3,2,2], "GB":[2,4,4,3,2,2],
+    "G":    [3,2,0,0,0,3], "G#":[4,3,1,1,1,4], "AB":[4,3,1,1,1,4],
+    "A":    [null,0,2,2,2,0], "A#":[null,1,3,3,3,1], "BB":[null,1,3,3,3,1],
+    "B":    [null,2,4,4,4,2],
+    // Menores
+    "CM":   [null,3,2,0,1,0], "C#M":[null,4,2,1,2,0], "DBM":[null,4,2,1,2,0],
+    "DM":   [null,null,0,2,3,1], "D#M":[null,null,1,3,4,2], "EBM":[null,null,1,3,4,2],
+    "EM":   [0,2,2,0,0,0], "FM":[1,3,3,1,1,1], "F#M":[2,4,4,2,2,2], "GBM":[2,4,4,2,2,2],
+    "GM":   [3,5,5,3,3,3], "G#M":[4,3,1,1,0,4], "ABM":[4,3,1,1,0,4],
+    "AM":   [null,0,2,2,1,0], "A#M":[null,1,3,3,2,1], "BBM":[null,1,3,3,2,1],
+    "BM":   [null,2,4,4,3,2],
+    // 7
+    "C7":   [null,3,2,3,1,0], "D7":[null,null,0,2,1,2], "E7":[0,2,0,1,0,0],
+    "F7":   [1,3,1,2,1,1],  "G7":[3,2,0,0,0,1], "A7":[null,0,2,0,2,0],
+    "B7":   [null,2,1,2,0,2],
+    // m7
+    "CM7":  [null,3,2,3,1,3], "DM7":[null,null,0,2,1,1], "EM7":[0,2,0,0,0,0],
+    "FM7":  [1,3,1,1,1,1],  "GM7":[3,2,0,0,3,1], "AM7":[null,0,2,0,1,0],
+    "BM7":  [null,2,4,2,3,2],
+    // maj7
+    "CMAJ7":[null,3,2,0,0,0], "DMAJ7":[null,null,0,2,2,2], "EMAJ7":[0,2,1,1,0,0],
+    "FMAJ7":[null,null,3,2,1,0],"GMAJ7":[3,2,0,0,0,2], "AMAJ7":[null,0,2,1,2,0],
+    "BMAJ7":[null,2,4,3,4,2],
+    // sus
+    "CSUS2":[null,3,0,0,1,3], "DSUS2":[null,null,0,2,3,0], "GSUS2":[3,0,0,2,3,3],
+    "ASUS2":[null,0,2,2,0,0], "CSUS4":[null,3,3,0,1,1], "DSUS4":[null,null,0,2,3,3],
+    "ESUS4":[0,2,2,2,0,0], "GSUS4":[3,3,0,0,1,3], "ASUS4":[null,0,2,2,3,0],
+  };
+
+  // Shapes básicos para ukulele (cuerda 4→1: G C E A)
+  const UKU_SHAPES = {
+    "C":[0,0,0,3],"D":[2,2,2,0],"E":[4,4,4,2],"F":[2,0,1,0],"G":[0,2,3,2],
+    "A":[2,1,0,0],"B":[4,3,2,2],
+    "CM":[0,3,3,3],"DM":[2,2,1,0],"EM":[0,4,3,2],"FM":[1,0,1,3],"GM":[0,2,3,1],
+    "AM":[2,0,0,0],"BM":[4,2,2,2],
+    "C7":[0,0,0,1],"D7":[2,2,2,3],"E7":[1,2,0,2],"F7":[2,3,1,3],"G7":[0,2,1,2],
+    "A7":[0,1,0,0],"B7":[2,3,2,2],
+    "CMAJ7":[0,0,0,2],"FMAJ7":[2,4,1,3],"GMAJ7":[0,2,2,2],"AMAJ7":[1,1,0,0],
+    "CM7":[0,3,3,3],"DM7":[2,2,1,3],"EM7":[0,2,0,2],"FM7":[1,0,1,1],"AM7":[0,0,0,0],
+  };
+
+  // Shape de bajo: raíz en cuerda 4 o 3 y quinta
+  function bassShape(chordName) {
+    const PC2 = {C:0,"C#":1,DB:1,D:2,"D#":3,EB:3,E:4,F:5,"F#":6,GB:6,G:7,"G#":8,AB:8,A:9,"A#":10,BB:10,B:11};
+    const m = String(chordName).match(/^([A-G][b#]?)/i);
+    if (!m) return null;
+    const rootPc = PC2[m[1].toUpperCase().replace("b","B")] ?? 0;
+    // Cuerdas del bajo: E1(28) A1(33) D2(38) G2(43)
+    const openMidis = [28, 33, 38, 43];
+    const frets = openMidis.map(open => {
+      let f = ((rootPc - (open % 12) + 12) % 12);
+      if (f > 7) f -= 12; // preferir posición baja
+      return f < 0 ? f + 12 : f;
+    });
+    // Mute cuerdas que quedan muy altas (>5 trastes) si hay otra mejor
+    const best = frets.reduce((bi, f, i) => f <= 4 && (bi === -1 || f < frets[bi]) ? i : bi, -1);
+    return frets.map((f, i) => i === best ? f : (f <= 4 ? f : null));
+  }
+
+  function calcFretVoicing(chordName, inst) {
+    const nameUp = String(chordName).toUpperCase().trim()
+      .replace(/\s+/g,"")
+      .replace("MIN","M").replace("MAJ","MAJ").replace("SUS","SUS");
+
+    if (inst === "guitar") {
+      const shape = GUITAR_SHAPES[nameUp] || GUITAR_SHAPES[nameUp.replace(/[79]/g,"")] || null;
+      return shape ? { frets: shape } : null;
+    }
+    if (inst === "ukulele") {
+      const shape = UKU_SHAPES[nameUp] || UKU_SHAPES[nameUp.replace(/[79]/g,"")] || null;
+      return shape ? { frets: shape } : null;
+    }
+    if (inst === "bass") {
+      const shape = bassShape(chordName);
+      return shape ? { frets: shape } : null;
+    }
+    return null;
+  }
+
   // ─── FIGURAS RÍTMICAS ────────────────────────────────────────────────────
   function noteSVG(type) {
     const H = "#e8e8e8";
@@ -244,13 +384,21 @@ window.Studio936SuiteProChart = (() => {
   // Entre blancas: C#=entre0-1, D#=entre1-2, F#=entre3-4, G#=entre4-5, A#=entre5-6
   const BK_POS = { 1:1/7, 3:2/7, 6:4/7, 8:5/7, 10:6/7 }; // fracción del centro
 
-  function miniPiano(voicingPiano) {
+  function miniPiano(voicingPiano, chordName) {
     const wrap = document.createElement("div");
     wrap.className = "s936-ch-piano-wrap";
 
-    const midis = Array.isArray(voicingPiano?.midis) ? voicingPiano.midis : [];
-    const hitPcs = new Set(midis.map(m => ((m % 12) + 12) % 12));
-    const wkW = 100 / 7; // % por tecla blanca
+    // Prioridad: midis guardados → calcular desde nombre del acorde
+    let hitPcs;
+    if (Array.isArray(voicingPiano?.midis) && voicingPiano.midis.length > 0) {
+      hitPcs = new Set(voicingPiano.midis.map(m => ((m % 12) + 12) % 12));
+    } else if (chordName) {
+      hitPcs = chordPitchClasses(chordName);
+    } else {
+      hitPcs = new Set();
+    }
+
+    const wkW = 100 / 7;
 
     WK.forEach((pc, i) => {
       const k = document.createElement("div");
@@ -339,48 +487,117 @@ window.Studio936SuiteProChart = (() => {
   // ─── POPUP EDICIÓN ───────────────────────────────────────────────────────
   function closePopups() {
     document.querySelectorAll(".s936-ch-pop").forEach(p => p.remove());
+    const ov = document.getElementById("s936-ch-pop-overlay");
+    if (ov) ov.remove();
   }
 
   function showBeatPop(targetEl, label, currentVal, onSave) {
     closePopups();
+
+    // Overlay de fondo para cerrar al click fuera
+    const overlay = document.createElement("div");
+    overlay.id = "s936-ch-pop-overlay";
+    overlay.style.cssText = "position:fixed;inset:0;z-index:9998";
+    overlay.onclick = () => { overlay.remove(); pop.remove(); };
+
     const pop = document.createElement("div");
     pop.className = "s936-ch-pop";
+    // Posición: cerca del elemento pero fijo en pantalla
+    const rect = targetEl.getBoundingClientRect();
+    const popW = 160;
+    const left = Math.min(rect.left, window.innerWidth - popW - 8);
+    const top = rect.bottom + 4 < window.innerHeight - 100 ? rect.bottom + 4 : rect.top - 110;
+    pop.style.cssText = [
+      "position:fixed",
+      "left:" + Math.max(8, left) + "px",
+      "top:" + top + "px",
+      "width:" + popW + "px",
+      "z-index:9999",
+      "background:#131726",
+      "border:1px solid rgba(0,255,204,.5)",
+      "border-radius:8px",
+      "padding:8px",
+      "box-shadow:0 8px 28px rgba(0,0,0,.95)"
+    ].join(";");
 
-    const lbl = document.createElement("label");
+    const lbl = document.createElement("div");
+    lbl.style.cssText = "font-size:.42rem;color:rgba(0,255,204,.7);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;font-weight:700";
     lbl.textContent = label;
     pop.appendChild(lbl);
 
     const inp = document.createElement("input");
+    inp.style.cssText = "width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);border-radius:5px;color:#fff;font-size:.85rem;font-weight:700;padding:5px 8px;outline:none;box-sizing:border-box";
     inp.value = currentVal || "";
-    inp.placeholder = "Ej: Cm7, F#, Bb9";
+    inp.placeholder = "Ej: Cm7, F#maj7, Bb9";
     inp.setAttribute("autocomplete", "off");
     pop.appendChild(inp);
 
+    // Validación en tiempo real
+    const valMsg = document.createElement("div");
+    valMsg.className = "s936-ch-validation";
+    pop.appendChild(valMsg);
+
+    function validateChord(name) {
+      if (!name) return { ok: true, msg: "" };
+      const m = String(name).match(/^([A-G][b#]?)(m|maj|min|dim|aug|sus[24]?)?(M?[679]|M?13|add[29]|#[459]|b[569])*(\/[A-G][b#]?)?$/i);
+      if (m) return { ok: true, msg: "✓ " + name };
+      return { ok: false, msg: "? Formato: C, Cm, Cmaj7, C7, Csus4, C/E" };
+    }
+
+    inp.addEventListener("input", () => {
+      const v = inp.value.trim();
+      if (!v) { valMsg.textContent = ""; valMsg.className = "s936-ch-validation"; return; }
+      const { ok, msg } = validateChord(v);
+      valMsg.textContent = msg;
+      valMsg.className = "s936-ch-validation " + (ok ? "ok" : "err");
+    });
+
+    // Sugerencias rápidas basadas en el acorde actual
+    const COMMON_QUALS = ["", "m", "7", "m7", "maj7", "m7b5", "dim", "sus4", "sus2", "add9", "9", "13"];
+    const baseRoot = currentVal ? (currentVal.match(/^([A-G][b#]?)/i) || ["","C"])[1] : "C";
+    const sugsWrap = document.createElement("div");
+    sugsWrap.className = "s936-ch-suggestions";
+    COMMON_QUALS.forEach(q => {
+      const name = baseRoot + q;
+      const btn = document.createElement("button");
+      btn.className = "s936-ch-sug-btn";
+      btn.textContent = name || baseRoot;
+      btn.onclick = (e) => { e.stopPropagation(); inp.value = name || baseRoot; inp.dispatchEvent(new Event("input")); inp.focus(); };
+      sugsWrap.appendChild(btn);
+    });
+    pop.appendChild(sugsWrap);
+
     const acts = document.createElement("div");
-    acts.className = "s936-ch-pop-acts";
+    acts.style.cssText = "display:flex;gap:4px;margin-top:6px";
     const ok = document.createElement("button");
-    ok.className = "s936-ch-pop-btn ok"; ok.textContent = "OK";
+    ok.style.cssText = "flex:1;background:rgba(0,255,204,.18);border:1px solid rgba(0,255,204,.4);border-radius:5px;color:#bfffee;font-size:.55rem;font-weight:700;padding:5px;cursor:pointer";
+    ok.textContent = "Aplicar";
     const del = document.createElement("button");
-    del.className = "s936-ch-pop-btn del"; del.textContent = "×";
+    del.style.cssText = "flex:0 0 auto;background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.35);border-radius:5px;color:#ff8080;font-size:.55rem;font-weight:700;padding:5px 8px;cursor:pointer";
+    del.textContent = "Borrar";
     acts.append(ok, del);
     pop.appendChild(acts);
 
-    ok.onclick = () => { onSave(inp.value.trim()); closePopups(); };
-    del.onclick = () => { onSave(""); closePopups(); };
+    const doSave = (val) => { overlay.remove(); pop.remove(); onSave(val); };
+    ok.onclick = (e) => { e.stopPropagation(); doSave(inp.value.trim()); };
+    del.onclick = (e) => { e.stopPropagation(); doSave(""); };
     inp.onkeydown = e => {
-      if (e.key === "Enter") ok.onclick();
-      if (e.key === "Escape") closePopups();
+      e.stopPropagation();
+      if (e.key === "Enter") doSave(inp.value.trim());
+      if (e.key === "Escape") { overlay.remove(); pop.remove(); }
     };
-    targetEl.style.position = "relative";
-    targetEl.appendChild(pop);
-    setTimeout(() => { inp.focus(); inp.select(); }, 0);
+
+    document.body.appendChild(overlay);
+    document.body.appendChild(pop);
+    setTimeout(() => { inp.focus(); inp.select(); }, 30);
   }
 
-  // ─── RENDER BEAT (celda de tiempo) ───────────────────────────────────────
-  function renderBeat(sectionKey, barIndex, beatIndex, beatVal, onRerender) {
+  // ─── RENDER BEAT (celda de tiempo con voicing) ──────────────────────────
+  function renderBeat(sectionKey, barIndex, beatIndex, beatVal, inst, voicingLibrary, onRerender) {
     const parsed = parseChord(beatVal);
     const cell = document.createElement("div");
     cell.className = "s936-ch-beat" + (parsed ? " has-chord" : "");
+    cell.dataset.beat = beatIndex;
 
     // Número de tiempo
     const num = document.createElement("span");
@@ -388,18 +605,48 @@ window.Studio936SuiteProChart = (() => {
     num.textContent = beatIndex + 1;
     cell.appendChild(num);
 
+    // ── Nombre del acorde ──
+    const chordRow = document.createElement("div");
+    chordRow.className = "s936-ch-beat-chord";
     if (parsed) {
-      const r = document.createElement("div");
+      const r = document.createElement("span");
       r.className = "s936-ch-beat-root";
       r.textContent = parsed.root;
-      const q = document.createElement("div");
+      const q = document.createElement("sup");
       q.className = "s936-ch-beat-qual";
       q.textContent = parsed.qual;
-      cell.append(r, q);
+      chordRow.append(r, q);
+      if (parsed.bass) {
+        const b = document.createElement("span");
+        b.className = "s936-ch-beat-bass";
+        b.textContent = "/" + parsed.bass;
+        chordRow.appendChild(b);
+      }
+    } else if (beatIndex > 0) {
+      const rep = document.createElement("span");
+      rep.className = "s936-ch-beat-repeat";
+      rep.textContent = "%";
+      chordRow.appendChild(rep);
     } else {
       const dot = document.createElement("div");
       dot.className = "s936-ch-beat-dot";
-      cell.appendChild(dot);
+      chordRow.appendChild(dot);
+    }
+    cell.appendChild(chordRow);
+
+    // ── Voicing del beat (si tiene acorde) ──
+    if (parsed) {
+      const chordNameRaw = parsed.root + parsed.qual;
+      const chordNameUpper = chordNameRaw.toUpperCase().trim();
+      // Buscar voicing guardado, si no calcular uno básico
+      const savedVoicing = voicingLibrary?.[inst]?.[chordNameUpper]
+        || voicingLibrary?.[inst]?.[chordNameRaw.trim()];
+      if (inst === "piano") {
+        cell.appendChild(miniPiano(savedVoicing || null, chordNameRaw));
+      } else {
+        const fretVoicing = savedVoicing || calcFretVoicing(chordNameRaw, inst);
+        cell.appendChild(miniFret(fretVoicing));
+      }
     }
 
     cell.addEventListener("click", e => {
@@ -414,19 +661,19 @@ window.Studio936SuiteProChart = (() => {
   }
 
   // ─── RENDER COMPÁS ───────────────────────────────────────────────────────
-  function renderBar({ barIndex, barTotal, isFirst, sectionKey, beatsData, barInfo, inst, voicingLibrary, onRerender }) {
+  function renderBar({ barIndex, isFirst, sectionKey, beatsData, barInfo, inst, voicingLibrary, onRerender }) {
     const bar = document.createElement("div");
     bar.className = "s936-ch-bar" + (barIndex === 0 ? " s936-cb-open" : "");
     bar.dataset.section = sectionKey;
     bar.dataset.bar = barIndex;
 
-    // Número
+    // Número de compás
     const num = document.createElement("span");
     num.className = "s936-ch-num";
     num.textContent = barIndex + 1;
     bar.appendChild(num);
 
-    // ── Figura rítmica (solo en el primer compás de cada acorde) ──
+    // Figura rítmica encima (solo primer compás del acorde)
     const rhythmRow = document.createElement("div");
     rhythmRow.className = "s936-ch-rhythm-row";
     if (isFirst && barInfo?.chord) {
@@ -437,59 +684,21 @@ window.Studio936SuiteProChart = (() => {
     }
     bar.appendChild(rhythmRow);
 
-    // ── Acorde principal del compás (tiempo 1 o acorde del editor) ──
-    const mainChordZone = document.createElement("div");
-    mainChordZone.className = "s936-ch-main-chord";
-
-    const beat0Key = barIndex + "_0";
-    const beat0Val = beatsData[beat0Key] || (isFirst && barInfo?.chord?.name) || "";
-    const mainParsed = parseChord(beat0Val);
-
-    if (barInfo?.isContinuation && !beatsData[beat0Key]) {
-      // Compás de continuación sin override → guión
-      const dash = document.createElement("span");
-      dash.className = "s936-ch-dash";
-      dash.textContent = "—";
-      mainChordZone.appendChild(dash);
-    } else if (mainParsed) {
-      const rootEl = document.createElement("span");
-      rootEl.className = "s936-ch-root";
-      rootEl.textContent = mainParsed.root;
-      const qualEl = document.createElement("sup");
-      qualEl.className = "s936-ch-qual";
-      qualEl.textContent = mainParsed.qual;
-      mainChordZone.append(rootEl, qualEl);
-      if (mainParsed.bass) {
-        const bassEl = document.createElement("span");
-        bassEl.className = "s936-ch-bass-note";
-        bassEl.textContent = "/" + mainParsed.bass;
-        mainChordZone.appendChild(bassEl);
-      }
-    }
-    bar.appendChild(mainChordZone);
-
-    // ── 4 tiempos ──
+    // ── 4 beats como columnas verticales con nombre + voicing ──
     const beatsRow = document.createElement("div");
     beatsRow.className = "s936-ch-beats";
+
     for (let b = 0; b < 4; b++) {
       const bKey = barIndex + "_" + b;
-      const bVal = beatsData[bKey] || "";
-      beatsRow.appendChild(renderBeat(sectionKey, barIndex, b, bVal, onRerender));
+      // Tiempo 1: usa el acorde del editor si no hay override manual
+      let bVal = beatsData[bKey] || "";
+      if (!bVal && b === 0) {
+        if (isFirst && barInfo?.chord?.name) bVal = barInfo.chord.name;
+        else if (barInfo?.isContinuation) bVal = ""; // continuación → vacío = dash
+      }
+      beatsRow.appendChild(renderBeat(sectionKey, barIndex, b, bVal, inst, voicingLibrary, onRerender));
     }
     bar.appendChild(beatsRow);
-
-    // ── Voicing del acorde principal ──
-    const chordForVoicing = barInfo?.chord;
-    const voicing = chordForVoicing?.voicings?.[inst]
-      || voicingLibrary?.[inst]?.[String(chordForVoicing?.name || "").toUpperCase().trim()];
-
-    if (mainParsed) {
-      if (inst === "piano") {
-        bar.appendChild(miniPiano(voicing || null));
-      } else {
-        bar.appendChild(miniFret(voicing || null));
-      }
-    }
 
     return bar;
   }
