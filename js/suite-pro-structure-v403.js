@@ -352,16 +352,16 @@
 #s936SuitePro .s936-ckpt-menu-btn{
   width:32px;height:32px;
   border-radius:8px;
-  border:1px solid rgba(255,255,255,.18);
-  background:rgba(255,255,255,.06);
-  color:rgba(255,255,255,.7);
-  font-size:.85rem;
+  border:1px solid rgba(255,224,102,.3);
+  background:rgba(255,224,102,.06);
+  color:rgba(255,224,102,.8);
+  font-size:.9rem;
   cursor:pointer;
   display:flex;align-items:center;justify-content:center;
   transition:border-color .15s,background .15s;
   position:relative;
 }
-#s936SuitePro .s936-ckpt-menu-btn:hover{border-color:rgba(0,255,204,.5);color:#00ffcc}
+#s936SuitePro .s936-ckpt-menu-btn:hover{border-color:rgba(255,224,102,.7);color:#ffe066;background:rgba(255,224,102,.12)}
 /* Dropdown del menú */
 #s936SuitePro .s936-ckpt-dropdown{
   display:none;
@@ -688,9 +688,25 @@
   text-overflow:ellipsis;
 }
 #s936SuitePro .s936-ckpt-part-bars{
-  font-size:.58rem;
-  color:rgba(255,255,255,.38);
-  margin-top:1px;
+  display:none;
+}
+#s936SuitePro .s936-ckpt-nav-mark{
+  border-radius:5px;
+  font-size:.5rem;font-weight:900;
+  padding:2px 7px;
+  text-transform:uppercase;letter-spacing:.4px;
+  cursor:pointer;
+  flex-shrink:0;
+  background:rgba(180,100,255,.15);
+  border:1px solid rgba(180,100,255,.45);
+  color:#cc99ff;
+  transition:background .12s,border-color .12s;
+  user-select:none;
+}
+#s936SuitePro .s936-ckpt-nav-mark:hover{
+  background:rgba(255,80,80,.15);
+  border-color:rgba(255,80,80,.5);
+  color:#ff9999;
 }
 #s936SuitePro .s936-ckpt-row-actions{
   display:flex;
@@ -978,39 +994,19 @@
     const dropdown = ctx.el("div", "s936-ckpt-dropdown");
     dropdown.id = "s936CkptDropdown";
 
-    const ddApply = ctx.el("button", "s936-ckpt-dd-item warn", "▶ Aplicar estructura");
-    ddApply.onclick = () => { dropdown.classList.remove("open"); applyDraft(ctx); };
-
-    const ddReleer = ctx.el("button", "s936-ckpt-dd-item", "↺ Releer canción");
-    ddReleer.onclick = () => {
+    // ── CANCIÓN ──
+    const ddNueva = ctx.el("button", "s936-ckpt-dd-item", "✦ Nueva canción");
+    ddNueva.onclick = () => {
       dropdown.classList.remove("open");
-      if (!window.confirm("¿Descartar cambios y releer la canción actual?")) return;
-      const fresh = snap(ctx);
-      state.draft = {
-        createdAt: new Date().toISOString(),
-        parts: readArrangement(fresh),
-        clones: {}, notes: {},
-        meta: {
-          title: fresh.title || fresh.project?.title || document.getElementById("songTitle")?.value || "Canción sin nombre",
-          style: fresh.style || fresh.project?.style || document.getElementById("styleSelect")?.value || "pop",
-          bpm: Number(fresh.bpm || fresh.project?.bpm || document.getElementById("bpmSlider")?.value || 95)
-        },
-        importedLyrics: {}, importedSolos: {}
-      };
-      state.editingIndex = -1;
-      saveState(); renderAgain(ctx);
+      if (!window.confirm("¿Crear una nueva canción? Se perderán los cambios no guardados.")) return;
+      try { window.Studio936AppBridge?.newSong?.(); } catch(_) {}
     };
 
-    const ddSep1 = ctx.el("div", "s936-ckpt-dd-sep");
-
-    const ddGuardar = ctx.el("button", "s936-ckpt-dd-item", "💾 Guardar estructura");
-    ddGuardar.onclick = () => { dropdown.classList.remove("open"); saveStructureFile(ctx, s, parts); };
-
-    const ddCargar = ctx.el("button", "s936-ckpt-dd-item", "📂 Cargar canción");
+    const ddAbrir = ctx.el("button", "s936-ckpt-dd-item", "📂 Abrir de librería");
     const fileInput = ctx.el("input", "s936-struct-hidden-file");
     fileInput.type = "file"; fileInput.accept = "application/json,.json";
     fileInput.onchange = () => { const f = fileInput.files?.[0]; if (f) loadStructureFile(ctx, f); fileInput.value = ""; };
-    ddCargar.onclick = () => {
+    ddAbrir.onclick = () => {
       dropdown.classList.remove("open");
       const lib = window.Studio936SuiteProLibrary || window.Studio936SuiteProModules?.library;
       if (lib && typeof lib.openPicker === "function") {
@@ -1018,7 +1014,17 @@
       } else { fileInput.click(); }
     };
 
-    const ddSep2 = ctx.el("div", "s936-ckpt-dd-sep");
+    const ddGuardarLib = ctx.el("button", "s936-ckpt-dd-item", "💾 Guardar en librería");
+    ddGuardarLib.onclick = () => {
+      dropdown.classList.remove("open");
+      try {
+        const lib = window.Studio936SuiteProLibrary || window.Studio936SuiteProModules?.library;
+        if (lib && typeof lib.saveCurrent === "function") { lib.saveCurrent(); toast(ctx, "Guardado en librería."); }
+        else { saveStructureFile(ctx, s, parts); }
+      } catch(_) { saveStructureFile(ctx, s, parts); }
+    };
+
+    const ddSep1 = ctx.el("div", "s936-ckpt-dd-sep");
 
     const ddPlantillas = ctx.el("button", "s936-ckpt-dd-item", "🎼 Plantillas");
     ddPlantillas.onclick = () => {
@@ -1044,7 +1050,38 @@
       } catch(_) {}
     };
 
-    dropdown.append(ddApply, ddReleer, ddSep1, ddGuardar, ddCargar, ddSep2, ddPlantillas, ddInspiracion, fileInput);
+    const ddSep2 = ctx.el("div", "s936-ckpt-dd-sep");
+
+    // ── BORRADOR ──
+    const ddConfirmar = ctx.el("button", "s936-ckpt-dd-item warn", "✓ Salvar cambios");
+    ddConfirmar.onclick = () => { dropdown.classList.remove("open"); applyDraft(ctx); };
+
+    const ddDescartar = ctx.el("button", "s936-ckpt-dd-item", "↺ Descartar cambios");
+    ddDescartar.onclick = () => {
+      dropdown.classList.remove("open");
+      if (!window.confirm("¿Descartar cambios y volver a la canción actual?")) return;
+      const fresh = snap(ctx);
+      state.draft = {
+        createdAt: new Date().toISOString(),
+        parts: readArrangement(fresh),
+        clones: {}, notes: {},
+        meta: {
+          title: fresh.title || fresh.project?.title || document.getElementById("songTitle")?.value || "Canción sin nombre",
+          style: fresh.style || fresh.project?.style || document.getElementById("styleSelect")?.value || "pop",
+          bpm: Number(fresh.bpm || fresh.project?.bpm || document.getElementById("bpmSlider")?.value || 95)
+        },
+        importedLyrics: {}, importedSolos: {}
+      };
+      state.editingIndex = -1;
+      saveState(); renderAgain(ctx);
+    };
+
+    const ddSep3 = ctx.el("div", "s936-ckpt-dd-sep");
+
+    const ddExportar = ctx.el("button", "s936-ckpt-dd-item", "⬇ Exportar MusicXML");
+    ddExportar.onclick = () => { dropdown.classList.remove("open"); exportMusicXML(ctx, s, parts); };
+
+    dropdown.append(ddNueva, ddAbrir, ddGuardarLib, ddSep1, ddPlantillas, ddInspiracion, ddSep2, ddConfirmar, ddDescartar, ddSep3, ddExportar, fileInput);
 
     // Toggle dropdown
     menuBtn.onclick = (e) => {
@@ -1195,12 +1232,29 @@
     badge.setAttribute("style", badgeStyle(type));
     line.appendChild(badge);
 
-    // Info nombre + compases
+    // Info: solo nombre (sin compases)
     const info = ctx.el("div", "s936-ckpt-part-info");
     info.appendChild(ctx.el("div", "s936-ckpt-part-name", part.label || labelFor(part.section)));
-    info.appendChild(ctx.el("div", "s936-ckpt-part-bars",
-      `${Math.max(1, Number(part.bars) || inferredBars(s, part.section))} compases`));
     line.appendChild(info);
+
+    // Badge marca navegación (Da Capo, Coda, etc.) — clickeable para desactivar
+    const NAV_LABELS = {
+      segno:"§ Segno", coda:"⊕ Coda", fine:"Fine",
+      dacapo:"Da Capo", dalsegno:"Dal §", bis:"Bis"
+    };
+    if (part.navMark && NAV_LABELS[part.navMark]) {
+      const markBadge = ctx.el("span", "s936-ckpt-nav-mark", NAV_LABELS[part.navMark]);
+      markBadge.title = "Clic para desactivar " + NAV_LABELS[part.navMark];
+      markBadge.onclick = (e) => {
+        e.stopPropagation();
+        if (window.confirm(`¿Desactivar "${NAV_LABELS[part.navMark]}" de esta sección?`)) {
+          part.navMark = "";
+          state.draft.parts[index] = part;
+          saveState(); renderAgain(ctx);
+        }
+      };
+      line.appendChild(markBadge);
+    }
 
     // Botones de acción visibles: [▶][⏸][✎][▲][▼][⚙]
     const rowActions = ctx.el("div", "s936-ckpt-row-actions");
@@ -1588,6 +1642,53 @@
     lbl.textContent = label;
     wrap.appendChild(lbl);
     return wrap;
+  }
+
+
+  function exportMusicXML(ctx, s, parts) {
+    try {
+      const meta = state.draft.meta || {};
+      const title = meta.title || "Canción";
+      const bpm = meta.bpm || 95;
+      let measures = "";
+      let measureNum = 1;
+      parts.forEach(part => {
+        const bars = Math.max(1, Number(part.bars) || 4);
+        const timeSig = part.timeSig || "4/4";
+        const [beats, beatType] = timeSig.split("/");
+        const items = draftOrLiveItems(s, part.section);
+        for (let b = 0; b < bars; b++) {
+          const chord = items[b % Math.max(1, items.length)];
+          const chordName = chord?.name || chord?.chord || "";
+          measures += `    <measure number="${measureNum}">
+      <direction><direction-type><words>${b === 0 ? part.label || "" : ""}</words></direction-type></direction>
+      ${b === 0 ? `<attributes><divisions>4</divisions><time><beats>${beats}</beats><beat-type>${beatType}</beat-type></time></attributes>` : ""}
+      <harmony><root><root-step>${chordName.replace(/[^A-G]/,"") || "C"}</root-step></root><kind>${chordName.includes("m") ? "minor" : "major"}</kind></harmony>
+      <note><rest/><duration>16</duration><type>whole</type></note>
+    </measure>
+`;
+          measureNum++;
+        }
+      });
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN"
+  "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="4.0">
+  <work><work-title>${title}</work-title></work>
+  <identification><encoding><software>Studio 936 Composer</software></encoding></identification>
+  <part-list><score-part id="P1"><part-name>Chord Chart</part-name></score-part></part-list>
+  <part id="P1">
+${measures}  </part>
+</score-partwise>`;
+      const blob = new Blob([xml], { type:"application/vnd.recordare.musicxml+xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const slug = title.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "cancion";
+      a.href = url; a.download = `studio936-${slug}.musicxml`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      toast(ctx, "Exportado como MusicXML.");
+    } catch(e) { toast(ctx, "Error al exportar MusicXML."); console.warn(e); }
   }
 
   function parseChordNames(value) {
