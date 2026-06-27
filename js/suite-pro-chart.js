@@ -2,7 +2,7 @@
 // iReal Book style: 4 compases × 4 tiempos + voicings + selector instrumento
 window.Studio936SuiteProChart = (() => {
   "use strict";
-  const VERSION = "chart-v1.4.5";
+  const VERSION = "chart-v1.4.6";
   const STYLE_ID = "s936-chart-v141";
 
   const INSTRUMENTS = [
@@ -87,12 +87,17 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-bar.s936-cb-open::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:#ffe066;border-radius:0 2px 2px 0}
 
 /* Número de compás */
-.s936-ch-num{font-size:.38rem;color:rgba(255,255,255,.22);font-weight:700;line-height:1;margin-bottom:2px;padding-left:4px;display:block}
+.s936-ch-num{font-size:.38rem;color:rgba(255,255,255,.22);font-weight:700;line-height:1;padding-left:4px;display:block}
 
-/* Figura rítmica */
-.s936-ch-rhythm-row{height:16px;display:flex;align-items:flex-end;padding-left:4px;margin-bottom:1px}
-.s936-ch-note-fig{display:inline-block;opacity:.85}
-.s936-ch-note-fig svg{display:block}
+/* Cabecera del compás: número + figura + nombre acorde en una fila */
+.s936-ch-bar-head{display:flex;align-items:baseline;gap:5px;padding:2px 4px 3px;min-height:22px}
+.s936-ch-bar-chord-name{display:flex;align-items:baseline;gap:1px;flex:1}
+.s936-ch-bar-root{font-size:1.15rem;font-weight:900;color:#fff;line-height:1}
+.s936-ch-bar-qual{font-size:.58rem;font-weight:700;color:rgba(255,255,255,.55);vertical-align:super;line-height:1}
+.s936-ch-bar-bass{font-size:.44rem;color:#ff5bea;font-weight:700;align-self:flex-end}
+.s936-ch-bar-dash{font-size:1rem;color:rgba(255,255,255,.12);line-height:1}
+.s936-ch-bar-fig{display:flex;align-items:flex-end;height:18px}
+.s936-ch-bar-fig svg{display:block}
 
 /* ── 4 beats como columnas verticales ── */
 .s936-ch-beats{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:0 2px}
@@ -667,22 +672,58 @@ window.Studio936SuiteProChart = (() => {
     bar.dataset.section = sectionKey;
     bar.dataset.bar = barIndex;
 
+    // ── Cabecera: número + figura rítmica + nombre grande del acorde ──
+    const head = document.createElement("div");
+    head.className = "s936-ch-bar-head";
+
     // Número de compás
     const num = document.createElement("span");
     num.className = "s936-ch-num";
     num.textContent = barIndex + 1;
-    bar.appendChild(num);
+    head.appendChild(num);
 
-    // Figura rítmica encima (solo primer compás del acorde)
-    const rhythmRow = document.createElement("div");
-    rhythmRow.className = "s936-ch-rhythm-row";
+    // Nombre principal del acorde (tiempo 1 o acorde del editor)
+    const beat0Key = barIndex + "_0";
+    const beat0Override = beatsData[beat0Key] || "";
+    const mainChordName = beat0Override
+      || (isFirst && barInfo?.chord?.name)
+      || "";
+    const mainParsed = parseChord(mainChordName);
+
+    const chordNameEl = document.createElement("div");
+    chordNameEl.className = "s936-ch-bar-chord-name";
+
+    if (mainParsed) {
+      const r = document.createElement("span");
+      r.className = "s936-ch-bar-root";
+      r.textContent = mainParsed.root;
+      const q = document.createElement("sup");
+      q.className = "s936-ch-bar-qual";
+      q.textContent = mainParsed.qual;
+      chordNameEl.append(r, q);
+      if (mainParsed.bass) {
+        const b = document.createElement("span");
+        b.className = "s936-ch-bar-bass";
+        b.textContent = "/" + mainParsed.bass;
+        chordNameEl.appendChild(b);
+      }
+    } else if (barInfo?.isContinuation) {
+      const dash = document.createElement("span");
+      dash.className = "s936-ch-bar-dash";
+      dash.textContent = "—";
+      chordNameEl.appendChild(dash);
+    }
+    head.appendChild(chordNameEl);
+
+    // Figura rítmica (solo primer compás del acorde)
     if (isFirst && barInfo?.chord) {
       const fig = document.createElement("span");
-      fig.className = "s936-ch-note-fig";
+      fig.className = "s936-ch-bar-fig";
       fig.innerHTML = noteSVG(rhythmFig(barInfo.totalBars));
-      rhythmRow.appendChild(fig);
+      head.appendChild(fig);
     }
-    bar.appendChild(rhythmRow);
+
+    bar.appendChild(head);
 
     // ── 4 beats como columnas verticales con nombre + voicing ──
     const beatsRow = document.createElement("div");
@@ -690,11 +731,9 @@ window.Studio936SuiteProChart = (() => {
 
     for (let b = 0; b < 4; b++) {
       const bKey = barIndex + "_" + b;
-      // Tiempo 1: usa el acorde del editor si no hay override manual
       let bVal = beatsData[bKey] || "";
       if (!bVal && b === 0) {
         if (isFirst && barInfo?.chord?.name) bVal = barInfo.chord.name;
-        else if (barInfo?.isContinuation) bVal = ""; // continuación → vacío = dash
       }
       beatsRow.appendChild(renderBeat(sectionKey, barIndex, b, bVal, inst, voicingLibrary, onRerender));
     }
