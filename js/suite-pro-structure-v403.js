@@ -486,6 +486,157 @@
 }
 #s936SuitePro .s936-ckpt-apply-btn:hover{background:rgba(0,255,204,.22)}
 
+/* ── MODAL EDITAR PARTE v4.4 ── */
+#s936-part-modal-overlay{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.72);
+  z-index:9000;
+  display:flex;align-items:center;justify-content:center;
+  padding:16px;
+}
+#s936-part-modal{
+  background:#0d1117;
+  border:1px solid rgba(0,255,204,.35);
+  border-radius:16px;
+  width:100%;max-width:480px;
+  max-height:90vh;
+  overflow-y:auto;
+  box-shadow:0 24px 64px rgba(0,0,0,.9);
+  display:flex;flex-direction:column;
+}
+.s936-modal-head{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 16px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  position:sticky;top:0;background:#0d1117;z-index:1;
+}
+.s936-modal-badge{
+  border-radius:5px;
+  font-size:.52rem;font-weight:900;
+  padding:3px 8px;
+  text-transform:uppercase;letter-spacing:.5px;
+  flex-shrink:0;
+}
+.s936-modal-title{
+  font-size:.82rem;font-weight:700;color:#fff;flex:1;
+}
+.s936-modal-close{
+  width:28px;height:28px;border-radius:7px;
+  border:1px solid rgba(255,255,255,.15);
+  background:rgba(255,255,255,.05);
+  color:rgba(255,255,255,.6);
+  font-size:.9rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:border-color .12s,color .12s;flex-shrink:0;
+}
+.s936-modal-close:hover{border-color:rgba(255,80,80,.6);color:#ff8080}
+.s936-modal-body{padding:14px 16px;display:flex;flex-direction:column;gap:14px;}
+.s936-modal-block{
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;
+  overflow:hidden;
+}
+.s936-modal-block-head{
+  padding:6px 12px;
+  background:rgba(255,255,255,.04);
+  border-bottom:1px solid rgba(255,255,255,.06);
+  color:rgba(255,255,255,.45);
+  font-size:.58rem;font-weight:900;
+  text-transform:uppercase;letter-spacing:.7px;
+}
+.s936-modal-block-body{
+  padding:10px 12px;
+  display:grid;gap:10px;
+}
+.s936-modal-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.s936-modal-row.three{grid-template-columns:1fr 1fr 1fr;}
+.s936-modal-field label{
+  display:block;
+  color:rgba(255,255,255,.4);
+  font-size:.57rem;font-weight:900;
+  text-transform:uppercase;letter-spacing:.5px;
+  margin-bottom:4px;
+}
+.s936-modal-input,.s936-modal-select{
+  width:100%;
+  background:rgba(255,255,255,.06)!important;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:8px;
+  color:#fff!important;
+  font-size:.75rem;font-weight:700;
+  padding:7px 10px;
+  outline:none;
+  transition:border-color .15s;
+  box-sizing:border-box;
+  -webkit-appearance:none;appearance:none;
+}
+.s936-modal-select option{background:#0d1117!important;color:#fff!important;}
+.s936-modal-input:focus,.s936-modal-select:focus{border-color:rgba(0,255,204,.5);}
+.s936-modal-input.bpm{
+  color:#00ffcc!important;
+  background:rgba(0,255,204,.07)!important;
+  border-color:rgba(0,255,204,.25);
+  text-align:center;font-size:.9rem;
+}
+/* Marcas de navegación */
+.s936-modal-marks{display:flex;flex-wrap:wrap;gap:6px;}
+.s936-modal-mark{
+  border-radius:7px;
+  border:1px solid rgba(255,255,255,.15);
+  background:rgba(255,255,255,.05);
+  color:rgba(255,255,255,.55);
+  font-size:.62rem;font-weight:900;
+  padding:5px 10px;cursor:pointer;
+  transition:border-color .12s,color .12s,background .12s;
+  user-select:none;
+}
+.s936-modal-mark.active{
+  border-color:rgba(180,100,255,.6);
+  background:rgba(180,100,255,.12);
+  color:#cc99ff;
+}
+.s936-modal-mark:hover:not(.active){border-color:rgba(255,255,255,.3);color:#fff;}
+/* Notas texto */
+.s936-modal-textarea{
+  width:100%;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:8px;color:#fff;
+  font-size:.72rem;
+  padding:8px 10px;
+  outline:none;resize:vertical;
+  min-height:52px;
+  box-sizing:border-box;
+  transition:border-color .15s;
+}
+.s936-modal-textarea:focus{border-color:rgba(0,255,204,.4);}
+/* Footer acciones */
+.s936-modal-foot{
+  display:flex;gap:8px;
+  padding:12px 16px;
+  border-top:1px solid rgba(255,255,255,.08);
+  position:sticky;bottom:0;background:#0d1117;
+}
+.s936-modal-btn{
+  flex:1;
+  border-radius:8px;
+  font-size:.65rem;font-weight:900;
+  padding:9px;cursor:pointer;
+  text-transform:uppercase;letter-spacing:.5px;
+  transition:background .12s;border:1px solid;
+}
+.s936-modal-btn.save{
+  background:rgba(0,255,204,.12);
+  border-color:rgba(0,255,204,.45);color:#00ffcc;
+}
+.s936-modal-btn.save:hover{background:rgba(0,255,204,.22);}
+.s936-modal-btn.cancel{
+  background:rgba(255,255,255,.05);
+  border-color:rgba(255,255,255,.15);color:rgba(255,255,255,.55);
+  flex:0 0 80px;
+}
+.s936-modal-btn.cancel:hover{background:rgba(255,255,255,.1);}
+
 /* ── ROW LAYOUT v4.2 ── */
 #s936SuitePro .s936-ckpt-part-row{
   display:flex;
@@ -1146,7 +1297,8 @@
 
     const items = draftOrLiveItems(s, part.section);
     if (isEditing) {
-      row.appendChild(renderPartEditor(ctx, s, parts, part, index, items));
+      // Modal flotante — se monta en body, no inline
+      renderPartEditor(ctx, s, parts, part, index, items);
     }
     return row;
   }
@@ -1198,74 +1350,244 @@
     renderAgain(ctx);
   }
 
+  // v4.4 — Modal flotante de edición de parte
   function renderPartEditor(ctx, s, parts, part, index, items) {
-    const editor = ctx.el("div", "s936-struct-part-editor");
-    const title = ctx.el("div", "s936-struct-editor-head");
-    title.appendChild(ctx.el("b", "", "Editor de parte"));
-    title.appendChild(ctx.el("span", "", "Los cambios quedan en el borrador hasta pulsar Aplicar estructura."));
-    editor.appendChild(title);
+    // No retorna nada inline — monta el modal en body
+    openPartModal(ctx, s, parts, part, index, items);
+    return null;
+  }
 
-    const form = ctx.el("div", "s936-struct-editor-form");
-    const nameField = field(ctx, "Nombre visible");
-    const nameInput = ctx.el("input", "s936-struct-input");
+  function openPartModal(ctx, s, parts, part, index, items) {
+    // Cerrar modal anterior si existe
+    document.getElementById("s936-part-modal-overlay")?.remove();
+
+    const type = part.type || baseType(part.section) || "verse";
+
+    const overlay = document.createElement("div");
+    overlay.id = "s936-part-modal-overlay";
+
+    const modal = document.createElement("div");
+    modal.id = "s936-part-modal";
+
+    // ── HEAD ──
+    const head = document.createElement("div");
+    head.className = "s936-modal-head";
+
+    const badge = document.createElement("span");
+    badge.className = "s936-modal-badge";
+    badge.textContent = badgeLabel(type);
+    badge.setAttribute("style", badgeStyle(type));
+
+    const titleEl = document.createElement("div");
+    titleEl.className = "s936-modal-title";
+    titleEl.textContent = part.label || labelFor(part.section);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "s936-modal-close";
+    closeBtn.innerHTML = "✕";
+    closeBtn.title = "Cerrar";
+    closeBtn.onclick = () => {
+      overlay.remove();
+      state.editingIndex = -1;
+      saveState();
+      renderAgain(ctx);
+    };
+
+    head.append(badge, titleEl, closeBtn);
+    modal.appendChild(head);
+
+    // ── BODY ──
+    const body = document.createElement("div");
+    body.className = "s936-modal-body";
+
+    // -- Bloque 1: Identidad --
+    const b1 = modalBlock("Identidad");
+    const b1body = b1.querySelector(".s936-modal-block-body");
+    b1body.classList.add("s936-modal-row");
+
+    const nameF = modalField("Nombre visible");
+    const nameInput = document.createElement("input");
+    nameInput.className = "s936-modal-input";
     nameInput.value = part.label || labelFor(part.section);
-    nameField.appendChild(nameInput);
+    nameInput.oninput = () => titleEl.textContent = nameInput.value || part.label;
+    nameF.appendChild(nameInput);
 
-    const barsField = field(ctx, "Compases");
-    const barsInput = ctx.el("input", "s936-struct-input");
-    barsInput.type = "number";
-    barsInput.min = "1";
-    barsInput.max = "64";
+    const typeF = modalField("Tipo");
+    const typeSelect = document.createElement("select");
+    typeSelect.className = "s936-modal-select";
+    PART_OPTIONS.forEach(([v, l]) => {
+      const opt = document.createElement("option");
+      opt.value = v; opt.textContent = l;
+      if (v === type) opt.selected = true;
+      typeSelect.appendChild(opt);
+    });
+    typeF.appendChild(typeSelect);
+    b1body.append(nameF, typeF);
+    body.appendChild(b1);
+
+    // -- Bloque 2: Métrica --
+    const b2 = modalBlock("Métrica");
+    const b2body = b2.querySelector(".s936-modal-block-body");
+    b2body.classList.add("s936-modal-row", "three");
+
+    const barsF = modalField("Compases");
+    const barsInput = document.createElement("input");
+    barsInput.className = "s936-modal-input";
+    barsInput.type = "number"; barsInput.min = "1"; barsInput.max = "128";
     barsInput.value = String(Math.max(1, Number(part.bars) || inferredBars(s, part.section)));
-    barsField.appendChild(barsInput);
+    barsF.appendChild(barsInput);
 
-    const chordField = field(ctx, "Progresión de acordes");
-    chordField.classList.add("wide");
-    const chordInput = ctx.el("textarea", "s936-struct-input s936-struct-chord-editor");
-    chordInput.value = (items || []).map((item) => String(item?.name || item?.chord || "").trim()).filter(Boolean).join(" · ");
-    chordInput.placeholder = "Ej. Fmaj7 · Cmaj7 · Am7 · G6/9";
-    chordField.appendChild(chordInput);
+    const timeSigF = modalField("Compás");
+    const timeSigSelect = document.createElement("select");
+    timeSigSelect.className = "s936-modal-select";
+    [["4/4","4/4"],["3/4","3/4"],["6/8","6/8"],["5/4","5/4"],["7/8","7/8"],["2/4","2/4"],["12/8","12/8"]]
+      .forEach(([v,l]) => {
+        const opt = document.createElement("option");
+        opt.value = v; opt.textContent = l;
+        if (v === (part.timeSig || "4/4")) opt.selected = true;
+        timeSigSelect.appendChild(opt);
+      });
+    timeSigF.appendChild(timeSigSelect);
 
-    form.append(nameField, barsField, chordField);
-    editor.appendChild(form);
+    const bpmF = modalField("BPM propio");
+    const bpmInput = document.createElement("input");
+    bpmInput.className = "s936-modal-input bpm";
+    bpmInput.type = "number"; bpmInput.min = "40"; bpmInput.max = "220";
+    bpmInput.value = String(part.bpm || "");
+    bpmInput.placeholder = "Global";
+    bpmF.appendChild(bpmInput);
 
-    const actions = ctx.el("div", "s936-struct-actions");
-    button(ctx, actions, "Guardar cambios", () => {
-      const label = (nameInput.value || part.label || labelFor(part.section)).trim();
-      const bars = Math.max(1, Number(barsInput.value) || 8);
-      const names = parseChordNames(chordInput.value);
-      part.label = label;
-      part.bars = bars;
+    b2body.append(barsF, timeSigF, bpmF);
+    body.appendChild(b2);
+
+    // -- Bloque 3: Repetición --
+    const b3 = modalBlock("Repetición");
+    const b3body = b3.querySelector(".s936-modal-block-body");
+
+    const repsF = modalField("Repetir N veces");
+    const repsInput = document.createElement("input");
+    repsInput.className = "s936-modal-input";
+    repsInput.type = "number"; repsInput.min = "1"; repsInput.max = "8";
+    repsInput.value = String(part.repeat || 1);
+    repsF.appendChild(repsInput);
+    b3body.appendChild(repsF);
+    body.appendChild(b3);
+
+    // -- Bloque 4: Marcas de navegación --
+    const b4 = modalBlock("Marcas de navegación");
+    const b4body = b4.querySelector(".s936-modal-block-body");
+    const marksWrap = document.createElement("div");
+    marksWrap.className = "s936-modal-marks";
+    const marks = [
+      ["segno", "§ Segno"],
+      ["coda",  "⊕ Coda"],
+      ["fine",  "Fine"],
+      ["dacapo","Da Capo"],
+      ["dalsegno","Dal Segno"],
+      ["bis",   "Bis"],
+    ];
+    const activeMark = part.navMark || "";
+    marks.forEach(([key, label]) => {
+      const btn = document.createElement("button");
+      btn.className = "s936-modal-mark" + (activeMark === key ? " active" : "");
+      btn.textContent = label;
+      btn.onclick = () => {
+        marksWrap.querySelectorAll(".s936-modal-mark").forEach(b => b.classList.remove("active"));
+        if (activeMark === key) {
+          btn.classList.remove("active");
+          btn._selected = false;
+        } else {
+          btn.classList.add("active");
+          btn._selected = true;
+        }
+        marksWrap._active = btn._selected ? key : "";
+      };
+      marksWrap.appendChild(btn);
+    });
+    marksWrap._active = activeMark;
+    b4body.appendChild(marksWrap);
+    body.appendChild(b4);
+
+    // -- Bloque 5: Nota de producción --
+    const b5 = modalBlock("Nota de producción");
+    const b5body = b5.querySelector(".s936-modal-block-body");
+    const noteArea = document.createElement("textarea");
+    noteArea.className = "s936-modal-textarea";
+    noteArea.placeholder = "Instrucciones para músicos, dinámica, carácter...";
+    noteArea.value = part.note || "";
+    b5body.appendChild(noteArea);
+    body.appendChild(b5);
+
+    modal.appendChild(body);
+
+    // ── FOOTER ──
+    const foot = document.createElement("div");
+    foot.className = "s936-modal-foot";
+
+    const saveBtn = document.createElement("button");
+    saveBtn.className = "s936-modal-btn save";
+    saveBtn.textContent = "✓ Guardar en borrador";
+    saveBtn.onclick = () => {
+      const label = (nameInput.value || labelFor(part.section)).trim();
+      const bars  = Math.max(1, Number(barsInput.value) || 8);
+      part.label   = label;
+      part.bars    = bars;
+      part.type    = typeSelect.value;
+      part.timeSig = timeSigSelect.value;
+      part.bpm     = bpmInput.value ? Number(bpmInput.value) : undefined;
+      part.repeat  = Math.max(1, Number(repsInput.value) || 1);
+      part.navMark = marksWrap._active || "";
+      part.note    = noteArea.value.trim();
       state.draft.parts[index] = part;
+      state.editingIndex = -1;
+      saveState();
+      overlay.remove();
+      renderAgain(ctx);
+      toast(ctx, "Sección actualizada en el borrador.");
+    };
 
-      if (names.length) {
-        const oldItems = Array.isArray(items) ? items : [];
-        state.draft.clones[part.section] = {
-          source: part.section,
-          items: names.map((name, chordIndex) => {
-            const existing = oldItems[chordIndex] || {};
-            return Object.assign({}, existing, {
-              name,
-              bass: existing.bass || chordBass(name),
-              notes: existing.notes || chordNotes(name, projectKey(s)).join(" "),
-              bars: Math.max(1, Number(existing.bars) || Math.max(1, Math.round(bars / names.length)))
-            });
-          }),
-          createdAt: state.draft.clones?.[part.section]?.createdAt || new Date().toISOString()
-        };
-      }
+    const cancelBtn = document.createElement("button");
+    cancelBtn.className = "s936-modal-btn cancel";
+    cancelBtn.textContent = "Cancelar";
+    cancelBtn.onclick = () => {
+      overlay.remove();
       state.editingIndex = -1;
       saveState();
       renderAgain(ctx);
-      toast(ctx, "Parte actualizada en el borrador.");
-    }, "s936-struct-btn warn");
-    button(ctx, actions, "Cancelar", () => {
-      state.editingIndex = -1;
-      saveState();
-      renderAgain(ctx);
-    }, "s936-struct-btn secondary");
-    editor.appendChild(actions);
-    return editor;
+    };
+
+    foot.append(saveBtn, cancelBtn);
+    modal.appendChild(foot);
+
+    // Cerrar al click en overlay
+    overlay.onclick = (e) => { if (e.target === overlay) cancelBtn.onclick(); };
+    // Cerrar con Escape
+    const escHandler = (e) => { if (e.key === "Escape") { cancelBtn.onclick(); document.removeEventListener("keydown", escHandler); } };
+    document.addEventListener("keydown", escHandler);
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+  }
+
+  function modalBlock(title) {
+    const block = document.createElement("div");
+    block.className = "s936-modal-block";
+    const head = document.createElement("div");
+    head.className = "s936-modal-block-head";
+    head.textContent = title;
+    const body = document.createElement("div");
+    body.className = "s936-modal-block-body";
+    block.append(head, body);
+    return block;
+  }
+
+  function modalField(label) {
+    const wrap = document.createElement("div");
+    wrap.className = "s936-modal-field";
+    const lbl = document.createElement("label");
+    lbl.textContent = label;
+    wrap.appendChild(lbl);
+    return wrap;
   }
 
   function parseChordNames(value) {
