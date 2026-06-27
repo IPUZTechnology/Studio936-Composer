@@ -2,7 +2,7 @@
 // iReal Book style: 4 compases × 4 tiempos + voicings + selector instrumento
 window.Studio936SuiteProChart = (() => {
   "use strict";
-  const VERSION = "chart-v1.4.3";
+  const VERSION = "chart-v1.4.4";
   const STYLE_ID = "s936-chart-v141";
 
   const INSTRUMENTS = [
@@ -212,6 +212,45 @@ window.Studio936SuiteProChart = (() => {
       : { root: m[1], qual: m[2] || "", bass: "" };
   }
 
+  // Calcular pitch classes de un acorde desde el nombre (para iluminar piano sin voicing guardado)
+  const PC = {C:0,"C#":1,DB:1,D:2,"D#":3,EB:3,E:4,FB:4,"E#":5,F:5,"F#":6,GB:6,G:7,"G#":8,AB:8,A:9,"A#":10,BB:10,B:11,CB:11,"B#":0};
+  function chordPitchClasses(chordName) {
+    if (!chordName) return new Set();
+    // Usar MusicTheory si está disponible
+    const MT = window.Studio936MusicTheory;
+    if (MT?.chordVoicing) {
+      try {
+        const notes = MT.chordVoicing(chordName);
+        // chordVoicing devuelve "C3 E3 G3" etc.
+        const pcs = new Set(
+          notes.split(" ").map(n => {
+            const m2 = n.match(/^([A-G][b#]?)/i);
+            if (!m2) return -1;
+            return PC[m2[1].toUpperCase().replace("b","B")] ?? -1;
+          }).filter(p => p >= 0)
+        );
+        return pcs;
+      } catch(_) {}
+    }
+    // Fallback: raíz + tercera + quinta básica
+    const m = String(chordName).match(/^([A-G][b#]?)(.*)/);
+    if (!m) return new Set();
+    const rootPc = PC[m[1].toUpperCase().replace("b","B")] ?? 0;
+    const qual = m[2].toLowerCase();
+    let ints = [0, 4, 7]; // mayor por defecto
+    if (qual.includes("m") && !qual.includes("maj")) ints = [0, 3, 7];
+    if (qual.includes("dim")) ints = [0, 3, 6];
+    if (qual.includes("aug")) ints = [0, 4, 8];
+    if (qual.includes("sus4")) ints = [0, 5, 7];
+    if (qual.includes("sus2")) ints = [0, 2, 7];
+    if (qual.includes("7")) ints.push(qual.includes("maj") ? 11 : 10);
+    if (qual.includes("9")) ints.push(2);
+    if (qual.includes("11")) ints.push(5);
+    if (qual.includes("13")) ints.push(9);
+    if (qual.includes("6") && !qual.includes("13")) ints.push(9);
+    return new Set(ints.map(i => ((rootPc + i) % 12 + 12) % 12));
+  }
+
   // ─── FIGURAS RÍTMICAS ────────────────────────────────────────────────────
   function noteSVG(type) {
     const H = "#e8e8e8";
@@ -245,13 +284,21 @@ window.Studio936SuiteProChart = (() => {
   // Entre blancas: C#=entre0-1, D#=entre1-2, F#=entre3-4, G#=entre4-5, A#=entre5-6
   const BK_POS = { 1:1/7, 3:2/7, 6:4/7, 8:5/7, 10:6/7 }; // fracción del centro
 
-  function miniPiano(voicingPiano) {
+  function miniPiano(voicingPiano, chordName) {
     const wrap = document.createElement("div");
     wrap.className = "s936-ch-piano-wrap";
 
-    const midis = Array.isArray(voicingPiano?.midis) ? voicingPiano.midis : [];
-    const hitPcs = new Set(midis.map(m => ((m % 12) + 12) % 12));
-    const wkW = 100 / 7; // % por tecla blanca
+    // Prioridad: midis guardados → calcular desde nombre del acorde
+    let hitPcs;
+    if (Array.isArray(voicingPiano?.midis) && voicingPiano.midis.length > 0) {
+      hitPcs = new Set(voicingPiano.midis.map(m => ((m % 12) + 12) % 12));
+    } else if (chordName) {
+      hitPcs = chordPitchClasses(chordName);
+    } else {
+      hitPcs = new Set();
+    }
+
+    const wkW = 100 / 7;
 
     WK.forEach((pc, i) => {
       const k = document.createElement("div");
@@ -449,10 +496,13 @@ window.Studio936SuiteProChart = (() => {
 
     // ── Voicing del beat (si tiene acorde) ──
     if (parsed) {
-      const chordName = (parsed.root + parsed.qual).toUpperCase().trim();
-      const voicing = voicingLibrary?.[inst]?.[chordName];
+      // Buscar voicing: primero en el acorde mismo, luego en la librería
+      const chordNameRaw = parsed.root + parsed.qual;
+      const chordNameUpper = chordNameRaw.toUpperCase().trim();
+      const voicing = voicingLibrary?.[inst]?.[chordNameUpper]
+        || voicingLibrary?.[inst]?.[chordNameRaw.trim()];
       if (inst === "piano") {
-        cell.appendChild(miniPiano(voicing || null));
+        cell.appendChild(miniPiano(voicing || null, chordNameRaw));
       } else {
         cell.appendChild(miniFret(voicing || null));
       }
