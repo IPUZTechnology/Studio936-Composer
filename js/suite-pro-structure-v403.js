@@ -1112,11 +1112,11 @@
         // Posicionar fixed relativo al botón
         const rect = menuBtn.getBoundingClientRect();
         dropdown.style.top = (rect.bottom + 4) + "px";
-        // Alinear al borde izquierdo del botón, ancho fijo 210px
-        const left = Math.max(8, rect.left);
-        const maxRight = window.innerWidth - 8;
-        dropdown.style.left = Math.min(left, maxRight - 214) + "px";
-        dropdown.style.width = "210px";
+        // Buscar el panel Suite Pro para alinearse dentro de él
+        const suitePanel = document.getElementById("s936SuitePro") || document.querySelector(".v18-suite, #v18Suite");
+        const panelRect = suitePanel ? suitePanel.getBoundingClientRect() : rect;
+        dropdown.style.left = (panelRect.left + 8) + "px";
+        dropdown.style.width = (panelRect.width - 16) + "px";
         dropdown.classList.add("open");
       }
     };
