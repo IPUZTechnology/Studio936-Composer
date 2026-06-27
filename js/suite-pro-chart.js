@@ -2,7 +2,7 @@
 // iReal Book style: 4 compases × 4 tiempos + voicings + selector instrumento
 window.Studio936SuiteProChart = (() => {
   "use strict";
-  const VERSION = "chart-v1.4.6";
+  const VERSION = "chart-v1.4.7";
   const STYLE_ID = "s936-chart-v141";
 
   const INSTRUMENTS = [
@@ -89,14 +89,15 @@ window.Studio936SuiteProChart = (() => {
 /* Número de compás */
 .s936-ch-num{font-size:.38rem;color:rgba(255,255,255,.22);font-weight:700;line-height:1;padding-left:4px;display:block}
 
-/* Cabecera del compás: número + figura + nombre acorde en una fila */
-.s936-ch-bar-head{display:flex;align-items:baseline;gap:5px;padding:2px 4px 3px;min-height:22px}
-.s936-ch-bar-chord-name{display:flex;align-items:baseline;gap:1px;flex:1}
-.s936-ch-bar-root{font-size:1.15rem;font-weight:900;color:#fff;line-height:1}
-.s936-ch-bar-qual{font-size:.58rem;font-weight:700;color:rgba(255,255,255,.55);vertical-align:super;line-height:1}
-.s936-ch-bar-bass{font-size:.44rem;color:#ff5bea;font-weight:700;align-self:flex-end}
-.s936-ch-bar-dash{font-size:1rem;color:rgba(255,255,255,.12);line-height:1}
-.s936-ch-bar-fig{display:flex;align-items:flex-end;height:18px}
+/* Cabecera del compás: número encima, luego fila nombre + figura */
+.s936-ch-bar-head{padding:2px 4px 2px;min-height:28px}
+.s936-ch-bar-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:1px}
+.s936-ch-bar-chord-name{display:flex;align-items:baseline;gap:1px}
+.s936-ch-bar-root{font-size:1.1rem;font-weight:900;color:#fff;line-height:1}
+.s936-ch-bar-qual{font-size:.56rem;font-weight:700;color:rgba(255,255,255,.55);vertical-align:super;line-height:1}
+.s936-ch-bar-bass{font-size:.42rem;color:#ff5bea;font-weight:700;align-self:flex-end}
+.s936-ch-bar-dash{font-size:.85rem;color:rgba(255,255,255,.12);line-height:1}
+.s936-ch-bar-fig{display:flex;align-items:flex-end;height:16px;opacity:.75}
 .s936-ch-bar-fig svg{display:block}
 
 /* ── 4 beats como columnas verticales ── */
@@ -672,17 +673,21 @@ window.Studio936SuiteProChart = (() => {
     bar.dataset.section = sectionKey;
     bar.dataset.bar = barIndex;
 
-    // ── Cabecera: número + figura rítmica + nombre grande del acorde ──
+    // ── Cabecera: número arriba, luego nombre grande + figura en fila ──
     const head = document.createElement("div");
     head.className = "s936-ch-bar-head";
 
-    // Número de compás
+    // Número de compás (línea propia, pequeño arriba izquierda)
     const num = document.createElement("span");
     num.className = "s936-ch-num";
     num.textContent = barIndex + 1;
     head.appendChild(num);
 
-    // Nombre principal del acorde (tiempo 1 o acorde del editor)
+    // Fila: nombre del acorde (izquierda) + figura rítmica (derecha)
+    const topRow = document.createElement("div");
+    topRow.className = "s936-ch-bar-top";
+
+    // Nombre principal del acorde
     const beat0Key = barIndex + "_0";
     const beat0Override = beatsData[beat0Key] || "";
     const mainChordName = beat0Override
@@ -713,16 +718,17 @@ window.Studio936SuiteProChart = (() => {
       dash.textContent = "—";
       chordNameEl.appendChild(dash);
     }
-    head.appendChild(chordNameEl);
+    topRow.appendChild(chordNameEl);
 
-    // Figura rítmica (solo primer compás del acorde)
+    // Figura rítmica (solo primer compás del acorde, derecha)
     if (isFirst && barInfo?.chord) {
       const fig = document.createElement("span");
       fig.className = "s936-ch-bar-fig";
       fig.innerHTML = noteSVG(rhythmFig(barInfo.totalBars));
-      head.appendChild(fig);
+      topRow.appendChild(fig);
     }
 
+    head.appendChild(topRow);
     bar.appendChild(head);
 
     // ── 4 beats como columnas verticales con nombre + voicing ──
