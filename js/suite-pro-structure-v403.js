@@ -1111,10 +1111,10 @@
       if (!isOpen) {
         // Posicionar fixed relativo al botón
         const rect = menuBtn.getBoundingClientRect();
-        dropdown.style.top = (rect.bottom + 4) + "px";
-        // Buscar el panel Suite Pro para alinearse dentro de él
+        // Posicionar justo debajo del botón ≡, ancho del panel
         const suitePanel = document.getElementById("s936SuitePro") || document.querySelector(".v18-suite, #v18Suite");
         const panelRect = suitePanel ? suitePanel.getBoundingClientRect() : rect;
+        dropdown.style.top = (rect.bottom + 2) + "px";
         dropdown.style.left = (panelRect.left + 8) + "px";
         dropdown.style.width = (panelRect.width - 16) + "px";
         dropdown.classList.add("open");
@@ -1124,7 +1124,8 @@
       if (!menuBtn.contains(e.target)) dropdown.classList.remove("open");
     });
 
-    menuBtn.appendChild(dropdown);
+    // Dropdown en body para posicionamiento fixed sin interferencia
+    document.body.appendChild(dropdown);
     topbar.append(titleInput, styleSelect, bpmInput, menuBtn);
     shell.appendChild(topbar);
 
