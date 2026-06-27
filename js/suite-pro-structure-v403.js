@@ -365,15 +365,14 @@
 /* Dropdown del menú */
 #s936SuitePro .s936-ckpt-dropdown{
   display:none;
-  position:absolute;
-  top:38px;right:0;bottom:auto;
+  position:fixed;
   background:#0d1117;
   border:1px solid rgba(0,255,204,.35);
   border-radius:10px;
   padding:6px;
   z-index:9999;
-  min-width:160px;
-  box-shadow:0 8px 24px rgba(0,0,0,.7);
+  min-width:200px;
+  box-shadow:0 8px 24px rgba(0,0,0,.9);
 }
 #s936SuitePro .s936-ckpt-dropdown.open{display:block}
 #s936SuitePro .s936-ckpt-dd-item{
@@ -1093,11 +1092,15 @@
     menuBtn.onclick = (e) => {
       e.stopPropagation();
       const isOpen = dropdown.classList.contains("open");
-      // cerrar cualquier otro dropdown abierto
       document.querySelectorAll(".s936-ckpt-dropdown.open").forEach(d => d.classList.remove("open"));
-      if (!isOpen) dropdown.classList.add("open");
+      if (!isOpen) {
+        // Posicionar fixed relativo al botón
+        const rect = menuBtn.getBoundingClientRect();
+        dropdown.style.top = (rect.bottom + 4) + "px";
+        dropdown.style.left = Math.max(4, rect.right - 204) + "px";
+        dropdown.classList.add("open");
+      }
     };
-    // Cerrar al click fuera — con delay para no cerrarse en el mismo click
     document.addEventListener("click", (e) => {
       if (!menuBtn.contains(e.target)) dropdown.classList.remove("open");
     });
