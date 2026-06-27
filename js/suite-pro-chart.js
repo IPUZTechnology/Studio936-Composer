@@ -1,9 +1,9 @@
-// Studio 936 Composer - Chart View v1.4.1
+// Studio 936 Composer - Chart View v1.5.1
 // iReal Book style: 4 compases × 4 tiempos + voicings + selector instrumento
 window.Studio936SuiteProChart = (() => {
   "use strict";
-  const VERSION = "chart-v1.5.0";
-  const STYLE_ID = "s936-chart-v141";
+  const VERSION = "chart-v1.5.1";
+  const STYLE_ID = "s936-chart-v141"; // Mantenemos el ID para no duplicar estilos
 
   const INSTRUMENTS = [
     { id: "piano",   label: "Piano" },
@@ -92,7 +92,7 @@ window.Studio936SuiteProChart = (() => {
 /* Cabecera del compás: número encima, luego fila nombre + figura */
 .s936-ch-bar-head{padding:2px 4px 2px;min-height:28px}
 .s936-ch-bar-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:1px}
-.s936-ch-bar-chord-name{display:flex;align-items:baseline;gap:1px}
+.s936-ch-bar-chord-name{display:flex;align-items:baseline;gap:8px}
 .s936-ch-bar-root{font-size:1.1rem;font-weight:900;color:#fff;line-height:1}
 .s936-ch-bar-qual{font-size:.56rem;font-weight:700;color:rgba(255,255,255,.55);vertical-align:super;line-height:1}
 .s936-ch-bar-bass{font-size:.42rem;color:#ff5bea;font-weight:700;align-self:flex-end}
@@ -115,15 +115,10 @@ window.Studio936SuiteProChart = (() => {
 /* Número de tiempo */
 .s936-ch-beat-num{font-size:.34rem;color:rgba(255,255,255,.28);font-weight:700;line-height:1;margin-bottom:2px}
 
-/* Nombre del acorde en el beat */
-.s936-ch-beat-chord{display:flex;align-items:baseline;gap:1px;min-height:18px;margin-bottom:2px}
-.s936-ch-beat-root{font-size:.8rem;font-weight:900;color:#fff;line-height:1}
-.s936-ch-beat-qual{font-size:.44rem;font-weight:700;color:rgba(255,255,255,.6);vertical-align:super;line-height:1}
-.s936-ch-beat-bass{font-size:.38rem;color:#ff5bea;font-weight:700}
-.s936-ch-beat-dash{font-size:.65rem;color:rgba(255,255,255,.12);align-self:center}
-.s936-ch-beat-dot{width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.15);margin:7px auto 2px}
-.s936-ch-beat-repeat{font-size:.8rem;color:rgba(255,255,255,.2);font-weight:900;text-align:center;line-height:1;margin:4px auto}
-/* Sugerencias popup */
+/* Acorde en el beat (ahora solo para repeat) */
+.s936-ch-beat-chord{display:flex;align-items:baseline;justify-content:center;min-height:14px;margin-bottom:2px}
+.s936-ch-beat-repeat{font-size:.8rem;color:rgba(255,255,255,.2);font-weight:900;text-align:center;line-height:1}
+
 /* ── Chord Picker ── */
 .s936-picker-label{font-size:.4rem;color:rgba(0,255,204,.6);text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:3px}
 .s936-picker-roots{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px}
@@ -235,16 +230,13 @@ window.Studio936SuiteProChart = (() => {
       : { root: m[1], qual: m[2] || "", bass: "" };
   }
 
-  // Calcular pitch classes de un acorde desde el nombre (para iluminar piano sin voicing guardado)
   const PC = {C:0,"C#":1,DB:1,D:2,"D#":3,EB:3,E:4,FB:4,"E#":5,F:5,"F#":6,GB:6,G:7,"G#":8,AB:8,A:9,"A#":10,BB:10,B:11,CB:11,"B#":0};
   function chordPitchClasses(chordName) {
     if (!chordName) return new Set();
-    // Usar MusicTheory si está disponible
     const MT = window.Studio936MusicTheory;
     if (MT?.chordVoicing) {
       try {
         const notes = MT.chordVoicing(chordName);
-        // chordVoicing devuelve "C3 E3 G3" etc.
         const pcs = new Set(
           notes.split(" ").map(n => {
             const m2 = n.match(/^([A-G][b#]?)/i);
@@ -255,12 +247,11 @@ window.Studio936SuiteProChart = (() => {
         return pcs;
       } catch(_) {}
     }
-    // Fallback: raíz + tercera + quinta básica
     const m = String(chordName).match(/^([A-G][b#]?)(.*)/);
     if (!m) return new Set();
     const rootPc = PC[m[1].toUpperCase().replace("b","B")] ?? 0;
     const qual = m[2].toLowerCase();
-    let ints = [0, 4, 7]; // mayor por defecto
+    let ints = [0, 4, 7];
     if (qual.includes("m") && !qual.includes("maj")) ints = [0, 3, 7];
     if (qual.includes("dim")) ints = [0, 3, 6];
     if (qual.includes("aug")) ints = [0, 4, 8];
@@ -274,16 +265,12 @@ window.Studio936SuiteProChart = (() => {
     return new Set(ints.map(i => ((rootPc + i) % 12 + 12) % 12));
   }
 
-  // ─── VOICINGS CALCULADOS PARA INSTRUMENTOS DE CUERDA ────────────────────
-  // Afinación estándar: guitar E2 A2 D3 G3 B3 E4 (midis: 40,45,50,55,59,64)
-  // ukulele G4 C4 E4 A4 (67,60,64,69), bass E1 A1 D2 G2 (28,33,38,43)
   const STRING_OPEN_MIDI = {
     guitar:  [40, 45, 50, 55, 59, 64],
     ukulele: [67, 60, 64, 69],
     bass:    [28, 33, 38, 43]
   };
 
-  // Diccionario de shapes básicos open chords para guitarra (cuerda 6→1, null=mute)
   const GUITAR_SHAPES = {
     "C":    [null,3,2,0,1,0], "C#":[null,4,3,1,2,1], "DB":[null,4,3,1,2,1],
     "D":    [null,null,0,2,3,2], "D#":[null,null,1,3,4,3], "EB":[null,null,1,3,4,3],
@@ -291,32 +278,26 @@ window.Studio936SuiteProChart = (() => {
     "G":    [3,2,0,0,0,3], "G#":[4,3,1,1,1,4], "AB":[4,3,1,1,1,4],
     "A":    [null,0,2,2,2,0], "A#":[null,1,3,3,3,1], "BB":[null,1,3,3,3,1],
     "B":    [null,2,4,4,4,2],
-    // Menores
     "CM":   [null,3,2,0,1,0], "C#M":[null,4,2,1,2,0], "DBM":[null,4,2,1,2,0],
     "DM":   [null,null,0,2,3,1], "D#M":[null,null,1,3,4,2], "EBM":[null,null,1,3,4,2],
     "EM":   [0,2,2,0,0,0], "FM":[1,3,3,1,1,1], "F#M":[2,4,4,2,2,2], "GBM":[2,4,4,2,2,2],
     "GM":   [3,5,5,3,3,3], "G#M":[4,3,1,1,0,4], "ABM":[4,3,1,1,0,4],
     "AM":   [null,0,2,2,1,0], "A#M":[null,1,3,3,2,1], "BBM":[null,1,3,3,2,1],
     "BM":   [null,2,4,4,3,2],
-    // 7
     "C7":   [null,3,2,3,1,0], "D7":[null,null,0,2,1,2], "E7":[0,2,0,1,0,0],
     "F7":   [1,3,1,2,1,1],  "G7":[3,2,0,0,0,1], "A7":[null,0,2,0,2,0],
     "B7":   [null,2,1,2,0,2],
-    // m7
     "CM7":  [null,3,2,3,1,3], "DM7":[null,null,0,2,1,1], "EM7":[0,2,0,0,0,0],
     "FM7":  [1,3,1,1,1,1],  "GM7":[3,2,0,0,3,1], "AM7":[null,0,2,0,1,0],
     "BM7":  [null,2,4,2,3,2],
-    // maj7
     "CMAJ7":[null,3,2,0,0,0], "DMAJ7":[null,null,0,2,2,2], "EMAJ7":[0,2,1,1,0,0],
     "FMAJ7":[null,null,3,2,1,0],"GMAJ7":[3,2,0,0,0,2], "AMAJ7":[null,0,2,1,2,0],
     "BMAJ7":[null,2,4,3,4,2],
-    // sus
     "CSUS2":[null,3,0,0,1,3], "DSUS2":[null,null,0,2,3,0], "GSUS2":[3,0,0,2,3,3],
     "ASUS2":[null,0,2,2,0,0], "CSUS4":[null,3,3,0,1,1], "DSUS4":[null,null,0,2,3,3],
     "ESUS4":[0,2,2,2,0,0], "GSUS4":[3,3,0,0,1,3], "ASUS4":[null,0,2,2,3,0],
   };
 
-  // Shapes básicos para ukulele (cuerda 4→1: G C E A)
   const UKU_SHAPES = {
     "C":[0,0,0,3],"D":[2,2,2,0],"E":[4,4,4,2],"F":[2,0,1,0],"G":[0,2,3,2],
     "A":[2,1,0,0],"B":[4,3,2,2],
@@ -328,20 +309,17 @@ window.Studio936SuiteProChart = (() => {
     "CM7":[0,3,3,3],"DM7":[2,2,1,3],"EM7":[0,2,0,2],"FM7":[1,0,1,1],"AM7":[0,0,0,0],
   };
 
-  // Shape de bajo: raíz en cuerda 4 o 3 y quinta
   function bassShape(chordName) {
     const PC2 = {C:0,"C#":1,DB:1,D:2,"D#":3,EB:3,E:4,F:5,"F#":6,GB:6,G:7,"G#":8,AB:8,A:9,"A#":10,BB:10,B:11};
     const m = String(chordName).match(/^([A-G][b#]?)/i);
     if (!m) return null;
     const rootPc = PC2[m[1].toUpperCase().replace("b","B")] ?? 0;
-    // Cuerdas del bajo: E1(28) A1(33) D2(38) G2(43)
     const openMidis = [28, 33, 38, 43];
     const frets = openMidis.map(open => {
       let f = ((rootPc - (open % 12) + 12) % 12);
-      if (f > 7) f -= 12; // preferir posición baja
+      if (f > 7) f -= 12;
       return f < 0 ? f + 12 : f;
     });
-    // Mute cuerdas que quedan muy altas (>5 trastes) si hay otra mejor
     const best = frets.reduce((bi, f, i) => f <= 4 && (bi === -1 || f < frets[bi]) ? i : bi, -1);
     return frets.map((f, i) => i === best ? f : (f <= 4 ? f : null));
   }
@@ -390,20 +368,14 @@ window.Studio936SuiteProChart = (() => {
   }
 
   // ─── MINI PIANO ──────────────────────────────────────────────────────────
-  // Una octava C3–B3 correctamente posicionada
-  // Teclas blancas: C D E F G A B → pitch classes 0,2,4,5,7,9,11
-  // Teclas negras : C#Db Eb F#Gb Ab Bb → 1,3,6,8,10
   const WK = [0,2,4,5,7,9,11];
   const BK = [1,3,6,8,10];
-  // Posición de cada tecla negra: porcentaje del centro sobre el ancho total
-  // Entre blancas: C#=entre0-1, D#=entre1-2, F#=entre3-4, G#=entre4-5, A#=entre5-6
-  const BK_POS = { 1:1/7, 3:2/7, 6:4/7, 8:5/7, 10:6/7 }; // fracción del centro
+  const BK_POS = { 1:1/7, 3:2/7, 6:4/7, 8:5/7, 10:6/7 };
 
   function miniPiano(voicingPiano, chordName) {
     const wrap = document.createElement("div");
     wrap.className = "s936-ch-piano-wrap";
 
-    // Prioridad: midis guardados → calcular desde nombre del acorde
     let hitPcs;
     if (Array.isArray(voicingPiano?.midis) && voicingPiano.midis.length > 0) {
       hitPcs = new Set(voicingPiano.midis.map(m => ((m % 12) + 12) % 12));
@@ -453,14 +425,12 @@ window.Studio936SuiteProChart = (() => {
     const start = capo > 0 ? capo : (minF > 1 ? minF - 1 : 0);
     const span = Math.max(4, maxF - start + 1);
 
-    // Cuerda cejilla (capo)
     if (capo > 0) {
       const c = document.createElement("div");
       c.className = "s936-ch-capo";
       wrap.appendChild(c);
     }
 
-    // Cuerdas horizontales
     for (let s = 0; s < strings; s++) {
       const el = document.createElement("div");
       el.className = "s936-ch-fs";
@@ -468,7 +438,6 @@ window.Studio936SuiteProChart = (() => {
       wrap.appendChild(el);
     }
 
-    // Trastes verticales
     for (let f = 0; f <= span; f++) {
       const el = document.createElement("div");
       el.className = "s936-ch-ff";
@@ -476,7 +445,6 @@ window.Studio936SuiteProChart = (() => {
       wrap.appendChild(el);
     }
 
-    // Puntos y mutes
     frets.forEach((fret, si) => {
       const top = (si + 0.5) / strings * 100;
       const strF = String(fret).toUpperCase();
@@ -506,36 +474,19 @@ window.Studio936SuiteProChart = (() => {
     if (ov) ov.remove();
   }
 
-  // ── CHORD PICKER — selector visual de nota + calidad ──────────────────────
   function showBeatPop(targetEl, label, currentVal, onSave) {
     closePopups();
 
     const ROOTS = ["C","D","E","F","G","A","B"];
     const ACCS  = ["♮","#","b"];
     const QUALS = [
-      ["",      "Mayor"],
-      ["m",     "Menor"],
-      ["7",     "Dom 7"],
-      ["m7",    "m7"],
-      ["maj7",  "Maj7"],
-      ["m7b5",  "m7b5"],
-      ["dim",   "Dim"],
-      ["dim7",  "Dim7"],
-      ["aug",   "Aug"],
-      ["sus4",  "Sus4"],
-      ["sus2",  "Sus2"],
-      ["9",     "9"],
-      ["m9",    "m9"],
-      ["maj9",  "Maj9"],
-      ["11",    "11"],
-      ["13",    "13"],
-      ["add9",  "add9"],
-      ["6",     "6"],
-      ["m6",    "m6"],
-      ["5",     "5 (power)"],
+      ["",      "Mayor"], ["m",     "Menor"], ["7",     "Dom 7"], ["m7",    "m7"],
+      ["maj7",  "Maj7"], ["m7b5",  "m7b5"], ["dim",   "Dim"], ["dim7",  "Dim7"],
+      ["aug",   "Aug"], ["sus4",  "Sus4"], ["sus2",  "Sus2"], ["9",     "9"],
+      ["m9",    "m9"], ["maj9",  "Maj9"], ["11",    "11"], ["13",    "13"],
+      ["add9",  "add9"], ["6",     "6"], ["m6",    "m6"], ["5",     "5 (power)"],
     ];
 
-    // Parsear valor actual
     const initM = currentVal ? String(currentVal).match(/^([A-G])(#|b)?(.*)$/) : null;
     let selRoot = initM ? initM[1] : "";
     let selAcc  = initM ? (initM[2] || "♮") : "♮";
@@ -552,28 +503,19 @@ window.Studio936SuiteProChart = (() => {
     const left = Math.min(Math.max(8, rect.left), window.innerWidth - popW - 8);
     const top  = rect.bottom + 4 < window.innerHeight - 220 ? rect.bottom + 4 : rect.top - 240;
     pop.style.cssText = [
-      "position:fixed",
-      "left:" + left + "px",
-      "top:" + top + "px",
-      "width:" + popW + "px",
-      "z-index:9999",
-      "background:#0e1320",
-      "border:1px solid rgba(0,255,204,.45)",
-      "border-radius:10px",
-      "padding:10px",
-      "box-shadow:0 12px 40px rgba(0,0,0,.95)"
+      "position:fixed", "left:" + left + "px", "top:" + top + "px", "width:" + popW + "px",
+      "z-index:9999", "background:#0e1320", "border:1px solid rgba(0,255,204,.45)",
+      "border-radius:10px", "padding:10px", "box-shadow:0 12px 40px rgba(0,0,0,.95)"
     ].join(";");
 
     overlay.onclick = (e) => { e.stopPropagation(); overlay.remove(); pop.remove(); };
     pop.onclick = (e) => e.stopPropagation();
 
-    // Label
     const lbl = document.createElement("div");
     lbl.className = "s936-picker-label";
     lbl.textContent = label;
     pop.appendChild(lbl);
 
-    // Preview del acorde seleccionado
     const preview = document.createElement("div");
     preview.className = "s936-picker-preview";
     pop.appendChild(preview);
@@ -590,7 +532,6 @@ window.Studio936SuiteProChart = (() => {
       preview.className = "s936-picker-preview" + (name ? " has-chord" : "");
     }
 
-    // ── Selector de nota raíz ──
     const rootLbl = document.createElement("div");
     rootLbl.className = "s936-picker-label";
     rootLbl.textContent = "Nota";
@@ -604,18 +545,14 @@ window.Studio936SuiteProChart = (() => {
       btn.className = "s936-picker-btn" + (r === selRoot ? " sel" : "");
       btn.textContent = r;
       btn.onclick = (e) => {
-        e.stopPropagation();
-        selRoot = r;
+        e.stopPropagation(); selRoot = r;
         Object.values(rootBtns).forEach(b => b.classList.remove("sel"));
-        btn.classList.add("sel");
-        refreshPreview();
+        btn.classList.add("sel"); refreshPreview();
       };
-      rootBtns[r] = btn;
-      rootGrid.appendChild(btn);
+      rootBtns[r] = btn; rootGrid.appendChild(btn);
     });
     pop.appendChild(rootGrid);
 
-    // ── Alteración ──
     const accLbl = document.createElement("div");
     accLbl.className = "s936-picker-label";
     accLbl.textContent = "Alteración";
@@ -629,18 +566,14 @@ window.Studio936SuiteProChart = (() => {
       btn.className = "s936-picker-btn" + (a === selAcc ? " sel" : "");
       btn.textContent = a === "♮" ? "Natural" : (a === "#" ? "# (sostenido)" : "b (bemol)");
       btn.onclick = (e) => {
-        e.stopPropagation();
-        selAcc = a;
+        e.stopPropagation(); selAcc = a;
         Object.values(accBtns).forEach(b => b.classList.remove("sel"));
-        btn.classList.add("sel");
-        refreshPreview();
+        btn.classList.add("sel"); refreshPreview();
       };
-      accBtns[a] = btn;
-      accRow.appendChild(btn);
+      accBtns[a] = btn; accRow.appendChild(btn);
     });
     pop.appendChild(accRow);
 
-    // ── Calidad del acorde ──
     const qualLbl = document.createElement("div");
     qualLbl.className = "s936-picker-label";
     qualLbl.textContent = "Calidad";
@@ -655,26 +588,20 @@ window.Studio936SuiteProChart = (() => {
       btn.textContent = lbTxt;
       btn.title = (selRoot || "C") + (selAcc === "♮" ? "" : selAcc) + q;
       btn.onclick = (e) => {
-        e.stopPropagation();
-        selQual = q;
+        e.stopPropagation(); selQual = q;
         Object.values(qualBtns).forEach(b => b.classList.remove("sel"));
-        btn.classList.add("sel");
-        refreshPreview();
+        btn.classList.add("sel"); refreshPreview();
       };
-      qualBtns[q] = btn;
-      qualGrid.appendChild(btn);
+      qualBtns[q] = btn; qualGrid.appendChild(btn);
     });
     pop.appendChild(qualGrid);
 
-    // ── Acciones ──
     const acts = document.createElement("div");
     acts.className = "s936-picker-acts";
     const okBtn = document.createElement("button");
-    okBtn.className = "s936-picker-ok";
-    okBtn.textContent = "✓ Aplicar";
+    okBtn.className = "s936-picker-ok"; okBtn.textContent = "✓ Aplicar";
     const delBtn = document.createElement("button");
-    delBtn.className = "s936-picker-del";
-    delBtn.textContent = "Borrar";
+    delBtn.className = "s936-picker-del"; delBtn.textContent = "Borrar";
     acts.append(okBtn, delBtn);
     pop.appendChild(acts);
 
@@ -705,35 +632,19 @@ window.Studio936SuiteProChart = (() => {
     num.textContent = beatIndex + 1;
     cell.appendChild(num);
 
-    // ── Nombre del acorde ──
-    const chordRow = document.createElement("div");
-    chordRow.className = "s936-ch-beat-chord";
-    if (parsed) {
-      // Tiene acorde: mostrar nombre encima del voicing
-      const r = document.createElement("span");
-      r.className = "s936-ch-beat-root";
-      r.textContent = parsed.root;
-      const q = document.createElement("sup");
-      q.className = "s936-ch-beat-qual";
-      q.textContent = parsed.qual;
-      chordRow.append(r, q);
-      if (parsed.bass) {
-        const b = document.createElement("span");
-        b.className = "s936-ch-beat-bass";
-        b.textContent = "/" + parsed.bass;
-        chordRow.appendChild(b);
-      }
-    } else if (beatIndex > 0) {
-      // Beat 2-3-4 vacío: solo símbolo %, sin piano/fret
+    // ── Acorde en el beat (El texto del acorde fue movido a la cabecera del compás) ──
+    // Solo renderizamos este contenedor vacío o con el símbolo de repetición
+    if (!parsed && beatIndex > 0) {
+      const chordRow = document.createElement("div");
+      chordRow.className = "s936-ch-beat-chord";
       const rep = document.createElement("span");
       rep.className = "s936-ch-beat-repeat";
       rep.textContent = "%";
       chordRow.appendChild(rep);
+      cell.appendChild(chordRow);
     }
-    // Beat 1 vacío: chordRow queda vacío (el nombre está en cabecera del compás)
-    cell.appendChild(chordRow);
 
-    // ── Voicing del beat — SOLO si tiene acorde propio ──
+    // ── Voicing del beat (mapa de instrumento) ──
     if (parsed) {
       const voicingChordName = parsed.root + parsed.qual;
       const nameUpper = voicingChordName.toUpperCase().trim();
@@ -766,54 +677,77 @@ window.Studio936SuiteProChart = (() => {
     bar.dataset.section = sectionKey;
     bar.dataset.bar = barIndex;
 
-    // ── Cabecera: número arriba, luego nombre grande + figura en fila ──
+    // ── Cabecera: número arriba, luego TODOS los nombres de acordes en este compás ──
     const head = document.createElement("div");
     head.className = "s936-ch-bar-head";
 
-    // Número de compás (línea propia, pequeño arriba izquierda)
     const num = document.createElement("span");
     num.className = "s936-ch-num";
     num.textContent = barIndex + 1;
     head.appendChild(num);
 
-    // Fila: nombre del acorde (izquierda) + figura rítmica (derecha)
     const topRow = document.createElement("div");
     topRow.className = "s936-ch-bar-top";
-
-    // Nombre principal del acorde
-    const beat0Key = barIndex + "_0";
-    const beat0Override = beatsData[beat0Key] || "";
-    const mainChordName = beat0Override
-      || (isFirst && barInfo?.chord?.name)
-      || "";
-    const mainParsed = parseChord(mainChordName);
 
     const chordNameEl = document.createElement("div");
     chordNameEl.className = "s936-ch-bar-chord-name";
 
-    if (mainParsed) {
-      const r = document.createElement("span");
-      r.className = "s936-ch-bar-root";
-      r.textContent = mainParsed.root;
-      const q = document.createElement("sup");
-      q.className = "s936-ch-bar-qual";
-      q.textContent = mainParsed.qual;
-      chordNameEl.append(r, q);
-      if (mainParsed.bass) {
-        const b = document.createElement("span");
-        b.className = "s936-ch-bar-bass";
-        b.textContent = "/" + mainParsed.bass;
-        chordNameEl.appendChild(b);
+    // Recolectar todos los acordes únicos en este compás para mostrarlos en la cabecera
+    const chordsToPrint = [];
+    const beat0Key = barIndex + "_0";
+    const refChordName = beatsData[beat0Key] || (isFirst && barInfo?.chord?.name) || "";
+    
+    if (refChordName) chordsToPrint.push({ beat: 0, val: refChordName });
+    
+    for (let b = 1; b < 4; b++) {
+      let bVal = beatsData[barIndex + "_" + b];
+      if (bVal && bVal !== refChordName) {
+        chordsToPrint.push({ beat: b, val: bVal });
       }
+    }
+
+    if (chordsToPrint.length > 0) {
+      chordsToPrint.forEach((c, idx) => {
+        const p = parseChord(c.val);
+        if (p) {
+          const wrp = document.createElement("div");
+          wrp.style.cssText = "display:flex;align-items:baseline;gap:1px";
+          
+          if (idx > 0) {
+            // Si hay más de un acorde en el compás, mostramos en qué tiempo entra (ej. t3: G7)
+            const bNum = document.createElement("span");
+            bNum.textContent = "t" + (c.beat + 1) + " ";
+            bNum.style.cssText = "font-size:0.42rem;color:rgba(255,255,255,0.3);margin-right:3px;";
+            wrp.appendChild(bNum);
+          }
+          
+          const r = document.createElement("span");
+          r.className = "s936-ch-bar-root";
+          r.textContent = p.root;
+          const q = document.createElement("sup");
+          q.className = "s936-ch-bar-qual";
+          q.textContent = p.qual;
+          wrp.append(r, q);
+          
+          if (p.bass) {
+            const b = document.createElement("span");
+            b.className = "s936-ch-bar-bass";
+            b.textContent = "/" + p.bass;
+            wrp.appendChild(b);
+          }
+          chordNameEl.appendChild(wrp);
+        }
+      });
     } else if (barInfo?.isContinuation) {
       const dash = document.createElement("span");
       dash.className = "s936-ch-bar-dash";
       dash.textContent = "—";
       chordNameEl.appendChild(dash);
     }
+
     topRow.appendChild(chordNameEl);
 
-    // Figura rítmica (solo primer compás del acorde, derecha)
+    // Figura rítmica
     if (isFirst && barInfo?.chord) {
       const fig = document.createElement("span");
       fig.className = "s936-ch-bar-fig";
@@ -824,23 +758,16 @@ window.Studio936SuiteProChart = (() => {
     head.appendChild(topRow);
     bar.appendChild(head);
 
-    // ── 4 beats como columnas verticales con nombre + voicing ──
+    // ── 4 beats como columnas verticales ──
     const beatsRow = document.createElement("div");
     beatsRow.className = "s936-ch-beats";
-
-    // Acorde de referencia del compás (beat 0 o acorde del editor)
-    const refChordName = beatsData[barIndex + "_0"]
-      || (isFirst && barInfo?.chord?.name)
-      || "";
 
     for (let b = 0; b < 4; b++) {
       const bKey = barIndex + "_" + b;
       let bVal = beatsData[bKey] || "";
       if (!bVal && b === 0) {
-        bVal = refChordName; // beat 1: siempre muestra el acorde de referencia
+        bVal = refChordName; 
       }
-      // Para beats 2-4 vacíos pasamos refChordName como "repeatRef"
-      // para que el voicing del % sea el del acorde que se repite
       const repeatRef = (!bVal && b > 0) ? refChordName : "";
       beatsRow.appendChild(renderBeat(sectionKey, barIndex, b, bVal, repeatRef, inst, voicingLibrary, onRerender));
     }
@@ -851,7 +778,7 @@ window.Studio936SuiteProChart = (() => {
 
   // ─── RENDER PRINCIPAL ─────────────────────────────────────────────────────
   let _activeBarEl = null;
-  let _renderCtx = null; // para poder re-renderizar desde highlightBar
+  let _renderCtx = null;
 
   function render({ container, instrument, onChordEdit } = {}) {
     if (!container) return;
@@ -897,7 +824,6 @@ window.Studio936SuiteProChart = (() => {
     metaEl.textContent = (edState.style || "") + (edState.bpm ? " · " + edState.bpm + " BPM" : "") + " · " + totalBars + " comp.";
     info.append(titleEl, metaEl);
 
-    // Selector de instrumento
     const instWrap = document.createElement("div");
     instWrap.className = "s936-ch-inst-wrap";
     const instBtn = document.createElement("button");
@@ -939,7 +865,6 @@ window.Studio936SuiteProChart = (() => {
       prepopulate(item.section, chords);
       const beatsData = getBeatsData(item.section);
 
-      // Mapa barIndex → { chord, totalBars, isFirst, isContinuation }
       const barMap = {};
       let bi = 0;
       chords.forEach(chord => {
