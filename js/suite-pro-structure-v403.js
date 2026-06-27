@@ -872,15 +872,25 @@
     const ddPlantillas = ctx.el("button", "s936-ckpt-dd-item", "🎼 Plantillas");
     ddPlantillas.onclick = () => {
       dropdown.classList.remove("open");
-      if (ctx.state) { ctx.state.composeTool = "structure"; ctx.state.structureSubtool = "templates"; }
-      if (typeof render === "function") render(ctx);
+      try {
+        const compose = window.Studio936SuiteProCompose || window.Studio936SuiteProModules?.compose;
+        if (compose && typeof compose.goTo === "function") { compose.goTo("templates"); return; }
+        if (ctx.state) { ctx.state.composeTool = "structure"; ctx.state.structureSubtool = "templates"; }
+        const composeRender = window.Studio936SuiteProModules?.compose?.render;
+        if (composeRender && ctx) composeRender(ctx);
+      } catch(_) {}
     };
 
     const ddInspiracion = ctx.el("button", "s936-ckpt-dd-item", "✨ Inspiración");
     ddInspiracion.onclick = () => {
       dropdown.classList.remove("open");
-      if (ctx.state) { ctx.state.composeTool = "structure"; ctx.state.structureSubtool = "inspire"; }
-      if (typeof render === "function") render(ctx);
+      try {
+        const compose = window.Studio936SuiteProCompose || window.Studio936SuiteProModules?.compose;
+        if (compose && typeof compose.goTo === "function") { compose.goTo("inspire"); return; }
+        if (ctx.state) { ctx.state.composeTool = "structure"; ctx.state.structureSubtool = "inspire"; }
+        const composeRender = window.Studio936SuiteProModules?.compose?.render;
+        if (composeRender && ctx) composeRender(ctx);
+      } catch(_) {}
     };
 
     dropdown.append(ddApply, ddReleer, ddSep1, ddGuardar, ddCargar, ddSep2, ddPlantillas, ddInspiracion, fileInput);
@@ -989,9 +999,9 @@
     const titleRow = ctx.el("div", "s936-struct-section-heading");
     const left = ctx.el("div", "");
     left.appendChild(ctx.el("h4", "", "Arreglo de la canción"));
-    left.appendChild(ctx.el("p", "s936-struct-muted", "Ordena, duplica, renombra y edita cada parte. Duplicar crea una copia independiente para que puedas convertirla en Verso 2, Coro final o cualquier nueva sección."));
+
     titleRow.appendChild(left);
-    titleRow.appendChild(ctx.el("span", "s936-struct-arrangement-count", `${parts.length} parte${parts.length === 1 ? "" : "s"}`));
+
     listCard.appendChild(titleRow);
 
     const list = ctx.el("div", "s936-struct-list s936-struct-list-wide");
@@ -1041,28 +1051,40 @@
       `${Math.max(1, Number(part.bars) || inferredBars(s, part.section))} compases`));
     line.appendChild(info);
 
-    // Botones de acción visibles
+    // Botones de acción visibles: [▶][⏸][✎][▲][▼][⚙]
     const rowActions = ctx.el("div", "s936-ckpt-row-actions");
 
-    // ▶ Play — selecciona sección y lanza groove
-    const playBtn = ctx.el("button", "s936-ckpt-row-action play");
-    playBtn.innerHTML = "▶";
-    playBtn.title = "Escuchar sección";
-    playBtn.onclick = (e) => {
-      e.stopPropagation();
+    // helpers play/pause
+    function sectionPlay() {
       try {
         const sel = document.getElementById("sectionSelect");
         if (sel) { sel.value = part.section; sel.dispatchEvent(new Event("change", { bubbles: true })); }
         const bridge = window.Studio936AppBridge;
         if (bridge?.startGroove) { bridge.startGroove(); }
-        else {
-          // fallback: click directo al botón START GROOVE del main
-          const grooveBtn = document.querySelector("[data-action='startGroove'], #startGrooveBtn, .groove-start-btn");
-          if (grooveBtn) grooveBtn.click();
-        }
+        else { document.querySelector("#startGrooveBtn, [data-action='startGroove']")?.click(); }
       } catch(_) {}
-    };
+    }
+    function sectionPause() {
+      try {
+        const bridge = window.Studio936AppBridge;
+        if (bridge?.stopGroove) { bridge.stopGroove(); }
+        else { document.querySelector("#stopGrooveBtn, [data-action='stopGroove']")?.click(); }
+      } catch(_) {}
+    }
+
+    // ▶ Play
+    const playBtn = ctx.el("button", "s936-ckpt-row-action play");
+    playBtn.innerHTML = "▶";
+    playBtn.title = "Escuchar sección";
+    playBtn.onclick = (e) => { e.stopPropagation(); sectionPlay(); };
     rowActions.appendChild(playBtn);
+
+    // ⏸ Pausa
+    const pauseBtn = ctx.el("button", "s936-ckpt-row-action");
+    pauseBtn.innerHTML = "⏸";
+    pauseBtn.title = "Pausar";
+    pauseBtn.onclick = (e) => { e.stopPropagation(); sectionPause(); };
+    rowActions.appendChild(pauseBtn);
 
     // ✎ Editar
     const editBtn = ctx.el("button", "s936-ckpt-row-action" + (isEditing ? " edit-active" : ""));
@@ -1075,7 +1097,21 @@
     };
     rowActions.appendChild(editBtn);
 
-    // ⚙ Gear dropdown
+    // ▲ Subir
+    const upBtn = ctx.el("button", "s936-ckpt-row-action");
+    upBtn.innerHTML = "▲";
+    upBtn.title = "Subir sección";
+    upBtn.onclick = (e) => { e.stopPropagation(); move(parts, index, -1, ctx); };
+    rowActions.appendChild(upBtn);
+
+    // ▼ Bajar
+    const downBtn = ctx.el("button", "s936-ckpt-row-action");
+    downBtn.innerHTML = "▼";
+    downBtn.title = "Bajar sección";
+    downBtn.onclick = (e) => { e.stopPropagation(); move(parts, index, 1, ctx); };
+    rowActions.appendChild(downBtn);
+
+    // ⚙ Gear dropdown — Duplicar, Renombrar, Quitar
     const gearWrap = ctx.el("div", "s936-ckpt-row-gear");
     const gearBtn = ctx.el("button", "s936-ckpt-row-btn");
     gearBtn.innerHTML = "⚙";
@@ -1083,26 +1119,18 @@
 
     const rowDD = ctx.el("div", "s936-ckpt-row-dd");
 
-    const ddUp   = ctx.el("button", "s936-ckpt-row-dd-item", "▲ Subir");
-    ddUp.onclick = () => { rowDD.classList.remove("open"); move(parts, index, -1, ctx); };
-
-    const ddDown = ctx.el("button", "s936-ckpt-row-dd-item", "▼ Bajar");
-    ddDown.onclick = () => { rowDD.classList.remove("open"); move(parts, index, 1, ctx); };
-
-    const ddSep1 = ctx.el("div", "s936-ckpt-row-dd-sep");
-
-    const ddDup  = ctx.el("button", "s936-ckpt-row-dd-item warn", "⧉ Duplicar");
+    const ddDup = ctx.el("button", "s936-ckpt-row-dd-item warn", "⧉ Duplicar");
     ddDup.onclick = () => { rowDD.classList.remove("open"); duplicatePart(ctx, s, parts, index); };
 
-    const ddRen  = ctx.el("button", "s936-ckpt-row-dd-item", "✎ Renombrar");
+    const ddRen = ctx.el("button", "s936-ckpt-row-dd-item", "✎ Renombrar");
     ddRen.onclick = () => { rowDD.classList.remove("open"); renameVisible(ctx, parts, index); };
 
-    const ddSep2 = ctx.el("div", "s936-ckpt-row-dd-sep");
+    const ddSep = ctx.el("div", "s936-ckpt-row-dd-sep");
 
-    const ddDel  = ctx.el("button", "s936-ckpt-row-dd-item danger", "✕ Quitar");
+    const ddDel = ctx.el("button", "s936-ckpt-row-dd-item danger", "✕ Quitar");
     ddDel.onclick = () => { rowDD.classList.remove("open"); deleteFromArrangement(ctx, parts, index); };
 
-    rowDD.append(ddUp, ddDown, ddSep1, ddDup, ddRen, ddSep2, ddDel);
+    rowDD.append(ddDup, ddRen, ddSep, ddDel);
 
     gearBtn.onclick = (e) => {
       e.stopPropagation();
