@@ -366,7 +366,7 @@
 #s936SuitePro .s936-ckpt-dropdown{
   display:none;
   position:absolute;
-  bottom:38px;right:0;top:auto;
+  top:38px;right:0;bottom:auto;
   background:#0d1117;
   border:1px solid rgba(0,255,204,.35);
   border-radius:10px;
