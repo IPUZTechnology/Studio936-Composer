@@ -923,6 +923,8 @@
 
   function render(ctx, shell) {
     installStyles();
+    // Limpiar dropdown huérfano del body
+    document.getElementById("s936CkptDropdown")?.remove();
     const root = ctx.el("div", "s936-struct-shell s936-struct-v4");
     const s = snap(ctx);
     const parts = ensureDraft(ctx);
@@ -1010,6 +1012,7 @@
     const ddAbrir = ctx.el("button", "s936-ckpt-dd-item", "📂 Abrir de librería");
     const fileInput = ctx.el("input", "s936-struct-hidden-file");
     fileInput.type = "file"; fileInput.accept = "application/json,.json";
+    fileInput.style.display = "none";
     fileInput.onchange = () => { const f = fileInput.files?.[0]; if (f) loadStructureFile(ctx, f); fileInput.value = ""; };
     ddAbrir.onclick = async () => {
       dropdown.classList.remove("open");
@@ -2222,6 +2225,8 @@ ${measures}  </part>
 
 
   function renderAgain(ctx) {
+    // Limpiar dropdown del body antes de re-renderizar
+    document.getElementById("s936CkptDropdown")?.remove();
     const content = ctx.content?.() || document.querySelector("#s936SuitePro .s936-sp-content");
     if (content) {
       content.textContent = "";
