@@ -360,7 +360,7 @@
 #s936SuitePro .s936-ckpt-dropdown{
   display:none;
   position:absolute;
-  top:38px;right:0;
+  bottom:38px;right:0;top:auto;
   background:#0d1117;
   border:1px solid rgba(0,255,204,.35);
   border-radius:10px;
@@ -479,6 +479,58 @@
   transition:background .12s;
 }
 #s936SuitePro .s936-ckpt-apply-btn:hover{background:rgba(0,255,204,.22)}
+
+/* ── ROW GEAR MENU ── */
+#s936SuitePro .s936-ckpt-row-gear{
+  position:relative;
+  flex-shrink:0;
+}
+#s936SuitePro .s936-ckpt-row-btn{
+  width:28px;height:28px;
+  border-radius:7px;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.05);
+  color:rgba(255,255,255,.55);
+  font-size:.78rem;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:border-color .15s,color .15s,background .15s;
+}
+#s936SuitePro .s936-ckpt-row-btn:hover{
+  border-color:rgba(0,255,204,.5);
+  color:#00ffcc;
+  background:rgba(0,255,204,.08);
+}
+#s936SuitePro .s936-ckpt-row-dd{
+  display:none;
+  position:absolute;
+  bottom:32px;right:0;
+  background:#0d1117;
+  border:1px solid rgba(0,255,204,.3);
+  border-radius:10px;
+  padding:5px;
+  z-index:300;
+  min-width:148px;
+  box-shadow:0 8px 24px rgba(0,0,0,.8);
+}
+#s936SuitePro .s936-ckpt-row-dd.open{display:block}
+#s936SuitePro .s936-ckpt-row-dd-item{
+  display:block;width:100%;
+  text-align:left;
+  background:transparent;border:none;
+  color:rgba(255,255,255,.8);
+  font-size:.65rem;font-weight:800;
+  padding:6px 10px;border-radius:7px;
+  cursor:pointer;
+  text-transform:uppercase;letter-spacing:.4px;
+  transition:background .1s,color .1s;
+}
+#s936SuitePro .s936-ckpt-row-dd-item:hover{background:rgba(0,255,204,.1);color:#00ffcc}
+#s936SuitePro .s936-ckpt-row-dd-item.warn{color:#ffe066}
+#s936SuitePro .s936-ckpt-row-dd-item.warn:hover{background:rgba(255,224,102,.1)}
+#s936SuitePro .s936-ckpt-row-dd-item.danger{color:#ff8080}
+#s936SuitePro .s936-ckpt-row-dd-item.danger:hover{background:rgba(255,80,80,.1)}
+#s936SuitePro .s936-ckpt-row-dd-sep{height:1px;background:rgba(255,255,255,.08);margin:3px 0}
 
 `;
     document.head.appendChild(style);
@@ -758,15 +810,12 @@
     const statusBar = ctx.el("div", "s936-ckpt-status");
     const dot = ctx.el("span", "s936-ckpt-status-dot");
     const statusText = ctx.el("span", "", `${parts.length} partes · ${totalBars(parts)} compases · ${uniqueSectionCount(parts)} secciones`);
-    const applyBtn = ctx.el("button", "s936-ckpt-apply-btn", "▶ Aplicar");
-    applyBtn.title = "Aplicar estructura a la canción";
-    applyBtn.onclick = () => applyDraft(ctx);
-    statusBar.append(dot, statusText, applyBtn);
+    statusBar.append(dot, statusText);
     shell.appendChild(statusBar);
 
     // ── ADD TOGGLE (colapsable) ──
     const addToggle = ctx.el("div", "s936-ckpt-add-toggle");
-    addToggle.innerHTML = `<span>+ Nueva parte</span><span class="s936-ckpt-chevron">▾</span>`;
+    addToggle.innerHTML = `<span>+ Crear Sección</span><span class="s936-ckpt-chevron">▾</span>`;
     // Recordar estado del panel add en localStorage
     const addOpenKey = "s936_ckpt_add_open";
     const addIsOpen = localStorage.getItem(addOpenKey) === "1";
@@ -893,32 +942,54 @@
     chordWrap.style.display = "none";
     line.appendChild(chordWrap);
 
-    const actions = ctx.el("div", "s936-struct-mini-actions");
-    mini(ctx, actions, "↑", () => move(parts, index, -1, ctx));
-    mini(ctx, actions, "↓", () => move(parts, index, 1, ctx));
+    // v4.1 — gear menu por fila
+    const gearWrap = ctx.el("div", "s936-ckpt-row-gear");
+    const gearBtn = ctx.el("button", "s936-ckpt-row-btn");
+    gearBtn.innerHTML = "⚙";
+    gearBtn.title = "Opciones de sección";
+    gearBtn.setAttribute("aria-label", "Opciones");
 
-    const duplicate = mini(ctx, actions, "Duplicar", () => duplicatePart(ctx, s, parts, index), false, "warn");
-    duplicate.title = "Crea una copia independiente con sus propios acordes.";
+    const rowDD = ctx.el("div", "s936-ckpt-row-dd");
 
-    mini(ctx, actions, "Renombrar", () => renameVisible(ctx, parts, index));
+    const ddUp = ctx.el("button", "s936-ckpt-row-dd-item", "▲ Subir");
+    ddUp.onclick = () => { rowDD.classList.remove("open"); move(parts, index, -1, ctx); };
 
-    const edit = mini(
-      ctx,
-      actions,
-      state.editingIndex === index ? "Cerrar edición" : "Editar parte",
-      () => {
-        state.editingIndex = state.editingIndex === index ? -1 : index;
-        saveState();
-        renderAgain(ctx);
-      },
-      false,
-      "edit"
-    );
-    edit.title = "Mantiene por ahora el editor actual de esta parte.";
+    const ddDown = ctx.el("button", "s936-ckpt-row-dd-item", "▼ Bajar");
+    ddDown.onclick = () => { rowDD.classList.remove("open"); move(parts, index, 1, ctx); };
 
-    mini(ctx, actions, "Quitar", () => deleteFromArrangement(ctx, parts, index), true, "danger");
+    const ddSep1 = ctx.el("div", "s936-ckpt-row-dd-sep");
 
-    line.appendChild(actions);
+    const ddDup = ctx.el("button", "s936-ckpt-row-dd-item warn", "⧉ Duplicar");
+    ddDup.title = "Crea una copia independiente con sus propios acordes.";
+    ddDup.onclick = () => { rowDD.classList.remove("open"); duplicatePart(ctx, s, parts, index); };
+
+    const ddRename = ctx.el("button", "s936-ckpt-row-dd-item", "✎ Renombrar");
+    ddRename.onclick = () => { rowDD.classList.remove("open"); renameVisible(ctx, parts, index); };
+
+    const ddEdit = ctx.el("button", "s936-ckpt-row-dd-item", state.editingIndex === index ? "✕ Cerrar edición" : "✎ Editar parte");
+    ddEdit.onclick = () => {
+      rowDD.classList.remove("open");
+      state.editingIndex = state.editingIndex === index ? -1 : index;
+      saveState(); renderAgain(ctx);
+    };
+
+    const ddSep2 = ctx.el("div", "s936-ckpt-row-dd-sep");
+
+    const ddDel = ctx.el("button", "s936-ckpt-row-dd-item danger", "✕ Quitar");
+    ddDel.onclick = () => { rowDD.classList.remove("open"); deleteFromArrangement(ctx, parts, index); };
+
+    rowDD.append(ddUp, ddDown, ddSep1, ddDup, ddRename, ddEdit, ddSep2, ddDel);
+
+    gearBtn.onclick = (e) => {
+      e.stopPropagation();
+      // cerrar todos los otros dropdowns abiertos
+      document.querySelectorAll(".s936-ckpt-row-dd.open").forEach(d => { if (d !== rowDD) d.classList.remove("open"); });
+      rowDD.classList.toggle("open");
+    };
+    document.addEventListener("click", () => rowDD.classList.remove("open"));
+
+    gearWrap.append(gearBtn, rowDD);
+    line.appendChild(gearWrap);
     row.appendChild(line);
 
     if (state.editingIndex === index) {
