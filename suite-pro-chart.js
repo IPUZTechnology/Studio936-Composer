@@ -2,7 +2,7 @@
 // iReal Book style: 4 compases × 4 tiempos + voicings + selector instrumento
 window.Studio936SuiteProChart = (() => {
   "use strict";
-  const VERSION = "chart-v1.4.5";
+  const VERSION = "chart-v1.4.9";
   const STYLE_ID = "s936-chart-v141";
 
   const INSTRUMENTS = [
@@ -87,12 +87,18 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-bar.s936-cb-open::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:#ffe066;border-radius:0 2px 2px 0}
 
 /* Número de compás */
-.s936-ch-num{font-size:.38rem;color:rgba(255,255,255,.22);font-weight:700;line-height:1;margin-bottom:2px;padding-left:4px;display:block}
+.s936-ch-num{font-size:.38rem;color:rgba(255,255,255,.22);font-weight:700;line-height:1;padding-left:4px;display:block}
 
-/* Figura rítmica */
-.s936-ch-rhythm-row{height:16px;display:flex;align-items:flex-end;padding-left:4px;margin-bottom:1px}
-.s936-ch-note-fig{display:inline-block;opacity:.85}
-.s936-ch-note-fig svg{display:block}
+/* Cabecera del compás: número encima, luego fila nombre + figura */
+.s936-ch-bar-head{padding:2px 4px 2px;min-height:28px}
+.s936-ch-bar-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:1px}
+.s936-ch-bar-chord-name{display:flex;align-items:baseline;gap:1px}
+.s936-ch-bar-root{font-size:1.1rem;font-weight:900;color:#fff;line-height:1}
+.s936-ch-bar-qual{font-size:.56rem;font-weight:700;color:rgba(255,255,255,.55);vertical-align:super;line-height:1}
+.s936-ch-bar-bass{font-size:.42rem;color:#ff5bea;font-weight:700;align-self:flex-end}
+.s936-ch-bar-dash{font-size:.85rem;color:rgba(255,255,255,.12);line-height:1}
+.s936-ch-bar-fig{display:flex;align-items:flex-end;height:16px;opacity:.75}
+.s936-ch-bar-fig svg{display:block}
 
 /* ── 4 beats como columnas verticales ── */
 .s936-ch-beats{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:0 2px}
@@ -118,12 +124,21 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-beat-dot{width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.15);margin:7px auto 2px}
 .s936-ch-beat-repeat{font-size:.8rem;color:rgba(255,255,255,.2);font-weight:900;text-align:center;line-height:1;margin:4px auto}
 /* Sugerencias popup */
-.s936-ch-suggestions{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
-.s936-ch-sug-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:4px;color:rgba(255,255,255,.7);font-size:.46rem;font-weight:700;padding:3px 5px;cursor:pointer;text-transform:uppercase}
-.s936-ch-sug-btn:hover{background:rgba(0,255,204,.15);border-color:rgba(0,255,204,.4);color:#00ffcc}
-.s936-ch-validation{font-size:.42rem;margin-top:3px;min-height:12px}
-.s936-ch-validation.ok{color:rgba(0,255,204,.7)}
-.s936-ch-validation.err{color:rgba(255,120,80,.8)}
+/* ── Chord Picker ── */
+.s936-picker-label{font-size:.4rem;color:rgba(0,255,204,.6);text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:3px}
+.s936-picker-roots{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px}
+.s936-picker-btn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:4px;color:rgba(255,255,255,.75);font-size:.58rem;font-weight:700;padding:4px 2px;cursor:pointer;text-align:center;transition:all .1s}
+.s936-picker-btn:hover{background:rgba(0,255,204,.14);border-color:rgba(0,255,204,.4);color:#00ffcc}
+.s936-picker-btn.sel{background:rgba(0,255,204,.22);border-color:#00ffcc;color:#00ffcc}
+.s936-picker-acc{display:flex;gap:3px;margin-bottom:5px}
+.s936-picker-acc .s936-picker-btn{flex:1;font-size:.52rem}
+.s936-picker-quals{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin-bottom:5px}
+.s936-picker-quals .s936-picker-btn{font-size:.48rem;padding:4px 2px}
+.s936-picker-preview{font-size:.9rem;font-weight:900;color:#fff;text-align:center;padding:4px;background:rgba(255,255,255,.05);border-radius:5px;margin-bottom:5px;min-height:28px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.1)}
+.s936-picker-preview.has-chord{border-color:rgba(0,255,204,.3);color:#00ffcc}
+.s936-picker-acts{display:flex;gap:4px}
+.s936-picker-ok{flex:1;background:rgba(0,255,204,.18);border:1px solid rgba(0,255,204,.4);border-radius:5px;color:#bfffee;font-size:.55rem;font-weight:700;padding:6px;cursor:pointer}
+.s936-picker-del{background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.35);border-radius:5px;color:#ff8080;font-size:.55rem;font-weight:700;padding:6px 10px;cursor:pointer}
 
 /* ── Mini piano por beat ── */
 .s936-ch-piano-mini{height:18px;position:relative;border:1px solid rgba(255,255,255,.2);border-radius:2px;overflow:hidden;background:#1e1e1e;margin-top:2px}
@@ -491,109 +506,194 @@ window.Studio936SuiteProChart = (() => {
     if (ov) ov.remove();
   }
 
+  // ── CHORD PICKER — selector visual de nota + calidad ──────────────────────
   function showBeatPop(targetEl, label, currentVal, onSave) {
     closePopups();
 
-    // Overlay de fondo para cerrar al click fuera
+    const ROOTS = ["C","D","E","F","G","A","B"];
+    const ACCS  = ["♮","#","b"];
+    const QUALS = [
+      ["",      "Mayor"],
+      ["m",     "Menor"],
+      ["7",     "Dom 7"],
+      ["m7",    "m7"],
+      ["maj7",  "Maj7"],
+      ["m7b5",  "m7b5"],
+      ["dim",   "Dim"],
+      ["dim7",  "Dim7"],
+      ["aug",   "Aug"],
+      ["sus4",  "Sus4"],
+      ["sus2",  "Sus2"],
+      ["9",     "9"],
+      ["m9",    "m9"],
+      ["maj9",  "Maj9"],
+      ["11",    "11"],
+      ["13",    "13"],
+      ["add9",  "add9"],
+      ["6",     "6"],
+      ["m6",    "m6"],
+      ["5",     "5 (power)"],
+    ];
+
+    // Parsear valor actual
+    const initM = currentVal ? String(currentVal).match(/^([A-G])(#|b)?(.*)$/) : null;
+    let selRoot = initM ? initM[1] : "";
+    let selAcc  = initM ? (initM[2] || "♮") : "♮";
+    let selQual = initM ? (initM[3] || "") : "";
+
     const overlay = document.createElement("div");
     overlay.id = "s936-ch-pop-overlay";
     overlay.style.cssText = "position:fixed;inset:0;z-index:9998";
-    overlay.onclick = () => { overlay.remove(); pop.remove(); };
 
     const pop = document.createElement("div");
     pop.className = "s936-ch-pop";
-    // Posición: cerca del elemento pero fijo en pantalla
     const rect = targetEl.getBoundingClientRect();
-    const popW = 160;
-    const left = Math.min(rect.left, window.innerWidth - popW - 8);
-    const top = rect.bottom + 4 < window.innerHeight - 100 ? rect.bottom + 4 : rect.top - 110;
+    const popW = 220;
+    const left = Math.min(Math.max(8, rect.left), window.innerWidth - popW - 8);
+    const top  = rect.bottom + 4 < window.innerHeight - 220 ? rect.bottom + 4 : rect.top - 240;
     pop.style.cssText = [
       "position:fixed",
-      "left:" + Math.max(8, left) + "px",
+      "left:" + left + "px",
       "top:" + top + "px",
       "width:" + popW + "px",
       "z-index:9999",
-      "background:#131726",
-      "border:1px solid rgba(0,255,204,.5)",
-      "border-radius:8px",
-      "padding:8px",
-      "box-shadow:0 8px 28px rgba(0,0,0,.95)"
+      "background:#0e1320",
+      "border:1px solid rgba(0,255,204,.45)",
+      "border-radius:10px",
+      "padding:10px",
+      "box-shadow:0 12px 40px rgba(0,0,0,.95)"
     ].join(";");
 
+    overlay.onclick = (e) => { e.stopPropagation(); overlay.remove(); pop.remove(); };
+    pop.onclick = (e) => e.stopPropagation();
+
+    // Label
     const lbl = document.createElement("div");
-    lbl.style.cssText = "font-size:.42rem;color:rgba(0,255,204,.7);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;font-weight:700";
+    lbl.className = "s936-picker-label";
     lbl.textContent = label;
     pop.appendChild(lbl);
 
-    const inp = document.createElement("input");
-    inp.style.cssText = "width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);border-radius:5px;color:#fff;font-size:.85rem;font-weight:700;padding:5px 8px;outline:none;box-sizing:border-box";
-    inp.value = currentVal || "";
-    inp.placeholder = "Ej: Cm7, F#maj7, Bb9";
-    inp.setAttribute("autocomplete", "off");
-    pop.appendChild(inp);
+    // Preview del acorde seleccionado
+    const preview = document.createElement("div");
+    preview.className = "s936-picker-preview";
+    pop.appendChild(preview);
 
-    // Validación en tiempo real
-    const valMsg = document.createElement("div");
-    valMsg.className = "s936-ch-validation";
-    pop.appendChild(valMsg);
-
-    function validateChord(name) {
-      if (!name) return { ok: true, msg: "" };
-      const m = String(name).match(/^([A-G][b#]?)(m|maj|min|dim|aug|sus[24]?)?(M?[679]|M?13|add[29]|#[459]|b[569])*(\/[A-G][b#]?)?$/i);
-      if (m) return { ok: true, msg: "✓ " + name };
-      return { ok: false, msg: "? Formato: C, Cm, Cmaj7, C7, Csus4, C/E" };
+    function buildChordName() {
+      if (!selRoot) return "";
+      const acc = selAcc === "♮" ? "" : selAcc;
+      return selRoot + acc + selQual;
     }
 
-    inp.addEventListener("input", () => {
-      const v = inp.value.trim();
-      if (!v) { valMsg.textContent = ""; valMsg.className = "s936-ch-validation"; return; }
-      const { ok, msg } = validateChord(v);
-      valMsg.textContent = msg;
-      valMsg.className = "s936-ch-validation " + (ok ? "ok" : "err");
-    });
+    function refreshPreview() {
+      const name = buildChordName();
+      preview.textContent = name || "—";
+      preview.className = "s936-picker-preview" + (name ? " has-chord" : "");
+    }
 
-    // Sugerencias rápidas basadas en el acorde actual
-    const COMMON_QUALS = ["", "m", "7", "m7", "maj7", "m7b5", "dim", "sus4", "sus2", "add9", "9", "13"];
-    const baseRoot = currentVal ? (currentVal.match(/^([A-G][b#]?)/i) || ["","C"])[1] : "C";
-    const sugsWrap = document.createElement("div");
-    sugsWrap.className = "s936-ch-suggestions";
-    COMMON_QUALS.forEach(q => {
-      const name = baseRoot + q;
+    // ── Selector de nota raíz ──
+    const rootLbl = document.createElement("div");
+    rootLbl.className = "s936-picker-label";
+    rootLbl.textContent = "Nota";
+    pop.appendChild(rootLbl);
+
+    const rootGrid = document.createElement("div");
+    rootGrid.className = "s936-picker-roots";
+    const rootBtns = {};
+    ROOTS.forEach(r => {
       const btn = document.createElement("button");
-      btn.className = "s936-ch-sug-btn";
-      btn.textContent = name || baseRoot;
-      btn.onclick = (e) => { e.stopPropagation(); inp.value = name || baseRoot; inp.dispatchEvent(new Event("input")); inp.focus(); };
-      sugsWrap.appendChild(btn);
+      btn.className = "s936-picker-btn" + (r === selRoot ? " sel" : "");
+      btn.textContent = r;
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        selRoot = r;
+        Object.values(rootBtns).forEach(b => b.classList.remove("sel"));
+        btn.classList.add("sel");
+        refreshPreview();
+      };
+      rootBtns[r] = btn;
+      rootGrid.appendChild(btn);
     });
-    pop.appendChild(sugsWrap);
+    pop.appendChild(rootGrid);
 
+    // ── Alteración ──
+    const accLbl = document.createElement("div");
+    accLbl.className = "s936-picker-label";
+    accLbl.textContent = "Alteración";
+    pop.appendChild(accLbl);
+
+    const accRow = document.createElement("div");
+    accRow.className = "s936-picker-acc";
+    const accBtns = {};
+    ACCS.forEach(a => {
+      const btn = document.createElement("button");
+      btn.className = "s936-picker-btn" + (a === selAcc ? " sel" : "");
+      btn.textContent = a === "♮" ? "Natural" : (a === "#" ? "# (sostenido)" : "b (bemol)");
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        selAcc = a;
+        Object.values(accBtns).forEach(b => b.classList.remove("sel"));
+        btn.classList.add("sel");
+        refreshPreview();
+      };
+      accBtns[a] = btn;
+      accRow.appendChild(btn);
+    });
+    pop.appendChild(accRow);
+
+    // ── Calidad del acorde ──
+    const qualLbl = document.createElement("div");
+    qualLbl.className = "s936-picker-label";
+    qualLbl.textContent = "Calidad";
+    pop.appendChild(qualLbl);
+
+    const qualGrid = document.createElement("div");
+    qualGrid.className = "s936-picker-quals";
+    const qualBtns = {};
+    QUALS.forEach(([q, lbTxt]) => {
+      const btn = document.createElement("button");
+      btn.className = "s936-picker-btn" + (q === selQual ? " sel" : "");
+      btn.textContent = lbTxt;
+      btn.title = (selRoot || "C") + (selAcc === "♮" ? "" : selAcc) + q;
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        selQual = q;
+        Object.values(qualBtns).forEach(b => b.classList.remove("sel"));
+        btn.classList.add("sel");
+        refreshPreview();
+      };
+      qualBtns[q] = btn;
+      qualGrid.appendChild(btn);
+    });
+    pop.appendChild(qualGrid);
+
+    // ── Acciones ──
     const acts = document.createElement("div");
-    acts.style.cssText = "display:flex;gap:4px;margin-top:6px";
-    const ok = document.createElement("button");
-    ok.style.cssText = "flex:1;background:rgba(0,255,204,.18);border:1px solid rgba(0,255,204,.4);border-radius:5px;color:#bfffee;font-size:.55rem;font-weight:700;padding:5px;cursor:pointer";
-    ok.textContent = "Aplicar";
-    const del = document.createElement("button");
-    del.style.cssText = "flex:0 0 auto;background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.35);border-radius:5px;color:#ff8080;font-size:.55rem;font-weight:700;padding:5px 8px;cursor:pointer";
-    del.textContent = "Borrar";
-    acts.append(ok, del);
+    acts.className = "s936-picker-acts";
+    const okBtn = document.createElement("button");
+    okBtn.className = "s936-picker-ok";
+    okBtn.textContent = "✓ Aplicar";
+    const delBtn = document.createElement("button");
+    delBtn.className = "s936-picker-del";
+    delBtn.textContent = "Borrar";
+    acts.append(okBtn, delBtn);
     pop.appendChild(acts);
 
+    refreshPreview();
+
     const doSave = (val) => { overlay.remove(); pop.remove(); onSave(val); };
-    ok.onclick = (e) => { e.stopPropagation(); doSave(inp.value.trim()); };
-    del.onclick = (e) => { e.stopPropagation(); doSave(""); };
-    inp.onkeydown = e => {
-      e.stopPropagation();
-      if (e.key === "Enter") doSave(inp.value.trim());
-      if (e.key === "Escape") { overlay.remove(); pop.remove(); }
-    };
+    okBtn.onclick = (e) => { e.stopPropagation(); doSave(buildChordName()); };
+    delBtn.onclick = (e) => { e.stopPropagation(); doSave(""); };
+
+    document.addEventListener("keydown", function esc(e) {
+      if (e.key === "Escape") { overlay.remove(); pop.remove(); document.removeEventListener("keydown", esc); }
+    });
 
     document.body.appendChild(overlay);
     document.body.appendChild(pop);
-    setTimeout(() => { inp.focus(); inp.select(); }, 30);
   }
 
   // ─── RENDER BEAT (celda de tiempo con voicing) ──────────────────────────
-  function renderBeat(sectionKey, barIndex, beatIndex, beatVal, inst, voicingLibrary, onRerender) {
+  function renderBeat(sectionKey, barIndex, beatIndex, beatVal, repeatRef, inst, voicingLibrary, onRerender) {
     const parsed = parseChord(beatVal);
     const cell = document.createElement("div");
     cell.className = "s936-ch-beat" + (parsed ? " has-chord" : "");
@@ -634,18 +734,27 @@ window.Studio936SuiteProChart = (() => {
     }
     cell.appendChild(chordRow);
 
-    // ── Voicing del beat (si tiene acorde) ──
-    if (parsed) {
-      const chordNameRaw = parsed.root + parsed.qual;
-      const chordNameUpper = chordNameRaw.toUpperCase().trim();
-      // Buscar voicing guardado, si no calcular uno básico
-      const savedVoicing = voicingLibrary?.[inst]?.[chordNameUpper]
-        || voicingLibrary?.[inst]?.[chordNameRaw.trim()];
+    // ── Voicing del beat ──
+    // Si tiene acorde propio → su voicing. Si es % (vacío) → voicing del acorde de referencia (más tenue)
+    const voicingChordName = parsed
+      ? (parsed.root + parsed.qual)
+      : (repeatRef || "");
+
+    if (voicingChordName) {
+      const nameUpper = voicingChordName.toUpperCase().trim();
+      const savedVoicing = voicingLibrary?.[inst]?.[nameUpper]
+        || voicingLibrary?.[inst]?.[voicingChordName.trim()];
+
       if (inst === "piano") {
-        cell.appendChild(miniPiano(savedVoicing || null, chordNameRaw));
+        const piano = miniPiano(savedVoicing || null, voicingChordName);
+        // Si es beat de repetición (%), reducir opacidad
+        if (!parsed && repeatRef) piano.style.opacity = "0.35";
+        cell.appendChild(piano);
       } else {
-        const fretVoicing = savedVoicing || calcFretVoicing(chordNameRaw, inst);
-        cell.appendChild(miniFret(fretVoicing));
+        const fretVoicing = savedVoicing || calcFretVoicing(voicingChordName, inst);
+        const fret = miniFret(fretVoicing);
+        if (!parsed && repeatRef) fret.style.opacity = "0.35";
+        cell.appendChild(fret);
       }
     }
 
@@ -667,36 +776,83 @@ window.Studio936SuiteProChart = (() => {
     bar.dataset.section = sectionKey;
     bar.dataset.bar = barIndex;
 
-    // Número de compás
+    // ── Cabecera: número arriba, luego nombre grande + figura en fila ──
+    const head = document.createElement("div");
+    head.className = "s936-ch-bar-head";
+
+    // Número de compás (línea propia, pequeño arriba izquierda)
     const num = document.createElement("span");
     num.className = "s936-ch-num";
     num.textContent = barIndex + 1;
-    bar.appendChild(num);
+    head.appendChild(num);
 
-    // Figura rítmica encima (solo primer compás del acorde)
-    const rhythmRow = document.createElement("div");
-    rhythmRow.className = "s936-ch-rhythm-row";
+    // Fila: nombre del acorde (izquierda) + figura rítmica (derecha)
+    const topRow = document.createElement("div");
+    topRow.className = "s936-ch-bar-top";
+
+    // Nombre principal del acorde
+    const beat0Key = barIndex + "_0";
+    const beat0Override = beatsData[beat0Key] || "";
+    const mainChordName = beat0Override
+      || (isFirst && barInfo?.chord?.name)
+      || "";
+    const mainParsed = parseChord(mainChordName);
+
+    const chordNameEl = document.createElement("div");
+    chordNameEl.className = "s936-ch-bar-chord-name";
+
+    if (mainParsed) {
+      const r = document.createElement("span");
+      r.className = "s936-ch-bar-root";
+      r.textContent = mainParsed.root;
+      const q = document.createElement("sup");
+      q.className = "s936-ch-bar-qual";
+      q.textContent = mainParsed.qual;
+      chordNameEl.append(r, q);
+      if (mainParsed.bass) {
+        const b = document.createElement("span");
+        b.className = "s936-ch-bar-bass";
+        b.textContent = "/" + mainParsed.bass;
+        chordNameEl.appendChild(b);
+      }
+    } else if (barInfo?.isContinuation) {
+      const dash = document.createElement("span");
+      dash.className = "s936-ch-bar-dash";
+      dash.textContent = "—";
+      chordNameEl.appendChild(dash);
+    }
+    topRow.appendChild(chordNameEl);
+
+    // Figura rítmica (solo primer compás del acorde, derecha)
     if (isFirst && barInfo?.chord) {
       const fig = document.createElement("span");
-      fig.className = "s936-ch-note-fig";
+      fig.className = "s936-ch-bar-fig";
       fig.innerHTML = noteSVG(rhythmFig(barInfo.totalBars));
-      rhythmRow.appendChild(fig);
+      topRow.appendChild(fig);
     }
-    bar.appendChild(rhythmRow);
+
+    head.appendChild(topRow);
+    bar.appendChild(head);
 
     // ── 4 beats como columnas verticales con nombre + voicing ──
     const beatsRow = document.createElement("div");
     beatsRow.className = "s936-ch-beats";
 
+    // Acorde de referencia del compás (beat 0 o acorde del editor)
+    const refChordName = beatsData[barIndex + "_0"]
+      || (isFirst && barInfo?.chord?.name)
+      || "";
+
     for (let b = 0; b < 4; b++) {
       const bKey = barIndex + "_" + b;
-      // Tiempo 1: usa el acorde del editor si no hay override manual
       let bVal = beatsData[bKey] || "";
       if (!bVal && b === 0) {
-        if (isFirst && barInfo?.chord?.name) bVal = barInfo.chord.name;
-        else if (barInfo?.isContinuation) bVal = ""; // continuación → vacío = dash
+        bVal = refChordName; // beat 1: siempre muestra el acorde de referencia
       }
-      beatsRow.appendChild(renderBeat(sectionKey, barIndex, b, bVal, inst, voicingLibrary, onRerender));
+      // Para beats 2-4 vacíos pasamos refChordName como "repeatRef"
+      // para que el voicing del % sea el del acorde que se repite
+      const repeatRef = (!bVal && b > 0) ? refChordName : "";
+      beatsRow.appendChild(renderBeat(sectionKey, barIndex, b, bVal, repeatRef, inst, voicingLibrary, onRerender));
     }
     bar.appendChild(beatsRow);
 
