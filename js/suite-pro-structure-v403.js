@@ -736,6 +736,12 @@
   color:#00ffcc;
   background:rgba(0,255,204,.12);
 }
+#s936SuitePro .s936-ckpt-row-action.play.playing{
+  border-color:rgba(0,255,204,.8);
+  color:#00ffcc;
+  background:rgba(0,255,204,.18);
+  box-shadow:0 0 6px rgba(0,255,204,.3);
+}
 #s936SuitePro .s936-ckpt-row-action.edit-active{
   border-color:rgba(255,224,102,.6);
   color:#ffe066;
@@ -1083,17 +1089,18 @@
 
     dropdown.append(ddNueva, ddAbrir, ddGuardarLib, ddSep1, ddPlantillas, ddInspiracion, ddSep2, ddConfirmar, ddDescartar, ddSep3, ddExportar, fileInput);
 
-    // Toggle dropdown
+    // Toggle dropdown ☰
     menuBtn.onclick = (e) => {
       e.stopPropagation();
-      dropdown.classList.toggle("open");
+      const isOpen = dropdown.classList.contains("open");
+      // cerrar cualquier otro dropdown abierto
+      document.querySelectorAll(".s936-ckpt-dropdown.open").forEach(d => d.classList.remove("open"));
+      if (!isOpen) dropdown.classList.add("open");
     };
-    // Cerrar al click fuera
-    document.addEventListener("click", function closeDD(e) {
-      if (!menuBtn.contains(e.target) && !dropdown.contains(e.target)) {
-        dropdown.classList.remove("open");
-      }
-    }, { once: false, capture: false });
+    // Cerrar al click fuera — con delay para no cerrarse en el mismo click
+    document.addEventListener("click", (e) => {
+      if (!menuBtn.contains(e.target)) dropdown.classList.remove("open");
+    });
 
     menuBtn.appendChild(dropdown);
     topbar.append(titleInput, styleSelect, bpmInput, menuBtn);
@@ -1247,11 +1254,36 @@
       markBadge.title = "Clic para desactivar " + NAV_LABELS[part.navMark];
       markBadge.onclick = (e) => {
         e.stopPropagation();
-        if (window.confirm(`¿Desactivar "${NAV_LABELS[part.navMark]}" de esta sección?`)) {
+        // Mini confirm inline — sin alert del browser
+        const existing = document.getElementById("s936-mark-confirm-" + index);
+        if (existing) { existing.remove(); return; }
+        const confirmEl = document.createElement("div");
+        confirmEl.id = "s936-mark-confirm-" + index;
+        confirmEl.style.cssText = "position:absolute;z-index:400;background:#0d1117;border:1px solid rgba(255,80,80,.5);border-radius:8px;padding:6px 8px;display:flex;align-items:center;gap:6px;font-size:.6rem;color:#ff9999;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.8);";
+        confirmEl.innerHTML = `<span>¿Quitar ${NAV_LABELS[part.navMark]}?</span>`;
+        const yesBtn = document.createElement("button");
+        yesBtn.textContent = "Sí";
+        yesBtn.style.cssText = "background:rgba(255,80,80,.2);border:1px solid rgba(255,80,80,.5);border-radius:5px;color:#ff9999;font-size:.58rem;font-weight:900;padding:2px 8px;cursor:pointer;";
+        yesBtn.onclick = (ev) => {
+          ev.stopPropagation();
           part.navMark = "";
           state.draft.parts[index] = part;
           saveState(); renderAgain(ctx);
-        }
+        };
+        const noBtn = document.createElement("button");
+        noBtn.textContent = "No";
+        noBtn.style.cssText = "background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:5px;color:rgba(255,255,255,.55);font-size:.58rem;font-weight:900;padding:2px 8px;cursor:pointer;";
+        noBtn.onclick = (ev) => { ev.stopPropagation(); confirmEl.remove(); };
+        confirmEl.append(yesBtn, noBtn);
+        // Posicionar relativo al badge
+        markBadge.style.position = "relative";
+        markBadge.appendChild(confirmEl);
+        // Auto-cerrar al click fuera
+        setTimeout(() => {
+          document.addEventListener("click", function autoClose() {
+            confirmEl.remove(); document.removeEventListener("click", autoClose);
+          }, { once: true });
+        }, 100);
       };
       line.appendChild(markBadge);
     }
@@ -1259,37 +1291,47 @@
     // Botones de acción visibles: [▶][⏸][✎][▲][▼][⚙]
     const rowActions = ctx.el("div", "s936-ckpt-row-actions");
 
-    // helpers play/pause
-    function sectionPlay() {
-      try {
-        const sel = document.getElementById("sectionSelect");
-        if (sel) { sel.value = part.section; sel.dispatchEvent(new Event("change", { bubbles: true })); }
-        const bridge = window.Studio936AppBridge;
-        if (bridge?.startGroove) { bridge.startGroove(); }
-        else { document.querySelector("#startGrooveBtn, [data-action='startGroove']")?.click(); }
-      } catch(_) {}
-    }
-    function sectionPause() {
-      try {
-        const bridge = window.Studio936AppBridge;
-        if (bridge?.stopGroove) { bridge.stopGroove(); }
-        else { document.querySelector("#stopGrooveBtn, [data-action='stopGroove']")?.click(); }
-      } catch(_) {}
-    }
-
-    // ▶ Play
+    // ▶ Play / ■ Stop — toggle con estado visual
     const playBtn = ctx.el("button", "s936-ckpt-row-action play");
     playBtn.innerHTML = "▶";
     playBtn.title = "Escuchar sección";
-    playBtn.onclick = (e) => { e.stopPropagation(); sectionPlay(); };
+    let _isPlaying = false;
+    function setPlayState(on) {
+      _isPlaying = on;
+      playBtn.innerHTML = on ? "■" : "▶";
+      playBtn.classList.toggle("playing", on);
+      playBtn.title = on ? "Detener" : "Escuchar sección";
+    }
+    playBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (_isPlaying) {
+        // Detener
+        try {
+          const bridge = window.Studio936AppBridge;
+          if (bridge?.stopGroove) bridge.stopGroove();
+          else document.querySelector("#stopGrooveBtn, [data-action='stopGroove']")?.click();
+        } catch(_) {}
+        setPlayState(false);
+        // resetear otros play buttons
+        document.querySelectorAll(".s936-ckpt-row-action.play.playing").forEach(b => {
+          if (b !== playBtn) { b.innerHTML = "▶"; b.classList.remove("playing"); }
+        });
+      } else {
+        // Play — resetear otros primero
+        document.querySelectorAll(".s936-ckpt-row-action.play").forEach(b => {
+          b.innerHTML = "▶"; b.classList.remove("playing");
+        });
+        try {
+          const sel = document.getElementById("sectionSelect");
+          if (sel) { sel.value = part.section; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+          const bridge = window.Studio936AppBridge;
+          if (bridge?.startGroove) bridge.startGroove();
+          else document.querySelector("#startGrooveBtn, [data-action='startGroove']")?.click();
+        } catch(_) {}
+        setPlayState(true);
+      }
+    };
     rowActions.appendChild(playBtn);
-
-    // ⏸ Pausa
-    const pauseBtn = ctx.el("button", "s936-ckpt-row-action");
-    pauseBtn.innerHTML = "⏸";
-    pauseBtn.title = "Pausar";
-    pauseBtn.onclick = (e) => { e.stopPropagation(); sectionPause(); };
-    rowActions.appendChild(pauseBtn);
 
     // ✎ Editar
     const editBtn = ctx.el("button", "s936-ckpt-row-action" + (isEditing ? " edit-active" : ""));
