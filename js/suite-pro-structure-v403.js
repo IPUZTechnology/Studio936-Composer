@@ -381,13 +381,13 @@
   background:transparent;
   border:none;
   color:rgba(255,255,255,.82);
-  font-size:.68rem;
-  font-weight:800;
-  padding:7px 10px;
+  font-size:.75rem;
+  font-weight:600;
+  padding:8px 12px;
   border-radius:7px;
   cursor:pointer;
-  text-transform:uppercase;
-  letter-spacing:.5px;
+  text-transform:none!important;
+  letter-spacing:0!important;
   transition:background .12s,color .12s;
 }
 #s936SuitePro .s936-ckpt-dd-item:hover{background:rgba(0,255,204,.1);color:#00ffcc}
@@ -1112,10 +1112,11 @@
         // Posicionar fixed relativo al botón
         const rect = menuBtn.getBoundingClientRect();
         dropdown.style.top = (rect.bottom + 4) + "px";
-        // Alinear a la derecha del botón pero dentro del panel
-        const panelRect = menuBtn.closest("#s936SuitePro, .s936-ckpt-shell, [id^=s936]")?.getBoundingClientRect();
-        const rightEdge = panelRect ? panelRect.right - 8 : rect.right;
-        dropdown.style.left = Math.max(8, rightEdge - 208) + "px";
+        // Alinear al borde izquierdo del botón, ancho fijo 210px
+        const left = Math.max(8, rect.left);
+        const maxRight = window.innerWidth - 8;
+        dropdown.style.left = Math.min(left, maxRight - 214) + "px";
+        dropdown.style.width = "210px";
         dropdown.classList.add("open");
       }
     };
