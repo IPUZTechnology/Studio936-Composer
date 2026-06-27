@@ -2,7 +2,7 @@
 // iReal Book style: 4 compases × 4 tiempos + voicings + selector instrumento
 window.Studio936SuiteProChart = (() => {
   "use strict";
-  const VERSION = "chart-v1.4.9";
+  const VERSION = "chart-v1.5.0";
   const STYLE_ID = "s936-chart-v141";
 
   const INSTRUMENTS = [
@@ -709,6 +709,7 @@ window.Studio936SuiteProChart = (() => {
     const chordRow = document.createElement("div");
     chordRow.className = "s936-ch-beat-chord";
     if (parsed) {
+      // Tiene acorde: mostrar nombre encima del voicing
       const r = document.createElement("span");
       r.className = "s936-ch-beat-root";
       r.textContent = parsed.root;
@@ -723,38 +724,27 @@ window.Studio936SuiteProChart = (() => {
         chordRow.appendChild(b);
       }
     } else if (beatIndex > 0) {
+      // Beat 2-3-4 vacío: solo símbolo %, sin piano/fret
       const rep = document.createElement("span");
       rep.className = "s936-ch-beat-repeat";
       rep.textContent = "%";
       chordRow.appendChild(rep);
-    } else {
-      const dot = document.createElement("div");
-      dot.className = "s936-ch-beat-dot";
-      chordRow.appendChild(dot);
     }
+    // Beat 1 vacío: chordRow queda vacío (el nombre está en cabecera del compás)
     cell.appendChild(chordRow);
 
-    // ── Voicing del beat ──
-    // Si tiene acorde propio → su voicing. Si es % (vacío) → voicing del acorde de referencia (más tenue)
-    const voicingChordName = parsed
-      ? (parsed.root + parsed.qual)
-      : (repeatRef || "");
-
-    if (voicingChordName) {
+    // ── Voicing del beat — SOLO si tiene acorde propio ──
+    if (parsed) {
+      const voicingChordName = parsed.root + parsed.qual;
       const nameUpper = voicingChordName.toUpperCase().trim();
       const savedVoicing = voicingLibrary?.[inst]?.[nameUpper]
         || voicingLibrary?.[inst]?.[voicingChordName.trim()];
 
       if (inst === "piano") {
-        const piano = miniPiano(savedVoicing || null, voicingChordName);
-        // Si es beat de repetición (%), reducir opacidad
-        if (!parsed && repeatRef) piano.style.opacity = "0.35";
-        cell.appendChild(piano);
+        cell.appendChild(miniPiano(savedVoicing || null, voicingChordName));
       } else {
         const fretVoicing = savedVoicing || calcFretVoicing(voicingChordName, inst);
-        const fret = miniFret(fretVoicing);
-        if (!parsed && repeatRef) fret.style.opacity = "0.35";
-        cell.appendChild(fret);
+        cell.appendChild(miniFret(fretVoicing));
       }
     }
 
