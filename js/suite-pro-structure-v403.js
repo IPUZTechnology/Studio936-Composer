@@ -1011,8 +1011,23 @@
     const fileInput = ctx.el("input", "s936-struct-hidden-file");
     fileInput.type = "file"; fileInput.accept = "application/json,.json";
     fileInput.onchange = () => { const f = fileInput.files?.[0]; if (f) loadStructureFile(ctx, f); fileInput.value = ""; };
-    ddAbrir.onclick = () => {
+    ddAbrir.onclick = async () => {
       dropdown.classList.remove("open");
+      // Intentar abrir con File System Access API desde carpeta guardada
+      const savedHandle = await getLibraryDirHandle();
+      if (savedHandle && window.showOpenFilePicker) {
+        try {
+          const [fh] = await window.showOpenFilePicker({
+            startIn: savedHandle,
+            types: [{ description: "Studio 936", accept: { "application/json": [".json"] } }],
+            multiple: false
+          });
+          const file = await fh.getFile();
+          loadStructureFile(ctx, file);
+          return;
+        } catch(e) { if (e.name !== "AbortError") console.warn(e); }
+      }
+      // Fallback: input file normal
       const lib = window.Studio936SuiteProLibrary || window.Studio936SuiteProModules?.library;
       if (lib && typeof lib.openPicker === "function") {
         lib.openPicker((song) => { if (song) loadStructureFromSong(ctx, song); });
@@ -1020,13 +1035,9 @@
     };
 
     const ddGuardarLib = ctx.el("button", "s936-ckpt-dd-item", "💾 Guardar en librería");
-    ddGuardarLib.onclick = () => {
+    ddGuardarLib.onclick = async () => {
       dropdown.classList.remove("open");
-      try {
-        const lib = window.Studio936SuiteProLibrary || window.Studio936SuiteProModules?.library;
-        if (lib && typeof lib.saveCurrent === "function") { lib.saveCurrent(); toast(ctx, "Guardado en librería."); }
-        else { saveStructureFile(ctx, s, parts); }
-      } catch(_) { saveStructureFile(ctx, s, parts); }
+      await saveToLibraryDir(ctx, s, parts);
     };
 
     const ddSep1 = ctx.el("div", "s936-ckpt-dd-sep");
@@ -1086,7 +1097,11 @@
     const ddExportar = ctx.el("button", "s936-ckpt-dd-item", "⬇ Exportar MusicXML");
     ddExportar.onclick = () => { dropdown.classList.remove("open"); exportMusicXML(ctx, s, parts); };
 
-    dropdown.append(ddNueva, ddAbrir, ddGuardarLib, ddSep1, ddPlantillas, ddInspiracion, ddSep2, ddConfirmar, ddDescartar, ddSep3, ddExportar, fileInput);
+    const ddSep4 = ctx.el("div", "s936-ckpt-dd-sep");
+    const ddConfig = ctx.el("button", "s936-ckpt-dd-item", "⚙ Configurar librería");
+    ddConfig.onclick = () => { dropdown.classList.remove("open"); openLibraryConfig(ctx); };
+
+    dropdown.append(ddNueva, ddAbrir, ddGuardarLib, ddSep1, ddPlantillas, ddInspiracion, ddSep2, ddConfirmar, ddDescartar, ddSep3, ddExportar, ddSep4, ddConfig, fileInput);
 
     // Toggle dropdown ☰
     menuBtn.onclick = (e) => {
@@ -1739,6 +1754,152 @@ ${measures}  </part>
       URL.revokeObjectURL(url);
       toast(ctx, "Exportado como MusicXML.");
     } catch(e) { toast(ctx, "Error al exportar MusicXML."); console.warn(e); }
+  }
+
+
+  // ── Storage Service v1 · Local (futuro: Cloudflare Pro) ──
+  const LS_DIR_KEY = "s936_library_dir_name";
+  const LS_SONGS_KEY = "s936_library_songs_v1";
+  let _dirHandle = null; // FileSystemDirectoryHandle en memoria
+
+  async function getLibraryDirHandle() {
+    // Devuelve el handle si está en memoria o si el user lo re-verifica
+    if (_dirHandle) {
+      try { await _dirHandle.requestPermission({ mode: "readwrite" }); return _dirHandle; } catch(_) {}
+    }
+    return null;
+  }
+
+  async function saveToLibraryDir(ctx, s, parts) {
+    const payload = structurePayload(ctx, s, parts);
+    const meta = payload.meta || {};
+    const slug = String(meta.title || "cancion")
+      .toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")
+      .replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "cancion";
+    const filename = `studio936-${slug}.json`;
+    const json = JSON.stringify(payload, null, 2);
+
+    // 1. Intentar con carpeta configurada (File System Access API)
+    const dirHandle = await getLibraryDirHandle();
+    if (dirHandle && window.FileSystemFileHandle) {
+      try {
+        const fh = await dirHandle.getFileHandle(filename, { create: true });
+        const writable = await fh.createWritable();
+        await writable.write(json);
+        await writable.close();
+        // Guardar también en localStorage como backup
+        saveToLocalLib(payload);
+        toast(ctx, `Guardado en carpeta: ${filename}`);
+        return;
+      } catch(e) { console.warn("FileSystem write error:", e); }
+    }
+
+    // 2. Fallback: localStorage + descarga
+    saveToLocalLib(payload);
+    // Descarga automática
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast(ctx, "Guardado en librería local.");
+  }
+
+  function saveToLocalLib(payload) {
+    try {
+      const list = JSON.parse(localStorage.getItem(LS_SONGS_KEY) || "[]");
+      const existing = list.findIndex(x => x.id === payload.meta?.title);
+      const entry = {
+        id: payload.meta?.title || Date.now().toString(36),
+        title: payload.meta?.title || "Sin título",
+        style: payload.meta?.style || "",
+        bpm: payload.meta?.bpm || 95,
+        parts: payload.parts?.length || 0,
+        savedAt: new Date().toISOString(),
+        payload
+      };
+      if (existing >= 0) list[existing] = entry;
+      else list.unshift(entry);
+      localStorage.setItem(LS_SONGS_KEY, JSON.stringify(list.slice(0, 80)));
+    } catch(e) {}
+  }
+
+  function openLibraryConfig(ctx) {
+    // Cerrar modal anterior
+    document.getElementById("s936-lib-config-overlay")?.remove();
+
+    const dirName = localStorage.getItem(LS_DIR_KEY) || "";
+    const hasApi = !!window.showDirectoryPicker;
+
+    const overlay = document.createElement("div");
+    overlay.id = "s936-lib-config-overlay";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;";
+
+    const modal = document.createElement("div");
+    modal.style.cssText = "background:#0d1117;border:1px solid rgba(0,255,204,.35);border-radius:16px;width:100%;max-width:400px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.9);";
+
+    // Head
+    const head = document.createElement("div");
+    head.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(0,255,204,.04);";
+    head.innerHTML = `<span style="font-size:.82rem;font-weight:700;color:#00ffcc;">⚙ Configurar librería</span>`;
+    const closeX = document.createElement("button");
+    closeX.innerHTML = "✕";
+    closeX.style.cssText = "background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:.9rem;";
+    closeX.onclick = () => overlay.remove();
+    head.appendChild(closeX);
+    modal.appendChild(head);
+
+    // Body
+    const body = document.createElement("div");
+    body.style.cssText = "padding:16px;display:flex;flex-direction:column;gap:12px;";
+
+    // Estado actual
+    const status = document.createElement("div");
+    status.style.cssText = "background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:10px 12px;font-size:.72rem;color:rgba(255,255,255,.65);line-height:1.5;";
+    status.innerHTML = dirName
+      ? `<span style="color:#00ffcc;">✓ Carpeta configurada:</span><br><span style="color:#fff;font-weight:700;">${dirName}</span>`
+      : `<span style="color:rgba(255,255,255,.4);">Sin carpeta configurada. Se usará localStorage + descarga automática.</span>`;
+    body.appendChild(status);
+
+    if (hasApi) {
+      const pickBtn = document.createElement("button");
+      pickBtn.style.cssText = "background:rgba(0,255,204,.1);border:1px solid rgba(0,255,204,.4);border-radius:10px;color:#00ffcc;font-size:.72rem;font-weight:900;padding:10px;cursor:pointer;text-transform:uppercase;letter-spacing:.5px;";
+      pickBtn.textContent = "📁 Seleccionar carpeta";
+      pickBtn.onclick = async () => {
+        try {
+          const handle = await window.showDirectoryPicker({ mode: "readwrite" });
+          _dirHandle = handle;
+          localStorage.setItem(LS_DIR_KEY, handle.name);
+          status.innerHTML = `<span style="color:#00ffcc;">✓ Carpeta configurada:</span><br><span style="color:#fff;font-weight:700;">${handle.name}</span>`;
+          toast(ctx, `Carpeta configurada: ${handle.name}`);
+        } catch(e) { if (e.name !== "AbortError") toast(ctx, "No se pudo acceder a la carpeta."); }
+      };
+      body.appendChild(pickBtn);
+
+      const note = document.createElement("p");
+      note.style.cssText = "font-size:.62rem;color:rgba(255,255,255,.35);line-height:1.5;margin:0;";
+      note.textContent = "Chrome y Edge soportan selección de carpeta. Firefox usará descarga automática.";
+      body.appendChild(note);
+    } else {
+      const note = document.createElement("p");
+      note.style.cssText = "font-size:.65rem;color:rgba(255,200,100,.6);line-height:1.5;margin:0;background:rgba(255,200,100,.05);border:1px solid rgba(255,200,100,.15);border-radius:8px;padding:10px;";
+      note.textContent = "Tu navegador no soporta selección de carpeta. Se usará localStorage + descarga automática al guardar.";
+      body.appendChild(note);
+    }
+
+    // Separador Pro
+    const sep = document.createElement("div");
+    sep.style.cssText = "border-top:1px solid rgba(255,255,255,.07);padding-top:10px;";
+    const proNote = document.createElement("p");
+    proNote.style.cssText = "font-size:.62rem;color:rgba(180,100,255,.6);line-height:1.5;margin:0;";
+    proNote.innerHTML = "🚀 <b style='color:#cc99ff'>Studio 936 Pro</b> · Guardado en nube multi-dispositivo. Próximamente.";
+    sep.appendChild(proNote);
+    body.appendChild(sep);
+
+    modal.appendChild(body);
+    overlay.appendChild(modal);
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
   }
 
   function parseChordNames(value) {
