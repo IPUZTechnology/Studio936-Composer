@@ -320,15 +320,21 @@
 }
 #s936SuitePro .s936-ckpt-input:focus{border-color:rgba(0,255,204,.6)}
 #s936SuitePro .s936-ckpt-select{
-  background:rgba(255,255,255,.06);
-  border:1px solid rgba(255,255,255,.12);
+  background:rgba(20,24,36,.96)!important;
+  border:1px solid rgba(255,255,255,.18);
   border-radius:8px;
-  color:#fff;
+  color:#fff!important;
   font-size:.72rem;
   font-weight:700;
   padding:5px 8px;
   width:100%;
   outline:none;
+  -webkit-appearance:none;
+  appearance:none;
+}
+#s936SuitePro .s936-ckpt-select option{
+  background:#0d1117!important;
+  color:#fff!important;
 }
 #s936SuitePro .s936-ckpt-bpm{
   background:rgba(0,255,204,.08);
@@ -432,20 +438,20 @@
   margin-bottom:3px;
 }
 #s936SuitePro .s936-ckpt-add-btn{
-  background:rgba(255,224,102,.14);
-  border:1px solid rgba(255,224,102,.5);
+  background:rgba(0,255,204,.1);
+  border:1px solid rgba(0,255,204,.4);
   border-radius:8px;
-  color:#ffe066;
-  font-size:.65rem;
+  color:#00ffcc;
+  font-size:.62rem;
   font-weight:900;
-  padding:6px 10px;
+  padding:5px 10px;
   cursor:pointer;
   text-transform:uppercase;
   white-space:nowrap;
   transition:background .12s;
-  height:100%;
+  align-self:end;
 }
-#s936SuitePro .s936-ckpt-add-btn:hover{background:rgba(255,224,102,.24)}
+#s936SuitePro .s936-ckpt-add-btn:hover{background:rgba(0,255,204,.2)}
 /* Fila de status compacta */
 #s936SuitePro .s936-ckpt-status{
   display:flex;align-items:center;gap:8px;
@@ -479,6 +485,95 @@
   transition:background .12s;
 }
 #s936SuitePro .s936-ckpt-apply-btn:hover{background:rgba(0,255,204,.22)}
+
+/* ── ROW LAYOUT v4.2 ── */
+#s936SuitePro .s936-ckpt-part-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:11px;
+  background:rgba(0,0,0,.18);
+  transition:border-color .15s,background .15s;
+  cursor:default;
+}
+#s936SuitePro .s936-ckpt-part-row:hover{
+  border-color:rgba(0,255,204,.2);
+  background:rgba(0,0,0,.28);
+}
+#s936SuitePro .s936-ckpt-part-row.is-editing{
+  border-color:rgba(255,224,102,.45);
+  background:rgba(255,224,102,.04);
+}
+#s936SuitePro .s936-ckpt-part-num{
+  color:rgba(255,255,255,.3);
+  font-size:.6rem;
+  font-weight:900;
+  min-width:18px;
+  text-align:center;
+  flex-shrink:0;
+}
+#s936SuitePro .s936-ckpt-part-badge{
+  border-radius:5px;
+  font-size:.52rem;
+  font-weight:900;
+  padding:3px 7px;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  flex-shrink:0;
+  white-space:nowrap;
+}
+#s936SuitePro .s936-ckpt-part-info{
+  flex:1;
+  min-width:0;
+}
+#s936SuitePro .s936-ckpt-part-name{
+  font-size:.75rem;
+  font-weight:700;
+  color:#fff;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#s936SuitePro .s936-ckpt-part-bars{
+  font-size:.58rem;
+  color:rgba(255,255,255,.38);
+  margin-top:1px;
+}
+#s936SuitePro .s936-ckpt-row-actions{
+  display:flex;
+  align-items:center;
+  gap:4px;
+  flex-shrink:0;
+}
+#s936SuitePro .s936-ckpt-row-action{
+  width:26px;height:26px;
+  border-radius:6px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.04);
+  color:rgba(255,255,255,.5);
+  font-size:.72rem;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:border-color .12s,color .12s,background .12s;
+  flex-shrink:0;
+}
+#s936SuitePro .s936-ckpt-row-action:hover{
+  border-color:rgba(0,255,204,.5);
+  color:#00ffcc;
+  background:rgba(0,255,204,.08);
+}
+#s936SuitePro .s936-ckpt-row-action.play:hover{
+  border-color:rgba(0,255,204,.7);
+  color:#00ffcc;
+  background:rgba(0,255,204,.12);
+}
+#s936SuitePro .s936-ckpt-row-action.edit-active{
+  border-color:rgba(255,224,102,.6);
+  color:#ffe066;
+  background:rgba(255,224,102,.08);
+}
 
 /* ── ROW GEAR MENU ── */
 #s936SuitePro .s936-ckpt-row-gear{
@@ -912,46 +1007,83 @@
 
 
 
+  const BADGE_COLORS = {"intro": "background:rgba(0,255,204,.15);border:1px solid rgba(0,255,204,.4);color:#00ffcc", "verse": "background:rgba(91,143,255,.15);border:1px solid rgba(91,143,255,.4);color:#8ab4ff", "verse1": "background:rgba(91,143,255,.15);border:1px solid rgba(91,143,255,.4);color:#8ab4ff", "verse2": "background:rgba(91,143,255,.15);border:1px solid rgba(91,143,255,.4);color:#8ab4ff", "verse3": "background:rgba(91,143,255,.15);border:1px solid rgba(91,143,255,.4);color:#8ab4ff", "verse4": "background:rgba(91,143,255,.15);border:1px solid rgba(91,143,255,.4);color:#8ab4ff", "prechorus": "background:rgba(255,180,50,.15);border:1px solid rgba(255,180,50,.4);color:#ffcf6e", "chorus": "background:rgba(255,80,180,.15);border:1px solid rgba(255,80,180,.4);color:#ff9ee0", "bridge": "background:rgba(180,100,255,.15);border:1px solid rgba(180,100,255,.4);color:#cc99ff", "interlude": "background:rgba(100,220,180,.15);border:1px solid rgba(100,220,180,.4);color:#7dffd8", "solo": "background:rgba(255,120,80,.15);border:1px solid rgba(255,120,80,.4);color:#ffaa88", "outro": "background:rgba(150,150,170,.15);border:1px solid rgba(150,150,170,.4);color:#ccccdd"};
+  function badgeStyle(type) {
+    const base = type ? type.replace(/[0-9]/g,"") : "verse";
+    return BADGE_COLORS[type] || BADGE_COLORS[base] || "background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);color:#fff";
+  }
+  function badgeLabel(type) {
+    const map = {intro:"INTRO",verse:"VERSE",verse1:"VERSE 1",verse2:"VERSE 2",verse3:"VERSE 3",verse4:"VERSE 4",
+      prechorus:"PRE-CH",chorus:"CHORUS",bridge:"BRIDGE",interlude:"INTRL",solo:"SOLO",outro:"OUTRO"};
+    return map[type] || (type||"PART").toUpperCase().slice(0,6);
+  }
   function partRow(ctx, s, parts, part, index) {
-    const row = ctx.el("article", "s936-struct-part s936-struct-part-wide" + (state.editingIndex === index ? " is-editing" : ""));
-    const line = ctx.el("div", "s936-struct-part-mainline");
+    const isEditing = state.editingIndex === index;
+    const row = ctx.el("article", "");
+    row.style.cssText = "display:flex;flex-direction:column;gap:0";
 
-    line.appendChild(ctx.el("div", "s936-struct-num", String(index + 1).padStart(2, "0")));
+    const line = ctx.el("div", "s936-ckpt-part-row" + (isEditing ? " is-editing" : ""));
 
-    const info = ctx.el("div", "s936-struct-part-info");
-    const titleLine = ctx.el("div", "s936-struct-part-titleline");
-    titleLine.appendChild(ctx.el("b", "", part.label || labelFor(part.section)));
-    titleLine.appendChild(ctx.el("span", "s936-struct-part-type", humanizeKey(part.type || baseType(part.section))));
-    info.appendChild(titleLine);
-    info.appendChild(
-      ctx.el(
-        "span",
-        "s936-struct-part-meta",
-        `${Math.max(1, Number(part.bars) || inferredBars(s, part.section))} compases`
-      )
-    );
+    // Número
+    const num = ctx.el("div", "s936-ckpt-part-num", String(index + 1).padStart(2, "0"));
+    line.appendChild(num);
+
+    // Badge tipo
+    const type = part.type || baseType(part.section) || "verse";
+    const badge = ctx.el("span", "s936-ckpt-part-badge", badgeLabel(type));
+    badge.setAttribute("style", badgeStyle(type));
+    line.appendChild(badge);
+
+    // Info nombre + compases
+    const info = ctx.el("div", "s936-ckpt-part-info");
+    info.appendChild(ctx.el("div", "s936-ckpt-part-name", part.label || labelFor(part.section)));
+    info.appendChild(ctx.el("div", "s936-ckpt-part-bars",
+      `${Math.max(1, Number(part.bars) || inferredBars(s, part.section))} compases`));
     line.appendChild(info);
 
-    const items = draftOrLiveItems(s, part.section);
-    const chords = items
-      .map((item) => String(item?.name || item?.chord || "").trim())
-      .filter(Boolean);
+    // Botones de acción visibles
+    const rowActions = ctx.el("div", "s936-ckpt-row-actions");
 
-    // v0.8.3: chips de acordes ocultos — el Chart muestra los acordes en el panel derecho
-    const chordWrap = ctx.el("div", "s936-struct-chords s936-struct-chords-inline");
-    chordWrap.style.display = "none";
-    line.appendChild(chordWrap);
+    // ▶ Play — selecciona sección y lanza groove
+    const playBtn = ctx.el("button", "s936-ckpt-row-action play");
+    playBtn.innerHTML = "▶";
+    playBtn.title = "Escuchar sección";
+    playBtn.onclick = (e) => {
+      e.stopPropagation();
+      try {
+        const sel = document.getElementById("sectionSelect");
+        if (sel) { sel.value = part.section; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+        const bridge = window.Studio936AppBridge;
+        if (bridge?.startGroove) { bridge.startGroove(); }
+        else {
+          // fallback: click directo al botón START GROOVE del main
+          const grooveBtn = document.querySelector("[data-action='startGroove'], #startGrooveBtn, .groove-start-btn");
+          if (grooveBtn) grooveBtn.click();
+        }
+      } catch(_) {}
+    };
+    rowActions.appendChild(playBtn);
 
-    // v4.1 — gear menu por fila
+    // ✎ Editar
+    const editBtn = ctx.el("button", "s936-ckpt-row-action" + (isEditing ? " edit-active" : ""));
+    editBtn.innerHTML = "✎";
+    editBtn.title = isEditing ? "Cerrar editor" : "Editar parte";
+    editBtn.onclick = (e) => {
+      e.stopPropagation();
+      state.editingIndex = isEditing ? -1 : index;
+      saveState(); renderAgain(ctx);
+    };
+    rowActions.appendChild(editBtn);
+
+    // ⚙ Gear dropdown
     const gearWrap = ctx.el("div", "s936-ckpt-row-gear");
     const gearBtn = ctx.el("button", "s936-ckpt-row-btn");
     gearBtn.innerHTML = "⚙";
-    gearBtn.title = "Opciones de sección";
-    gearBtn.setAttribute("aria-label", "Opciones");
+    gearBtn.title = "Más opciones";
 
     const rowDD = ctx.el("div", "s936-ckpt-row-dd");
 
-    const ddUp = ctx.el("button", "s936-ckpt-row-dd-item", "▲ Subir");
+    const ddUp   = ctx.el("button", "s936-ckpt-row-dd-item", "▲ Subir");
     ddUp.onclick = () => { rowDD.classList.remove("open"); move(parts, index, -1, ctx); };
 
     const ddDown = ctx.el("button", "s936-ckpt-row-dd-item", "▼ Bajar");
@@ -959,40 +1091,33 @@
 
     const ddSep1 = ctx.el("div", "s936-ckpt-row-dd-sep");
 
-    const ddDup = ctx.el("button", "s936-ckpt-row-dd-item warn", "⧉ Duplicar");
-    ddDup.title = "Crea una copia independiente con sus propios acordes.";
+    const ddDup  = ctx.el("button", "s936-ckpt-row-dd-item warn", "⧉ Duplicar");
     ddDup.onclick = () => { rowDD.classList.remove("open"); duplicatePart(ctx, s, parts, index); };
 
-    const ddRename = ctx.el("button", "s936-ckpt-row-dd-item", "✎ Renombrar");
-    ddRename.onclick = () => { rowDD.classList.remove("open"); renameVisible(ctx, parts, index); };
-
-    const ddEdit = ctx.el("button", "s936-ckpt-row-dd-item", state.editingIndex === index ? "✕ Cerrar edición" : "✎ Editar parte");
-    ddEdit.onclick = () => {
-      rowDD.classList.remove("open");
-      state.editingIndex = state.editingIndex === index ? -1 : index;
-      saveState(); renderAgain(ctx);
-    };
+    const ddRen  = ctx.el("button", "s936-ckpt-row-dd-item", "✎ Renombrar");
+    ddRen.onclick = () => { rowDD.classList.remove("open"); renameVisible(ctx, parts, index); };
 
     const ddSep2 = ctx.el("div", "s936-ckpt-row-dd-sep");
 
-    const ddDel = ctx.el("button", "s936-ckpt-row-dd-item danger", "✕ Quitar");
+    const ddDel  = ctx.el("button", "s936-ckpt-row-dd-item danger", "✕ Quitar");
     ddDel.onclick = () => { rowDD.classList.remove("open"); deleteFromArrangement(ctx, parts, index); };
 
-    rowDD.append(ddUp, ddDown, ddSep1, ddDup, ddRename, ddEdit, ddSep2, ddDel);
+    rowDD.append(ddUp, ddDown, ddSep1, ddDup, ddRen, ddSep2, ddDel);
 
     gearBtn.onclick = (e) => {
       e.stopPropagation();
-      // cerrar todos los otros dropdowns abiertos
       document.querySelectorAll(".s936-ckpt-row-dd.open").forEach(d => { if (d !== rowDD) d.classList.remove("open"); });
       rowDD.classList.toggle("open");
     };
     document.addEventListener("click", () => rowDD.classList.remove("open"));
 
     gearWrap.append(gearBtn, rowDD);
-    line.appendChild(gearWrap);
+    rowActions.appendChild(gearWrap);
+    line.appendChild(rowActions);
     row.appendChild(line);
 
-    if (state.editingIndex === index) {
+    const items = draftOrLiveItems(s, part.section);
+    if (isEditing) {
       row.appendChild(renderPartEditor(ctx, s, parts, part, index, items));
     }
     return row;
