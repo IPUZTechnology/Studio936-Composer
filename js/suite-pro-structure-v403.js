@@ -993,7 +993,7 @@
     // Botón menú ⚙ con dropdown
     const menuBtn = ctx.el("button", "s936-ckpt-menu-btn");
     menuBtn.title = "Opciones";
-    menuBtn.innerHTML = "⚙";
+    menuBtn.innerHTML = "&#9776;"; menuBtn.style.fontSize="1.1rem"; menuBtn.style.letterSpacing="0";
     menuBtn.setAttribute("aria-label", "Opciones de estructura");
 
     const dropdown = ctx.el("div", "s936-ckpt-dropdown");
@@ -1112,7 +1112,10 @@
         // Posicionar fixed relativo al botón
         const rect = menuBtn.getBoundingClientRect();
         dropdown.style.top = (rect.bottom + 4) + "px";
-        dropdown.style.left = Math.max(4, rect.right - 204) + "px";
+        // Alinear a la derecha del botón pero dentro del panel
+        const panelRect = menuBtn.closest("#s936SuitePro, .s936-ckpt-shell, [id^=s936]")?.getBoundingClientRect();
+        const rightEdge = panelRect ? panelRect.right - 8 : rect.right;
+        dropdown.style.left = Math.max(8, rightEdge - 208) + "px";
         dropdown.classList.add("open");
       }
     };
