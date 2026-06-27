@@ -365,13 +365,15 @@
 /* Dropdown del menú */
 #s936SuitePro .s936-ckpt-dropdown{
   display:none;
-  position:fixed;
+  position:absolute;
+  top:36px;
+  right:0;
   background:#0d1117;
   border:1px solid rgba(0,255,204,.35);
   border-radius:10px;
   padding:6px;
   z-index:9999;
-  min-width:200px;
+  min-width:220px;
   box-shadow:0 8px 24px rgba(0,0,0,.9);
 }
 #s936SuitePro .s936-ckpt-dropdown.open{display:block}
@@ -1106,29 +1108,20 @@
 
     dropdown.append(ddNueva, ddAbrir, ddGuardarLib, ddSep1, ddPlantillas, ddInspiracion, ddSep2, ddConfirmar, ddDescartar, ddSep3, ddExportar, ddSep4, ddConfig, fileInput);
 
-    // Toggle dropdown ☰
+    // Toggle dropdown ☰ — position:absolute dentro del menuBtn
     menuBtn.onclick = (e) => {
       e.stopPropagation();
       const isOpen = dropdown.classList.contains("open");
       document.querySelectorAll(".s936-ckpt-dropdown.open").forEach(d => d.classList.remove("open"));
-      if (!isOpen) {
-        // Posicionar fixed relativo al botón
-        const rect = menuBtn.getBoundingClientRect();
-        // Posicionar justo debajo del botón ≡, ancho del panel
-        const suitePanel = document.getElementById("s936SuitePro") || document.querySelector(".v18-suite, #v18Suite");
-        const panelRect = suitePanel ? suitePanel.getBoundingClientRect() : rect;
-        dropdown.style.top = (rect.bottom + 2) + "px";
-        dropdown.style.left = (panelRect.left + 8) + "px";
-        dropdown.style.width = (panelRect.width - 16) + "px";
-        dropdown.classList.add("open");
-      }
+      if (!isOpen) dropdown.classList.add("open");
     };
     document.addEventListener("click", (e) => {
       if (!menuBtn.contains(e.target)) dropdown.classList.remove("open");
     });
 
-    // Dropdown en body para posicionamiento fixed sin interferencia
-    document.body.appendChild(dropdown);
+    // Dropdown dentro del botón — position absolute relativo al botón
+    menuBtn.style.position = "relative";
+    menuBtn.appendChild(dropdown);
     topbar.append(titleInput, styleSelect, bpmInput, menuBtn);
     shell.appendChild(topbar);
 
