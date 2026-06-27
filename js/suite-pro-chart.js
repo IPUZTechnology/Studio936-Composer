@@ -2,7 +2,7 @@
 // iReal Book style: 4 compases × 4 tiempos + voicings + selector instrumento
 window.Studio936SuiteProChart = (() => {
   "use strict";
-  const VERSION = "chart-v1.4.7";
+  const VERSION = "chart-v1.4.8";
   const STYLE_ID = "s936-chart-v141";
 
   const INSTRUMENTS = [
@@ -599,7 +599,7 @@ window.Studio936SuiteProChart = (() => {
   }
 
   // ─── RENDER BEAT (celda de tiempo con voicing) ──────────────────────────
-  function renderBeat(sectionKey, barIndex, beatIndex, beatVal, inst, voicingLibrary, onRerender) {
+  function renderBeat(sectionKey, barIndex, beatIndex, beatVal, repeatRef, inst, voicingLibrary, onRerender) {
     const parsed = parseChord(beatVal);
     const cell = document.createElement("div");
     cell.className = "s936-ch-beat" + (parsed ? " has-chord" : "");
@@ -640,18 +640,27 @@ window.Studio936SuiteProChart = (() => {
     }
     cell.appendChild(chordRow);
 
-    // ── Voicing del beat (si tiene acorde) ──
-    if (parsed) {
-      const chordNameRaw = parsed.root + parsed.qual;
-      const chordNameUpper = chordNameRaw.toUpperCase().trim();
-      // Buscar voicing guardado, si no calcular uno básico
-      const savedVoicing = voicingLibrary?.[inst]?.[chordNameUpper]
-        || voicingLibrary?.[inst]?.[chordNameRaw.trim()];
+    // ── Voicing del beat ──
+    // Si tiene acorde propio → su voicing. Si es % (vacío) → voicing del acorde de referencia (más tenue)
+    const voicingChordName = parsed
+      ? (parsed.root + parsed.qual)
+      : (repeatRef || "");
+
+    if (voicingChordName) {
+      const nameUpper = voicingChordName.toUpperCase().trim();
+      const savedVoicing = voicingLibrary?.[inst]?.[nameUpper]
+        || voicingLibrary?.[inst]?.[voicingChordName.trim()];
+
       if (inst === "piano") {
-        cell.appendChild(miniPiano(savedVoicing || null, chordNameRaw));
+        const piano = miniPiano(savedVoicing || null, voicingChordName);
+        // Si es beat de repetición (%), reducir opacidad
+        if (!parsed && repeatRef) piano.style.opacity = "0.35";
+        cell.appendChild(piano);
       } else {
-        const fretVoicing = savedVoicing || calcFretVoicing(chordNameRaw, inst);
-        cell.appendChild(miniFret(fretVoicing));
+        const fretVoicing = savedVoicing || calcFretVoicing(voicingChordName, inst);
+        const fret = miniFret(fretVoicing);
+        if (!parsed && repeatRef) fret.style.opacity = "0.35";
+        cell.appendChild(fret);
       }
     }
 
@@ -735,13 +744,21 @@ window.Studio936SuiteProChart = (() => {
     const beatsRow = document.createElement("div");
     beatsRow.className = "s936-ch-beats";
 
+    // Acorde de referencia del compás (beat 0 o acorde del editor)
+    const refChordName = beatsData[barIndex + "_0"]
+      || (isFirst && barInfo?.chord?.name)
+      || "";
+
     for (let b = 0; b < 4; b++) {
       const bKey = barIndex + "_" + b;
       let bVal = beatsData[bKey] || "";
       if (!bVal && b === 0) {
-        if (isFirst && barInfo?.chord?.name) bVal = barInfo.chord.name;
+        bVal = refChordName; // beat 1: siempre muestra el acorde de referencia
       }
-      beatsRow.appendChild(renderBeat(sectionKey, barIndex, b, bVal, inst, voicingLibrary, onRerender));
+      // Para beats 2-4 vacíos pasamos refChordName como "repeatRef"
+      // para que el voicing del % sea el del acorde que se repite
+      const repeatRef = (!bVal && b > 0) ? refChordName : "";
+      beatsRow.appendChild(renderBeat(sectionKey, barIndex, b, bVal, repeatRef, inst, voicingLibrary, onRerender));
     }
     bar.appendChild(beatsRow);
 
