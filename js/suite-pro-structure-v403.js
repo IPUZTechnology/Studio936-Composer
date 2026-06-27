@@ -1113,13 +1113,16 @@
     statusBar.append(dot, statusText);
     shell.appendChild(statusBar);
 
-    // ── ADD TOGGLE (colapsable) ──
-    const addToggle = ctx.el("div", "s936-ckpt-add-toggle");
-    addToggle.innerHTML = `<span>+ Crear Sección</span><span class="s936-ckpt-chevron">▾</span>`;
-    // Recordar estado del panel add en localStorage
+    root.appendChild(shell);
+  }
+
+  // Construye el bloque "+ Crear Sección" — usado en renderBuilder
+  function buildAddSection(ctx, s, parts) {
     const addOpenKey = "s936_ckpt_add_open";
     const addIsOpen = localStorage.getItem(addOpenKey) === "1";
-    if (addIsOpen) addToggle.classList.add("open");
+
+    const addToggle = ctx.el("div", "s936-ckpt-add-toggle" + (addIsOpen ? " open" : ""));
+    addToggle.innerHTML = `<span>+ Crear Sección</span><span class="s936-ckpt-chevron">▾</span>`;
 
     const addBody = ctx.el("div", "s936-ckpt-add-body" + (addIsOpen ? " open" : ""));
 
@@ -1129,9 +1132,7 @@
       addBody.classList.toggle("open", now);
       localStorage.setItem(addOpenKey, now ? "1" : "0");
     };
-    shell.appendChild(addToggle);
 
-    // Formulario dentro del add
     const typeField = ctx.el("div", "");
     const typeLabel = ctx.el("span", "s936-ckpt-add-label", "Tipo");
     const typeSelect = ctx.el("select", "s936-ckpt-select");
@@ -1141,13 +1142,6 @@
       if (value === state.newType) opt.selected = true;
       typeSelect.appendChild(opt);
     });
-    typeSelect.onchange = () => {
-      state.newType = typeSelect.value;
-      state.newBars = suggestedBars(typeSelect.value);
-      barsInput.value = String(state.newBars);
-      saveState();
-    };
-    typeField.append(typeLabel, typeSelect);
 
     const nameField = ctx.el("div", "");
     const nameLabel = ctx.el("span", "s936-ckpt-add-label", "Nombre");
@@ -1164,6 +1158,14 @@
     barsInput.value = String(state.newBars || suggestedBars(state.newType));
     barsInput.oninput = () => { state.newBars = Math.max(1, Number(barsInput.value) || 8); saveState(); };
     barsField.append(barsLabel, barsInput);
+
+    typeSelect.onchange = () => {
+      state.newType = typeSelect.value;
+      state.newBars = suggestedBars(typeSelect.value);
+      barsInput.value = String(state.newBars);
+      saveState();
+    };
+    typeField.append(typeLabel, typeSelect);
 
     const addBtn = ctx.el("button", "s936-ckpt-add-btn", "+ Añadir");
     addBtn.onclick = () => {
@@ -1184,9 +1186,7 @@
     };
 
     addBody.append(typeField, nameField, barsField, addBtn);
-    shell.appendChild(addBody);
-
-    root.appendChild(shell);
+    return { addToggle, addBody };
   }
 
   function renderBuilder(ctx, root, s, parts) {
@@ -1198,6 +1198,11 @@
     titleRow.appendChild(left);
 
     listCard.appendChild(titleRow);
+
+    // "+ Crear Sección" debajo del título
+    const { addToggle, addBody } = buildAddSection(ctx, s, parts);
+    listCard.appendChild(addToggle);
+    listCard.appendChild(addBody);
 
     const list = ctx.el("div", "s936-struct-list s936-struct-list-wide");
     if (!parts.length) {

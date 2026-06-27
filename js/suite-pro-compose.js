@@ -268,11 +268,11 @@
     const shell = ctx.el("div", "s936-cmp-shell");
 
     const tools = [
-      ["structure","Estructura"],   // principal — absorbe Plantillas e Inspiración
-      ["editor","Editor"],          // acordes por sección
-      ["theory","Teoría"],          // absorbe Escalas
-      // transpose → Main (control global)
-      // templates, inspire, scales, chordAI → integrados en sus tabs padre
+      ["structure","Estructura"],
+      ["editor","Editor"],
+      ["theory","Teoría"],
+      ["scales","Escalas"],
+      ["tabpro","Tab Pro"],
     ];
 
     const nav = ctx.toolNav(tools, ctx.state.composeTool || state.tool, (v) => {
@@ -286,7 +286,7 @@
     if (active === "songDNA") active = "structure";
     // redirigir tools movidos a sus nuevos tabs padre
     if (active === "templates" || active === "inspire") active = "structure";
-    if (active === "scales" || active === "chordAI" || active === "transpose") active = "theory";
+    if (active === "chordAI" || active === "transpose") active = "theory";
     if (active !== "editor") {
       safe(() => window.Studio936AppBridge?.deactivateEditorSurface?.(), null);
     }
@@ -302,7 +302,8 @@
       editor: renderEditorModule,
       chordAI: renderChordAI,
       theory: renderTheory,
-      scales: renderScales
+      scales: renderScales,
+      tabpro: renderTabPro
     };
     (map[active] || renderTemplates)(ctx, shell);
 
@@ -1083,6 +1084,21 @@ function renderChordAI(ctx, shell) {
     line(ctx, current, "Acorde", ctx.currentChordName?.() || s.chordLabel || "—");
     grid.appendChild(current);
     shell.appendChild(grid);
+  }
+
+  function renderTabPro(ctx, shell) {
+    const card = ctx.el("section", "s936-cmp-card");
+    card.style.cssText = "text-align:center;padding:32px 20px;";
+    const icon = ctx.el("div", "", "🎸");
+    icon.style.cssText = "font-size:2.5rem;margin-bottom:12px;opacity:.6;";
+    const title = ctx.el("h4", "", "Tab Pro");
+    title.style.cssText = "color:#00ffcc;margin-bottom:8px;font-size:1rem;";
+    const sub = ctx.el("p", "s936-struct-muted", "Editor de tablatura y partitura por sección. Próximamente en Studio 936.");
+    sub.style.cssText = "max-width:240px;margin:0 auto 16px;line-height:1.6;";
+    const badge = ctx.el("span", "", "En construcción");
+    badge.style.cssText = "display:inline-block;background:rgba(180,100,255,.15);border:1px solid rgba(180,100,255,.4);border-radius:20px;color:#cc99ff;font-size:.62rem;font-weight:900;padding:4px 14px;text-transform:uppercase;letter-spacing:.6px;";
+    card.append(icon, title, sub, badge);
+    shell.appendChild(card);
   }
 
   function renderPiano(ctx, parent, notes, root) {
