@@ -1,9 +1,8 @@
-// Studio 936 Composer - Chart View v1.5.2 (FIXED)
-// iReal Book style: 4 compases × 4 tiempos + voicings + selector instrumento
+// Studio 936 Composer - Chart View v1.5.3 (FIXED)
 window.Studio936SuiteProChart = (() => {
   "use strict";
-  const VERSION = "chart-v1.5.2";
-  const STYLE_ID = "s936-chart-v152";
+  const VERSION = "chart-v1.5.3";
+  const STYLE_ID = "s936-chart-v153";
 
   const INSTRUMENTS = [
     { id: "piano",   label: "Piano" },
@@ -13,6 +12,8 @@ window.Studio936SuiteProChart = (() => {
   ];
 
   let _chartInstrument = localStorage.getItem("s936_chart_inst_v1") || "piano";
+  let _activeBeatEl = null;
+  let _activeBarEl = null;
 
   // ─── ESTILOS ──────────────────────────────────────────────────────────────
   function installStyles() {
@@ -99,7 +100,11 @@ window.Studio936SuiteProChart = (() => {
 }
 .s936-ch-beat:hover{background:rgba(0,255,204,.1);border-color:rgba(0,255,204,.35)}
 .s936-ch-beat.has-chord{background:rgba(0,255,204,.08);border-color:rgba(0,255,204,.28)}
-.s936-ch-beat.active-beat{background:rgba(0,255,204,.18)!important;border-color:rgba(0,255,204,.6)!important}
+.s936-ch-beat.active-beat{
+  background:rgba(0,255,204,.25)!important;
+  border-color:rgba(0,255,204,.8)!important;
+  box-shadow:0 0 20px rgba(0,255,204,.3);
+}
 
 .s936-ch-beat-num{
   font-size:.34rem;
@@ -152,6 +157,7 @@ window.Studio936SuiteProChart = (() => {
   min-height:40px;
   margin-top:2px;
   padding:2px 0;
+  width:100%;
 }
 
 .s936-ch-piano-mini{
@@ -200,11 +206,12 @@ window.Studio936SuiteProChart = (() => {
   background:#00ffcc;
   transform:translate(-50%,-50%);
   box-shadow:0 0 6px rgba(0,255,204,.7);
+  z-index:3;
 }
 .s936-ch-fm{position:absolute;color:rgba(255,80,80,.8);font-size:.5rem;font-weight:900;transform:translateX(-50%)}
 .s936-ch-capo{position:absolute;left:0;top:0;bottom:0;width:3px;background:rgba(255,224,102,.6);border-radius:0 2px 2px 0}
 
-/* ── POPUP FIXED ── */
+/* ── POPUP ── */
 .s936-ch-pop{
   position:fixed !important;
   background:#0e1320;
@@ -219,21 +226,21 @@ window.Studio936SuiteProChart = (() => {
 }
 .s936-ch-pop label{font-size:.42rem;color:rgba(0,255,204,.6);text-transform:uppercase;letter-spacing:.6px;font-weight:700;display:block;margin-bottom:3px}
 .s936-picker-preview{
-  font-size:.9rem;
+  font-size:1.1rem;
   font-weight:900;
-  color:#fff;
+  color:#00ffcc;
   text-align:center;
-  padding:4px;
-  background:rgba(255,255,255,.05);
+  padding:6px;
+  background:rgba(0,255,204,.08);
   border-radius:5px;
-  margin-bottom:5px;
-  min-height:28px;
+  margin-bottom:6px;
+  min-height:32px;
   display:flex;
   align-items:center;
   justify-content:center;
-  border:1px solid rgba(255,255,255,.1);
+  border:1px solid rgba(0,255,204,.3);
 }
-.s936-picker-preview.has-chord{border-color:rgba(0,255,204,.3);color:#00ffcc}
+.s936-picker-preview.empty{color:rgba(255,255,255,.25);border-color:rgba(255,255,255,.1)}
 .s936-picker-roots{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px}
 .s936-picker-btn{
   background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);
@@ -422,6 +429,11 @@ window.Studio936SuiteProChart = (() => {
         const base = cleanName.replace(/[79]/, "");
         shape = GUITAR_SHAPES[base];
       }
+      if (!shape) {
+        // Intentar con el nombre sin alteraciones
+        const simple = cleanName.replace(/[#b]/g, "");
+        shape = GUITAR_SHAPES[simple];
+      }
       return shape ? { frets: shape } : null;
     }
     if (inst === "ukulele") {
@@ -516,12 +528,14 @@ window.Studio936SuiteProChart = (() => {
     const start = capo > 0 ? capo : (minF > 1 ? minF - 1 : 0);
     const span = Math.max(4, maxF - start + 1);
 
+    // Capo
     if (capo > 0) {
       const c = document.createElement("div");
       c.className = "s936-ch-capo";
       wrap.appendChild(c);
     }
 
+    // Cuerdas horizontales
     for (let s = 0; s < strings; s++) {
       const el = document.createElement("div");
       el.className = "s936-ch-fs";
@@ -529,13 +543,15 @@ window.Studio936SuiteProChart = (() => {
       wrap.appendChild(el);
     }
 
+    // Trastes verticales (con z-index para que estén detrás de los dots)
     for (let f = 0; f <= span; f++) {
       const el = document.createElement("div");
       el.className = "s936-ch-ff";
-      el.style.left = (8 + f / span * 88) + "%";
+      el.style.cssText = `left:${8 + f / span * 88}%;z-index:1`;
       wrap.appendChild(el);
     }
 
+    // Dots y mutes (z-index más alto)
     frets.forEach((fret, si) => {
       const top = (si + 0.5) / strings * 100;
       const strF = String(fret).toUpperCase();
@@ -543,14 +559,14 @@ window.Studio936SuiteProChart = (() => {
         const m = document.createElement("div");
         m.className = "s936-ch-fm";
         m.textContent = "×";
-        m.style.cssText = `top:${top}%;left:4%`;
+        m.style.cssText = `top:${top}%;left:4%;z-index:2`;
         wrap.appendChild(m);
       } else {
         const f0 = Number(fret);
         const leftPct = f0 === 0 ? 4 : 8 + ((f0 - start + 0.5) / span) * 88;
         const dot = document.createElement("div");
         dot.className = "s936-ch-fd";
-        dot.style.cssText = `top:${top}%;left:${leftPct}%`;
+        dot.style.cssText = `top:${top}%;left:${leftPct}%;z-index:3`;
         wrap.appendChild(dot);
       }
     });
@@ -594,7 +610,7 @@ window.Studio936SuiteProChart = (() => {
     ];
 
     const initM = currentVal ? String(currentVal).match(/^([A-G])(#|b)?(.*)$/) : null;
-    let selRoot = initM ? initM[1] : "";
+    let selRoot = initM ? initM[1] : "C";
     let selAcc  = initM ? (initM[2] || "♮") : "♮";
     let selQual = initM ? (initM[3] || "") : "";
 
@@ -633,7 +649,7 @@ window.Studio936SuiteProChart = (() => {
     function refreshPreview() {
       const name = buildChordName();
       preview.textContent = name || "—";
-      preview.className = "s936-picker-preview" + (name ? " has-chord" : "");
+      preview.className = "s936-picker-preview" + (name ? "" : " empty");
     }
 
     // Roots
@@ -742,6 +758,8 @@ window.Studio936SuiteProChart = (() => {
     const parsed = parseChord(beatVal);
     const cell = document.createElement("div");
     cell.className = "s936-ch-beat" + (parsed ? " has-chord" : "");
+    cell.dataset.section = sectionKey;
+    cell.dataset.bar = barIndex;
     cell.dataset.beat = beatIndex;
 
     // Número
@@ -769,7 +787,6 @@ window.Studio936SuiteProChart = (() => {
         chordRow.appendChild(b);
       }
     } else {
-      // Beat vacío - no mostrar nada, solo el número
       const empty = document.createElement("span");
       empty.className = "s936-ch-beat-empty-label";
       empty.textContent = "—";
@@ -791,7 +808,8 @@ window.Studio936SuiteProChart = (() => {
         voicingContainer.appendChild(miniPiano(savedVoicing || null, chordName));
       } else {
         const fretVoicing = savedVoicing || calcFretVoicing(chordName, inst);
-        voicingContainer.appendChild(miniFret(fretVoicing));
+        const fretEl = miniFret(fretVoicing);
+        voicingContainer.appendChild(fretEl);
       }
     }
     cell.appendChild(voicingContainer);
@@ -824,7 +842,6 @@ window.Studio936SuiteProChart = (() => {
     num.textContent = barIndex + 1;
     head.appendChild(num);
 
-    // Figura rítmica
     if (barInfo?.isFirst && barInfo?.chord) {
       const fig = document.createElement("span");
       fig.className = "s936-ch-bar-fig";
@@ -841,7 +858,6 @@ window.Studio936SuiteProChart = (() => {
       const bKey = barIndex + "_" + b;
       let bVal = beatsData[bKey] || "";
       
-      // Solo el beat 1 tiene el acorde por defecto
       if (b === 0 && !bVal && barInfo?.isFirst) {
         bVal = barInfo.chord?.name || "";
       }
@@ -856,13 +872,12 @@ window.Studio936SuiteProChart = (() => {
   }
 
   // ─── RENDER PRINCIPAL ─────────────────────────────────────────────────────
-  let _activeBarEl = null;
-
   function render({ container, instrument, onChordEdit } = {}) {
     if (!container) return;
     installStyles();
     container.innerHTML = "";
     _activeBarEl = null;
+    _activeBeatEl = null;
 
     const inst = instrument || _chartInstrument || "piano";
     _chartInstrument = inst;
@@ -1003,7 +1018,34 @@ window.Studio936SuiteProChart = (() => {
     return { ok: true, version: VERSION };
   }
 
-  // ─── HIGHLIGHT ────────────────────────────────────────────────────────────
+  // ─── HIGHLIGHT PLAYBACK ──────────────────────────────────────────────────
+  function highlightBeat(sectionKey, barIndex, beatIndex) {
+    // Limpiar highlight anterior
+    if (_activeBeatEl) {
+      _activeBeatEl.classList.remove("active-beat");
+    }
+    if (_activeBarEl) {
+      _activeBarEl.classList.remove("s936-cb-active");
+    }
+
+    // Buscar el beat
+    const selector = `.s936-ch-beat[data-section="${sectionKey}"][data-bar="${barIndex}"][data-beat="${beatIndex}"]`;
+    const beatEl = document.querySelector(selector);
+    
+    if (beatEl) {
+      beatEl.classList.add("active-beat");
+      _activeBeatEl = beatEl;
+      
+      // También resaltar el compás
+      const barEl = beatEl.closest(".s936-ch-bar");
+      if (barEl) {
+        barEl.classList.add("s936-cb-active");
+        _activeBarEl = barEl;
+        barEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    }
+  }
+
   function highlightBar(sectionKey, barIndex) {
     if (_activeBarEl) _activeBarEl.classList.remove("s936-cb-active");
     const el = document.querySelector(`.s936-ch-bar[data-section="${sectionKey}"][data-bar="${barIndex}"]`);
@@ -1088,6 +1130,7 @@ window.Studio936SuiteProChart = (() => {
   function unmountFromRightPanel() {
     _chartActive = false;
     _activeBarEl = null;
+    _activeBeatEl = null;
     try { window.Studio936InstrumentSurfaceManager?.startObserver?.(); } catch(_) {}
     const chartEl = document.getElementById("s936-chart-view-panel");
     if (chartEl) {
@@ -1118,7 +1161,8 @@ window.Studio936SuiteProChart = (() => {
     render, 
     mountInRightPanel, 
     unmountFromRightPanel, 
-    highlightBar, 
+    highlightBar,
+    highlightBeat,
     isActive: () => _chartActive,
     downloadFile 
   };
