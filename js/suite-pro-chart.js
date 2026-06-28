@@ -1,8 +1,8 @@
-// Studio 936 Composer - Chart View v1.5.4 (PARCHES SOLO)
+// Studio 936 Composer - Chart View v1.5.5 (FIXED GUITAR/UKULELE)
 window.Studio936SuiteProChart = (() => {
   "use strict";
-  const VERSION = "chart-v1.5.4";
-  const STYLE_ID = "s936-chart-v154";
+  const VERSION = "chart-v1.5.5";
+  const STYLE_ID = "s936-chart-v155";
 
   const INSTRUMENTS = [
     { id: "piano",   label: "Piano" },
@@ -420,29 +420,92 @@ window.Studio936SuiteProChart = (() => {
     return frets.map((f, i) => i === best ? f : (f <= 4 ? f : null));
   }
 
+  // ─── PARCHE: calcFretVoicing MEJORADO ────────────────────────────────────
   function calcFretVoicing(chordName, inst) {
     if (!chordName) return null;
+    
     let cleanName = String(chordName).toUpperCase().trim().replace(/\s+/g, "");
+    
+    if (cleanName.includes('/')) {
+      cleanName = cleanName.split('/')[0];
+    }
+    
+    const normalizeMap = {
+      'MAJ': 'MAJ7',
+      'MIN': 'M',
+      'MIN7': 'M7',
+      'MINOR': 'M',
+      'MAJOR': 'MAJ7',
+      'DIM': 'DIM',
+      'AUG': 'AUG',
+      'SUS': 'SUS'
+    };
+    
+    for (const [key, val] of Object.entries(normalizeMap)) {
+      if (cleanName.includes(key) && !cleanName.includes('M7') && !cleanName.includes('MAJ7')) {
+        cleanName = cleanName.replace(key, val);
+      }
+    }
+    
+    let baseName = cleanName.replace(/[0-9]/g, '');
+    if (baseName.endsWith('M') && !baseName.endsWith('M7') && baseName.length > 1) {
+      baseName = baseName.slice(0, -1) + 'MAJ7';
+    }
+    
     if (inst === "guitar") {
       let shape = GUITAR_SHAPES[cleanName];
+      if (!shape) shape = GUITAR_SHAPES[baseName];
       if (!shape) {
-        const base = cleanName.replace(/[79]/, "");
-        shape = GUITAR_SHAPES[base];
-      }
-      if (!shape) {
-        const simple = cleanName.replace(/[#b]/g, "");
+        const simple = cleanName.replace(/[#b]/g, '');
         shape = GUITAR_SHAPES[simple];
       }
-      return shape ? { frets: shape } : null;
-    }
-    if (inst === "ukulele") {
-      let shape = UKU_SHAPES[cleanName];
       if (!shape) {
-        const base = cleanName.replace(/[79]/, "");
-        shape = UKU_SHAPES[base];
+        const rootMatch = cleanName.match(/^[A-G][#b]?/);
+        if (rootMatch) {
+          shape = GUITAR_SHAPES[rootMatch[0]];
+        }
+      }
+      if (!shape) {
+        const root = cleanName.match(/^[A-G][#b]?/);
+        if (root) {
+          const defaultShapes = {
+            'C': [null,3,2,0,1,0], 'D': [null,null,0,2,3,2], 'E': [0,2,2,1,0,0],
+            'F': [1,3,3,2,1,1], 'G': [3,2,0,0,0,3], 'A': [null,0,2,2,2,0],
+            'B': [null,2,4,4,4,2], 'C#': [null,4,3,1,2,1], 'F#': [2,4,4,3,2,2],
+            'G#': [4,3,1,1,1,4], 'A#': [null,1,3,3,3,1]
+          };
+          shape = defaultShapes[root[0]];
+        }
       }
       return shape ? { frets: shape } : null;
     }
+    
+    if (inst === "ukulele") {
+      let shape = UKU_SHAPES[cleanName];
+      if (!shape) shape = UKU_SHAPES[baseName];
+      if (!shape) {
+        const simple = cleanName.replace(/[#b]/g, '');
+        shape = UKU_SHAPES[simple];
+      }
+      if (!shape) {
+        const rootMatch = cleanName.match(/^[A-G][#b]?/);
+        if (rootMatch) {
+          shape = UKU_SHAPES[rootMatch[0]];
+        }
+      }
+      if (!shape) {
+        const root = cleanName.match(/^[A-G][#b]?/);
+        if (root) {
+          const defaultShapes = {
+            'C': [0,0,0,3], 'D': [2,2,2,0], 'E': [4,4,4,2], 'F': [2,0,1,0],
+            'G': [0,2,3,2], 'A': [2,1,0,0], 'B': [4,3,2,2]
+          };
+          shape = defaultShapes[root[0]];
+        }
+      }
+      return shape ? { frets: shape } : null;
+    }
+    
     if (inst === "bass") {
       const shape = bassShape(chordName);
       return shape ? { frets: shape } : null;
@@ -627,7 +690,6 @@ window.Studio936SuiteProChart = (() => {
     lbl.textContent = label;
     pop.appendChild(lbl);
 
-    // ─── PREVIEW ───
     const preview = document.createElement("div");
     preview.className = "s936-picker-preview";
     pop.appendChild(preview);
@@ -644,7 +706,6 @@ window.Studio936SuiteProChart = (() => {
       preview.className = "s936-picker-preview" + (name ? " has-chord" : " empty");
     }
 
-    // Roots
     const rootLbl = document.createElement("div");
     rootLbl.className = "s936-picker-label";
     rootLbl.textContent = "Nota";
@@ -669,7 +730,6 @@ window.Studio936SuiteProChart = (() => {
     });
     pop.appendChild(rootGrid);
 
-    // Accidentals
     const accLbl = document.createElement("div");
     accLbl.className = "s936-picker-label";
     accLbl.textContent = "Alteración";
@@ -694,7 +754,6 @@ window.Studio936SuiteProChart = (() => {
     });
     pop.appendChild(accRow);
 
-    // Qualities
     const qualLbl = document.createElement("div");
     qualLbl.className = "s936-picker-label";
     qualLbl.textContent = "Calidad";
@@ -719,7 +778,6 @@ window.Studio936SuiteProChart = (() => {
     });
     pop.appendChild(qualGrid);
 
-    // Actions
     const acts = document.createElement("div");
     acts.className = "s936-picker-acts";
     const okBtn = document.createElement("button");
@@ -784,21 +842,29 @@ window.Studio936SuiteProChart = (() => {
     }
     cell.appendChild(chordRow);
 
+    // ─── VOICING ────────────────────────────────────────────────────────────
     const voicingContainer = document.createElement("div");
     voicingContainer.className = "s936-ch-beat-voicing";
 
     if (parsed) {
       const chordName = parsed.root + parsed.qual;
       const nameUpper = chordName.toUpperCase().trim();
-      let savedVoicing = voicingLibrary?.[inst]?.[nameUpper]
-        || voicingLibrary?.[inst]?.[chordName.trim()];
       
       if (inst === "piano") {
-        voicingContainer.appendChild(miniPiano(savedVoicing || null, chordName));
+        const savedVoicing = voicingLibrary?.[inst]?.[nameUpper] || null;
+        voicingContainer.appendChild(miniPiano(savedVoicing, chordName));
       } else {
-        const fretVoicing = savedVoicing || calcFretVoicing(chordName, inst);
-        const fretEl = miniFret(fretVoicing);
-        voicingContainer.appendChild(fretEl);
+        // Buscar en librería guardada
+        let savedVoicing = voicingLibrary?.[inst]?.[nameUpper];
+        let fretVoicing = null;
+        
+        if (savedVoicing) {
+          fretVoicing = savedVoicing;
+        } else {
+          // Calcular con la función mejorada
+          fretVoicing = calcFretVoicing(chordName, inst);
+        }
+        voicingContainer.appendChild(miniFret(fretVoicing));
       }
     }
     cell.appendChild(voicingContainer);
@@ -942,15 +1008,13 @@ window.Studio936SuiteProChart = (() => {
       prepopulate(item.section, chords);
       let beatsData = getBeatsData(item.section);
 
-      // ─── PATCH: HERENCIA DE ACORDES ───
-      // Si no hay datos de beat, copiar del arreglo de acordes
+      // PATCH: Herencia de acordes
       if (Object.keys(beatsData).length === 0 && chords.length > 0) {
         beatsData = {};
         chords.forEach((chord, idx) => {
           const bars = Math.max(1, Number(chord.bars) || 1);
           beatsData[idx + "_0"] = chord.name || "";
         });
-        // Guardar en localStorage para persistencia
         try {
           const d = JSON.parse(localStorage.getItem("s936_chart_beats_v1") || "{}");
           d[item.section] = beatsData;
@@ -1158,7 +1222,6 @@ window.Studio936SuiteProChart = (() => {
     URL.revokeObjectURL(url);
   }
 
-  // ─── EXPONER highlightBeat GLOBALMENTE ──────────────────────────────────
   window.highlightChartBeat = (section, bar, beat) => {
     const el = document.querySelector(
       `.s936-ch-beat[data-section="${section}"][data-bar="${bar}"][data-beat="${beat}"]`
