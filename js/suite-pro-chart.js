@@ -12,7 +12,6 @@ window.Studio936SuiteProChart = (() => {
     { id: "ukulele", label: "Ukulele" },
     { id: "bass",    label: "Bajo" }
   ];
-
   let _chartInstrument = localStorage.getItem("s936_chart_inst_v1") || "piano";
   let _activeBeatEl = null;
   let _activeBarEl = null;
