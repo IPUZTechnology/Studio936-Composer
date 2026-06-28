@@ -1,8 +1,8 @@
-// Studio 936 Composer - Chart View v1.5.5 (FIXED GUITAR/UKULELE)
+// Studio 936 Composer - Chart View v1.5.6 (FIXED)
 window.Studio936SuiteProChart = (() => {
   "use strict";
-  const VERSION = "chart-v1.5.5";
-  const STYLE_ID = "s936-chart-v155";
+  const VERSION = "chart-v1.5.6";
+  const STYLE_ID = "s936-chart-v156";
 
   const INSTRUMENTS = [
     { id: "piano",   label: "Piano" },
@@ -420,7 +420,6 @@ window.Studio936SuiteProChart = (() => {
     return frets.map((f, i) => i === best ? f : (f <= 4 ? f : null));
   }
 
-  // ─── PARCHE: calcFretVoicing MEJORADO ────────────────────────────────────
   function calcFretVoicing(chordName, inst) {
     if (!chordName) return null;
     
@@ -572,6 +571,7 @@ window.Studio936SuiteProChart = (() => {
   }
 
   // ─── MINI FRETBOARD ──────────────────────────────────────────────────────
+  // 🔥 PATCH: Invertir cuerdas (de abajo hacia arriba → arriba hacia abajo)
   function miniFret(voicingFret) {
     const wrap = document.createElement("div");
     wrap.className = "s936-ch-fret-mini";
@@ -580,7 +580,8 @@ window.Studio936SuiteProChart = (() => {
       return wrap;
     }
 
-    const frets = voicingFret.frets;
+    // Invertir el array de cuerdas para que la cuerda 1 (aguda) esté arriba
+    const frets = [...voicingFret.frets].reverse();
     const strings = frets.length;
     const capo = Number(voicingFret.capo) || 0;
 
@@ -690,8 +691,11 @@ window.Studio936SuiteProChart = (() => {
     lbl.textContent = label;
     pop.appendChild(lbl);
 
+    // ─── PREVIEW ────────────────────────────────────────────────────────────
+    // 🔥 PATCH: Asegurar que el preview se vea correctamente
     const preview = document.createElement("div");
     preview.className = "s936-picker-preview";
+    preview.textContent = "—";
     pop.appendChild(preview);
 
     function buildChordName() {
@@ -706,6 +710,7 @@ window.Studio936SuiteProChart = (() => {
       preview.className = "s936-picker-preview" + (name ? " has-chord" : " empty");
     }
 
+    // Roots
     const rootLbl = document.createElement("div");
     rootLbl.className = "s936-picker-label";
     rootLbl.textContent = "Nota";
@@ -789,6 +794,7 @@ window.Studio936SuiteProChart = (() => {
     acts.append(okBtn, delBtn);
     pop.appendChild(acts);
 
+    // Inicializar preview
     refreshPreview();
 
     const doSave = (val) => { overlay.remove(); pop.remove(); onSave(val); };
@@ -842,7 +848,6 @@ window.Studio936SuiteProChart = (() => {
     }
     cell.appendChild(chordRow);
 
-    // ─── VOICING ────────────────────────────────────────────────────────────
     const voicingContainer = document.createElement("div");
     voicingContainer.className = "s936-ch-beat-voicing";
 
@@ -854,14 +859,12 @@ window.Studio936SuiteProChart = (() => {
         const savedVoicing = voicingLibrary?.[inst]?.[nameUpper] || null;
         voicingContainer.appendChild(miniPiano(savedVoicing, chordName));
       } else {
-        // Buscar en librería guardada
         let savedVoicing = voicingLibrary?.[inst]?.[nameUpper];
         let fretVoicing = null;
         
         if (savedVoicing) {
           fretVoicing = savedVoicing;
         } else {
-          // Calcular con la función mejorada
           fretVoicing = calcFretVoicing(chordName, inst);
         }
         voicingContainer.appendChild(miniFret(fretVoicing));
@@ -1008,7 +1011,6 @@ window.Studio936SuiteProChart = (() => {
       prepopulate(item.section, chords);
       let beatsData = getBeatsData(item.section);
 
-      // PATCH: Herencia de acordes
       if (Object.keys(beatsData).length === 0 && chords.length > 0) {
         beatsData = {};
         chords.forEach((chord, idx) => {
