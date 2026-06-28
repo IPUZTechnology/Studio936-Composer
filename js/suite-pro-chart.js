@@ -1,8 +1,10 @@
-// Studio 936 Composer - Chart View v1.5.9 (FIXED PREVIEW + BEAT)
+// Studio 936 Composer - Chart View v2.0.0 (INTERACTIVE VOICING EDITOR)
+// 🎸 Click en el mástil → pone dedos → detecta acorde automáticamente
+// 🎹 Click en teclas del piano → arma acorde → detecta automáticamente
 window.Studio936SuiteProChart = (() => {
   "use strict";
-  const VERSION = "chart-v1.5.9";
-  const STYLE_ID = "s936-chart-v159";
+  const VERSION = "chart-v2.0.0";
+  const STYLE_ID = "s936-chart-v200";
 
   const INSTRUMENTS = [
     { id: "piano",   label: "Piano" },
@@ -16,6 +18,160 @@ window.Studio936SuiteProChart = (() => {
   let _activeBarEl = null;
   let _playbackInterval = null;
   let _currentPlaybackPos = null;
+
+  // ─── MAPAS DE NOTAS PARA INSTRUMENTOS ──────────────────────────────────
+  const FRETBOARD_CONFIG = {
+    guitar: {
+      strings: ['E4', 'B3', 'G3', 'D3', 'A2', 'E2'],
+      open: [64, 59, 55, 50, 45, 40],
+      frets: 15,
+      label: 'Guitarra'
+    },
+    ukulele: {
+      strings: ['A4', 'E4', 'C4', 'G4'],
+      open: [69, 64, 60, 67],
+      frets: 12,
+      label: 'Ukulele'
+    },
+    bass: {
+      strings: ['G2', 'D2', 'A1', 'E1'],
+      open: [43, 38, 33, 28],
+      frets: 12,
+      label: 'Bajo'
+    }
+  };
+
+  const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+  function midiToNote(midi) {
+    const octave = Math.floor(midi / 12) - 1;
+    const note = NOTE_NAMES[midi % 12];
+    return note + octave;
+  }
+
+  function noteToMidi(note) {
+    const m = note.match(/^([A-G][#b]?)(\d+)$/);
+    if (!m) return null;
+    const octave = parseInt(m[2]);
+    const noteIndex = NOTE_NAMES.indexOf(m[1]);
+    if (noteIndex === -1) return null;
+    return (octave + 1) * 12 + noteIndex;
+  }
+
+  // ─── DETECCIÓN DE ACORDES ──────────────────────────────────────────────
+  function detectChordFromFrets(frets, inst) {
+    if (!frets || frets.length === 0) return null;
+    
+    const config = FRETBOARD_CONFIG[inst];
+    if (!config) return null;
+    
+    // Obtener notas de cada cuerda
+    const notes = frets.map((fret, i) => {
+      if (fret === null || fret === 'X' || fret === undefined) return null;
+      const midi = config.open[i] + fret;
+      return midiToNote(midi);
+    }).filter(n => n !== null);
+    
+    if (notes.length === 0) return null;
+    
+    // Intentar con MusicTheory si existe
+    const MT = window.Studio936MusicTheory;
+    if (MT?.detectChord) {
+      try {
+        const result = MT.detectChord(notes);
+        if (result) return result;
+      } catch(_) {}
+    }
+    
+    // Fallback: detectar nota más grave como raíz
+    const rootNote = notes[0];
+    const rootMatch = rootNote.match(/^([A-G][#b]?)/);
+    if (!rootMatch) return null;
+    
+    const root = rootMatch[1];
+    
+    // Detectar calidad básica
+    const hasThird = notes.some(n => {
+      const midi = noteToMidi(n);
+      if (!midi) return false;
+      const rootMidi = noteToMidi(root + '4');
+      if (!rootMidi) return false;
+      const diff = ((midi - rootMidi) % 12 + 12) % 12;
+      return diff === 4 || diff === 3;
+    });
+    
+    const hasSeventh = notes.some(n => {
+      const midi = noteToMidi(n);
+      if (!midi) return false;
+      const rootMidi = noteToMidi(root + '4');
+      if (!rootMidi) return false;
+      const diff = ((midi - rootMidi) % 12 + 12) % 12;
+      return diff === 10 || diff === 11;
+    });
+    
+    let chord = root;
+    if (notes.length === 1) {
+      return root;
+    } else if (notes.length === 2) {
+      return root + '5';
+    } else if (notes.length >= 3) {
+      // Determinar si es mayor o menor
+      const hasMinorThird = notes.some(n => {
+        const midi = noteToMidi(n);
+        if (!midi) return false;
+        const rootMidi = noteToMidi(root + '4');
+        if (!rootMidi) return false;
+        const diff = ((midi - rootMidi) % 12 + 12) % 12;
+        return diff === 3;
+      });
+      
+      if (hasMinorThird) {
+        chord = root + 'm';
+      }
+      
+      if (hasSeventh) {
+        chord += hasMinorThird ? '7' : 'maj7';
+      }
+    }
+    
+    return chord;
+  }
+
+  function detectChordFromNotes(midis) {
+    if (!midis || midis.length === 0) return null;
+    
+    const notes = midis.map(m => midiToNote(m));
+    if (notes.length === 0) return null;
+    
+    const MT = window.Studio936MusicTheory;
+    if (MT?.detectChord) {
+      try {
+        const result = MT.detectChord(notes);
+        if (result) return result;
+      } catch(_) {}
+    }
+    
+    // Fallback: nota más grave como raíz
+    const sorted = [...midis].sort((a, b) => a - b);
+    const rootMidi = sorted[0];
+    const root = midiToNote(rootMidi).replace(/\d+$/, '');
+    
+    const intervals = sorted.map(m => ((m - rootMidi) % 12 + 12) % 12);
+    const hasThird = intervals.some(i => i === 4 || i === 3);
+    const hasSeventh = intervals.some(i => i === 10 || i === 11);
+    const hasMinorThird = intervals.some(i => i === 3);
+    
+    let chord = root;
+    if (midis.length === 1) {
+      return root;
+    } else if (midis.length === 2) {
+      return root + '5';
+    } else if (midis.length >= 3) {
+      if (hasMinorThird) chord = root + 'm';
+      if (hasSeventh) chord += hasMinorThird ? '7' : 'maj7';
+    }
+    return chord;
+  }
 
   // ─── ESTILOS ──────────────────────────────────────────────────────────────
   function installStyles() {
@@ -106,6 +262,17 @@ window.Studio936SuiteProChart = (() => {
   background:rgba(0,255,204,.25)!important;
   border-color:rgba(0,255,204,.8)!important;
   box-shadow:0 0 20px rgba(0,255,204,.3);
+}
+.s936-ch-beat .voicing-editor-hint{
+  font-size:.35rem;
+  color:rgba(255,255,255,.2);
+  text-align:center;
+  margin-top:2px;
+  opacity:0;
+  transition:opacity .2s;
+}
+.s936-ch-beat:hover .voicing-editor-hint{
+  opacity:1;
 }
 
 .s936-ch-beat-num{
@@ -288,9 +455,478 @@ window.Studio936SuiteProChart = (() => {
   z-index:9998;
 }
 
+/* ─── EDITOR DE VOICING (POPUP GRANDE) ─── */
+.s936-voicing-editor{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  background:#0a0e18;
+  border:2px solid rgba(0,255,204,.5);
+  border-radius:16px;
+  padding:20px;
+  z-index:10000;
+  min-width:340px;
+  max-width:500px;
+  width:90%;
+  box-shadow:0 20px 60px rgba(0,0,0,.95);
+}
+.s936-voicing-editor-title{
+  color:#00ffcc;
+  font-weight:900;
+  font-size:.9rem;
+  margin-bottom:12px;
+  text-align:center;
+  letter-spacing:.5px;
+}
+.s936-voicing-editor-subtitle{
+  color:rgba(255,255,255,.3);
+  font-size:.5rem;
+  text-align:center;
+  margin-bottom:12px;
+}
+.s936-voicing-editor-container{
+  width:100%;
+  min-height:160px;
+  background:rgba(255,255,255,.03);
+  border-radius:8px;
+  padding:8px;
+  border:1px solid rgba(255,255,255,.06);
+}
+.s936-voicing-editor-actions{
+  display:flex;
+  gap:8px;
+  margin-top:14px;
+}
+.s936-voicing-editor-apply{
+  flex:1;
+  background:rgba(0,255,204,.18);
+  border:1px solid rgba(0,255,204,.4);
+  border-radius:8px;
+  color:#bfffee;
+  padding:10px;
+  cursor:pointer;
+  font-weight:700;
+  font-size:.7rem;
+  transition:all .2s;
+}
+.s936-voicing-editor-apply:hover{
+  background:rgba(0,255,204,.3);
+  box-shadow:0 0 20px rgba(0,255,204,.2);
+}
+.s936-voicing-editor-cancel{
+  background:rgba(255,80,80,.1);
+  border:1px solid rgba(255,80,80,.3);
+  border-radius:8px;
+  color:#ff8080;
+  padding:10px 18px;
+  cursor:pointer;
+  font-weight:700;
+  font-size:.7rem;
+  transition:all .2s;
+}
+.s936-voicing-editor-cancel:hover{
+  background:rgba(255,80,80,.2);
+}
+.s936-voicing-editor-detected{
+  text-align:center;
+  padding:6px;
+  margin-top:8px;
+  border-radius:4px;
+  background:rgba(0,255,204,.06);
+  color:rgba(255,255,255,.4);
+  font-size:.6rem;
+}
+
+/* ─── FRETBOARD INTERACTIVO SVG ─── */
+.s936-fretboard-svg{
+  width:100%;
+  height:auto;
+  cursor:pointer;
+  border-radius:4px;
+}
+.s936-fretboard-svg .fret-dot{
+  transition:all .15s;
+}
+.s936-fretboard-svg .fret-dot:hover{
+  r:8;
+  filter:brightness(1.3);
+}
+.s936-fretboard-svg .fret-string{
+  transition:all .1s;
+}
+.s936-fretboard-svg .fret-line{
+  transition:all .1s;
+}
+
+/* ─── PIANO INTERACTIVO ─── */
+.s936-piano-interactive{
+  display:flex;
+  height:60px;
+  position:relative;
+  background:#111;
+  border-radius:6px;
+  overflow:hidden;
+  width:100%;
+  border:1px solid rgba(255,255,255,.1);
+}
+.s936-piano-interactive .piano-key{
+  position:absolute;
+  top:0;
+  bottom:0;
+  cursor:pointer;
+  transition:all .1s;
+  border-radius:0 0 3px 3px;
+}
+.s936-piano-interactive .piano-key.white{
+  background:linear-gradient(180deg,#f0f0f0,#d0d0d0);
+  border-right:1px solid #999;
+}
+.s936-piano-interactive .piano-key.white.active{
+  background:linear-gradient(180deg,#00ffcc,#00ccaa);
+  box-shadow:0 0 20px rgba(0,255,204,.4);
+}
+.s936-piano-interactive .piano-key.black{
+  background:linear-gradient(180deg,#333,#111);
+  border:1px solid #444;
+  border-top:none;
+  z-index:2;
+}
+.s936-piano-interactive .piano-key.black.active{
+  background:linear-gradient(180deg,#00ffcc,#009988);
+  box-shadow:0 0 20px rgba(0,255,204,.4);
+}
+.s936-piano-interactive .piano-key:hover{
+  filter:brightness(1.15);
+}
+
 .s936-ch-dblbar{height:3px;margin-top:2px;background:linear-gradient(to right,rgba(255,255,255,.15) 0,rgba(255,255,255,.15) calc(100% - 4px),rgba(255,255,255,.5) calc(100% - 4px),rgba(255,255,255,.5) 100%)}
     `;
     document.head.appendChild(s);
+  }
+
+  // ─── RENDER FRETBOARD INTERACTIVO ──────────────────────────────────────
+  function renderInteractiveFretboard(container, inst, currentFrets, onFretChange) {
+    const config = FRETBOARD_CONFIG[inst];
+    if (!config) return null;
+    
+    const strings = config.strings.length;
+    const maxFrets = config.frets;
+    
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', `0 0 ${maxFrets * 22 + 50} ${strings * 28 + 20}`);
+    svg.setAttribute('class', 's936-fretboard-svg');
+    svg.style.width = '100%';
+    svg.style.height = 'auto';
+    svg.style.cursor = 'pointer';
+    
+    // Fondo
+    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bg.setAttribute('width', maxFrets * 22 + 50);
+    bg.setAttribute('height', strings * 28 + 20);
+    bg.setAttribute('fill', 'rgba(60,40,20,0.15)');
+    bg.setAttribute('rx', '4');
+    svg.appendChild(bg);
+    
+    // Cuerdas
+    for (let s = 0; s < strings; s++) {
+      const y = s * 28 + 18;
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', '35');
+      line.setAttribute('y1', y);
+      line.setAttribute('x2', maxFrets * 22 + 35);
+      line.setAttribute('y2', y);
+      const width = s === 0 ? '2.5' : (s === strings - 1 ? '1.5' : '2');
+      line.setAttribute('stroke', `rgba(200,180,150,${s === 0 ? '0.5' : '0.3'})`);
+      line.setAttribute('stroke-width', width);
+      line.setAttribute('class', 'fret-string');
+      svg.appendChild(line);
+    }
+    
+    // Trastes (verticales)
+    for (let f = 0; f <= maxFrets; f++) {
+      const x = f * 22 + 35;
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x);
+      line.setAttribute('y1', '8');
+      line.setAttribute('x2', x);
+      line.setAttribute('y2', strings * 28 + 12);
+      line.setAttribute('stroke', f === 0 ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)');
+      line.setAttribute('stroke-width', f === 0 ? '2' : '0.8');
+      line.setAttribute('class', 'fret-line');
+      svg.appendChild(line);
+      
+      // Número de traste (cada 2 trastes)
+      if (f > 0 && f % 2 === 0) {
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', x);
+        label.setAttribute('y', strings * 28 + 16);
+        label.setAttribute('fill', 'rgba(255,255,255,0.12)');
+        label.setAttribute('font-size', '6');
+        label.setAttribute('text-anchor', 'middle');
+        label.textContent = f;
+        svg.appendChild(label);
+      }
+    }
+    
+    // Dots actuales
+    const dotGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    dotGroup.setAttribute('class', 'dot-group');
+    
+    currentFrets.forEach((fret, s) => {
+      if (fret === null || fret === 'X' || fret === undefined) return;
+      const x = fret * 22 + 35;
+      const y = s * 28 + 18;
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dot.setAttribute('cx', x);
+      dot.setAttribute('cy', y);
+      dot.setAttribute('r', '7');
+      dot.setAttribute('fill', '#00ffcc');
+      dot.setAttribute('opacity', '0.9');
+      dot.setAttribute('class', 'fret-dot');
+      dot.dataset.string = s;
+      dot.dataset.fret = fret;
+      dotGroup.appendChild(dot);
+      
+      // Sombra del dot
+      const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      glow.setAttribute('cx', x);
+      glow.setAttribute('cy', y);
+      glow.setAttribute('r', '12');
+      glow.setAttribute('fill', 'rgba(0,255,204,0.15)');
+      glow.setAttribute('class', 'fret-glow');
+      dotGroup.appendChild(glow);
+    });
+    svg.appendChild(dotGroup);
+    
+    // Evento click
+    svg.addEventListener('click', (e) => {
+      const rect = svg.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width * (maxFrets * 22 + 50);
+      const y = (e.clientY - rect.top) / rect.height * (strings * 28 + 20);
+      
+      const stringIndex = Math.round((y - 18) / 28);
+      const fretIndex = Math.round((x - 35) / 22);
+      
+      if (stringIndex >= 0 && stringIndex < strings && fretIndex >= 0 && fretIndex <= maxFrets) {
+        const newFrets = [...currentFrets];
+        if (newFrets[stringIndex] === fretIndex) {
+          newFrets[stringIndex] = null;
+        } else {
+          newFrets[stringIndex] = fretIndex;
+        }
+        onFretChange(newFrets);
+      }
+    });
+    
+    container.appendChild(svg);
+    return svg;
+  }
+
+  // ─── RENDER PIANO INTERACTIVO ──────────────────────────────────────────
+  function renderInteractivePiano(container, currentNotes, onNoteToggle) {
+    const piano = document.createElement('div');
+    piano.className = 's936-piano-interactive';
+    
+    const WHITE_KEYS = [0, 2, 4, 5, 7, 9, 11];
+    const BLACK_KEYS = [1, 3, 6, 8, 10];
+    const startMidi = 48; // C3
+    const endMidi = 72; // C5 (2 octavas)
+    const totalKeys = endMidi - startMidi;
+    
+    const whiteWidth = 100 / 7;
+    
+    // Teclas blancas
+    let whiteIndex = 0;
+    for (let midi = startMidi; midi < endMidi; midi++) {
+      const pc = midi % 12;
+      if (WHITE_KEYS.includes(pc)) {
+        const key = document.createElement('div');
+        key.className = 'piano-key white';
+        const left = (whiteIndex / 7) * 100;
+        key.style.cssText = `left:${left}%;width:${whiteWidth}%;`;
+        key.dataset.midi = midi;
+        if (currentNotes.includes(midi)) {
+          key.classList.add('active');
+        }
+        key.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const midiVal = parseInt(key.dataset.midi);
+          onNoteToggle(midiVal);
+        });
+        piano.appendChild(key);
+        whiteIndex++;
+      }
+    }
+    
+    // Teclas negras
+    let blackIndex = 0;
+    for (let midi = startMidi; midi < endMidi; midi++) {
+      const pc = midi % 12;
+      if (BLACK_KEYS.includes(pc)) {
+        const key = document.createElement('div');
+        key.className = 'piano-key black';
+        const position = (blackIndex + 1) / 7 * 100;
+        key.style.cssText = `left:${position - 6}%;width:12%;height:55%;top:0;`;
+        key.dataset.midi = midi;
+        if (currentNotes.includes(midi)) {
+          key.classList.add('active');
+        }
+        key.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const midiVal = parseInt(key.dataset.midi);
+          onNoteToggle(midiVal);
+        });
+        piano.appendChild(key);
+        blackIndex++;
+      }
+    }
+    
+    container.appendChild(piano);
+    return piano;
+  }
+
+  // ─── ABRIR EDITOR DE VOICING ────────────────────────────────────────────
+  function openVoicingEditor(cell, sectionKey, barIndex, beatIndex, beatVal, inst, onRerender) {
+    // Cerrar popups existentes
+    document.querySelectorAll('.s936-voicing-editor').forEach(el => el.remove());
+    document.querySelectorAll('#s936-voicing-overlay').forEach(el => el.remove());
+    
+    // Overlay
+    const overlay = document.createElement('div');
+    overlay.id = 's936-voicing-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);';
+    overlay.onclick = () => { overlay.remove(); editor.remove(); };
+    
+    // Editor
+    const editor = document.createElement('div');
+    editor.className = 's936-voicing-editor';
+    
+    // Título
+    const title = document.createElement('div');
+    title.className = 's936-voicing-editor-title';
+    title.textContent = `🎸 Editar voicing · ${inst.toUpperCase()}`;
+    editor.appendChild(title);
+    
+    // Subtítulo
+    const subtitle = document.createElement('div');
+    subtitle.className = 's936-voicing-editor-subtitle';
+    subtitle.textContent = 'Click en el mástil para poner/quitar dedos · Click derecho para quitar';
+    editor.appendChild(subtitle);
+    
+    // Contenedor del instrumento
+    const editorContainer = document.createElement('div');
+    editorContainer.className = 's936-voicing-editor-container';
+    editor.appendChild(editorContainer);
+    
+    // Detected chord
+    const detectedDisplay = document.createElement('div');
+    detectedDisplay.className = 's936-voicing-editor-detected';
+    detectedDisplay.textContent = '🎵 Acorde detectado: —';
+    editor.appendChild(detectedDisplay);
+    
+    // Estado
+    let currentFrets = [];
+    let currentNotes = [];
+    let isPiano = inst === 'piano';
+    
+    // Inicializar según instrumento
+    if (isPiano) {
+      // Piano: 2 octavas desde C3
+      currentNotes = [];
+      renderInteractivePiano(editorContainer, currentNotes, (midi) => {
+        const index = currentNotes.indexOf(midi);
+        if (index > -1) {
+          currentNotes.splice(index, 1);
+        } else {
+          currentNotes.push(midi);
+        }
+        // Actualizar visual (re-renderizar)
+        editorContainer.innerHTML = '';
+        renderInteractivePiano(editorContainer, currentNotes, arguments.callee);
+        // Detectar acorde
+        const chord = detectChordFromNotes(currentNotes);
+        if (chord) {
+          detectedDisplay.textContent = `🎵 Acorde detectado: ${chord}`;
+          detectedDisplay.style.color = '#00ffcc';
+        } else {
+          detectedDisplay.textContent = `🎵 Acorde detectado: — (${currentNotes.length} notas)`;
+          detectedDisplay.style.color = 'rgba(255,255,255,.4)';
+        }
+      });
+    } else {
+      // Cuerdas: inicializar con null
+      const stringCount = inst === 'guitar' ? 6 : 4;
+      currentFrets = new Array(stringCount).fill(null);
+      
+      // Si hay un acorde existente, intentar cargar sus notas
+      if (beatVal) {
+        // Intentar calcular posiciones aproximadas
+        const parsed = parseChord(beatVal);
+        if (parsed) {
+          // Cargar shape básico si existe
+          const shape = calcFretVoicing(parsed.root + parsed.qual, inst);
+          if (shape && shape.frets) {
+            currentFrets = shape.frets.slice(0, stringCount);
+            // Asegurar que tenga la longitud correcta
+            while (currentFrets.length < stringCount) currentFrets.push(null);
+          }
+        }
+      }
+      
+      renderInteractiveFretboard(editorContainer, inst, currentFrets, (newFrets) => {
+        currentFrets = newFrets;
+        // Actualizar visual
+        editorContainer.innerHTML = '';
+        renderInteractiveFretboard(editorContainer, inst, currentFrets, arguments.callee);
+        // Detectar acorde
+        const chord = detectChordFromFrets(currentFrets, inst);
+        if (chord) {
+          detectedDisplay.textContent = `🎵 Acorde detectado: ${chord}`;
+          detectedDisplay.style.color = '#00ffcc';
+        } else {
+          const validNotes = currentFrets.filter(f => f !== null && f !== 'X').length;
+          detectedDisplay.textContent = `🎵 Acorde detectado: — (${validNotes} notas)`;
+          detectedDisplay.style.color = 'rgba(255,255,255,.4)';
+        }
+      });
+    }
+    
+    // Botones
+    const actions = document.createElement('div');
+    actions.className = 's936-voicing-editor-actions';
+    
+    const applyBtn = document.createElement('button');
+    applyBtn.className = 's936-voicing-editor-apply';
+    applyBtn.textContent = '✓ Aplicar acorde al beat';
+    applyBtn.onclick = () => {
+      let chordName = '';
+      if (isPiano) {
+        chordName = detectChordFromNotes(currentNotes);
+      } else {
+        chordName = detectChordFromFrets(currentFrets, inst);
+      }
+      if (chordName) {
+        saveBeat(sectionKey, barIndex, beatIndex, chordName);
+        overlay.remove();
+        editor.remove();
+        onRerender();
+      } else {
+        detectedDisplay.textContent = '⚠️ No se pudo detectar un acorde válido';
+        detectedDisplay.style.color = '#ff8080';
+      }
+    };
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 's936-voicing-editor-cancel';
+    cancelBtn.textContent = '✕ Cancelar';
+    cancelBtn.onclick = () => { overlay.remove(); editor.remove(); };
+    
+    actions.append(applyBtn, cancelBtn);
+    editor.appendChild(actions);
+    
+    document.body.appendChild(overlay);
+    document.body.appendChild(editor);
   }
 
   // ─── DATOS ────────────────────────────────────────────────────────────────
@@ -650,14 +1286,15 @@ window.Studio936SuiteProChart = (() => {
     return wrap;
   }
 
-  // ─── POPUP CON PREVIEW FUNCIONAL ────────────────────────────────────────
+  // ─── POPUP CON PREVIEW ──────────────────────────────────────────────────
   function closePopups() {
     document.querySelectorAll(".s936-ch-pop").forEach(p => p.remove());
+    document.querySelectorAll(".s936-voicing-editor").forEach(p => p.remove());
+    document.querySelectorAll("#s936-voicing-overlay").forEach(p => p.remove());
     const ov = document.getElementById("s936-ch-pop-overlay");
     if (ov) ov.remove();
   }
 
-  // 🔥 PATCH: Preview del acorde FUNCIONAL
   function showBeatPop(targetEl, label, currentVal, onSave) {
     closePopups();
 
@@ -709,19 +1346,10 @@ window.Studio936SuiteProChart = (() => {
     lbl.textContent = label;
     pop.appendChild(lbl);
 
-    // ─── PREVIEW ──────────────────────────────────────────────────────────
-    // 🔥 CRÍTICO: El preview se crea y se muestra inmediatamente
     const preview = document.createElement("div");
     preview.className = "s936-picker-preview";
-    
-    // Mostrar el valor actual o "—"
-    if (currentVal) {
-      preview.textContent = currentVal;
-      preview.className = "s936-picker-preview";
-    } else {
-      preview.textContent = "—";
-      preview.className = "s936-picker-preview empty";
-    }
+    preview.textContent = currentVal || "—";
+    if (!currentVal) preview.classList.add("empty");
     pop.appendChild(preview);
 
     function buildChordName() {
@@ -741,7 +1369,7 @@ window.Studio936SuiteProChart = (() => {
       }
     }
 
-    // ─── ROOTS ─────────────────────────────────────────────────────────────
+    // Roots
     const rootLbl = document.createElement("div");
     rootLbl.className = "s936-picker-label";
     rootLbl.textContent = "Nota";
@@ -766,7 +1394,7 @@ window.Studio936SuiteProChart = (() => {
     });
     pop.appendChild(rootGrid);
 
-    // ─── ACCIDENTALS ─────────────────────────────────────────────────────
+    // Accidentals
     const accLbl = document.createElement("div");
     accLbl.className = "s936-picker-label";
     accLbl.textContent = "Alteración";
@@ -791,7 +1419,7 @@ window.Studio936SuiteProChart = (() => {
     });
     pop.appendChild(accRow);
 
-    // ─── QUALITIES ────────────────────────────────────────────────────────
+    // Qualities
     const qualLbl = document.createElement("div");
     qualLbl.className = "s936-picker-label";
     qualLbl.textContent = "Calidad";
@@ -816,7 +1444,7 @@ window.Studio936SuiteProChart = (() => {
     });
     pop.appendChild(qualGrid);
 
-    // ─── ACTIONS ──────────────────────────────────────────────────────────
+    // Actions
     const acts = document.createElement("div");
     acts.className = "s936-picker-acts";
     const okBtn = document.createElement("button");
@@ -828,7 +1456,6 @@ window.Studio936SuiteProChart = (() => {
     acts.append(okBtn, delBtn);
     pop.appendChild(acts);
 
-    // 🔥 CRÍTICO: Ejecutar refreshPreview para mostrar el acorde inicial
     refreshPreview();
 
     const doSave = (val) => { overlay.remove(); pop.remove(); onSave(val); };
@@ -906,7 +1533,20 @@ window.Studio936SuiteProChart = (() => {
     }
     cell.appendChild(voicingContainer);
 
-    cell.addEventListener("click", e => {
+    // ─── HINT: Doble click para editar voicing ──────────────────────────
+    const hint = document.createElement("div");
+    hint.className = "voicing-editor-hint";
+    hint.textContent = "🖱 Doble click para editar voicing";
+    cell.appendChild(hint);
+
+    // ─── DOBLE CLICK: Abrir editor de voicing ───────────────────────────
+    cell.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      openVoicingEditor(cell, sectionKey, barIndex, beatIndex, beatVal, inst, onRerender);
+    });
+
+    // ─── CLICK SIMPLE: Popup de selección de acorde ─────────────────────
+    cell.addEventListener("click", (e) => {
       e.stopPropagation();
       const label = beatVal ? "Editar acorde" : "Añadir acorde";
       showBeatPop(cell, label + " · Tiempo " + (beatIndex + 1), beatVal, val => {
@@ -1162,14 +1802,12 @@ window.Studio936SuiteProChart = (() => {
       _playbackInterval = null;
     }
     
-    // Buscar el reproductor en diferentes lugares
     const player = window.Studio936Player || window.player || window._player;
     if (!player) {
       console.warn("Studio936: Player no encontrado para sync");
       return;
     }
     
-    // Intentar obtener posición inicial
     try {
       const pos = player.getCurrentPosition?.();
       if (pos) {
@@ -1181,14 +1819,12 @@ window.Studio936SuiteProChart = (() => {
       }
     } catch(e) {}
     
-    // Iniciar intervalo
     _playbackInterval = setInterval(() => {
       try {
         const pos = player.getCurrentPosition?.();
         if (pos) {
           const { section, bar, beat } = pos;
           if (section && bar !== undefined && beat !== undefined) {
-            // Solo actualizar si cambió la posición
             if (!_currentPlaybackPos || 
                 _currentPlaybackPos.section !== section ||
                 _currentPlaybackPos.bar !== bar ||
@@ -1198,10 +1834,8 @@ window.Studio936SuiteProChart = (() => {
             }
           }
         }
-      } catch(e) {
-        // Silenciar errores
-      }
-    }, 150); // 150ms para no saturar
+      } catch(e) {}
+    }, 150);
   }
 
   function stopPlaybackSync() {
@@ -1284,7 +1918,6 @@ window.Studio936SuiteProChart = (() => {
     render({ container: chartEl, instrument: _chartInstrument || edState.instrument, onChordEdit });
     _chartActive = true;
     
-    // Iniciar sync con playback
     setTimeout(startPlaybackSync, 500);
     
     return { ok: true };
@@ -1342,6 +1975,7 @@ window.Studio936SuiteProChart = (() => {
     isActive: () => _chartActive,
     downloadFile,
     startPlaybackSync,
-    stopPlaybackSync
+    stopPlaybackSync,
+    openVoicingEditor
   };
 })();
