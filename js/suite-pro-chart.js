@@ -1,8 +1,8 @@
-// Studio 936 Composer - Chart View v1.5.8 (FIXED - CRITICAL)
+// Studio 936 Composer - Chart View v1.5.9 (FIXED PREVIEW + BEAT)
 window.Studio936SuiteProChart = (() => {
   "use strict";
-  const VERSION = "chart-v1.5.8";
-  const STYLE_ID = "s936-chart-v158";
+  const VERSION = "chart-v1.5.9";
+  const STYLE_ID = "s936-chart-v159";
 
   const INSTRUMENTS = [
     { id: "piano",   label: "Piano" },
@@ -15,6 +15,7 @@ window.Studio936SuiteProChart = (() => {
   let _activeBeatEl = null;
   let _activeBarEl = null;
   let _playbackInterval = null;
+  let _currentPlaybackPos = null;
 
   // ─── ESTILOS ──────────────────────────────────────────────────────────────
   function installStyles() {
@@ -238,25 +239,27 @@ window.Studio936SuiteProChart = (() => {
 }
 .s936-ch-pop label{font-size:.42rem;color:rgba(0,255,204,.6);text-transform:uppercase;letter-spacing:.6px;font-weight:700;display:block;margin-bottom:3px}
 .s936-picker-preview{
-  font-size:1.2rem;
+  font-size:1.4rem;
   font-weight:900;
   color:#00ffcc;
   text-align:center;
-  padding:8px;
-  background:rgba(0,255,204,.1);
+  padding:10px;
+  background:rgba(0,255,204,.12);
   border-radius:6px;
   margin-bottom:8px;
-  min-height:36px;
+  min-height:44px;
   display:flex;
   align-items:center;
   justify-content:center;
-  border:2px solid rgba(0,255,204,.4);
+  border:2px solid rgba(0,255,204,.5);
   letter-spacing:0.5px;
+  text-shadow:0 0 20px rgba(0,255,204,.3);
 }
 .s936-picker-preview.empty{
   color:rgba(255,255,255,.25);
   border-color:rgba(255,255,255,.1);
   background:rgba(255,255,255,.03);
+  text-shadow:none;
 }
 .s936-picker-roots{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px}
 .s936-picker-btn{
@@ -380,58 +383,44 @@ window.Studio936SuiteProChart = (() => {
     return new Set(ints.map(i => ((rootPc + i) % 12 + 12) % 12));
   }
 
-  // ─── VOICINGS CORREGIDOS ──────────────────────────────────────────────────
-  // 🔥 PATCH: Diccionario de acordes para guitarra CORREGIDO
+  // ─── VOICINGS ─────────────────────────────────────────────────────────────
   const GUITAR_SHAPES = {
-    // Mayores
     "C": [null,3,2,0,1,0], "C#": [null,4,3,1,2,1], "Db": [null,4,3,1,2,1],
     "D": [null,null,0,2,3,2], "D#": [null,null,1,3,4,3], "Eb": [null,null,1,3,4,3],
     "E": [0,2,2,1,0,0], "F": [1,3,3,2,1,1], "F#": [2,4,4,3,2,2], "Gb": [2,4,4,3,2,2],
     "G": [3,2,0,0,0,3], "G#": [4,3,1,1,1,4], "Ab": [4,3,1,1,1,4],
     "A": [null,0,2,2,2,0], "A#": [null,1,3,3,3,1], "Bb": [null,1,3,3,3,1],
     "B": [null,2,4,4,4,2],
-    // Menores
     "Cm": [null,3,2,0,1,0], "C#m": [null,4,2,1,2,0], "Dbm": [null,4,2,1,2,0],
     "Dm": [null,null,0,2,3,1], "D#m": [null,null,1,3,4,2], "Ebm": [null,null,1,3,4,2],
     "Em": [0,2,2,0,0,0], "Fm": [1,3,3,1,1,1], "F#m": [2,4,4,2,2,2], "Gbm": [2,4,4,2,2,2],
     "Gm": [3,5,5,3,3,3], "G#m": [4,3,1,1,0,4], "Abm": [4,3,1,1,0,4],
     "Am": [null,0,2,2,1,0], "A#m": [null,1,3,3,2,1], "Bbm": [null,1,3,3,2,1],
     "Bm": [null,2,4,4,3,2],
-    // 7 (Dominante)
     "C7": [null,3,2,3,1,0], "D7": [null,null,0,2,1,2], "E7": [0,2,0,1,0,0],
     "F7": [1,3,1,2,1,1], "G7": [3,2,0,0,0,1], "A7": [null,0,2,0,2,0],
     "B7": [null,2,1,2,0,2],
-    // m7
     "Cm7": [null,3,2,3,1,3], "Dm7": [null,null,0,2,1,1], "Em7": [0,2,0,0,0,0],
     "Fm7": [1,3,1,1,1,1], "Gm7": [3,2,0,0,3,1], "Am7": [null,0,2,0,1,0],
     "Bm7": [null,2,4,2,3,2],
-    // maj7
     "Cmaj7": [null,3,2,0,0,0], "Dmaj7": [null,null,0,2,2,2], "Emaj7": [0,2,1,1,0,0],
     "Fmaj7": [null,null,3,2,1,0], "Gmaj7": [3,2,0,0,0,2], "Amaj7": [null,0,2,1,2,0],
     "Bmaj7": [null,2,4,3,4,2],
-    // Sus
     "Csus2": [null,3,0,0,1,3], "Dsus2": [null,null,0,2,3,0], "Esus2": [0,2,2,0,0,0],
     "Gsus2": [3,0,0,2,3,3], "Asus2": [null,0,2,2,0,0],
     "Csus4": [null,3,3,0,1,1], "Dsus4": [null,null,0,2,3,3], "Esus4": [0,2,2,2,0,0],
     "Gsus4": [3,3,0,0,1,3], "Asus4": [null,0,2,2,3,0],
-    // 6
     "C6": [null,3,2,0,0,0], "D6": [null,null,0,2,0,2], "E6": [0,2,2,1,2,0],
     "G6": [3,2,0,0,0,0], "A6": [null,0,2,2,2,2],
-    // 9
     "C9": [null,3,2,3,3,0], "D9": [null,null,0,2,1,2], "E9": [0,2,0,1,0,2],
     "G9": [3,2,0,0,0,1], "A9": [null,0,2,0,2,0],
-    // m9
     "Cm9": [null,3,2,3,3,3], "Dm9": [null,null,0,2,1,1], "Em9": [0,2,0,0,0,0],
     "Gm9": [3,2,0,0,3,1], "Am9": [null,0,2,0,1,0],
-    // 13
     "C13": [null,3,2,3,1,0], "D13": [null,null,0,2,1,2], "E13": [0,2,0,1,0,0],
     "G13": [3,2,0,0,0,1], "A13": [null,0,2,0,2,0],
-    // add9
     "Cadd9": [null,3,2,0,3,0], "Dadd9": [null,null,0,4,3,0], "Gadd9": [3,0,0,0,3,3],
     "Eadd9": [0,2,2,1,0,0], "Aadd9": [null,0,2,4,2,0],
-    // Dim
     "Cdim": [null,3,2,3,1,3], "Gdim": [3,2,3,0,3,1],
-    // Aug
     "Caug": [null,3,2,1,1,0], "Eaug": [0,3,2,1,0,0], "Gaug": [3,2,1,0,3,0],
   };
 
@@ -461,44 +450,32 @@ window.Studio936SuiteProChart = (() => {
     return frets.map((f, i) => i === best ? f : (f <= 4 ? f : null));
   }
 
-  // 🔥 PATCH: calcFretVoicing CORREGIDO - respeta la raíz exacta
   function calcFretVoicing(chordName, inst) {
     if (!chordName) return null;
     
-    // Extraer la raíz exacta (con sostenido/bemol)
     const rootMatch = chordName.match(/^([A-G][b#]?)/i);
     const root = rootMatch ? rootMatch[1].toUpperCase() : null;
     
-    // Limpiar el nombre para buscar en el diccionario
     let cleanName = String(chordName).toUpperCase().trim().replace(/\s+/g, "");
-    
-    // Si tiene barra, quedarse con la parte del acorde
     if (cleanName.includes('/')) {
       cleanName = cleanName.split('/')[0];
     }
     
-    // Normalizar: MAJ -> MAJ7, MIN -> m, etc.
-    let searchName = cleanName;
-    
-    // Intentar varias formas de buscar
     const searchVariants = [
       cleanName,
       cleanName.replace(/MAJOR/g, 'MAJ7').replace(/MAJ/g, 'MAJ7'),
       cleanName.replace(/MINOR/g, 'm').replace(/MIN/g, 'm'),
-      cleanName.replace(/[0-9]/g, ''), // Sin números (extensión)
-      root, // Solo la raíz
+      cleanName.replace(/[0-9]/g, ''),
+      root,
     ];
     
-    // Para guitarra
     if (inst === "guitar") {
       let shape = null;
       for (const variant of searchVariants) {
         shape = GUITAR_SHAPES[variant];
         if (shape) break;
       }
-      // Si no se encuentra, intentar con la raíz + calidad básica
       if (!shape && root) {
-        // Intentar con la raíz y "m" para menores
         if (cleanName.includes('M') && !cleanName.includes('MAJ7')) {
           shape = GUITAR_SHAPES[root + 'maj7'];
         }
@@ -512,7 +489,6 @@ window.Studio936SuiteProChart = (() => {
           shape = GUITAR_SHAPES[root];
         }
       }
-      // Fallback final: shape por defecto para la raíz
       if (!shape && root) {
         const defaultShapes = {
           'C': [null,3,2,0,1,0], 'C#': [null,4,3,1,2,1], 'Db': [null,4,3,1,2,1],
@@ -527,7 +503,6 @@ window.Studio936SuiteProChart = (() => {
       return shape ? { frets: shape } : null;
     }
     
-    // Ukulele
     if (inst === "ukulele") {
       let shape = null;
       for (const variant of searchVariants) {
@@ -544,7 +519,6 @@ window.Studio936SuiteProChart = (() => {
       return shape ? { frets: shape } : null;
     }
     
-    // Bajo
     if (inst === "bass") {
       const shape = bassShape(chordName);
       return shape ? { frets: shape } : null;
@@ -610,8 +584,7 @@ window.Studio936SuiteProChart = (() => {
     return wrap;
   }
 
-  // ─── MINI FRETBOARD CON NÚMERO DE TRASTE ──────────────────────────────────
-  // 🔥 PATCH: Mostrar número de traste y corregir inversión
+  // ─── MINI FRETBOARD ──────────────────────────────────────────────────────
   function miniFret(voicingFret) {
     const wrap = document.createElement("div");
     wrap.className = "s936-ch-fret-mini";
@@ -620,7 +593,6 @@ window.Studio936SuiteProChart = (() => {
       return wrap;
     }
 
-    // Invertir para que cuerda 1 (aguda) esté arriba
     const frets = [...voicingFret.frets].reverse();
     const strings = frets.length;
     const capo = Number(voicingFret.capo) || 0;
@@ -631,20 +603,17 @@ window.Studio936SuiteProChart = (() => {
     const start = capo > 0 ? capo : (minF > 1 ? minF - 1 : 0);
     const span = Math.max(4, maxF - start + 1);
 
-    // ── Número de traste inicial ──
     const fretLabel = document.createElement("div");
     fretLabel.className = "s936-ch-fret-label";
     fretLabel.textContent = start > 0 ? start : "";
     wrap.appendChild(fretLabel);
 
-    // Capo
     if (capo > 0) {
       const c = document.createElement("div");
       c.className = "s936-ch-capo";
       wrap.appendChild(c);
     }
 
-    // Cuerdas horizontales
     for (let s = 0; s < strings; s++) {
       const el = document.createElement("div");
       el.className = "s936-ch-fs";
@@ -652,7 +621,6 @@ window.Studio936SuiteProChart = (() => {
       wrap.appendChild(el);
     }
 
-    // Trastes verticales
     for (let f = 0; f <= span; f++) {
       const el = document.createElement("div");
       el.className = "s936-ch-ff";
@@ -660,7 +628,6 @@ window.Studio936SuiteProChart = (() => {
       wrap.appendChild(el);
     }
 
-    // Dots y mutes
     frets.forEach((fret, si) => {
       const top = (si + 0.5) / strings * 100;
       const strF = String(fret).toUpperCase();
@@ -683,14 +650,14 @@ window.Studio936SuiteProChart = (() => {
     return wrap;
   }
 
-  // ─── POPUP CON PREVIEW ──────────────────────────────────────────────────
+  // ─── POPUP CON PREVIEW FUNCIONAL ────────────────────────────────────────
   function closePopups() {
     document.querySelectorAll(".s936-ch-pop").forEach(p => p.remove());
     const ov = document.getElementById("s936-ch-pop-overlay");
     if (ov) ov.remove();
   }
 
-  // 🔥 PATCH: POPUP con preview FUNCIONAL
+  // 🔥 PATCH: Preview del acorde FUNCIONAL
   function showBeatPop(targetEl, label, currentVal, onSave) {
     closePopups();
 
@@ -743,10 +710,18 @@ window.Studio936SuiteProChart = (() => {
     pop.appendChild(lbl);
 
     // ─── PREVIEW ──────────────────────────────────────────────────────────
+    // 🔥 CRÍTICO: El preview se crea y se muestra inmediatamente
     const preview = document.createElement("div");
     preview.className = "s936-picker-preview";
-    preview.textContent = currentVal || "—";
-    if (!currentVal) preview.classList.add("empty");
+    
+    // Mostrar el valor actual o "—"
+    if (currentVal) {
+      preview.textContent = currentVal;
+      preview.className = "s936-picker-preview";
+    } else {
+      preview.textContent = "—";
+      preview.className = "s936-picker-preview empty";
+    }
     pop.appendChild(preview);
 
     function buildChordName() {
@@ -853,7 +828,7 @@ window.Studio936SuiteProChart = (() => {
     acts.append(okBtn, delBtn);
     pop.appendChild(acts);
 
-    // Inicializar preview
+    // 🔥 CRÍTICO: Ejecutar refreshPreview para mostrar el acorde inicial
     refreshPreview();
 
     const doSave = (val) => { overlay.remove(); pop.remove(); onSave(val); };
@@ -1180,24 +1155,53 @@ window.Studio936SuiteProChart = (() => {
     }
   }
 
-  // ─── SYNC CON PLAYBACK ──────────────────────────────────────────────────
+  // ─── PLAYBACK SYNC ──────────────────────────────────────────────────────
   function startPlaybackSync() {
-    if (_playbackInterval) clearInterval(_playbackInterval);
+    if (_playbackInterval) {
+      clearInterval(_playbackInterval);
+      _playbackInterval = null;
+    }
     
-    // Escuchar eventos del reproductor
-    const player = window.Studio936Player;
-    if (!player) return;
+    // Buscar el reproductor en diferentes lugares
+    const player = window.Studio936Player || window.player || window._player;
+    if (!player) {
+      console.warn("Studio936: Player no encontrado para sync");
+      return;
+    }
     
-    // Cada 100ms verificar posición
-    _playbackInterval = setInterval(() => {
+    // Intentar obtener posición inicial
+    try {
       const pos = player.getCurrentPosition?.();
       if (pos) {
+        _currentPlaybackPos = pos;
         const { section, bar, beat } = pos;
         if (section && bar !== undefined && beat !== undefined) {
           highlightBeat(section, bar, beat);
         }
       }
-    }, 100);
+    } catch(e) {}
+    
+    // Iniciar intervalo
+    _playbackInterval = setInterval(() => {
+      try {
+        const pos = player.getCurrentPosition?.();
+        if (pos) {
+          const { section, bar, beat } = pos;
+          if (section && bar !== undefined && beat !== undefined) {
+            // Solo actualizar si cambió la posición
+            if (!_currentPlaybackPos || 
+                _currentPlaybackPos.section !== section ||
+                _currentPlaybackPos.bar !== bar ||
+                _currentPlaybackPos.beat !== beat) {
+              _currentPlaybackPos = pos;
+              highlightBeat(section, bar, beat);
+            }
+          }
+        }
+      } catch(e) {
+        // Silenciar errores
+      }
+    }, 150); // 150ms para no saturar
   }
 
   function stopPlaybackSync() {
@@ -1205,6 +1209,7 @@ window.Studio936SuiteProChart = (() => {
       clearInterval(_playbackInterval);
       _playbackInterval = null;
     }
+    _currentPlaybackPos = null;
   }
 
   // ─── MOUNT / UNMOUNT ─────────────────────────────────────────────────────
@@ -1280,7 +1285,7 @@ window.Studio936SuiteProChart = (() => {
     _chartActive = true;
     
     // Iniciar sync con playback
-    startPlaybackSync();
+    setTimeout(startPlaybackSync, 500);
     
     return { ok: true };
   }
