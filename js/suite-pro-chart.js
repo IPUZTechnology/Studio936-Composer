@@ -1,7 +1,6 @@
 // Studio 936 Composer - Chart View v2.0.0 (INTERACTIVE VOICING EDITOR)
 // 🎸 Click en el mástil → pone dedos → detecta acorde automáticamente
 // 🎹 Click en teclas del piano → arma acorde → detecta automáticamente
-// 📌 INSTRUCCIONES: Doble click en cualquier beat para abrir el editor
 window.Studio936SuiteProChart = (() => {
   "use strict";
   const VERSION = "chart-v2.0.0";
@@ -617,6 +616,7 @@ window.Studio936SuiteProChart = (() => {
       const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       line.setAttribute('x1', x);
       line.setAttribute('y1', '8');
+      line.setAttribute('y2', x);
       line.setAttribute('y2', strings * 28 + 12);
       line.setAttribute('stroke', f === 0 ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)');
       line.setAttribute('stroke-width', f === 0 ? '2' : '0.8');
