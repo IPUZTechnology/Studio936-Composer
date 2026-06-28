@@ -1,8 +1,8 @@
-// Studio 936 Composer - Chart View v1.5.6 (FIXED)
+// Studio 936 Composer - Chart View v1.5.7 (FIXED PREVIEW)
 window.Studio936SuiteProChart = (() => {
   "use strict";
-  const VERSION = "chart-v1.5.6";
-  const STYLE_ID = "s936-chart-v156";
+  const VERSION = "chart-v1.5.7";
+  const STYLE_ID = "s936-chart-v157";
 
   const INSTRUMENTS = [
     { id: "piano",   label: "Piano" },
@@ -226,21 +226,26 @@ window.Studio936SuiteProChart = (() => {
 }
 .s936-ch-pop label{font-size:.42rem;color:rgba(0,255,204,.6);text-transform:uppercase;letter-spacing:.6px;font-weight:700;display:block;margin-bottom:3px}
 .s936-picker-preview{
-  font-size:1.1rem;
+  font-size:1.2rem;
   font-weight:900;
   color:#00ffcc;
   text-align:center;
-  padding:6px;
-  background:rgba(0,255,204,.08);
-  border-radius:5px;
-  margin-bottom:6px;
-  min-height:32px;
+  padding:8px;
+  background:rgba(0,255,204,.1);
+  border-radius:6px;
+  margin-bottom:8px;
+  min-height:36px;
   display:flex;
   align-items:center;
   justify-content:center;
-  border:1px solid rgba(0,255,204,.3);
+  border:2px solid rgba(0,255,204,.4);
+  letter-spacing:0.5px;
 }
-.s936-picker-preview.empty{color:rgba(255,255,255,.25);border-color:rgba(255,255,255,.1)}
+.s936-picker-preview.empty{
+  color:rgba(255,255,255,.25);
+  border-color:rgba(255,255,255,.1);
+  background:rgba(255,255,255,.03);
+}
 .s936-picker-roots{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px}
 .s936-picker-btn{
   background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);
@@ -571,7 +576,6 @@ window.Studio936SuiteProChart = (() => {
   }
 
   // ─── MINI FRETBOARD ──────────────────────────────────────────────────────
-  // 🔥 PATCH: Invertir cuerdas (de abajo hacia arriba → arriba hacia abajo)
   function miniFret(voicingFret) {
     const wrap = document.createElement("div");
     wrap.className = "s936-ch-fret-mini";
@@ -580,7 +584,6 @@ window.Studio936SuiteProChart = (() => {
       return wrap;
     }
 
-    // Invertir el array de cuerdas para que la cuerda 1 (aguda) esté arriba
     const frets = [...voicingFret.frets].reverse();
     const strings = frets.length;
     const capo = Number(voicingFret.capo) || 0;
@@ -640,6 +643,7 @@ window.Studio936SuiteProChart = (() => {
     if (ov) ov.remove();
   }
 
+  // 🔥 PATCH: POPUP CON PREVIEW FUNCIONAL
   function showBeatPop(targetEl, label, currentVal, onSave) {
     closePopups();
 
@@ -691,8 +695,7 @@ window.Studio936SuiteProChart = (() => {
     lbl.textContent = label;
     pop.appendChild(lbl);
 
-    // ─── PREVIEW ────────────────────────────────────────────────────────────
-    // 🔥 PATCH: Asegurar que el preview se vea correctamente
+    // ─── PREVIEW ──────────────────────────────────────────────────────────
     const preview = document.createElement("div");
     preview.className = "s936-picker-preview";
     preview.textContent = "—";
@@ -706,11 +709,16 @@ window.Studio936SuiteProChart = (() => {
 
     function refreshPreview() {
       const name = buildChordName();
-      preview.textContent = name || "—";
-      preview.className = "s936-picker-preview" + (name ? " has-chord" : " empty");
+      if (name) {
+        preview.textContent = name;
+        preview.className = "s936-picker-preview";
+      } else {
+        preview.textContent = "—";
+        preview.className = "s936-picker-preview empty";
+      }
     }
 
-    // Roots
+    // ─── ROOTS ─────────────────────────────────────────────────────────────
     const rootLbl = document.createElement("div");
     rootLbl.className = "s936-picker-label";
     rootLbl.textContent = "Nota";
@@ -735,6 +743,7 @@ window.Studio936SuiteProChart = (() => {
     });
     pop.appendChild(rootGrid);
 
+    // ─── ACCIDENTALS ─────────────────────────────────────────────────────
     const accLbl = document.createElement("div");
     accLbl.className = "s936-picker-label";
     accLbl.textContent = "Alteración";
@@ -759,6 +768,7 @@ window.Studio936SuiteProChart = (() => {
     });
     pop.appendChild(accRow);
 
+    // ─── QUALITIES ────────────────────────────────────────────────────────
     const qualLbl = document.createElement("div");
     qualLbl.className = "s936-picker-label";
     qualLbl.textContent = "Calidad";
@@ -783,6 +793,7 @@ window.Studio936SuiteProChart = (() => {
     });
     pop.appendChild(qualGrid);
 
+    // ─── ACTIONS ──────────────────────────────────────────────────────────
     const acts = document.createElement("div");
     acts.className = "s936-picker-acts";
     const okBtn = document.createElement("button");
@@ -794,7 +805,7 @@ window.Studio936SuiteProChart = (() => {
     acts.append(okBtn, delBtn);
     pop.appendChild(acts);
 
-    // Inicializar preview
+    // Inicializar preview con el valor actual
     refreshPreview();
 
     const doSave = (val) => { overlay.remove(); pop.remove(); onSave(val); };
