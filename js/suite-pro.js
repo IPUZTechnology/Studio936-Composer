@@ -25,6 +25,11 @@
 // reglas CSS viejas (Cambio 39/44) que ponen "#s936SuitePro{overflow-y:
 // auto!important}" — eso le ganaba al overflow:hidden del Cambio 87 por no
 // tener !important. Se agrega !important para que gane definitivamente.
+// Cambio 90 (HOTFIX): la doble barra seguía en modo MAX específicamente —
+// se le agregó overflow:hidden!important también a la regla .is-max (antes
+// solo estaba en el estado normal). Además, se encontraron 4 reglas viejas
+// en structure.js que fijaban el ANCHO del panel con !important sin excluir
+// el modo MAX, impidiendo que se expandiera de verdad al maximizar.
 (function () {
   "use strict";
 
@@ -803,6 +808,12 @@ function normalizeNoteName(value) {
   height: auto;
   max-height: none;
   width: auto;
+  /* Cambio 90: el modo MAX usa top+bottom a la vez (igual patrón que el bug
+     original del Cambio 85), y aunque el overflow:hidden del estado normal
+     debería heredarse, se hace explícito aquí también para no depender de
+     herencia entre selectores — así, ni en modo normal NI en modo MAX el
+     panel exterior puede tener su propio scroll; solo .s936-sp-content. */
+  overflow: hidden !important;
 }
 #${PANEL_ID} * { box-sizing: border-box; }
 #${PANEL_ID} .s936-sp-shell {
@@ -1795,7 +1806,7 @@ function normalizeNoteName(value) {
     // Cambio 88: badge de versión visible — así se puede confirmar de un
     // vistazo, sin DevTools, si el navegador corre esta versión o una
     // anterior en caché. Bump este texto en cada cambio futuro a este archivo.
-    const dockVersionBadge = el("div", "s936-sp-version-badge", "DOCK CAMBIO 89");
+    const dockVersionBadge = el("div", "s936-sp-version-badge", "DOCK CAMBIO 90");
     brand.appendChild(dockVersionBadge);
     const actions = el("div", "s936-sp-header-actions");
 
