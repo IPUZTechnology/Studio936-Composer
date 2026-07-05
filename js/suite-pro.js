@@ -30,6 +30,8 @@
 // solo estaba en el estado normal). Además, se encontraron 4 reglas viejas
 // en structure.js que fijaban el ANCHO del panel con !important sin excluir
 // el modo MAX, impidiendo que se expandiera de verdad al maximizar.
+// Cambio 92: barra de scroll con estilo propio de la consola (teal con
+// brillo dorado sutil), en vez de la gris genérica del navegador.
 (function () {
   "use strict";
 
@@ -923,9 +925,40 @@ function normalizeNoteName(value) {
   min-height: 0;
   overflow: auto;
   padding: 12px;
+  /* Cambio 92: barra de scroll con look de consola en vez de la gris
+     genérica del navegador (Firefox). El estilo real (con brillo) va abajo
+     vía ::-webkit-scrollbar para Chrome/Edge/Safari. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,255,204,.55) rgba(255,255,255,.04);
 }
 #${PANEL_ID}.is-max .s936-sp-content {
   padding: 18px;
+}
+/* Cambio 92 · barra de scroll temática (Chrome/Edge/Safari) — teal con
+   brillo dorado sutil, a tono con la consola, en vez del gris genérico. */
+#${PANEL_ID} .s936-sp-content::-webkit-scrollbar,
+#${PANEL_ID} .s936-struct-arrangement-full::-webkit-scrollbar {
+  width: 9px;
+}
+#${PANEL_ID} .s936-sp-content::-webkit-scrollbar-track,
+#${PANEL_ID} .s936-struct-arrangement-full::-webkit-scrollbar-track {
+  background: rgba(255,255,255,.03);
+  border-radius: 999px;
+}
+#${PANEL_ID} .s936-sp-content::-webkit-scrollbar-thumb,
+#${PANEL_ID} .s936-struct-arrangement-full::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(0,255,204,.75), rgba(255,224,102,.55));
+  box-shadow: 0 0 6px rgba(0,255,204,.45);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+#${PANEL_ID} .s936-sp-content::-webkit-scrollbar-thumb:hover,
+#${PANEL_ID} .s936-struct-arrangement-full::-webkit-scrollbar-thumb:hover {
+  background:
+    linear-gradient(180deg, rgba(0,255,204,.95), rgba(255,224,102,.75));
+  box-shadow: 0 0 10px rgba(0,255,204,.65);
 }
 #${PANEL_ID} .s936-sp-section-title {
   margin: 0 0 5px;
@@ -1806,7 +1839,7 @@ function normalizeNoteName(value) {
     // Cambio 88: badge de versión visible — así se puede confirmar de un
     // vistazo, sin DevTools, si el navegador corre esta versión o una
     // anterior en caché. Bump este texto en cada cambio futuro a este archivo.
-    const dockVersionBadge = el("div", "s936-sp-version-badge", "DOCK CAMBIO 90");
+    const dockVersionBadge = el("div", "s936-sp-version-badge", "DOCK CAMBIO 92");
     brand.appendChild(dockVersionBadge);
     const actions = el("div", "s936-sp-header-actions");
 
