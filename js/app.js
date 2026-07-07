@@ -2007,6 +2007,17 @@ function installStudio936AppBridge(){
             return true;
         }, false);
     }
+    // Cambio 103: el Bridge no tenía getBpm()/getStyle() — el Chart ya los
+    // llamaba (window.Studio936AppBridge?.getBpm?.()), pero como no existían,
+    // caía en silencio a un respaldo de localStorage que puede quedar
+    // desactualizado respecto al estilo/tempo real activo en Main, haciendo
+    // que el Chart tocara el patrón rítmico de OTRO estilo por completo.
+    function getBpm(){
+        return safe(() => Number(project.bpm) || 95, 95);
+    }
+    function getStyle(){
+        return safe(() => String(project.style || ''), '');
+    }
     function getProjectJson(){
         syncProjectFromControls(false);
         syncLyricsFromModal(false);
@@ -2700,7 +2711,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.3.13-cambio96-instrument-key-bpm',
+        version: 'suite-pro-bridge-v0.7.3.14-cambio103-getbpm-getstyle',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -2708,6 +2719,8 @@ function installStudio936AppBridge(){
         setInstrument,
         setKey,
         setBPM: (v) => { setBPM(v); return true; },
+        getBpm,
+        getStyle,
         saveBassLine,
         saveLeadLine,
         saveDrumPattern,
