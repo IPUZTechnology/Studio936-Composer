@@ -2756,6 +2756,47 @@ function installStudio936AppBridge(){
 }
 installStudio936AppBridge();
 
+// Cambio 97: badge de versión visible para app.js/Bridge — hasta ahora era
+// el único de los módulos con lógica activa sin ningún indicador en pantalla,
+// lo que causó dudas sobre si un despliegue realmente había tomado efecto
+// (ver Cambio 96). Bump este texto cada vez que cambie la versión del bridge.
+// Discreto, esquina inferior izquierda, no interfiere con ningún control.
+function installStudio936BridgeBadge(){
+    try {
+        if(document.getElementById('s936BridgeVersionBadge')) return;
+        const badge = document.createElement('div');
+        badge.id = 's936BridgeVersionBadge';
+        badge.textContent = 'BRIDGE CAMBIO 96';
+        badge.title = window.Studio936AppBridge?.version || '';
+        Object.assign(badge.style, {
+            position: 'fixed',
+            left: '8px',
+            bottom: '8px',
+            zIndex: '9999',
+            padding: '2px 7px',
+            borderRadius: '999px',
+            border: '1px solid rgba(0,255,204,.35)',
+            background: 'rgba(10,14,20,.85)',
+            color: '#7dffe0',
+            fontSize: '.56rem',
+            fontWeight: '900',
+            letterSpacing: '.3px',
+            textTransform: 'uppercase',
+            fontFamily: 'inherit',
+            pointerEvents: 'none',
+            userSelect: 'none'
+        });
+        (document.body || document.documentElement).appendChild(badge);
+    } catch(error) {
+        console.warn('No se pudo montar el badge del bridge:', error);
+    }
+}
+if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', installStudio936BridgeBadge);
+} else {
+    installStudio936BridgeBadge();
+}
+
 buildPiano(); buildFretboard(); buildStepGrid(); bind(); renderAll();
 bindFinalMidiExport();
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bindFinalMidiExport);
