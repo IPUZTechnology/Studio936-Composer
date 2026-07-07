@@ -1856,7 +1856,7 @@ function normalizeNoteName(value) {
     // Cambio 88: badge de versión visible — así se puede confirmar de un
     // vistazo, sin DevTools, si el navegador corre esta versión o una
     // anterior en caché. Bump este texto en cada cambio futuro a este archivo.
-    const dockVersionBadge = el("div", "s936-sp-version-badge", "DOCK CAMBIO 95");
+    const dockVersionBadge = el("div", "s936-sp-version-badge", "DOCK CAMBIO 109");
     brand.appendChild(dockVersionBadge);
     const actions = el("div", "s936-sp-header-actions");
 
@@ -3225,8 +3225,19 @@ function normalizeNoteName(value) {
     noise.stop(t + 0.05);
   }
 
+  // Cambio 109: el selector de instrumento (#instrumentSelect) es COMPARTIDO
+  // entre Main y el Chart — si cambias de instrumento mientras editas en el
+  // Chart, ese cambio se queda pegado en Main incluso después de cerrar
+  // Suite Pro (porque es el mismo control, no hay uno "del Chart" aparte).
+  // Se captura el instrumento activo al abrir, y se restaura al cerrar —
+  // así "entrar a editar" nunca deja un efecto secundario permanente en Main.
+  let _instrumentBeforeSuitePro = null;
+
   function open() {
     const panel = ensurePanel();
+    if (!state.open) {
+      try { _instrumentBeforeSuitePro = document.getElementById("instrumentSelect")?.value || null; } catch(_) { _instrumentBeforeSuitePro = null; }
+    }
     state.open = true;
     panel.classList.add("is-open");
     render();
@@ -3239,6 +3250,11 @@ function normalizeNoteName(value) {
     if (panel) panel.classList.remove("is-open");
     // v0.8.5: desmontar chart al cerrar Suite Pro
     try { window.Studio936SuiteProChart?.unmountFromRightPanel?.(); } catch(_) {}
+    // Cambio 109: restaurar el instrumento que estaba activo antes de entrar.
+    if (_instrumentBeforeSuitePro) {
+      try { window.Studio936AppBridge?.setInstrument?.(_instrumentBeforeSuitePro); } catch(_) {}
+      _instrumentBeforeSuitePro = null;
+    }
   }
 
   function toggle() {
