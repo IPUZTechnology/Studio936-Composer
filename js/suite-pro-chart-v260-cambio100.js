@@ -335,6 +335,22 @@ window.Studio936SuiteProChart = (() => {
     }
   }
 
+  // Cambio 104: dispara la batería REAL de Main (mismo kit/patrón por
+  // sección y estilo) para un paso de dieciseisavo (0-15) dentro del
+  // groove de práctica del Chart. Antes de este cambio, el Chart no
+  // tocaba percusión en absoluto.
+  function playEngineDrumStep(sectionKey, step16, offset = 0) {
+    const bridge = window.Studio936AppBridge;
+    if (!hasMainAudioEngine() || typeof bridge?.scheduleDrumStep !== "function") return false;
+    try {
+      bridge.scheduleDrumStep(sectionKey, step16, mainEngineWhen(offset));
+      return true;
+    } catch (error) {
+      console.warn("Studio936 Chart: batería vía Bridge falló", error);
+      return false;
+    }
+  }
+
   function rootMidiForChord(chordName) {
     const m = String(chordName || "").match(/^([A-G][b#]?)/i);
     if (!m) return 36;
@@ -398,6 +414,7 @@ window.Studio936SuiteProChart = (() => {
     for (let sub = 0; sub < 4; sub += 1) {
       const step16 = beatIndex * 4 + sub;
       const offset = sub * sixteenth;
+      playEngineDrumStep(step?.section, step16, offset);
       if (_chartRhythmPulse && sub === 0) playEngineClick(beatIndex === 0, offset);
       if (Array.isArray(rhythm.bass) && rhythm.bass.includes(step16)) {
         const bass = bassPatternMidi(rootBass, chordMidis, step16, styleName);
@@ -5400,7 +5417,7 @@ body.s936-chart-stage main{
     metaEl.className = "s936-ch-meta";
     // Cambio 71 (via Structure): versión visible del Chart, para confirmar de
     // un vistazo si el navegador corre esta versión o una anterior en caché.
-    metaEl.textContent = (edState.style || "") + (edState.bpm ? " · " + edState.bpm + " BPM" : "") + " · " + totalBars + " comp. · CHART CAMBIO 100";
+    metaEl.textContent = (edState.style || "") + (edState.bpm ? " · " + edState.bpm + " BPM" : "") + " · " + totalBars + " comp. · CHART CAMBIO 104";
     const focusNow = readFocusSection();
     if (focusNow?.section) {
       const focusEl = document.createElement("div");
