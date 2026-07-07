@@ -1982,6 +1982,31 @@ function installStudio936AppBridge(){
     function getFullSongText(){
         return projectText();
     }
+    // Cambio 96: setInstrument/setKey — dispara el mismo evento 'change' que ya
+    // maneja toda la lógica existente (surfaces, fretboard, flashStatus, etc.),
+    // en vez de duplicar esa lógica en el bridge. Si el valor no es válido, no
+    // toca nada y retorna false (mismo criterio defensivo que el resto del bridge).
+    function setInstrument(value){
+        return safe(() => {
+            if(!els.instrumentSelect) return false;
+            const id = canonicalInstrumentId(value);
+            const hasOption = !!els.instrumentSelect.querySelector(`option[value="${CSS.escape(id)}"]`);
+            if(!id || !hasOption) return false;
+            els.instrumentSelect.value = id;
+            els.instrumentSelect.dispatchEvent(new Event('change', {bubbles:true}));
+            return true;
+        }, false);
+    }
+    function setKey(value){
+        return safe(() => {
+            if(!els.soloKey) return false;
+            const key = String(value || '').trim();
+            if(!key) return false;
+            els.soloKey.value = key;
+            els.soloKey.dispatchEvent(new Event('change', {bubbles:true}));
+            return true;
+        }, false);
+    }
     function getProjectJson(){
         syncProjectFromControls(false);
         syncLyricsFromModal(false);
@@ -2675,11 +2700,14 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.3.12-chord-visual-fix',
+        version: 'suite-pro-bridge-v0.7.3.13-cambio96-instrument-key-bpm',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
         getEditorState,
+        setInstrument,
+        setKey,
+        setBPM: (v) => { setBPM(v); return true; },
         saveBassLine,
         saveLeadLine,
         saveDrumPattern,
