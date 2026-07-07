@@ -931,6 +931,14 @@ window.Studio936SuiteProChart = (() => {
 
   function startChartRhythmConsole(container, { withPulse = false, scope = "auto", section = "", sourceLabel = "" } = {}) {
     stopChartRhythmConsole({ stopAudio: true, stopBridge: true });
+    // Cambio 101: el Chart y el Main son dos relojes de reproducción
+    // independientes (cada uno con su propio setInterval/rAF). Si Main ya
+    // estaba sonando (arrancado antes de entrar al Chart, sin pasar por el
+    // botón interceptado #playBtn), su transporte seguía corriendo en
+    // paralelo al del Chart — ambos mandando notas al mismo motor de audio
+    // sin coordinarse, produciendo dos ritmos simultáneos. Se detiene el
+    // transporte de Main explícitamente antes de arrancar el del Chart.
+    try { window.Studio936AppBridge?.stopPlayback?.(); } catch(_) {}
     const baseSteps = collectChartRhythmSteps(container);
     if (scope === "song") {
       _chartRhythmSteps = expandSectionRepeatsInSteps(baseSteps).map(step => Object.assign({}, step, { practiceRange: "song" }));
