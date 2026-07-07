@@ -167,6 +167,10 @@ window.Studio936SuiteProChart = (() => {
   let _chartActiveStepEl = null;
   let _chartActiveRepeatEl = null;
   let _chartPracticeBridge = { source: "interno", started: false, harmonySink: false, bpm: 95, style: "" };
+  // Cambio 102: recuerda las opciones de la última sesión de práctica
+  // arrancada con éxito, para poder retomarla automáticamente si un
+  // re-render (ej. cambio de instrumento) la apaga a medio camino.
+  let _lastPracticeStartOptions = null;
 
   function getPopupAudioCtx() {
     const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -736,7 +740,7 @@ window.Studio936SuiteProChart = (() => {
     return sent;
   }
 
-  function stopChartRhythmConsole({ stopAudio = true, stopBridge = true } = {}) {
+  function stopChartRhythmConsole({ stopAudio = true, stopBridge = true, preserveResume = false } = {}) {
     if (_chartRhythmTimer) {
       clearInterval(_chartRhythmTimer);
       _chartRhythmTimer = null;
@@ -756,6 +760,10 @@ window.Studio936SuiteProChart = (() => {
     });
     setMainTransportChartState(false);
     if (stopAudio) stopChartPopupAudio();
+    // Cambio 102: un stop EXPLÍCITO (usuario le da Stop) olvida la sesión;
+    // un stop interno por re-render (preserveResume:true) la conserva para
+    // poder retomarla automáticamente después de redibujar.
+    if (!preserveResume) _lastPracticeStartOptions = null;
   }
 
   // Cambio 100: conversión de una digitación real ({frets:[...]} para
@@ -1013,6 +1021,7 @@ window.Studio936SuiteProChart = (() => {
     runStep();
     const beatMs = Math.max(180, Math.round(60000 / (bridgeState.bpm || getCurrentChartBpm())));
     _chartRhythmTimer = setInterval(runStep, beatMs);
+    _lastPracticeStartOptions = { withPulse, scope, section, sourceLabel };
     return true;
   }
 
@@ -5313,7 +5322,7 @@ body.s936-chart-stage main{
   function render({ container, instrument, onChordEdit } = {}) {
     if (!container) return;
     installStyles();
-    stopChartRhythmConsole({ stopAudio: false, stopBridge: false });
+    stopChartRhythmConsole({ stopAudio: false, stopBridge: false, preserveResume: true });
     // Cambio 5: si el panel todavía no está pegado al DOM, reintentar un ciclo después.
     if (!container.isConnected && !container.dataset.s936ChartDeferred) {
       container.dataset.s936ChartDeferred = "1";
@@ -5546,6 +5555,16 @@ body.s936-chart-stage main{
 
     container.appendChild(body);
     container.addEventListener("click", () => closePopups());
+
+    // Cambio 102: si el redibujado apagó una sesión de práctica que estaba
+    // activa (ej. el usuario cambió de instrumento mientras sonaba), la
+    // retomamos automáticamente sobre el nuevo contenido ya renderizado —
+    // antes esto dejaba el reproductor "frenado" en silencio, sin avisar.
+    if (_lastPracticeStartOptions) {
+      const resumeOptions = _lastPracticeStartOptions;
+      setTimeout(() => { startChartRhythmConsole(container, resumeOptions); }, 0);
+    }
+
     return { ok: true, version: VERSION };
   }
 
