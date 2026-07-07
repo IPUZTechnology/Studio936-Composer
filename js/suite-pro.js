@@ -32,6 +32,10 @@
 // el modo MAX, impidiendo que se expandiera de verdad al maximizar.
 // Cambio 92: barra de scroll con estilo propio de la consola (teal con
 // brillo dorado sutil), en vez de la gris genérica del navegador.
+// Cambio 95: el borde derecho redimensionable (que separa el dock del
+// Chart) ahora tiene un brillo tipo consola (degradado teal/dorado con
+// glow), en vez de una línea plana — visible solo en modo normal; en modo
+// MAX se oculta, ya que ahí no hace falta redimensionar.
 (function () {
   "use strict";
 
@@ -796,6 +800,14 @@ function normalizeNoteName(value) {
      esas reglas viejas seguían ganando y devolvían la segunda barra. */
   overflow: hidden !important;
   width: min(430px, 92vw);
+  /* Cambio 95: borde derecho con brillo tipo consola (en vez de una línea
+     plana/dura) — marca visualmente el límite redimensionable del panel de
+     forma elegante. Solo se ve en modo normal; en modo MAX se oculta (ver
+     regla .is-max más abajo), ya que ahí no hace falta redimensionar. */
+  border-right: 2px solid transparent;
+  border-image: linear-gradient(180deg,
+    transparent, rgba(0,255,204,.55), rgba(255,224,102,.4), rgba(0,255,204,.55), transparent) 1;
+  filter: drop-shadow(0 0 5px rgba(0,255,204,.35));
   z-index: 10060;
   display: none;
   color: #f7fbff;
@@ -816,6 +828,11 @@ function normalizeNoteName(value) {
      herencia entre selectores — así, ni en modo normal NI en modo MAX el
      panel exterior puede tener su propio scroll; solo .s936-sp-content. */
   overflow: hidden !important;
+  /* Cambio 95: se oculta el brillo del borde redimensionable en modo MAX —
+     ahí el panel no se redimensiona a mano, así que ese acento visual no
+     aplica y se vería como un elemento decorativo sin función. */
+  border-right: none;
+  filter: none;
 }
 #${PANEL_ID} * { box-sizing: border-box; }
 #${PANEL_ID} .s936-sp-shell {
@@ -1839,7 +1856,7 @@ function normalizeNoteName(value) {
     // Cambio 88: badge de versión visible — así se puede confirmar de un
     // vistazo, sin DevTools, si el navegador corre esta versión o una
     // anterior en caché. Bump este texto en cada cambio futuro a este archivo.
-    const dockVersionBadge = el("div", "s936-sp-version-badge", "DOCK CAMBIO 92");
+    const dockVersionBadge = el("div", "s936-sp-version-badge", "DOCK CAMBIO 95");
     brand.appendChild(dockVersionBadge);
     const actions = el("div", "s936-sp-header-actions");
 
