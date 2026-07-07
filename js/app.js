@@ -2018,6 +2018,13 @@ function installStudio936AppBridge(){
     function getStyle(){
         return safe(() => String(project.style || ''), '');
     }
+    // Cambio 104: el Chart nunca reproducía batería — su groove de práctica
+    // solo tocaba bajo/acordes/arpegio/click, sin percusión, por eso sonaba
+    // "sin groove" comparado con Main. Este método reutiliza el motor de
+    // batería REAL de Main (mismo kit, mismo patrón por sección/estilo).
+    function scheduleDrumStep(sectionKey, step, when){
+        return safe(() => scheduleSongDrums(String(sectionKey || currentSectionKey()), Number(step) || 0, Number(when) || audioCtx.currentTime) || [], []);
+    }
     function getProjectJson(){
         syncProjectFromControls(false);
         syncLyricsFromModal(false);
@@ -2711,7 +2718,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.3.14-cambio103-getbpm-getstyle',
+        version: 'suite-pro-bridge-v0.7.3.15-cambio104-drums',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -2721,6 +2728,7 @@ function installStudio936AppBridge(){
         setBPM: (v) => { setBPM(v); return true; },
         getBpm,
         getStyle,
+        scheduleDrumStep,
         saveBassLine,
         saveLeadLine,
         saveDrumPattern,
