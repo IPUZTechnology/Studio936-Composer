@@ -3750,6 +3750,13 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     const ed=q('.editor'); if(ed){const p=ed.dataset.uxPanel||'editor'; ed.dataset.uxTitle=p==='structure'?label('structureTitle'):p==='export'?label('exportTitle'):label('editorTitle');}
   }
   function makeBar(){
+    // Cambio 99: la barra "WORKSPACE / ÁREAS" (Estructura/Editor/Letra/Export/
+    // Suite Pro/Ayuda) se apaga a pedido explícito — Suite Pro ya cubre Editor
+    // y Letra/TAB, Exportar/Flow ya lo cubre Suite Pro, y Ayuda se movió a un
+    // botón propio en el header. No se borran las funciones que referencian
+    // #v25UxBar (openPanel, closeEditor, touchSafe, etc.) porque todas ya
+    // hacen `if(!bar) return` — quedan inertes sin riesgo de romper nada.
+    return;
     if($('v25UxBar')) return;
     const status=q('.status-bar'); if(!status) return;
     const bar=document.createElement('section'); bar.id='v25UxBar';
