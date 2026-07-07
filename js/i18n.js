@@ -10,8 +10,8 @@
 
     const texts = {
         es: {
-            toggle:'EN', htmlLang:'es', title:'Piano Composer Songwriter Station v17 - MIDI + Diapasón + Routing + Afinación',
-            version:'v17 · MIDI · Diapasón · Routing · Afinación',
+            toggle:'EN', htmlLang:'es', title:'Studio 936 Composer - MIDI + Diapasón + Routing + Afinación',
+            version:'v25 · MIDI · Diapasón · Routing · Afinación',
             songAria:'Nombre de la canción', authorAria:'Autor de la canción', authorPlaceholder:'Autor / Compositor',
             styleTitle:'Tipo de música', instrumentTitle:'Instrumento guía', sectionTitle:'Sección de la canción',
             labels:{currentSection:'Sección actual', currentChord:'Acorde actual', selectedChord:'Acorde seleccionado', name:'Nombre', bass:'Bajo', chordNotes:'Notas del acorde', bars:'Compases', grooveVol:'Volumen groove', selectedNoteMap:'Mapa de notas de la sección seleccionada', key:'Tonalidad de esta sección', scale:'Escala', melody:'Melodía / solo de esta sección'},
@@ -42,11 +42,11 @@
                 reggae:'Reggae: acordes en off-beat, bajo con mucho espacio y sensación relajada.'
             },
             instrumentGuide:'Instrumento guía',
-            modal:{lyricsTitle:'Letra + TAB de la canción', lyricsNote:'Escribe la letra por sección. El mapa armónico aparece arriba para ubicarte mientras compones.', helpTitle:'Manual completo de Piano Composer Station', helpNote:'Guía práctica para componer, practicar, escuchar, escribir letra, crear solos y guardar una canción completa.'}
+            modal:{lyricsTitle:'Letra + TAB de la canción', lyricsNote:'Escribe la letra por sección. El mapa armónico aparece arriba para ubicarte mientras compones.', helpTitle:'Manual completo de Studio 936 Composer', helpNote:'Guía práctica para componer, practicar, escuchar, escribir letra, crear solos y guardar una canción completa.'}
         },
         en: {
-            toggle:'ES', htmlLang:'en', title:'Piano Composer Songwriter Station v17 - MIDI + Fretboard + Routing + Tuning',
-            version:'v17 · MIDI · Fretboard · Routing · Tuning',
+            toggle:'ES', htmlLang:'en', title:'Studio 936 Composer - MIDI + Fretboard + Routing + Tuning',
+            version:'v25 · MIDI · Fretboard · Routing · Tuning',
             songAria:'Song title', authorAria:'Song author', authorPlaceholder:'Author / Composer',
             styleTitle:'Music style', instrumentTitle:'Guide instrument', sectionTitle:'Song section',
             labels:{currentSection:'Current section', currentChord:'Current chord', selectedChord:'Selected chord', name:'Name', bass:'Bass', chordNotes:'Chord notes', bars:'Bars', grooveVol:'Groove volume', selectedNoteMap:'Note map of selected section', key:'Key of this section', scale:'Scale', melody:'Melody / solo for this section'},
@@ -77,7 +77,7 @@
                 reggae:'Reggae: off-beat chords, spacious bass and relaxed feel.'
             },
             instrumentGuide:'Guide instrument',
-            modal:{lyricsTitle:'Song lyrics + TAB', lyricsNote:'Write lyrics per section. The harmonic map appears above so you can stay oriented while composing.', helpTitle:'Complete Piano Composer Station manual', helpNote:'Practical guide to compose, practice, listen, write lyrics, create solos and save a full song.'}
+            modal:{lyricsTitle:'Song lyrics + TAB', lyricsNote:'Write lyrics per section. The harmonic map appears above so you can stay oriented while composing.', helpTitle:'Complete Studio 936 Composer manual', helpNote:'Practical guide to compose, practice, listen, write lyrics, create solos and save a full song.'}
         }
     };
 
