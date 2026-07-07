@@ -48,12 +48,25 @@ window.Studio936SuiteProChart = (() => {
     return normalizeChartInstrumentId(sel?.value || window.Studio936AppBridge?.getEditorState?.()?.instrument || _chartInstrument || "piano");
   }
 
+  // Cambio 105: el rastreo de "ya conecté esto" vivía en el propio
+  // `container` — pero Suite Pro remonta el panel del Chart en un elemento
+  // NUEVO cada vez que sales y vuelves a entrar (Estructura/Chart), así que
+  // esta función nunca reconocía que ya había una escucha viva y agregaba
+  // otra sobre el selector COMPARTIDO (#instrumentSelect), sin borrar la
+  // anterior. Con el tiempo se acumulaban varias, cada una con su propio
+  // `container` capturado (a veces uno ya viejo/desmontado) — al cambiar de
+  // instrumento, todas disparaban a la vez y competían entre sí (a veces
+  // ganaba una vieja con datos planos, a veces dos arrancaban el reproductor
+  // casi juntas y se pisaban). Ahora el rastreo vive a nivel de módulo: solo
+  // existe UNA escucha viva, siempre apuntando al contenedor más reciente.
+  let _mainInstrumentChangeHandler = null;
+  let _mainInstrumentChangeSelect = null;
+
   function bindMainInstrumentController(container, onChordEdit) {
     const sel = getMainInstrumentSelect();
     if (!container || !sel) return;
-    if (container._s936ChartMainInstrumentSelect === sel && container._s936ChartMainInstrumentHandler) return;
-    if (container._s936ChartMainInstrumentSelect && container._s936ChartMainInstrumentHandler) {
-      try { container._s936ChartMainInstrumentSelect.removeEventListener("change", container._s936ChartMainInstrumentHandler); } catch(_) {}
+    if (_mainInstrumentChangeSelect && _mainInstrumentChangeHandler) {
+      try { _mainInstrumentChangeSelect.removeEventListener("change", _mainInstrumentChangeHandler); } catch(_) {}
     }
     const handler = () => {
       const next = getMainSelectedChartInstrument();
@@ -63,8 +76,8 @@ window.Studio936SuiteProChart = (() => {
       render({ container, instrument: next, onChordEdit });
     };
     sel.addEventListener("change", handler);
-    container._s936ChartMainInstrumentSelect = sel;
-    container._s936ChartMainInstrumentHandler = handler;
+    _mainInstrumentChangeSelect = sel;
+    _mainInstrumentChangeHandler = handler;
   }
 
   let _chartInstrument = localStorage.getItem("s936_chart_inst_v1") || "piano";
@@ -5417,7 +5430,7 @@ body.s936-chart-stage main{
     metaEl.className = "s936-ch-meta";
     // Cambio 71 (via Structure): versión visible del Chart, para confirmar de
     // un vistazo si el navegador corre esta versión o una anterior en caché.
-    metaEl.textContent = (edState.style || "") + (edState.bpm ? " · " + edState.bpm + " BPM" : "") + " · " + totalBars + " comp. · CHART CAMBIO 104";
+    metaEl.textContent = (edState.style || "") + (edState.bpm ? " · " + edState.bpm + " BPM" : "") + " · " + totalBars + " comp. · CHART CAMBIO 105";
     const focusNow = readFocusSection();
     if (focusNow?.section) {
       const focusEl = document.createElement("div");
