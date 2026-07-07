@@ -1290,6 +1290,8 @@ function scheduler(){
 function scheduleStep(time){
     const item = currentItem();
     const section = currentSectionKey();
+    const stepBar0Debug = stepInChord % 16;
+    if(stepBar0Debug === 0) console.log('[S936_AUDIO_DEBUG] SCHEDULER_SOURCE', {source:'main', section, style:project.style, bpm:project.bpm, t:time});
     const stepBar = stepInChord % 16;
     const barNum = Math.floor(stepInChord/16) + 1;
     const st = styles[project.style] || styles.funk;
@@ -1300,7 +1302,26 @@ function scheduleStep(time){
     const rootFifth = [bass, bass+7].filter(n=>n>=24 && n<=84);
     const visualType = {chord:st.chord.includes(stepBar), bass:st.bass.includes(stepBar), ghost:st.ghost.includes(stepBar), solo:false};
 
-    setVisual(time,()=>updateLiveUI(item,stepBar,barNum,visualType));
+    setVisual(time,()=>{
+        updateLiveUI(item,stepBar,barNum,visualType);
+        // Cambio 107: Main avisa su posición real en cada paso — primer
+        // paso hacia "un solo reloj" (Main como única fuente autorizada).
+        // Cualquier módulo (Chart, karaoke, lo que venga) puede escuchar
+        // esto para sincronizar su propia visualización SIN tener que
+        // correr su propio scheduler. Puramente informativo: no dispara
+        // audio, no cambia nada de lo que ya existía.
+        try {
+            window.dispatchEvent(new CustomEvent('studio936:main-transport-step', {
+                detail: {
+                    section, stepBar, barNum,
+                    chordName: item?.name || '',
+                    bpm: project.bpm, style: project.style,
+                    playAllMode: !!playAllMode,
+                    t: time
+                }
+            }));
+        } catch(_) {}
+    });
     if(metroEnabled && stepBar%4===0){ playMetronomeClick(stepBar===0,time); setVisual(time,()=>pulseMetro()); }
     scheduleSongDrums(section,stepInChord,when);
 
@@ -1421,8 +1442,21 @@ function updateStepGrid(activeStep=-1,types={}){
 function markStepSolo(step){ const el=els.stepGrid.children[step]; if(el) el.classList.add('solo'); }
 function pulseMetro(){ els.metroDot.classList.add('dot-active'); setTimeout(()=>els.metroDot.classList.remove('dot-active'),80); }
 
+// Cambio 107: avisa a quien esté escuchando (Chart, karaoke, etc.) que el
+// transporte de Main arrancó o se detuvo — junto con el evento de paso
+// (arriba), es la base para que otros módulos dejen de tener su propio
+// reloj y sigan al de Main. Puramente informativo.
+function broadcastMainTransportState(active){
+    try {
+        window.dispatchEvent(new CustomEvent('studio936:main-transport-state', {
+            detail: { active: !!active, playAllMode: !!playAllMode, section: currentSectionKey(), bpm: project.bpm, style: project.style }
+        }));
+    } catch(_) {}
+}
 function startStop(){
     resumeAudio();
+    console.log('[S936_AUDIO_DEBUG] PLAY_FROM_MAIN', {alreadyPlaying:isPlaying, playAllMode, t:audioCtx.currentTime});
+    if(isPlaying) console.log('[S936_AUDIO_DEBUG] TRANSPORT_ALREADY_RUNNING', {source:'main', playAllMode});
     syncProjectFromControls(false); saveProject(false);
     if(isPlaying && !playAllMode){ stopPlayback(); return; }
     if(isPlaying) stopPlayback();
@@ -1432,6 +1466,7 @@ function startStop(){
     els.playSongBtn.textContent='Escuchar canción'; els.playSongBtn.classList.remove('active');
     chordIdx = Number(els.chordSelect.value)||0; stepInChord=0; globalStep=0; nextTime=audioCtx.currentTime+.04;
     scheduler();
+    broadcastMainTransportState(true);
 }
 function startFullSong(){
     resumeAudio();
@@ -1445,14 +1480,17 @@ function startFullSong(){
     els.playBtn.textContent='Start Groove'; els.playBtn.className='btn btn-play';
     els.playSongBtn.textContent='Stop canción'; els.playSongBtn.classList.add('active');
     scheduler();
+    broadcastMainTransportState(true);
 }
 function stopPlayback(){
+    console.log('[S936_AUDIO_DEBUG] STOP_MAIN_TRANSPORT', {t:audioCtx.currentTime});
     isPlaying=false; playAllMode=false; activeSongSection=els.sectionSelect.value; activeSongPartLabel = sectionNames[activeSongSection] || activeSongSection;
     els.playBtn.textContent='Start Groove'; els.playBtn.className='btn btn-play';
     els.playSongBtn.textContent='Escuchar canción'; els.playSongBtn.classList.remove('active');
     if(timer) cancelAnimationFrame(timer); timer=null; clearKeys();
     lastVisualTimer.forEach(clearTimeout); lastVisualTimer=[];
     els.chordLabel.textContent='Modo manual'; updatePartDisplay(); updateStepGrid(-1);
+    broadcastMainTransportState(false);
 }
 
 function setBPM(v){
@@ -2017,6 +2055,12 @@ function installStudio936AppBridge(){
     }
     function getStyle(){
         return safe(() => String(project.style || ''), '');
+    }
+    // Cambio 107: consulta si el transporte de Main está sonando ahora
+    // mismo — base para que otros módulos decidan si deben esperar,
+    // detenerlo, o simplemente seguirlo en vez de arrancar el suyo.
+    function isMainPlaying(){
+        return safe(() => !!isPlaying, false);
     }
     // Cambio 104: el Chart nunca reproducía batería — su groove de práctica
     // solo tocaba bajo/acordes/arpegio/click, sin percusión, por eso sonaba
@@ -2718,7 +2762,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.3.15-cambio104-drums',
+        version: 'suite-pro-bridge-v0.7.3.16-cambio107-transport-broadcast',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -2728,6 +2772,7 @@ function installStudio936AppBridge(){
         setBPM: (v) => { setBPM(v); return true; },
         getBpm,
         getStyle,
+        isMainPlaying,
         scheduleDrumStep,
         saveBassLine,
         saveLeadLine,
