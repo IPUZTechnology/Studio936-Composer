@@ -71,6 +71,7 @@
             <div class="tempo-box"><div class="metronome-dot" id="metroDot"></div><div id="bpmDisplay">95</div></div>
         </div>
     </div>
+    <button class="mini-btn warn" id="helpBtn" style="align-self:flex-start;margin-left:8px;">Ayuda</button>
 </header>
 
 <section class="status-bar">
@@ -81,6 +82,7 @@
     </div>
     <div class="transport">
         <button id="playBtn" class="btn btn-play">Start Groove</button>
+        <button id="suiteProToggleBtn" class="btn btn-dark" onclick="window.Studio936SuitePro &amp;&amp; window.Studio936SuitePro.toggle &amp;&amp; window.Studio936SuitePro.toggle();">Suite Pro</button>
         <button id="playSongBtn" class="btn btn-all">Escuchar canción</button>
         <button id="metroBtn" class="btn btn-dark">Metrónomo OFF</button>
         <button id="soloBtn" class="btn btn-solo">Solo ON</button>
@@ -155,7 +157,6 @@
                 <button class="mini-btn" id="copyBtn">Copiar</button>
                 <button class="mini-btn" id="importBtn">Importar JSON</button>
                 <button class="mini-btn solo" id="lyricsBtn">Letra / TAB</button>
-                <button class="mini-btn warn" id="helpBtn">Ayuda</button>
                 <button class="mini-btn" id="viewToggleBtn">Vista diapasón</button>
             </div>
             <div class="prod-panel">
@@ -448,8 +449,7 @@
 <script src="js/suite-pro-editor.js?v=0755-data-source-of-truth"></script>
 <script src="js/suite-pro-compose-v66-cambio50.js?v=cambio-50-20260702"></script>
 <script src="js/suite-pro.js?v=cambio-95-20260705"></script>
-<script src="js/app.js?v=cambio-96-bridge-instrument-key-bpm"></script>
-<script src="js/suite-pro-mainhome-v1-cambio98.js?v=cambio-98-20260707"></script>
+<script src="js/app.js?v=cambio-99-workspace-bar-off"></script>
 <!-- Studio 936 v0.7.0.3: persistent Editor instrument tabs hotfix -->
 <!-- Studio 936 v0.7.2.15: Piano Editor Reopen Final -->
 </body>
