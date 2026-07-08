@@ -122,9 +122,9 @@
         background:#202020;
         color:#aaa;
         border:1px solid #3c3c3c;
-        padding:3px 2px;
-        font-size:.56rem;
-        width:24px;
+        padding:5px 3px;
+        font-size:.68rem;
+        width:30px;
         flex-shrink:0;
     }
     .preset-btn.active{color:#000;background:var(--accent);border-color:var(--accent);box-shadow:0 0 12px rgba(0,255,204,.28)}
