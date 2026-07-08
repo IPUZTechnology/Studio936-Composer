@@ -1829,3 +1829,49 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
   justify-content:center!important;
   border-radius:8px!important;
 }
+
+/* Cambio 119: botones que muestran un ícono de imagen (Compose, Studio,
+   Chart, Metrónomo, Play Piano) — sin marco/caja, solo la imagen, con
+   fondo transparente. */
+.img-icon-btn{
+  background:transparent!important;
+  border:none!important;
+  box-shadow:none!important;
+  padding:4px 6px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+.img-icon-btn img{
+  display:block;
+  height:26px;
+  width:auto;
+}
+
+/* Cambio 119: tooltip propio (el "title" nativo del navegador no se
+   puede colorear) — aparece arriba del botón al pasar el mouse, letra
+   en el verde/teal de la marca. */
+[data-tip]{ position:relative; }
+[data-tip]::after{
+  content:attr(data-tip);
+  position:absolute;
+  bottom:calc(100% + 8px);
+  left:50%;
+  transform:translateX(-50%);
+  background:rgba(8,14,14,.96);
+  color:#5be8c9;
+  font-size:.7rem;
+  font-weight:600;
+  letter-spacing:.3px;
+  padding:5px 10px;
+  border-radius:7px;
+  border:1px solid rgba(91,232,201,.35);
+  white-space:nowrap;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .12s ease;
+  z-index:50;
+}
+[data-tip]:hover::after{
+  opacity:1;
+}
