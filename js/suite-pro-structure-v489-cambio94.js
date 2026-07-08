@@ -115,6 +115,15 @@
       try {
         const root = document.querySelector("#s936SuitePro");
         if (!root) return false;
+        // Cambio 114: Suite Pro construye su contenido por dentro
+        // automáticamente al cargar la página (recuerda la última área
+        // usada), aunque el panel esté cerrado. Antes, esta función solo
+        // revisaba si ese contenido EXISTÍA en el HTML — lo cual es cierto
+        // incluso con el panel cerrado — causando que el Chart se montara
+        // solo al cargar la página (con batería real desde el Cambio 104,
+        // por eso se escuchaba percusión sin que nadie tocara nada). Ahora
+        // también exige que el panel esté REALMENTE abierto en pantalla.
+        if (!root.classList.contains("is-open")) return false;
         const active = root.querySelector(".s936-compose-subrail .active,[data-tool='structure'].active");
         if (active && active.dataset?.tool && active.dataset.tool !== "structure") return false;
         return !!root.querySelector(".s936-struct-v4,.s936-struct-shell");
