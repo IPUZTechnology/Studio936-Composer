@@ -3796,7 +3796,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     const fallbackText=document.createElement('span'); fallbackText.style.display='none'; fallbackText.textContent=T('zoom');
     img.onerror=()=>{ img.style.display='none'; fallbackText.style.display='inline'; };
     b.append(img, fallbackText);
-    const anchor=$('metroBtn')||$('saveBtn'); transport.insertBefore(b, anchor || null);
+    const anchor=$('libraryBtn')||$('channelMixerBtn')||$('saveBtn'); transport.insertBefore(b, anchor || null);
     b.addEventListener('click',()=>{ document.documentElement.classList.contains('v23-zoom-on') ? closeZoom() : openZoom(); });
     b.addEventListener('touchend',ev=>{ev.preventDefault(); b.click();},{passive:false});
     let close=$('v23ZoomClose');
