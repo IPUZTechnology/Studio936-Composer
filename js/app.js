@@ -1,5 +1,6 @@
 // Studio 936 Composer - extracted JavaScript from legacy v25.9 + Editor Pro bridge v0.7.2.7 Drum Patterns Base
 // Keep script order intact.
+
 (() => {
 'use strict';
 const debugArrangementEnabled = new URLSearchParams(window.location.search).get('debugArrangement') === '1';
@@ -1851,7 +1852,7 @@ function importJson(file){
 function bind(){
     els.playBtn.onclick=startStop;
     els.playSongBtn.onclick=startFullSong;
-    els.metroBtn.onclick=()=>{ metroEnabled=!metroEnabled; els.metroBtn.textContent=metroEnabled?'🔊':'🥁'; els.metroBtn.classList.toggle('active',metroEnabled); if(metroEnabled){ previewMetronome(); flashStatus('Metrónomo activado: escucharás el click junto con Start Groove o Escuchar canción.'); } else { flashStatus('Metrónomo apagado.'); } };
+    els.metroBtn.onclick=()=>{ metroEnabled=!metroEnabled; const metroSpan=els.metroBtn.querySelector('span'); if(metroSpan) metroSpan.textContent=metroEnabled?'🔊':'🥁'; else if(!els.metroBtn.querySelector('img')) els.metroBtn.textContent=metroEnabled?'🔊':'🥁'; els.metroBtn.classList.toggle('active',metroEnabled); if(metroEnabled){ previewMetronome(); flashStatus('Metrónomo activado: escucharás el click junto con Start Groove o Escuchar canción.'); } else { flashStatus('Metrónomo apagado.'); } };
     els.soloBtn.onclick=()=>{ soloEnabled=!soloEnabled; project.soloOn=soloEnabled; els.soloBtn.textContent=soloEnabled?'Solo ON':'Solo OFF'; els.soloBtn.classList.toggle('active',soloEnabled); saveProject(false); };
     if(els.chordHoldBtn) els.chordHoldBtn.onclick=toggleChordHold;
     if(els.tableroBtn) els.tableroBtn.onclick=toggleTablero;
