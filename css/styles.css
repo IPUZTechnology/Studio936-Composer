@@ -1847,11 +1847,34 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
 }
 .img-icon-btn img{
   display:block;
-  height:36px;
+  height:44px;
   width:auto;
 }
 .img-icon-btn.active img{
   filter:drop-shadow(0 0 6px #3dffc0) drop-shadow(0 0 2px #3dffc0);
+}
+
+/* Cambio 124: ocultar la línea de versión de depuración dentro del logo
+   (ya cumplió su función durante el desarrollo; ya no debe mostrarse). */
+.brand small{
+  display:none!important;
+}
+
+/* Cambio 124: Ayuda e Idioma flotan juntos, abajo a la derecha — lejos
+   de la zona de tempo (arriba a la derecha), donde antes chocaban. */
+#helpBtn{
+  position:fixed!important;
+  bottom:14px!important;
+  right:14px!important;
+  top:auto!important;
+  z-index:9999!important;
+  border-radius:50%!important;
+}
+#langBtn{
+  position:fixed!important;
+  bottom:14px!important;
+  right:58px!important;
+  z-index:9999!important;
 }
 
 /* Cambio 119: tooltip propio (el "title" nativo del navegador no se
