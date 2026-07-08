@@ -258,6 +258,16 @@ let keyMap = {};
 let fretCells = [];
 let chordHoldEnabled=false, heldChord=new Set();
 let isPlaying=false, metroEnabled=false, soloEnabled=true, playAllMode=false, activeSongSection='intro', activeSongPartLabel='Introducción', songSectionIdx=0, selectedArrangementIndex=0, timer=null, nextTime=0, chordIdx=0, stepInChord=0, globalStep=0, soloCursor=0, lastVisualTimer=[], lastEditorSection='intro';
+// Cambio 129: mezcla por canal — silenciar o bajar el volumen de cada
+// instrumento del groove (batería, bajo, acordes/guitarra, solo) de
+// forma independiente, desde el ícono nuevo "Canales/Instrumentos".
+// Es un ajuste de sesión (no se guarda todavía con la canción).
+let channelMix = {
+    drums:{mute:false, vol:1},
+    bass:{mute:false, vol:1},
+    chord:{mute:false, vol:1},
+    solo:{mute:false, vol:1}
+};
 
 function buildPiano(){
     return Piano.buildPiano(els.piano, keyMap, triggerKeyboardNote);
@@ -786,7 +796,7 @@ function playDrumNoise(volume,when,decay,filterType='highpass',frequency=4200){
 }
 function playSongDrumLane(laneId,velocity,pattern,when){
     const kit = String(pattern?.kit || 'studio');
-    const v = Math.max(.01,Math.min(1,Number(velocity)||.7)) * (Number(project.grooveVol || 7) / 7) * .72;
+    const v = Math.max(.01,Math.min(1,Number(velocity)||.7)) * (Number(project.grooveVol || 7) / 7) * .72 * channelMix.drums.vol;
     switch(String(laneId)){
         case 'kick':
             playDrumTone(kit === 'electronic' ? 138 : 112,v,when,.22,'sine',kit === 'electronic' ? 48 : 42);
@@ -830,6 +840,7 @@ function playSongDrumLane(laneId,velocity,pattern,when){
     }
 }
 function scheduleSongDrums(sectionKey,step,when){
+    if(channelMix.drums.mute) return [];
     const pattern = defaultDrumPattern(sectionKey);
     if(pattern?.enabled === false || project.drumsEnabled === false) return [];
     const hits = DrumPatterns?.hitsAtStep ? DrumPatterns.hitsAtStep(pattern,step) : [];
@@ -1349,36 +1360,36 @@ function scheduleStep(time){
     if(metroEnabled && stepBar%4===0){ playMetronomeClick(stepBar===0,time); setVisual(time,()=>pulseMetro()); }
     scheduleSongDrums(section,stepInChord,when);
 
-    if(st.bass.includes(stepBar)){
+    if(st.bass.includes(stepBar) && !channelMix.bass.mute){
         const bassChoice = bassPatternNote(bass,chordNotes,stepBar,project.style);
-        playNote(bassChoice,.29,.46,'sine',when);
-        if(stepBar===0 || project.style==='rock' || project.style==='ballad') playNote(Math.max(24,bassChoice-12),.16,.62,'sine',when);
+        playNote(bassChoice,.29,.46*channelMix.bass.vol,'sine',when);
+        if(stepBar===0 || project.style==='rock' || project.style==='ballad') playNote(Math.max(24,bassChoice-12),.16,.62*channelMix.bass.vol,'sine',when);
         setVisual(when,()=>{
             const stringBass = mainStringVisualBassMidis(item,project.instrument);
             if(stringBass.length) flashMainStringMidis(stringBass,'s936-live-hit',210);
             else flashKeys([bassChoice, Math.max(24,bassChoice-12)],'active-bass',210);
         });
     }
-    if(st.arp){
+    if(st.arp && !channelMix.chord.mute){
         const arpSteps = project.style==='ballad' ? [0,2,4,6,8,10,12,14] : [0,3,6,8,11,14];
         if(arpSteps.includes(stepBar)){
             const m = chordNotes[(Math.floor(stepBar/2)+barNum)%chordNotes.length];
-            playNote(m,.12,.54,'triangle',when);
+            playNote(m,.12,.54*channelMix.chord.vol,'triangle',when);
             setVisual(when,()=>{
                 if(!flashMainStringMidis([m],'s936-strum-hit',190)) flashKeys([m],'active-chord',190);
             });
         }
     }
-    if(st.chord.includes(stepBar)) strumChord(chordNotes,.13,.35,when,'active-chord');
-    if(st.ghost.includes(stepBar)) strumChord(thinChord(chordNotes),.055,.18,when,'active-chord');
+    if(st.chord.includes(stepBar) && !channelMix.chord.mute) strumChord(chordNotes,.13,.35*channelMix.chord.vol,when,'active-chord');
+    if(st.ghost.includes(stepBar) && !channelMix.chord.mute) strumChord(thinChord(chordNotes),.055,.18*channelMix.chord.vol,when,'active-chord');
 
-    if(soloEnabled){
+    if(soloEnabled && !channelMix.solo.mute){
         const sectionSolo = getSectionSolo(section);
         const solo = parseSolo(sectionSolo.phrase || '');
         const event = soloEventAtStep(solo, globalStep);
         if(event && event.midi !== null){
             const soloMidi = clamp(event.midi,48,84);
-            playNote(soloMidi,.22,.34,'square',when+.01);
+            playNote(soloMidi,.22,.34*channelMix.solo.vol,'square',when+.01);
             setVisual(when,()=>{ flashKeys([soloMidi],'active-solo',240); markStepSolo(stepBar); });
         }
     }
@@ -2087,6 +2098,27 @@ function installStudio936AppBridge(){
     function isMainPlaying(){
         return safe(() => !!isPlaying, false);
     }
+    // Cambio 129: mixer de canales — permite al panel de "Canales/
+    // Instrumentos" leer y cambiar el silencio/volumen de cada parte
+    // del groove (batería, bajo, acordes/guitarra, solo) sin tocar
+    // ningún otro archivo.
+    function getChannelMix(){
+        return safe(() => JSON.parse(JSON.stringify(channelMix)), {});
+    }
+    function setChannelMute(channel, muted){
+        return safe(() => {
+            if(!channelMix[channel]) return false;
+            channelMix[channel].mute = !!muted;
+            return true;
+        }, false);
+    }
+    function setChannelVolume(channel, vol){
+        return safe(() => {
+            if(!channelMix[channel]) return false;
+            channelMix[channel].vol = Math.max(0, Math.min(1, Number(vol)));
+            return true;
+        }, false);
+    }
     // Cambio 104: el Chart nunca reproducía batería — su groove de práctica
     // solo tocaba bajo/acordes/arpegio/click, sin percusión, por eso sonaba
     // "sin groove" comparado con Main. Este método reutiliza el motor de
@@ -2787,7 +2819,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.3.16-cambio107-transport-broadcast',
+        version: 'suite-pro-bridge-v0.7.3.17-cambio129-channel-mixer',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -2798,6 +2830,9 @@ function installStudio936AppBridge(){
         getBpm,
         getStyle,
         isMainPlaying,
+        getChannelMix,
+        setChannelMute,
+        setChannelVolume,
         scheduleDrumStep,
         saveBassLine,
         saveLeadLine,
