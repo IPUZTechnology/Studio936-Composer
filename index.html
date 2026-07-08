@@ -4,15 +4,18 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>Studio 936 Composer v25 Song Structure Builder</title>
-<link rel="stylesheet" href="css/styles.css?v=cambio-126-single-line-tempo" />
+<link rel="stylesheet" href="css/styles.css?v=cambio-128-brand-fix" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap" rel="stylesheet" />
 </head>
 <body>
 <header>
-    <div class="brand" style="margin-left:16px;">
-        <img src="docs/Studio_936_logo.png" alt="Studio 936" style="height:84px;width:auto;display:block;margin-bottom:4px;" onerror="this.style.display='none'; this.closest('.brand').querySelector('h1').style.display='block';" />
+    <div class="brand" style="margin-left:36px;">
+        <img src="docs/Studio_936_logo.png" alt="Studio 936" style="height:84px;width:auto;display:block;margin-bottom:0;" onerror="this.style.display='none'; this.closest('.brand').querySelector('h1').style.display='block';" />
         <h1 style="display:none;">Studio 936</h1>
-        <div style="font-size:.75rem;color:#5be8c9;font-weight:800;letter-spacing:1.5px;margin-top:2px;text-transform:uppercase;">Composer Station</div>
-        <input id="songAuthor" class="author-input" value="Rafael Ipuz" aria-label="Autor de la canción" placeholder="Autor / Compositor" style="margin-top:4px;max-width:160px;" />
+        <div style="font-size:.75rem;color:#5be8c9;font-weight:800;letter-spacing:1.5px;margin-top:-2px;text-transform:uppercase;">Composer Station</div>
+        <input id="songAuthor" class="author-input" value="Rafael Ipuz" aria-label="Autor de la canción" placeholder="Autor / Compositor" style="margin-top:4px;max-width:170px;font-family:'Dancing Script',cursive;font-size:1.3rem;font-weight:600;background:transparent;border:none;" />
     </div>
     <div class="song-center">
         <input id="songTitle" class="song-title-input" value="Despertar de un Sueño" aria-label="Nombre de la canción" />
@@ -61,11 +64,9 @@
     <div class="tempo-zone">
         <div class="bpm-line">
             <input type="range" id="bpmSlider" min="60" max="160" value="95" />
-            <button class="preset-btn" onclick="setBPM(80)">80</button>
             <button class="preset-btn" onclick="setBPM(90)">90</button>
-            <button class="preset-btn active" onclick="setBPM(95)">95</button>
             <button class="preset-btn" onclick="setBPM(100)">100</button>
-            <button class="preset-btn" onclick="setBPM(110)">110</button>
+            <button class="preset-btn active" onclick="setBPM(110)">110</button>
             <button class="preset-btn" onclick="setBPM(120)">120</button>
             <div class="tempo-box"><div class="metronome-dot" id="metroDot"></div><div id="bpmDisplay">95</div></div>
         </div>
@@ -86,7 +87,7 @@
         <button id="playSongBtn" class="btn btn-all">Escuchar canción</button>
         <button id="soloBtn" class="btn btn-solo">Solo ON</button>
         <button class="btn btn-dark img-icon-btn" id="metroBtn" data-tip="Metrónomo"><img src="docs/icon/Metronomo_studio936_icon.png" alt="Metrónomo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">🥁</span></button>
-        <button class="btn btn-dark icon-btn" id="libraryBtn" data-tip="Librería" onclick="window.Studio936Library &amp;&amp; window.Studio936Library.toggle &amp;&amp; window.Studio936Library.toggle();">📚</button>
+        <button class="btn btn-dark img-icon-btn" id="libraryBtn" data-tip="Librería" onclick="window.Studio936Library &amp;&amp; window.Studio936Library.toggle &amp;&amp; window.Studio936Library.toggle();"><img src="docs/icon/Music_book_studio936.png" alt="Librería" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">📚</span></button>
     </div>
     <div class="now-box">
         <div class="label-small">Acorde actual</div>
