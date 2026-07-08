@@ -4,14 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>Studio 936 Composer v25 Song Structure Builder</title>
-<link rel="stylesheet" href="css/styles.css?v=cambio-122-help-float" />
+<link rel="stylesheet" href="css/styles.css?v=cambio-124-tempo-layout" />
 </head>
 <body>
 <header>
     <div class="brand">
-        <div style="display:inline-block;background:rgba(255,255,255,.92);border-radius:12px;padding:6px 10px;margin-bottom:4px;">
-            <img src="docs/Studio_936_logo.png" alt="Studio 936" style="height:64px;width:auto;display:block;" onerror="this.parentElement.style.display='none'; this.closest('.brand').querySelector('h1').style.display='block';" />
-        </div>
+        <img src="docs/Studio_936_logo.png" alt="Studio 936" style="height:64px;width:auto;display:block;margin-bottom:4px;" onerror="this.style.display='none'; this.closest('.brand').querySelector('h1').style.display='block';" />
         <h1 style="display:none;">Studio 936</h1>
         <div style="font-size:.68rem;color:#9fb0ae;letter-spacing:1px;margin-top:1px;">Composer Station</div>
         <small>v25 · Song Structure Builder · iPad · MIDI · Flow 8</small>
@@ -62,17 +60,17 @@
         </div>
     </div>
     <div class="tempo-zone">
-        <div class="bpm-presets">
+        <div class="bpm-line">
+            <input type="range" id="bpmSlider" min="60" max="160" value="95" />
+            <div class="tempo-box"><div class="metronome-dot" id="metroDot"></div><div id="bpmDisplay">95</div></div>
+        </div>
+        <div class="bpm-presets" style="margin-top:4px;">
             <button class="preset-btn" onclick="setBPM(80)">80</button>
             <button class="preset-btn" onclick="setBPM(90)">90</button>
             <button class="preset-btn active" onclick="setBPM(95)">95</button>
             <button class="preset-btn" onclick="setBPM(100)">100</button>
             <button class="preset-btn" onclick="setBPM(110)">110</button>
             <button class="preset-btn" onclick="setBPM(120)">120</button>
-        </div>
-        <div class="bpm-line">
-            <input type="range" id="bpmSlider" min="60" max="160" value="95" />
-            <div class="tempo-box"><div class="metronome-dot" id="metroDot"></div><div id="bpmDisplay">95</div></div>
         </div>
     </div>
 </header>
@@ -455,7 +453,7 @@
 <script src="js/app.js?v=cambio-121-metro-click-fix"></script>
 <!-- Studio 936 v0.7.0.3: persistent Editor instrument tabs hotfix -->
 <!-- Studio 936 v0.7.2.15: Piano Editor Reopen Final -->
-    <button class="btn btn-dark icon-btn" id="helpBtn" data-tip="Ayuda" style="position:fixed;top:10px;right:10px;z-index:9999;border-radius:50%;">❓</button>
+    <button class="btn btn-dark icon-btn" id="helpBtn" data-tip="Ayuda">❓</button>
 </body>
 </html>
 
