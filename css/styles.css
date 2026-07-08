@@ -1847,6 +1847,9 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
   height:36px;
   width:auto;
 }
+.img-icon-btn.active img{
+  filter:drop-shadow(0 0 6px #3dffc0) drop-shadow(0 0 2px #3dffc0);
+}
 
 /* Cambio 119: tooltip propio (el "title" nativo del navegador no se
    puede colorear) — aparece arriba del botón al pasar el mouse, letra
