@@ -1806,3 +1806,13 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
   color:#00ffcc!important;
   text-shadow:0 0 12px rgba(0,255,204,.32);
 }
+
+/* Cambio 111: se oculta el panel "Sección actual / Acorde actual / Compás-Paso"
+   a pedido del rediseño del Main. Se oculta con CSS, NO se borra del HTML,
+   porque el código de reproducción (updateLiveUI, en cada paso del groove)
+   escribe texto en estos elementos sin verificar si existen — borrarlos
+   del DOM rompería la reproducción a mitad de canción. Ocultándolos así,
+   el código sigue actualizando algo invisible, sin riesgo. */
+.now-box{
+  display:none!important;
+}
