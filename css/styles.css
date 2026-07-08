@@ -1816,3 +1816,16 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
 .now-box{
   display:none!important;
 }
+.icon-btn{
+  width:34px!important;
+  height:34px!important;
+  min-width:34px!important;
+  min-height:34px!important;
+  padding:0!important;
+  font-size:1.05rem!important;
+  line-height:1!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border-radius:8px!important;
+}
