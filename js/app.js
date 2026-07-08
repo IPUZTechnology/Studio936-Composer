@@ -34,6 +34,21 @@ function activeInstrumentId(){
 function currentInstrument(){
     return instruments[activeInstrumentId()] || instruments.piano;
 }
+// Cambio 135: toca una nota forzando un instrumento específico, sin
+// importar cuál esté seleccionado arriba — es la base de las voces
+// paralelas de Piano/Ukelele en el Mixer de Canales (práctica).
+function playNoteAsInstrument(midi,vol,decay,type,time,instrumentId){
+    if(!Number.isFinite(midi)) return;
+    const role = noteRole(type);
+    const inst = instruments[instrumentId] || instruments.piano;
+    const prof = inst[role] || inst.chord || instruments.piano.chord;
+    if(inst.mode === 'pluck') return playPluckedNote(midi,vol,decay,type,time,role,inst,prof);
+    if(inst.mode === 'wind') return playWindNote(midi,vol,decay,type,time,role,inst,prof);
+    return playBasicSynthNote(midi,vol,decay,type,time,role,inst,prof);
+}
+function strumChordAsInstrument(notes,dur,vol,time,instrumentId){
+    notes.forEach((m,i) => playNoteAsInstrument(m,dur,vol,'triangle',time + i*0.012,instrumentId));
+}
 function masterA(){ return clamp(Number(project.tuningHz)||440,390,470); }
 function midiFreq(m){ return masterA() * Math.pow(2,(m-69)/12); }
 function connectOut(node,role='music'){
@@ -273,7 +288,9 @@ let channelMix = {
     drums:{mute:false, vol:1, pan:0},
     bass:{mute:false, vol:1, pan:0},
     chord:{mute:false, vol:1, pan:0},
-    solo:{mute:false, vol:1, pan:0}
+    solo:{mute:false, vol:1, pan:0},
+    piano:{mute:true, vol:1, pan:0},
+    ukulele:{mute:true, vol:1, pan:0}
 };
 
 function buildPiano(){
@@ -1447,6 +1464,18 @@ function scheduleStep(time){
     if(st.chord.includes(stepBar) && !channelMix.chord.mute) strumChord(chordNotes,.13,.35*channelMix.chord.vol,when,'active-chord');
     if(st.ghost.includes(stepBar) && !channelMix.chord.mute) strumChord(thinChord(chordNotes),.055,.18*channelMix.chord.vol,when,'active-chord');
 
+    // Cambio 135: voces paralelas de práctica (Piano/Ukelele) — suenan
+    // junto al instrumento principal, sin importar cuál esté elegido
+    // arriba. Apagadas por defecto (mute:true), se activan desde el
+    // Mixer de Canales.
+    if(st.chord.includes(stepBar)){
+        if(!channelMix.piano.mute) strumChordAsInstrument(chordNotes,.13,.35*channelMix.piano.vol,when,'piano');
+        if(!channelMix.ukulele.mute){
+            const ukeNotes = mainStringPlaybackMidis(item,'ukulele');
+            strumChordAsInstrument((ukeNotes && ukeNotes.length) ? ukeNotes : chordNotes,.13,.35*channelMix.ukulele.vol,when,'ukulele');
+        }
+    }
+
     if(soloEnabled && !channelMix.solo.mute){
         const sectionSolo = getSectionSolo(section);
         const solo = parseSolo(sectionSolo.phrase || '');
@@ -1620,7 +1649,7 @@ function renderAll(){
     lastEditorSection = els.sectionSelect.value;
     els.bpmSlider.value = project.bpm; els.bpmDisplay.textContent = project.bpm;
     els.grooveVol.value = project.grooveVol;
-    soloEnabled = project.soloOn !== false; els.soloBtn.textContent = soloEnabled ? 'Solo ON' : 'Solo OFF'; els.soloBtn.classList.toggle('active',soloEnabled);
+    soloEnabled = project.soloOn !== false; if(els.soloBtn){ els.soloBtn.textContent = soloEnabled ? 'Solo ON' : 'Solo OFF'; els.soloBtn.classList.toggle('active',soloEnabled); }
     loadSoloFromSelectedSection();
     renderSectionOptions(); renderChordSelect(); renderSectionList(); loadEditorFromSelected(); updateStyleHelp(); updatePartDisplay(); updateStepGrid(-1); updateSectionNoteMap(); renderArrangementBuilder(); setBPM(project.bpm);
     if(stringInstrumentId(project.instrument)) setTimeout(()=>renderMainStringSurface(chordIdx,true),0);
@@ -1928,7 +1957,7 @@ function bind(){
     els.playBtn.onclick=startStop;
     els.playSongBtn.onclick=startFullSong;
     els.metroBtn.onclick=()=>{ metroEnabled=!metroEnabled; const metroSpan=els.metroBtn.querySelector('span'); if(metroSpan) metroSpan.textContent=metroEnabled?'🔊':'🥁'; else if(!els.metroBtn.querySelector('img')) els.metroBtn.textContent=metroEnabled?'🔊':'🥁'; els.metroBtn.classList.toggle('active',metroEnabled); if(metroEnabled){ previewMetronome(); flashStatus('Metrónomo activado: escucharás el click junto con Start Groove o Escuchar canción.'); } else { flashStatus('Metrónomo apagado.'); } };
-    els.soloBtn.onclick=()=>{ soloEnabled=!soloEnabled; project.soloOn=soloEnabled; els.soloBtn.textContent=soloEnabled?'Solo ON':'Solo OFF'; els.soloBtn.classList.toggle('active',soloEnabled); saveProject(false); };
+    if(els.soloBtn) els.soloBtn.onclick=()=>{ soloEnabled=!soloEnabled; project.soloOn=soloEnabled; els.soloBtn.textContent=soloEnabled?'Solo ON':'Solo OFF'; els.soloBtn.classList.toggle('active',soloEnabled); saveProject(false); };
     if(els.chordHoldBtn) els.chordHoldBtn.onclick=toggleChordHold;
     if(els.tableroBtn) els.tableroBtn.onclick=toggleTablero;
     els.bpmSlider.oninput=()=>setBPM(els.bpmSlider.value);
