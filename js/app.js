@@ -1,6 +1,5 @@
 // Studio 936 Composer - extracted JavaScript from legacy v25.9 + Editor Pro bridge v0.7.2.7 Drum Patterns Base
 // Keep script order intact.
-
 (() => {
 'use strict';
 const debugArrangementEnabled = new URLSearchParams(window.location.search).get('debugArrangement') === '1';
