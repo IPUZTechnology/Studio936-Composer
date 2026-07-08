@@ -3742,11 +3742,11 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
   function openZoom(){
     prevView = getComputedStyle($('fretboardContainer')||document.body).display !== 'none' ? 'fretboard' : 'piano';
     setPianoView(); document.documentElement.classList.add('v23-zoom-on');
-    const btn=$('pianoZoomBtn'); if(btn){btn.classList.add('active'); btn.textContent=tr()==='en'?'Close zoom':'Cerrar zoom';}
+    const btn=$('pianoZoomBtn'); if(btn){btn.classList.add('active'); const sp=btn.querySelector('span'); if(sp) sp.textContent=tr()==='en'?'Close zoom':'Cerrar zoom'; else btn.textContent=tr()==='en'?'Close zoom':'Cerrar zoom';}
   }
   function closeZoom(){
     document.documentElement.classList.remove('v23-zoom-on');
-    const btn=$('pianoZoomBtn'); if(btn){btn.classList.remove('active'); btn.textContent=T('zoom');}
+    const btn=$('pianoZoomBtn'); if(btn){btn.classList.remove('active'); const sp=btn.querySelector('span'); if(sp) sp.textContent=T('zoom'); else btn.textContent=T('zoom');}
     const inst=$('instrumentSelect')?.value||'piano';
     if(prevView==='fretboard' && ['guitar','ukulele','bass'].includes(inst)){
       const piano=$('pianoContainer'), fret=$('fretboardContainer'), toggle=$('viewToggleBtn');
@@ -3803,7 +3803,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     ['instrumentSelect','sectionSelect','chordSelect','fretModeSelect'].forEach(id=>{const e=$(id); if(e && !e.dataset.v23){e.dataset.v23='1'; e.addEventListener('change',()=>setTimeout(()=>{forceInstrumentView(); renderChordCharts();},120),true);}});
     ['chordName','bassInput','chordNotes','barsInput'].forEach(id=>{const e=$(id); if(e && !e.dataset.v23){e.dataset.v23='1'; e.addEventListener('input',()=>setTimeout(renderChordCharts,180),true); e.addEventListener('change',()=>setTimeout(renderChordCharts,180),true);}});
     const help=$('helpBtn'); if(help && !help.dataset.v23){help.dataset.v23='1'; help.addEventListener('click',()=>setTimeout(patchHelp,160));}
-    const lang=$('langBtn'); if(lang && !lang.dataset.v23){lang.dataset.v23='1'; lang.addEventListener('click',()=>setTimeout(()=>{ const z=$('pianoZoomBtn'); if(z && !z.classList.contains('active')) z.textContent=T('zoom'); const c=$('v23ZoomClose'); if(c) c.textContent=T('closeZoom'); patchHelp(); renderChordCharts(); },220));}
+    const lang=$('langBtn'); if(lang && !lang.dataset.v23){lang.dataset.v23='1'; lang.addEventListener('click',()=>setTimeout(()=>{ const z=$('pianoZoomBtn'); if(z && !z.classList.contains('active')){ const sp=z.querySelector('span'); if(sp) sp.textContent=T('zoom'); else z.textContent=T('zoom'); } const c=$('v23ZoomClose'); if(c) c.textContent=T('closeZoom'); patchHelp(); renderChordCharts(); },220));}
     const fret=$('fretboardContainer'); if(fret && !fret.dataset.v23Obs){fret.dataset.v23Obs='1'; new MutationObserver(()=>setTimeout(renderChordCharts,100)).observe(fret,{attributes:true,childList:true,subtree:false});}
   }
   function init(){
