@@ -1852,7 +1852,7 @@ function importJson(file){
 function bind(){
     els.playBtn.onclick=startStop;
     els.playSongBtn.onclick=startFullSong;
-    els.metroBtn.onclick=()=>{ metroEnabled=!metroEnabled; els.metroBtn.textContent=metroEnabled?'Metrónomo ON 🔊':'Metrónomo OFF'; els.metroBtn.classList.toggle('active',metroEnabled); if(metroEnabled){ previewMetronome(); flashStatus('Metrónomo activado: escucharás el click junto con Start Groove o Escuchar canción.'); } else { flashStatus('Metrónomo apagado.'); } };
+    els.metroBtn.onclick=()=>{ metroEnabled=!metroEnabled; els.metroBtn.textContent=metroEnabled?'🔊':'🥁'; els.metroBtn.classList.toggle('active',metroEnabled); if(metroEnabled){ previewMetronome(); flashStatus('Metrónomo activado: escucharás el click junto con Start Groove o Escuchar canción.'); } else { flashStatus('Metrónomo apagado.'); } };
     els.soloBtn.onclick=()=>{ soloEnabled=!soloEnabled; project.soloOn=soloEnabled; els.soloBtn.textContent=soloEnabled?'Solo ON':'Solo OFF'; els.soloBtn.classList.toggle('active',soloEnabled); saveProject(false); };
     if(els.chordHoldBtn) els.chordHoldBtn.onclick=toggleChordHold;
     if(els.tableroBtn) els.tableroBtn.onclick=toggleTablero;

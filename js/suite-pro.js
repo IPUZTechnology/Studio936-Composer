@@ -3275,12 +3275,22 @@ function normalizeNoteName(value) {
     open();
   }
 
+  // Cambio 112: abre Suite Pro directo en un área específica (compose,
+  // studio, command) — usada por los íconos nuevos del Main que
+  // reemplazan al botón genérico "Suite Pro".
+  function openArea(area) {
+    state.area = area;
+    try { localStorage.setItem("s936_suite_area_v3", area); } catch(_) {}
+    open();
+  }
+
   window.Studio936SuitePro = {
     version: "professional-v3.12-recorder-library",
     open,
     close,
     toggle,
     openStudioTool,
+    openArea,
     ensurePanel
   };
 
