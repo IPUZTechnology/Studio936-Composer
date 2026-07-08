@@ -122,26 +122,26 @@
         background:#202020;
         color:#aaa;
         border:1px solid #3c3c3c;
-        padding:5px 3px;
-        font-size:.62rem;
-        width:30px;
+        padding:3px 2px;
+        font-size:.56rem;
+        width:24px;
         flex-shrink:0;
     }
     .preset-btn.active{color:#000;background:var(--accent);border-color:var(--accent);box-shadow:0 0 12px rgba(0,255,204,.28)}
-    .bpm-line{display:flex;align-items:center;gap:6px;width:100%;justify-content:flex-end;flex-wrap:nowrap;}
-    .bpm-line input[type="range"]{flex:1;min-width:60px;max-width:110px;}
+    .bpm-line{display:flex;align-items:center;gap:4px;width:100%;justify-content:flex-end;flex-wrap:nowrap;}
+    .bpm-line input[type="range"]{flex:1;min-width:44px;max-width:70px;}
     .tempo-box{
-        min-width:52px;
-        width:52px;
+        min-width:38px;
+        width:38px;
         flex-shrink:0;
         background:#000;
         border:1px solid #333;
-        border-radius:12px;
-        padding:6px 4px;
+        border-radius:9px;
+        padding:3px 2px;
         text-align:center;
     }
-    #bpmDisplay{font-size:1.3rem;font-weight:950;line-height:1;color:var(--accent);text-shadow:0 0 14px var(--accent-glow)}
-    .metronome-dot{width:9px;height:9px;border-radius:50%;background:#333;margin:0 auto 3px}
+    #bpmDisplay{font-size:.95rem;font-weight:950;line-height:1;color:var(--accent);text-shadow:0 0 14px var(--accent-glow)}
+    .metronome-dot{width:7px;height:7px;border-radius:50%;background:#333;margin:0 auto 2px}
     .dot-active{background:var(--accent);box-shadow:0 0 12px var(--accent)}
     #bpmSlider{width:145px;accent-color:var(--accent)}
 
