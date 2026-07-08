@@ -3756,7 +3756,11 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
   }
   function ensureZoomButton(){
     const transport=q('.transport'); if(!transport || $('pianoZoomBtn')) return;
-    const b=document.createElement('button'); b.id='pianoZoomBtn'; b.type='button'; b.className='btn'; b.textContent=T('zoom');
+    const b=document.createElement('button'); b.id='pianoZoomBtn'; b.type='button'; b.className='btn btn-dark img-icon-btn'; b.setAttribute('data-tip', T('zoom'));
+    const img=document.createElement('img'); img.src='docs/icon/play_piano_icon.png'; img.alt=T('zoom');
+    const fallbackText=document.createElement('span'); fallbackText.style.display='none'; fallbackText.textContent=T('zoom');
+    img.onerror=()=>{ img.style.display='none'; fallbackText.style.display='inline'; };
+    b.append(img, fallbackText);
     const anchor=$('metroBtn')||$('saveBtn'); transport.insertBefore(b, anchor || null);
     b.addEventListener('click',()=>{ document.documentElement.classList.contains('v23-zoom-on') ? closeZoom() : openZoom(); });
     b.addEventListener('touchend',ev=>{ev.preventDefault(); b.click();},{passive:false});
