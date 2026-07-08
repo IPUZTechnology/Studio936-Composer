@@ -1909,3 +1909,23 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
 [data-tip]:hover::after{
   opacity:1;
 }
+
+/* Cambio 136: el renglón de botones (Compose/Studio/Chart/Start Groove/...)
+   tenía varias reglas viejas de "Cambios" anteriores que lo hacían saltar
+   a una segunda línea o convertirse en cuadrícula en pantallas angostas
+   — inconsistente entre dispositivos. Esta regla, al ir AL FINAL del
+   archivo, gana sobre todas esas: siempre una sola fila, con scroll
+   horizontal si el espacio no alcanza, en vez de apilarse nunca. */
+.transport{
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  justify-content:flex-start!important;
+  -webkit-overflow-scrolling:touch!important;
+  scrollbar-width:thin;
+  gap:8px!important;
+}
+.transport > *{
+  flex-shrink:0!important;
+}
