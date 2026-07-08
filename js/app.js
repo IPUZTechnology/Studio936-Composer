@@ -3588,8 +3588,8 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
   const solfege={do:'C',re:'D',mi:'E',fa:'F',sol:'G',la:'A',si:'B'};
   const tr=()=>((document.documentElement.lang||localStorage.getItem(LANG_KEY)||'es').startsWith('en')?'en':'es');
   const dict={
-    es:{zoom:'Zoom piano',closeZoom:'Cerrar zoom',charts:'Charts de acordes',hint:'Toca un chart para cargar ese acorde en el editor',shape:'Forma',noShape:'Sin forma clara',tools:'Herramientas'},
-    en:{zoom:'Piano zoom',closeZoom:'Close zoom',charts:'Chord charts',hint:'Tap a chart to load that chord into the editor',shape:'Shape',noShape:'No clear shape',tools:'Tools'}
+    es:{zoom:'Play piano',closeZoom:'Cerrar zoom',charts:'Charts de acordes',hint:'Toca un chart para cargar ese acorde en el editor',shape:'Forma',noShape:'Sin forma clara',tools:'Herramientas'},
+    en:{zoom:'Play piano',closeZoom:'Close zoom',charts:'Chord charts',hint:'Tap a chart to load that chord into the editor',shape:'Shape',noShape:'No clear shape',tools:'Tools'}
   };
   const T=k=>(dict[tr()]||dict.es)[k]||k;
   function load(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}')}catch(e){return {}}}
@@ -3757,7 +3757,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
   function ensureZoomButton(){
     const transport=q('.transport'); if(!transport || $('pianoZoomBtn')) return;
     const b=document.createElement('button'); b.id='pianoZoomBtn'; b.type='button'; b.className='btn'; b.textContent=T('zoom');
-    const save=$('saveBtn'); transport.insertBefore(b, save || null);
+    const anchor=$('metroBtn')||$('saveBtn'); transport.insertBefore(b, anchor || null);
     b.addEventListener('click',()=>{ document.documentElement.classList.contains('v23-zoom-on') ? closeZoom() : openZoom(); });
     b.addEventListener('touchend',ev=>{ev.preventDefault(); b.click();},{passive:false});
     let close=$('v23ZoomClose');
