@@ -37,9 +37,16 @@ function currentInstrument(){
 function masterA(){ return clamp(Number(project.tuningHz)||440,390,470); }
 function midiFreq(m){ return masterA() * Math.pow(2,(m-69)/12); }
 function connectOut(node,role='music'){
-    if(project.routingMode === 'split' && audioCtx.createStereoPanner){
+    // Cambio 133: panorama (izquierda/derecha) real por canal, desde el
+    // Mixer de Canales. El modo "split" (click a la izquierda) sigue
+    // funcionando como base; el panorama del canal, si está puesto, gana.
+    let panValue = null;
+    if(project.routingMode === 'split') panValue = (role === 'click') ? -1 : 1;
+    const channelKey = role === 'bass' ? 'bass' : role === 'solo' ? 'solo' : role === 'drums' ? 'drums' : (role === 'chord' || role === 'music') ? 'chord' : null;
+    if(channelKey && channelMix[channelKey] && channelMix[channelKey].pan) panValue = channelMix[channelKey].pan;
+    if(panValue !== null && audioCtx.createStereoPanner){
         const pan = audioCtx.createStereoPanner();
-        pan.pan.setValueAtTime(role === 'click' ? -1 : 1, audioCtx.currentTime);
+        pan.pan.setValueAtTime(Math.max(-1,Math.min(1,panValue)),audioCtx.currentTime);
         node.connect(pan); pan.connect(audioCtx.destination);
     } else node.connect(audioCtx.destination);
 }
@@ -263,10 +270,10 @@ let isPlaying=false, metroEnabled=false, soloEnabled=true, playAllMode=false, ac
 // forma independiente, desde el ícono nuevo "Canales/Instrumentos".
 // Es un ajuste de sesión (no se guarda todavía con la canción).
 let channelMix = {
-    drums:{mute:false, vol:1},
-    bass:{mute:false, vol:1},
-    chord:{mute:false, vol:1},
-    solo:{mute:false, vol:1}
+    drums:{mute:false, vol:1, pan:0},
+    bass:{mute:false, vol:1, pan:0},
+    chord:{mute:false, vol:1, pan:0},
+    solo:{mute:false, vol:1, pan:0}
 };
 
 function buildPiano(){
@@ -764,7 +771,7 @@ function drumOutputGain(volume,when,decay){
     const gain = audioCtx.createGain();
     gain.gain.setValueAtTime(Math.max(.0001,volume),when);
     gain.gain.exponentialRampToValueAtTime(.0001,when + Math.max(.035,decay));
-    connectOut(gain,'music');
+    connectOut(gain,'drums');
     return gain;
 }
 function playDrumTone(freq,volume,when,decay,type='sine',endFreq=null){
@@ -1011,6 +1018,63 @@ function toggleTablero(){
     }
 }
 
+// Cambio 132: varios íconos PNG (Play Piano, etc.) traen un fondo sólido
+// "horneado" dentro de los píxeles — ningún CSS puede quitar eso, porque
+// no es un borde de botón, es parte de la imagen. Esta función lo quita
+// de verdad: dibuja la imagen en un canvas oculto, detecta el color del
+// fondo mirando las 4 esquinas, y vuelve transparente esa región
+// conectada (flood-fill), sin tocar el dibujo de adentro del ícono.
+function stripFlatIconBackground(imgEl){
+    try {
+        const run = () => {
+            try {
+                const w = imgEl.naturalWidth, h = imgEl.naturalHeight;
+                if(!w || !h) return;
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(imgEl, 0, 0, w, h);
+                const imgData = ctx.getImageData(0, 0, w, h);
+                const data = imgData.data;
+                const idx = (x,y) => (y*w+x)*4;
+                const colorAt = (x,y) => { const i=idx(x,y); return [data[i],data[i+1],data[i+2]]; };
+                const close = (a,b,tol) => Math.abs(a[0]-b[0])<=tol && Math.abs(a[1]-b[1])<=tol && Math.abs(a[2]-b[2])<=tol;
+                const corners = [colorAt(0,0), colorAt(w-1,0), colorAt(0,h-1), colorAt(w-1,h-1)];
+                const bg = corners[0];
+                const cornersAgree = corners.every(c => close(c, bg, 18));
+                if(!cornersAgree) return; // esquinas de distinto color: no hay fondo plano uniforme, no tocar
+                const tol = 26;
+                const visited = new Uint8Array(w*h);
+                const stack = [[0,0],[w-1,0],[0,h-1],[w-1,h-1]];
+                while(stack.length){
+                    const [x,y] = stack.pop();
+                    if(x<0||y<0||x>=w||y>=h) continue;
+                    const p = y*w+x;
+                    if(visited[p]) continue;
+                    visited[p] = 1;
+                    if(!close(colorAt(x,y), bg, tol)) continue;
+                    data[p*4+3] = 0;
+                    stack.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+                }
+                ctx.putImageData(imgData, 0, 0);
+                imgEl.src = canvas.toDataURL('image/png');
+            } catch(_) {}
+        };
+        if(imgEl.complete && imgEl.naturalWidth) run();
+        else imgEl.addEventListener('load', run, { once:true });
+    } catch(_) {}
+}
+function stripFlatIconBackgrounds(){
+    document.querySelectorAll('.img-icon-btn img').forEach(stripFlatIconBackground);
+}
+if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', stripFlatIconBackgrounds);
+} else {
+    stripFlatIconBackgrounds();
+}
+setTimeout(stripFlatIconBackgrounds, 800);
+setTimeout(stripFlatIconBackgrounds, 2000);
+
 function loadProject(){
     return Storage.loadProject(
         STORAGE_KEY,
@@ -1164,7 +1228,7 @@ function playPluckedNote(midi,vol,decay,type,time,role,inst,prof){
     gain.gain.setValueAtTime(0.0001, now);
     gain.gain.exponentialRampToValueAtTime(Math.max(.0002,v), now + (prof.attack || .003));
     gain.gain.exponentialRampToValueAtTime(0.001, now + finalDecay);
-    osc.connect(body); osc2.connect(body); body.connect(bright); bright.connect(gain); connectOut(gain,'music');
+    osc.connect(body); osc2.connect(body); body.connect(bright); bright.connect(gain); connectOut(gain,role);
     osc.start(now); osc2.start(now); osc.stop(now+finalDecay+.05); osc2.stop(now+finalDecay+.05);
     addPickNoise(now, v * (inst.pick || 1), instrumentId==='ukulele' ? 0.018 : instrumentId==='bass' ? 0.014 : 0.026, instrumentId==='ukulele' ? 5200 : instrumentId==='bass' ? 900 : 3300);
 }
@@ -2119,6 +2183,13 @@ function installStudio936AppBridge(){
             return true;
         }, false);
     }
+    function setChannelPan(channel, pan){
+        return safe(() => {
+            if(!channelMix[channel]) return false;
+            channelMix[channel].pan = Math.max(-1, Math.min(1, Number(pan)));
+            return true;
+        }, false);
+    }
     // Cambio 104: el Chart nunca reproducía batería — su groove de práctica
     // solo tocaba bajo/acordes/arpegio/click, sin percusión, por eso sonaba
     // "sin groove" comparado con Main. Este método reutiliza el motor de
@@ -2819,7 +2890,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.3.17-cambio129-channel-mixer',
+        version: 'suite-pro-bridge-v0.7.3.18-cambio133-channel-pan',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -2833,6 +2904,7 @@ function installStudio936AppBridge(){
         getChannelMix,
         setChannelMute,
         setChannelVolume,
+        setChannelPan,
         scheduleDrumStep,
         saveBassLine,
         saveLeadLine,
@@ -3796,7 +3868,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     const fallbackText=document.createElement('span'); fallbackText.style.display='none'; fallbackText.textContent=T('zoom');
     img.onerror=()=>{ img.style.display='none'; fallbackText.style.display='inline'; };
     b.append(img, fallbackText);
-    const anchor=$('libraryBtn')||$('channelMixerBtn')||$('saveBtn'); transport.insertBefore(b, anchor || null);
+    const anchor=$('channelMixerBtn')||$('libraryBtn')||$('saveBtn'); transport.insertBefore(b, anchor || null);
     b.addEventListener('click',()=>{ document.documentElement.classList.contains('v23-zoom-on') ? closeZoom() : openZoom(); });
     b.addEventListener('touchend',ev=>{ev.preventDefault(); b.click();},{passive:false});
     let close=$('v23ZoomClose');

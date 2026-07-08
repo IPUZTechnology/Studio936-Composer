@@ -17,7 +17,7 @@
         { key: 'drums', label: '🥁 Batería' },
         { key: 'bass', label: '🎸 Bajo' },
         { key: 'chord', label: '🎹 Acordes / Guitarra' },
-        { key: 'solo', label: '🎺 Solo' }
+        { key: 'solo', label: '🎸 Guitarra Lead (Solo)' }
     ];
 
     function bridge(){ return window.Studio936AppBridge || null; }
@@ -56,9 +56,13 @@
 #${PANEL_ID} .s936mix-note {
   font-size: .68rem; color: #9fb0ae; margin-bottom: 14px;
 }
-#${PANEL_ID} .s936mix-row {
-  display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+#${PANEL_ID} .s936mix-channel {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
 }
+#${PANEL_ID} .s936mix-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+#${PANEL_ID} .s936mix-row2 { display: flex; align-items: center; gap: 8px; }
 #${PANEL_ID} .s936mix-label { flex: 1; font-size: .82rem; font-weight: 600; }
 #${PANEL_ID} .s936mix-mutebtn {
   width: 34px; height: 30px; border-radius: 7px; cursor: pointer;
@@ -66,6 +70,8 @@
 }
 #${PANEL_ID} .s936mix-mutebtn.muted { background: rgba(226,75,74,.15); border-color: #e24b4a; color: #e24b4a; }
 #${PANEL_ID} .s936mix-slider { flex: 1.4; }
+#${PANEL_ID} .s936mix-pan { width: 70px; }
+#${PANEL_ID} .s936mix-pan-label { font-size: .6rem; color: #9fb0ae; width: 14px; text-align: center; }
 #${PANEL_ID} .s936mix-closebtn {
   display: block; margin: 4px auto 0; background: transparent; border: none;
   color: #9fb0ae; font-size: .78rem; cursor: pointer; text-decoration: underline;
@@ -81,20 +87,33 @@
         body.innerHTML = '';
         const mix = bridge()?.getChannelMix?.() || {};
         CHANNELS.forEach(ch => {
-            const state = mix[ch.key] || { mute:false, vol:1 };
+            const state = mix[ch.key] || { mute:false, vol:1, pan:0 };
+            const channelBox = el('div', 's936mix-channel');
+
             const row = el('div', 's936mix-row');
             const label = el('div', 's936mix-label', ch.label);
             const muteBtn = el('button', 's936mix-mutebtn' + (state.mute ? ' muted' : ''), state.mute ? '🔇' : '🔊');
-            muteBtn.onclick = () => {
-                bridge()?.setChannelMute?.(ch.key, !state.mute);
-                render();
-            };
-            const slider = document.createElement('input');
-            slider.type = 'range'; slider.min = '0'; slider.max = '100'; slider.value = String(Math.round((state.vol ?? 1) * 100));
-            slider.className = 's936mix-slider';
-            slider.oninput = () => bridge()?.setChannelVolume?.(ch.key, Number(slider.value) / 100);
-            row.append(label, muteBtn, slider);
-            body.appendChild(row);
+            muteBtn.onclick = () => { bridge()?.setChannelMute?.(ch.key, !state.mute); render(); };
+            row.append(label, muteBtn);
+
+            const row2 = el('div', 's936mix-row2');
+            const volSlider = document.createElement('input');
+            volSlider.type = 'range'; volSlider.min = '0'; volSlider.max = '100'; volSlider.value = String(Math.round((state.vol ?? 1) * 100));
+            volSlider.className = 's936mix-slider';
+            volSlider.title = 'Volumen';
+            volSlider.oninput = () => bridge()?.setChannelVolume?.(ch.key, Number(volSlider.value) / 100);
+
+            const lLabel = el('span', 's936mix-pan-label', 'L');
+            const panSlider = document.createElement('input');
+            panSlider.type = 'range'; panSlider.min = '-100'; panSlider.max = '100'; panSlider.value = String(Math.round((state.pan ?? 0) * 100));
+            panSlider.className = 's936mix-pan';
+            panSlider.title = 'Panorama (izquierda/derecha)';
+            panSlider.oninput = () => bridge()?.setChannelPan?.(ch.key, Number(panSlider.value) / 100);
+            const rLabel = el('span', 's936mix-pan-label', 'R');
+
+            row2.append(volSlider, lLabel, panSlider, rLabel);
+            channelBox.append(row, row2);
+            body.appendChild(channelBox);
         });
     }
 
