@@ -1841,6 +1841,9 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
   display:inline-flex!important;
   align-items:center!important;
   justify-content:center!important;
+  -webkit-appearance:none!important;
+  appearance:none!important;
+  outline:none!important;
 }
 .img-icon-btn img{
   display:block;
