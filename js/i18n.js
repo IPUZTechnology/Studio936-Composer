@@ -102,8 +102,26 @@
             applyLanguage();
         });
     }
-    function setTextById(id, value){ const node = el(id); if(node && node.textContent !== value) node.textContent = value; }
-    function safeText(node, value){ if(node && node.textContent !== value) node.textContent = value; }
+    function hasIconChild(node){ return !!(node && node.querySelector && node.querySelector('img')); }
+    function isIconOnlyBtn(node){ return !!(node && node.classList && (node.classList.contains('icon-btn') || node.classList.contains('img-icon-btn'))); }
+    function setTextById(id, value){ const node = el(id); safeText(node, value); }
+    function safeText(node, value){
+        if(!node) return;
+        // Cambio 121: los botones que ahora muestran un ícono de imagen
+        // (Compose, Studio 936, Chart, Metrónomo, Play Piano) o que son
+        // puramente decorativos (Ayuda) no deben perder su ícono cada vez
+        // que este sistema de traducción "reaplica" texto. Si el botón
+        // tiene una imagen adentro, se actualiza solo su <span> de
+        // respaldo oculto (nunca se toca la imagen); si es un botón-ícono
+        // sin imagen (como Ayuda), se deja completamente intacto.
+        if(hasIconChild(node)){
+            const sp = node.querySelector('span');
+            if(sp && sp.textContent !== value) sp.textContent = value;
+            return;
+        }
+        if(isIconOnlyBtn(node)) return;
+        if(node.textContent !== value) node.textContent = value;
+    }
     function setButtonState(){
         const t = T().buttons;
         const playBtn = el('playBtn');
