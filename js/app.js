@@ -79,7 +79,7 @@ if(!EditorModule || !EditorModule.setup){
 
 const els = {
     piano:document.getElementById('piano'), fretboardContainer:document.getElementById('fretboardContainer'), fretboard:document.getElementById('fretboard'), fretMarkers:document.getElementById('fretMarkers'), viewToggleBtn:document.getElementById('viewToggleBtn'), routingSelect:document.getElementById('routingSelect'), fretModeSelect:document.getElementById('fretModeSelect'), tuningSelect:document.getElementById('tuningSelect'), tuningCustom:document.getElementById('tuningCustom'), midiBtn:document.getElementById('midiBtn'), songTitle:document.getElementById('songTitle'), songAuthor:document.getElementById('songAuthor'), styleSelect:document.getElementById('styleSelect'), instrumentSelect:document.getElementById('instrumentSelect'), sectionSelect:document.getElementById('sectionSelect'),
-    bpmSlider:document.getElementById('bpmSlider'), bpmDisplay:document.getElementById('bpmDisplay'), metroDot:document.getElementById('metroDot'), playBtn:document.getElementById('playBtn'), playSongBtn:document.getElementById('playSongBtn'), metroBtn:document.getElementById('metroBtn'), soloBtn:document.getElementById('soloBtn'), chordHoldBtn:document.getElementById('chordHoldBtn'), saveBtn:document.getElementById('saveBtn'),
+    bpmSlider:document.getElementById('bpmSlider'), bpmDisplay:document.getElementById('bpmDisplay'), metroDot:document.getElementById('metroDot'), playBtn:document.getElementById('playBtn'), playSongBtn:document.getElementById('playSongBtn'), metroBtn:document.getElementById('metroBtn'), soloBtn:document.getElementById('soloBtn'), chordHoldBtn:document.getElementById('chordHoldBtn'), tableroBtn:document.getElementById('tableroBtn'), saveBtn:document.getElementById('saveBtn'),
     sectionLabel:document.getElementById('sectionLabel'), measureLabel:document.getElementById('measureLabel'), chordLabel:document.getElementById('chordLabel'), currentPartTag:document.getElementById('currentPartTag'), stepGrid:document.getElementById('stepGrid'),
     chordSelect:document.getElementById('chordSelect'), chordName:document.getElementById('chordName'), bassInput:document.getElementById('bassInput'), chordNotes:document.getElementById('chordNotes'), barsInput:document.getElementById('barsInput'), grooveVol:document.getElementById('grooveVol'),
     previewBtn:document.getElementById('previewBtn'), applyBtn:document.getElementById('applyBtn'), addBtn:document.getElementById('addBtn'), dupBtn:document.getElementById('dupBtn'), deleteBtn:document.getElementById('deleteBtn'),
@@ -976,6 +976,30 @@ function toggleChordHold(){
     flashStatus(chordHoldEnabled ? 'Modo acorde activo: en iPad puedes tocar varias teclas a la vez o ir sumándolas una por una.' : 'Modo acorde apagado.');
 }
 
+// Cambio 110: Tablero — muestra el Chart directamente en el área principal
+// del Main, con el instrumento actual sonando (el Tablero es una FORMA DE
+// VER, no cambia qué instrumento/timbre está sonando). Reutiliza
+// mountInRightPanel/unmountFromRightPanel, el mismo mecanismo que ya usa
+// Suite Pro para esto — no se inventó nada nuevo, solo se le dio un acceso
+// directo desde el Main sin tener que abrir Suite Pro.
+let tableroEnabled = false;
+function toggleTablero(){
+    const Chart = window.Studio936SuiteProChart;
+    if(!Chart){ flashStatus('El Tablero no está disponible todavía (Chart no cargó).'); return; }
+    tableroEnabled = !tableroEnabled;
+    if(els.tableroBtn){
+        els.tableroBtn.textContent = tableroEnabled ? 'Tablero ON' : 'Tablero OFF';
+        els.tableroBtn.classList.toggle('active', tableroEnabled);
+    }
+    if(tableroEnabled){
+        try { Chart.mountInRightPanel({}); } catch(error){ console.warn('Studio936 Tablero: no se pudo montar.', error); }
+        flashStatus('Tablero activo — el instrumento sigue siendo el mismo, solo cambia la vista.');
+    } else {
+        try { Chart.unmountFromRightPanel(); } catch(error){ console.warn('Studio936 Tablero: no se pudo desmontar.', error); }
+        flashStatus('Tablero desactivado.');
+    }
+}
+
 function loadProject(){
     return Storage.loadProject(
         STORAGE_KEY,
@@ -1831,6 +1855,7 @@ function bind(){
     els.metroBtn.onclick=()=>{ metroEnabled=!metroEnabled; els.metroBtn.textContent=metroEnabled?'Metrónomo ON 🔊':'Metrónomo OFF'; els.metroBtn.classList.toggle('active',metroEnabled); if(metroEnabled){ previewMetronome(); flashStatus('Metrónomo activado: escucharás el click junto con Start Groove o Escuchar canción.'); } else { flashStatus('Metrónomo apagado.'); } };
     els.soloBtn.onclick=()=>{ soloEnabled=!soloEnabled; project.soloOn=soloEnabled; els.soloBtn.textContent=soloEnabled?'Solo ON':'Solo OFF'; els.soloBtn.classList.toggle('active',soloEnabled); saveProject(false); };
     if(els.chordHoldBtn) els.chordHoldBtn.onclick=toggleChordHold;
+    if(els.tableroBtn) els.tableroBtn.onclick=toggleTablero;
     els.bpmSlider.oninput=()=>setBPM(els.bpmSlider.value);
     els.songTitle.oninput=()=>saveProject(false);
     els.songAuthor.oninput=()=>saveProject(false);
