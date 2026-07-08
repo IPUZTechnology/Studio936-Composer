@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>Studio 936 Composer v25 Song Structure Builder</title>
-<link rel="stylesheet" href="css/styles.css?v=cambio-118-studio-icon" />
+<link rel="stylesheet" href="css/styles.css?v=cambio-119-icon-set" />
 </head>
 <body>
 <header>
@@ -84,14 +84,14 @@
         <div class="label-small" id="measureLabel">Compás 1 · Paso 1/16</div>
     </div>
     <div class="transport">
-        <button id="composeToggleBtn" class="btn btn-dark" title="Compose" onclick="window.Studio936SuitePro &amp;&amp; window.Studio936SuitePro.openArea &amp;&amp; window.Studio936SuitePro.openArea('compose');">🎶 Compose</button>
-        <button id="studioToggleBtn" class="btn btn-dark" title="Estudio" onclick="window.Studio936SuitePro &amp;&amp; window.Studio936SuitePro.openArea &amp;&amp; window.Studio936SuitePro.openArea('studio');"><img src="docs/Studio_936_icon.png" alt="Estudio" style="height:22px;width:auto;display:block;vertical-align:middle;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">Studio 936</span></button>
-        <button id="tableroBtn" class="btn btn-dark" title="Chart (Tablero grande) — muestra el Chart en el área principal, con el instrumento actual sonando.">🎼 Chart</button>
+        <button id="composeToggleBtn" class="btn btn-dark img-icon-btn" data-tip="Compose" onclick="window.Studio936SuitePro &amp;&amp; window.Studio936SuitePro.openArea &amp;&amp; window.Studio936SuitePro.openArea('compose');"><img src="docs/icon/Composer_studio_936_icon1.png" alt="Compose" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">Compose</span></button>
+        <button id="studioToggleBtn" class="btn btn-dark img-icon-btn" data-tip="Studio 936" onclick="window.Studio936SuitePro &amp;&amp; window.Studio936SuitePro.openArea &amp;&amp; window.Studio936SuitePro.openArea('studio');"><img src="docs/icon/Studio_936_ico.png" alt="Studio 936" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">Studio 936</span></button>
+        <button id="tableroBtn" class="btn btn-dark img-icon-btn" data-tip="Chart / Tablero"><img src="docs/icon/Tablero_Practica_chart_icon.png" alt="Chart" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">Chart</span></button>
         <button id="playBtn" class="btn btn-play">Start Groove</button>
         <button id="playSongBtn" class="btn btn-all">Escuchar canción</button>
         <button id="soloBtn" class="btn btn-solo">Solo ON</button>
-        <button class="btn btn-dark icon-btn" id="metroBtn" title="Metrónomo">🥁</button>
-        <button class="btn btn-dark icon-btn" id="helpBtn" title="Ayuda">❓</button>
+        <button class="btn btn-dark img-icon-btn" id="metroBtn" data-tip="Metrónomo"><img src="docs/icon/Metronomo_studio936_icon.png" alt="Metrónomo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">🥁</span></button>
+        <button class="btn btn-dark icon-btn" id="helpBtn" data-tip="Ayuda">❓</button>
     </div>
     <div class="now-box">
         <div class="label-small">Acorde actual</div>
@@ -453,7 +453,7 @@
 <script src="js/suite-pro-editor.js?v=0755-data-source-of-truth"></script>
 <script src="js/suite-pro-compose-v66-cambio50.js?v=cambio-50-20260702"></script>
 <script src="js/suite-pro.js?v=cambio-112-openarea"></script>
-<script src="js/app.js?v=cambio-115-title-align-fix"></script>
+<script src="js/app.js?v=cambio-119-play-piano-icon"></script>
 <!-- Studio 936 v0.7.0.3: persistent Editor instrument tabs hotfix -->
 <!-- Studio 936 v0.7.2.15: Piano Editor Reopen Final -->
 </body>
