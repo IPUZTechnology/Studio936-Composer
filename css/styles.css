@@ -1942,16 +1942,19 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
 #playBtn.btn-stop .icon-section-stop{ display:inline!important; }
 #playBtn.btn-all:not(.btn-song-active) .icon-song-play{ display:inline!important; }
 #playBtn.btn-all.btn-song-active .icon-song-stop{ display:inline!important; }
-#playBtn.btn-all.btn-song-active{ background:#e0913a!important; color:#1a1200!important; }
-#sectionSelect.live-fullsong{ color:#ffb84d!important; font-weight:800!important; }
-
-/* Cambio 141: colores reales tomados de tus imágenes — fucsia para
-   Sección, cian/verde-azulado para Canción completa. Se aplican solo
-   al botón único (#playBtn), scoped para no afectar otros botones que
-   pudieran compartir las clases .btn-play/.btn-stop/.btn-all. */
-#playBtn.btn-play{ background:#ff2ec4!important; color:#2a0018!important; }
-#playBtn.btn-stop{ background:#c400a0!important; color:#fff!important; }
-#playBtn.btn-all:not(.btn-song-active){ background:#26e8e0!important; color:#00302e!important; }
-#playBtn.btn-all.btn-song-active{ background:#00b8b0!important; color:#fff!important; }
 #sectionSelect.live-fullsong{ color:#26e8e0!important; font-weight:800!important; }
 .live-section-active{ color:#ff2ec4!important; font-weight:800!important; }
+
+/* Cambio 143: el botón único queda como ÍCONO LIMPIO — sin píldora de
+   color, sin borde, igual que Compose/Studio/Chart/Canales/Librería.
+   Los 4 íconos de imagen (fucsia/cian) ya traen su propio color adentro
+   de la imagen, no hace falta pintar el botón. El texto (Start Groove/
+   Escuchar canción) queda oculto — solo vive en el tooltip (data-tip). */
+#playBtn{
+  background:transparent!important;
+  border:none!important;
+  box-shadow:none!important;
+  padding:4px 6px!important;
+  min-width:0!important;
+}
+#playBtn .btn-label{ display:none!important; }
