@@ -87,10 +87,10 @@
         <button id="studioToggleBtn" class="btn btn-dark img-icon-btn" data-tip="Studio 936" onclick="window.Studio936SuitePro &amp;&amp; window.Studio936SuitePro.openArea &amp;&amp; window.Studio936SuitePro.openArea('studio');"><img src="docs/icon/Studio_936_ico.png" alt="Studio 936" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">Studio 936</span></button>
         <button id="tableroBtn" class="btn btn-dark img-icon-btn" data-tip="Chart / Tablero"><img src="docs/icon/Tablero_Practica_chart_icon.png" alt="Chart" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">Chart</span></button>
         <button id="playBtn" class="btn btn-play" data-tip="Tocar Sección" style="display:inline-flex;align-items:center;gap:6px;">
-            <img class="icon-section-play" src="docs/icon/Play_session_936.png" alt="Play Sección" style="height:44px;width:auto;flex-shrink:0;" onerror="this.style.display='none';" />
-            <img class="icon-section-stop" src="docs/icon/Pause_Seccion_936.png" alt="Pause Sección" style="height:44px;width:auto;flex-shrink:0;display:none;" onerror="this.style.display='none';" />
-            <img class="icon-song-play" src="docs/icon/Play_song_936.png" alt="Play Canción" style="height:44px;width:auto;flex-shrink:0;display:none;" onerror="this.style.display='none';" />
-            <img class="icon-song-stop" src="docs/icon/Pause_play__song.png" alt="Pause Canción" style="height:44px;width:auto;flex-shrink:0;display:none;" onerror="this.style.display='none';" />
+            <img class="icon-section-play" src="docs/icon/Play_session_936.png" alt="Play Sección" style="height:44px;width:auto;flex-shrink:0;" onerror="this.style.setProperty(&quot;display&quot;,&quot;none&quot;,&quot;important&quot;);" />
+            <img class="icon-section-stop" src="docs/icon/Pause_Seccion_936.png" alt="Pause Sección" style="height:44px;width:auto;flex-shrink:0;display:none;" onerror="this.style.setProperty(&quot;display&quot;,&quot;none&quot;,&quot;important&quot;);" />
+            <img class="icon-song-play" src="docs/icon/Play_song_936.png" alt="Play Canción" style="height:44px;width:auto;flex-shrink:0;display:none;" onerror="this.style.setProperty(&quot;display&quot;,&quot;none&quot;,&quot;important&quot;);" />
+            <img class="icon-song-stop" src="docs/icon/Pause_play__song.png" alt="Pause Canción" style="height:44px;width:auto;flex-shrink:0;display:none;" onerror="this.style.setProperty(&quot;display&quot;,&quot;none&quot;,&quot;important&quot;);" />
             <span class="btn-label">Start Groove</span>
         </button>
         <button class="btn btn-dark img-icon-btn" id="channelMixerBtn" data-tip="Canales / Instrumentos" onclick="window.Studio936ChannelMixer &amp;&amp; window.Studio936ChannelMixer.toggle &amp;&amp; window.Studio936ChannelMixer.toggle();"><img src="docs/icon/Instrument_setting_icon.png" alt="Canales" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">🎚</span></button>
@@ -103,6 +103,7 @@
         <div class="step-grid" id="stepGrid"></div>
     </div>
 </section>
+
 <main class="main">
     <div id="pianoContainer"><div class="keyboard" id="piano"></div></div>
     <div id="fretboardContainer"><div class="fretboard-wrap"><div class="fretboard-head"><span id="fretboardTitle">Diapasón guitarra · vista de notas</span><span id="fretboardHint">Clic/toque para escuchar · 0-12 trastes</span></div><div class="fret-markers" id="fretMarkers"></div><div class="fretboard" id="fretboard"></div></div></div>
@@ -457,7 +458,7 @@
 <script src="js/suite-pro.js?v=cambio-112-openarea"></script>
 <script src="js/suite-pro-library.js?v=cambio-127-library"></script>
 <script src="js/suite-pro-channel-mixer.js?v=cambio-135-full-redesign"></script>
-<script src="js/app.js?v=cambio-142-real-transpose"></script>
+<script src="js/app.js?v=cambio-145-default-song-mode"></script>
 <!-- Studio 936 v0.7.0.3: persistent Editor instrument tabs hotfix -->
 <!-- Studio 936 v0.7.2.15: Piano Editor Reopen Final -->
     <button class="btn btn-dark icon-btn" id="helpBtn" data-tip="Ayuda">❓</button>
