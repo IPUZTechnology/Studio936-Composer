@@ -1645,38 +1645,28 @@ function transposeSongInPlace(semi){
     saveProject(false);
     renderChordSelect(); renderSectionList(); loadEditorFromSelected(); updateSectionNoteMap(); renderArrangementBuilder(); updateLiveUI(currentItem(),0,1,{});
 }
-function showTransposePanel(){
-    let overlay = document.getElementById('s936TransposeOverlay');
-    if(overlay){ overlay.style.display='flex'; return; }
-    overlay = document.createElement('div');
-    overlay.id = 's936TransposeOverlay';
-    Object.assign(overlay.style, {position:'fixed',inset:'0',zIndex:'10000',background:'rgba(0,0,0,.55)',display:'flex',alignItems:'center',justifyContent:'center'});
-    const noteOpts = S936_NOTE_NAMES.map(n=>`<option value="${n}">${n}</option>`).join('');
-    overlay.innerHTML = `<div style="width:min(360px,92vw);background:radial-gradient(circle at 20% 0%, rgba(0,255,204,.14), transparent 26%),linear-gradient(180deg, rgba(13,18,28,.98), rgba(5,7,12,.97));border:1px solid rgba(0,255,204,.34);border-radius:18px;box-shadow:0 30px 90px rgba(0,0,0,.72);padding:18px 20px;color:#e8f4f2;font-family:inherit;">
-        <h2 style="margin:0 0 8px;font-size:.95rem;color:#00ffcc;font-weight:900;text-transform:uppercase;">🎼 Transponer</h2>
-        <p style="font-size:.72rem;color:#9fb0ae;margin:0 0 14px;">Cambia la tonalidad de todos los acordes, bajo, notas y solos de la canción — en vivo, sin recargar.</p>
-        <label style="font-size:.7rem;color:#9fb0ae;display:block;margin-bottom:4px;">Tono actual</label>
-        <select id="s936KeyFrom" style="width:100%;padding:7px;border-radius:8px;background:#1c2224;border:1px solid #333;color:#e8f4f2;margin-bottom:12px;">${noteOpts}</select>
-        <label style="font-size:.7rem;color:#9fb0ae;display:block;margin-bottom:4px;">Nueva tonalidad</label>
-        <select id="s936KeyTo" style="width:100%;padding:7px;border-radius:8px;background:#1c2224;border:1px solid #333;color:#e8f4f2;margin-bottom:16px;">${noteOpts}</select>
-        <div style="display:flex;gap:8px;justify-content:flex-end;">
-            <button id="s936TransposeCancel" style="background:transparent;border:none;color:#9fb0ae;cursor:pointer;font-size:.78rem;">Cancelar</button>
-            <button id="s936TransposeApply" style="background:#00ffcc;color:#04342c;border:none;border-radius:8px;padding:8px 16px;font-weight:800;cursor:pointer;font-size:.78rem;">Transportar</button>
-        </div>
-    </div>`;
-    document.body.appendChild(overlay);
-    overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.style.display='none'; });
-    document.getElementById('s936TransposeCancel').onclick = ()=>{ overlay.style.display='none'; };
-    document.getElementById('s936TransposeApply').onclick = ()=>{
-        const from = s936ParseRoot(document.getElementById('s936KeyFrom').value);
-        const to = s936ParseRoot(document.getElementById('s936KeyTo').value);
+// Cambio 150: se elimina el modal intermedio — el campo "Clave" ahora es
+// un select normal, igual que Estilo/Instrumento/Sección. Elegir una nota
+// nueva transporta la canción al instante, sin pantalla de confirmación.
+let s936CurrentSongKey = 'C';
+function s936InitKeySelect(){
+    const sel = document.getElementById('s936KeySelect');
+    if(!sel) return;
+    sel.value = s936CurrentSongKey;
+    sel.addEventListener('change', ()=>{
+        const from = s936ParseRoot(s936CurrentSongKey);
+        const to = s936ParseRoot(sel.value);
         const semi = to - from;
-        if(semi){ transposeSongInPlace(semi); flashStatus(`Canción transportada ${semi>0?'+':''}${semi} semitono(s).`); }
-        else flashStatus('Mismo tono — no hay nada que transportar.');
-        overlay.style.display='none';
-    };
+        if(semi){
+            transposeSongInPlace(semi);
+            s936CurrentSongKey = sel.value;
+            flashStatus(`Canción transportada ${semi>0?'+':''}${semi} semitono(s). Clave actual: ${s936CurrentSongKey}.`);
+        } else {
+            s936CurrentSongKey = sel.value;
+        }
+    });
 }
-window.showTranspose = showTransposePanel;
+document.addEventListener('DOMContentLoaded', s936InitKeySelect);
 
 function setBtnLabel(btn, text){
     if(!btn) return;
