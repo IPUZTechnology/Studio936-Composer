@@ -1929,3 +1929,13 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
 .transport > *{
   flex-shrink:0!important;
 }
+
+/* Cambio 139: alternar ícono Play/Stop según el estado real — reutiliza
+   las mismas clases que app.js ya cambia (btn-stop al arrancar Start
+   Groove, active al arrancar Escuchar canción), sin tocar JS. */
+#playBtn.btn-stop .icon-play{ display:none!important; }
+#playBtn.btn-stop .icon-stop{ display:inline!important; }
+#playBtn.btn-play .icon-stop{ display:none!important; }
+#playSongBtn.active .icon-play{ display:none!important; }
+#playSongBtn.active .icon-stop{ display:inline!important; }
+#playSongBtn:not(.active) .icon-stop{ display:none!important; }
