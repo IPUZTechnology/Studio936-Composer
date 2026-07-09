@@ -5752,6 +5752,24 @@ body.s936-chart-stage main{
     });
   }
 
+  // Cambio 152: el Chart siempre dispara la práctica de canción completa
+  // (scope:"song") al interceptar el botón Play principal — por eso, cuando
+  // SÍ arranca/detiene esa práctica, hay que usar el mismo par de clases que
+  // app.js usa para el modo "canción" (btn-all / btn-all.btn-song-active),
+  // así los 4 íconos de imagen (Play Sección, Pause Sección, Play Canción,
+  // Pause Canción) cambian correctamente en vez de quedarse pegados en el
+  // ícono equivocado o sin ninguno. Deliberadamente separado de
+  // setMainTransportChartState(): esa otra función también se llama al
+  // simplemente cerrar el panel del Chart (unbind), momento en el que NO se
+  // debe tocar el ícono si no hubo un play/stop real.
+  function setPlayIconChartState(on) {
+    ["playBtn", "playSongBtn"].forEach((id) => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      btn.className = on ? "btn btn-all btn-song-active" : "btn btn-all";
+    });
+  }
+
   function bindMainTransportToChart() {
     if (_chartTransportCaptureHandler) return;
     _chartTransportCaptureHandler = (event) => {
@@ -5775,6 +5793,7 @@ body.s936-chart-stage main{
       if (alreadyOn) {
         stopChartRhythmConsole({ stopAudio: true, stopBridge: true });
         setMainTransportChartState(false);
+        setPlayIconChartState(false);
         return;
       }
 
@@ -5784,6 +5803,7 @@ body.s936-chart-stage main{
         sourceLabel: "Canción completa"
       });
       setMainTransportChartState(!!ok);
+      setPlayIconChartState(!!ok);
     };
     document.addEventListener("click", _chartTransportCaptureHandler, true);
   }
