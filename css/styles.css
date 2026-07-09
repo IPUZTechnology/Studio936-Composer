@@ -1944,3 +1944,14 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
 #playBtn.btn-all.btn-song-active .icon-song-stop{ display:inline!important; }
 #playBtn.btn-all.btn-song-active{ background:#e0913a!important; color:#1a1200!important; }
 #sectionSelect.live-fullsong{ color:#ffb84d!important; font-weight:800!important; }
+
+/* Cambio 141: colores reales tomados de tus imágenes — fucsia para
+   Sección, cian/verde-azulado para Canción completa. Se aplican solo
+   al botón único (#playBtn), scoped para no afectar otros botones que
+   pudieran compartir las clases .btn-play/.btn-stop/.btn-all. */
+#playBtn.btn-play{ background:#ff2ec4!important; color:#2a0018!important; }
+#playBtn.btn-stop{ background:#c400a0!important; color:#fff!important; }
+#playBtn.btn-all:not(.btn-song-active){ background:#26e8e0!important; color:#00302e!important; }
+#playBtn.btn-all.btn-song-active{ background:#00b8b0!important; color:#fff!important; }
+#sectionSelect.live-fullsong{ color:#26e8e0!important; font-weight:800!important; }
+.live-section-active{ color:#ff2ec4!important; font-weight:800!important; }
