@@ -1023,7 +1023,12 @@ function toggleTablero(){
     if(!Chart){ flashStatus('El Tablero no está disponible todavía (Chart no cargó).'); return; }
     tableroEnabled = !tableroEnabled;
     if(els.tableroBtn){
-        els.tableroBtn.textContent = tableroEnabled ? 'Tablero ON' : 'Tablero OFF';
+        // Cambio 153: antes esto ponía .textContent='Tablero ON/OFF', lo que
+        // borraba el <img> del ícono (mismo patrón de bug que Play Piano/
+        // Metrónomo en ciclos anteriores). El ícono debe quedarse siempre
+        // ahí — el estado ON/OFF se indica con el mismo brillo cian que ya
+        // usan los demás botones de ícono activos (.img-icon-btn.active img).
+        els.tableroBtn.setAttribute('data-tip', tableroEnabled ? 'Chart / Tablero (activo)' : 'Chart / Tablero');
         els.tableroBtn.classList.toggle('active', tableroEnabled);
     }
     if(tableroEnabled){
