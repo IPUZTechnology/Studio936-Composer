@@ -1930,12 +1930,17 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
   flex-shrink:0!important;
 }
 
-/* Cambio 139: alternar ícono Play/Stop según el estado real — reutiliza
-   las mismas clases que app.js ya cambia (btn-stop al arrancar Start
-   Groove, active al arrancar Escuchar canción), sin tocar JS. */
-#playBtn.btn-stop .icon-play{ display:none!important; }
-#playBtn.btn-stop .icon-stop{ display:inline!important; }
-#playBtn.btn-play .icon-stop{ display:none!important; }
-#playSongBtn.active .icon-play{ display:none!important; }
-#playSongBtn.active .icon-stop{ display:inline!important; }
-#playSongBtn:not(.active) .icon-stop{ display:none!important; }
+/* Cambio 140: un solo botón Play, 4 íconos — se muestra el correcto
+   según el modo (sección=teal / canción=naranja) y el estado
+   (tocando/detenido). El modo lo decide la clase que ya asigna
+   app.js (btn-play, btn-stop, btn-all, btn-song-active). */
+#playBtn .icon-section-play,
+#playBtn .icon-section-stop,
+#playBtn .icon-song-play,
+#playBtn .icon-song-stop{ display:none!important; }
+#playBtn.btn-play .icon-section-play{ display:inline!important; }
+#playBtn.btn-stop .icon-section-stop{ display:inline!important; }
+#playBtn.btn-all:not(.btn-song-active) .icon-song-play{ display:inline!important; }
+#playBtn.btn-all.btn-song-active .icon-song-stop{ display:inline!important; }
+#playBtn.btn-all.btn-song-active{ background:#e0913a!important; color:#1a1200!important; }
+#sectionSelect.live-fullsong{ color:#ffb84d!important; font-weight:800!important; }
