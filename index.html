@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>Studio 936 Composer v25 Song Structure Builder</title>
-<link rel="stylesheet" href="css/styles.css?v=cambio-139-play-stop-icons" />
+<link rel="stylesheet" href="css/styles.css?v=cambio-140-unified-play" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap" rel="stylesheet" />
@@ -46,6 +46,7 @@
                 <option value="synth">Synth</option>
             </select>
             <select id="sectionSelect" class="select section-select" title="Sección de la canción">
+                <option value="__song__">🎵 Toda la canción</option>
                 <option value="intro">Introducción</option>
                 <option value="verse">Verso</option>
                 <option value="verse1">Verso 1</option>
@@ -85,28 +86,25 @@
         <button id="studioToggleBtn" class="btn btn-dark img-icon-btn" data-tip="Studio 936" onclick="window.Studio936SuitePro &amp;&amp; window.Studio936SuitePro.openArea &amp;&amp; window.Studio936SuitePro.openArea('studio');"><img src="docs/icon/Studio_936_ico.png" alt="Studio 936" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">Studio 936</span></button>
         <button id="tableroBtn" class="btn btn-dark img-icon-btn" data-tip="Chart / Tablero"><img src="docs/icon/Tablero_Practica_chart_icon.png" alt="Chart" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">Chart</span></button>
         <button id="playBtn" class="btn btn-play" data-tip="Tocar Sección" style="display:inline-flex;align-items:center;gap:6px;">
-            <svg class="icon-play" width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;">
+            <svg class="icon-section-play" width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;">
                 <path d="M4 12a8 8 0 1 1 2.2 5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
                 <path d="M4 12V8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
                 <path d="M10 9.5v5l4.3-2.5z" fill="currentColor"/>
             </svg>
-            <svg class="icon-stop" width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;display:none;">
+            <svg class="icon-section-stop" width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;display:none;">
                 <path d="M4 12a8 8 0 1 1 2.2 5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
                 <path d="M4 12V8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
                 <rect x="9.5" y="9.5" width="5" height="5" fill="currentColor"/>
             </svg>
-            <span class="btn-label">Start Groove</span>
-        </button>
-        <button id="playSongBtn" class="btn btn-all" data-tip="Tocar Canción" style="display:inline-flex;align-items:center;gap:6px;">
-            <svg class="icon-play" width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;">
+            <svg class="icon-song-play" width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;display:none;">
                 <path d="M4 6h11M4 12h11M4 18h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 <path d="M17 9.5v7l6-3.5z" fill="currentColor"/>
             </svg>
-            <svg class="icon-stop" width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;display:none;">
+            <svg class="icon-song-stop" width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;display:none;">
                 <path d="M4 6h11M4 12h11M4 18h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 <rect x="16.5" y="9.5" width="7" height="7" fill="currentColor"/>
             </svg>
-            <span class="btn-label">Escuchar canción</span>
+            <span class="btn-label">Start Groove</span>
         </button>
         <button class="btn btn-dark img-icon-btn" id="channelMixerBtn" data-tip="Canales / Instrumentos" onclick="window.Studio936ChannelMixer &amp;&amp; window.Studio936ChannelMixer.toggle &amp;&amp; window.Studio936ChannelMixer.toggle();"><img src="docs/icon/Instrument_setting_icon.png" alt="Canales" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">🎚</span></button>
         <button class="btn btn-dark img-icon-btn" id="libraryBtn" data-tip="Librería" onclick="window.Studio936Library &amp;&amp; window.Studio936Library.toggle &amp;&amp; window.Studio936Library.toggle();"><img src="docs/icon/Music_book_studio936.png" alt="Librería" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">📚</span></button>
@@ -473,7 +471,7 @@
 <script src="js/suite-pro.js?v=cambio-112-openarea"></script>
 <script src="js/suite-pro-library.js?v=cambio-127-library"></script>
 <script src="js/suite-pro-channel-mixer.js?v=cambio-135-full-redesign"></script>
-<script src="js/app.js?v=cambio-138-play-icons"></script>
+<script src="js/app.js?v=cambio-140-unified-play-button"></script>
 <!-- Studio 936 v0.7.0.3: persistent Editor instrument tabs hotfix -->
 <!-- Studio 936 v0.7.2.15: Piano Editor Reopen Final -->
     <button class="btn btn-dark icon-btn" id="helpBtn" data-tip="Ayuda">❓</button>
