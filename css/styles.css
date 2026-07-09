@@ -1954,7 +1954,32 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
   background:transparent!important;
   border:none!important;
   box-shadow:none!important;
-  padding:4px 6px!important;
+  padding:6px 10px!important;
   min-width:0!important;
+  position:relative;
 }
 #playBtn .btn-label{ display:none!important; }
+
+/* Cambio 144: el botón Play es la pieza CENTRAL de la consola — más
+   grande que los demás íconos (44px → 68px), con un halo de brillo de
+   color detrás, que cambia según el modo (fucsia=Sección /
+   cian=Canción completa), como el botón grande de una consola real. */
+#playBtn img{
+  height:68px!important;
+  position:relative;
+  z-index:1;
+}
+#playBtn::before{
+  content:'';
+  position:absolute;
+  inset:-6px;
+  border-radius:50%;
+  z-index:0;
+  filter:blur(10px);
+  opacity:.55;
+  transition:opacity .15s ease;
+}
+#playBtn.btn-play::before, #playBtn.btn-stop::before{ background:radial-gradient(circle, #ff2ec4, transparent 70%); }
+#playBtn.btn-all::before{ background:radial-gradient(circle, #26e8e0, transparent 70%); }
+#playBtn.btn-stop::before, #playBtn.btn-all.btn-song-active::before{ opacity:.85; }
+#playBtn img{ filter:drop-shadow(0 0 10px rgba(255,255,255,.25)); }
