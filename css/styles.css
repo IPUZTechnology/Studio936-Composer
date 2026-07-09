@@ -105,10 +105,10 @@
     .tempo-zone{
         display:flex;
         flex-direction:column;
-        gap:8px;
+        gap:6px;
         align-items:flex-end;
     }
-    .bpm-presets{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+    .bpm-presets{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
     .preset-btn,.mini-btn,.btn{
         border:none;
         border-radius:9px;
@@ -122,17 +122,17 @@
         background:#202020;
         color:#aaa;
         border:1px solid #3c3c3c;
-        padding:5px 3px;
-        font-size:.68rem;
-        width:30px;
+        padding:4px 2px;
+        font-size:.64rem;
+        width:25px;
         flex-shrink:0;
     }
     .preset-btn.active{color:#000;background:var(--accent);border-color:var(--accent);box-shadow:0 0 12px rgba(0,255,204,.28)}
-    .bpm-line{display:flex;align-items:center;gap:4px;width:100%;justify-content:flex-end;flex-wrap:nowrap;}
-    .bpm-line input[type="range"]{flex:1;min-width:44px;max-width:70px;}
+    .bpm-line{display:flex;align-items:center;gap:3px;width:100%;justify-content:flex-end;flex-wrap:nowrap;}
+    .bpm-line input[type="range"]{flex:1;min-width:36px;max-width:52px;}
     .tempo-box{
-        min-width:38px;
-        width:38px;
+        min-width:33px;
+        width:33px;
         flex-shrink:0;
         background:#000;
         border:1px solid #333;
@@ -140,10 +140,10 @@
         padding:3px 2px;
         text-align:center;
     }
-    #bpmDisplay{font-size:.95rem;font-weight:950;line-height:1;color:var(--accent);text-shadow:0 0 14px var(--accent-glow)}
+    #bpmDisplay{font-size:.86rem;font-weight:950;line-height:1;color:var(--accent);text-shadow:0 0 14px var(--accent-glow)}
     .metronome-dot{width:7px;height:7px;border-radius:50%;background:#333;margin:0 auto 2px}
     .dot-active{background:var(--accent);box-shadow:0 0 12px var(--accent)}
-    #bpmSlider{width:145px;accent-color:var(--accent)}
+    #bpmSlider{width:100px;accent-color:var(--accent)}
 
     .status-bar{
         min-height:72px;
@@ -307,6 +307,7 @@
         .song-row{grid-template-columns:1fr 1fr 1fr;max-width:100%}
         .tempo-zone{align-items:center}.bpm-line,.bpm-presets{justify-content:center}
         .main{grid-template-rows:auto auto}.keyboard{transform:scale(.82);transform-origin:center bottom}.editor{max-height:none}.status-bar{gap:14px}
+        .brand{margin-left:0!important}
     }
 
     .prod-panel{margin-top:12px;padding:10px;border:1px solid #303030;border-radius:14px;background:#141414}
@@ -445,7 +446,7 @@ html.v22-touch .btn,html.v22-touch .mini-btn,html.v22-touch .preset-btn{min-heig
     .tempo-zone{align-items:flex-end!important;gap:5px!important;}
     .bpm-presets{gap:4px!important;justify-content:flex-end!important;}
     .preset-btn{padding:5px 8px!important;font-size:.65rem!important;}
-    #bpmSlider{width:118px!important;}
+    #bpmSlider{width:85px!important;}
     .tempo-box{min-width:58px!important;padding:5px 8px!important;}
     #bpmDisplay{font-size:1.35rem!important;}
 
@@ -577,8 +578,8 @@ html.v22-touch .btn,html.v22-touch .mini-btn,html.v22-touch .preset-btn{min-heig
 }
 #v20ToolSlot{align-self:center!important;z-index:4!important;}
 #v19ToolsToggle{writing-mode:horizontal-tb!important;transform:none!important;position:static!important;}
-#pianoZoomBtn{background:linear-gradient(180deg,#252525,#191919)!important;border:1px solid #4a4a4a!important;color:#f7f7f7!important;}
-#pianoZoomBtn.active{background:var(--accent)!important;color:#00110e!important;border-color:var(--accent)!important;box-shadow:0 0 18px rgba(0,255,204,.22)!important;}
+#pianoZoomBtn{background:transparent!important;border:none!important;}
+#pianoZoomBtn.active img{filter:drop-shadow(0 0 6px #3dffc0) drop-shadow(0 0 2px #3dffc0)!important;}
 #v23ZoomClose{
   position:fixed;right:18px;top:16px;z-index:10030;display:none;
   background:var(--danger);color:#fff;border:0;border-radius:14px;padding:12px 16px;
