@@ -1536,6 +1536,7 @@ function moveToNextSongSection(){
     activeSongSection = parts[songSectionIdx].section; activeSongPartLabel = parts[songSectionIdx].label || sectionNames[activeSongSection] || activeSongSection;
     selectedArrangementIndex = songSectionIdx; renderArrangementBuilder();
     chordIdx = 0; stepInChord = 0;
+    highlightPlayingSectionInSelector();
 }
 
 function updatePartDisplay(){
@@ -1599,10 +1600,35 @@ function startStop(){
     playAllMode=false;
     isPlaying = true;
     setBtnLabel(els.playBtn,'Stop Groove'); els.playBtn.className='btn btn-stop';
-    setBtnLabel(els.playSongBtn,'Escuchar canción'); els.playSongBtn.classList.remove('active');
     chordIdx = Number(els.chordSelect.value)||0; stepInChord=0; globalStep=0; nextTime=audioCtx.currentTime+.04;
     scheduler();
     broadcastMainTransportState(true);
+}
+// Cambio 140: un solo botón Play — decide qué modo arrancar según el
+// selector de sección (si dice "Toda la canción", toca la canción
+// completa; si no, toca solo la sección elegida en loop).
+function unifiedPlayToggle(){
+    if(isPlaying){ stopPlayback(); return; }
+    if(els.sectionSelect && els.sectionSelect.value === '__song__') startFullSong();
+    else startStop();
+}
+function updatePlayButtonMode(){
+    if(isPlaying || !els.playBtn || !els.sectionSelect) return;
+    if(els.sectionSelect.value === '__song__'){
+        setBtnLabel(els.playBtn,'Escuchar canción'); els.playBtn.className='btn btn-all';
+    } else {
+        setBtnLabel(els.playBtn,'Start Groove'); els.playBtn.className='btn btn-play';
+    }
+}
+// Cambio 140: durante "Toda la canción", el selector de sección refleja
+// en vivo cuál sección está sonando (sin disparar su propio onchange,
+// ya que asignar .value por código no dispara ese evento).
+function highlightPlayingSectionInSelector(){
+    if(!els.sectionSelect) return;
+    els.sectionSelect.classList.add('live-fullsong');
+    if(els.sectionSelect.querySelector(`option[value="${CSS.escape(activeSongSection)}"]`)){
+        els.sectionSelect.value = activeSongSection;
+    }
 }
 function startFullSong(){
     resumeAudio();
@@ -1613,19 +1639,26 @@ function startFullSong(){
     if(!parts.length){ flashStatus('No hay secciones para reproducir.'); return; }
     playAllMode=true; isPlaying=true; songSectionIdx=0; activeSongSection=parts[0].section; activeSongPartLabel = parts[0].label || sectionNames[activeSongSection] || activeSongSection; selectedArrangementIndex=0; renderArrangementBuilder();
     chordIdx=0; stepInChord=0; globalStep=0; nextTime=audioCtx.currentTime+.04;
-    setBtnLabel(els.playBtn,'Start Groove'); els.playBtn.className='btn btn-play';
-    setBtnLabel(els.playSongBtn,'Stop canción'); els.playSongBtn.classList.add('active');
+    setBtnLabel(els.playBtn,'Stop canción'); els.playBtn.className='btn btn-all btn-song-active';
+    highlightPlayingSectionInSelector();
     scheduler();
     broadcastMainTransportState(true);
 }
 function stopPlayback(){
     console.log('[S936_AUDIO_DEBUG] STOP_MAIN_TRANSPORT', {t:audioCtx.currentTime});
-    isPlaying=false; playAllMode=false; activeSongSection=els.sectionSelect.value; activeSongPartLabel = sectionNames[activeSongSection] || activeSongSection;
-    setBtnLabel(els.playBtn,'Start Groove'); els.playBtn.className='btn btn-play';
-    setBtnLabel(els.playSongBtn,'Escuchar canción'); els.playSongBtn.classList.remove('active');
+    const wasFullSong = playAllMode;
+    isPlaying=false; playAllMode=false;
+    if(wasFullSong){
+        // Cambio 140: vuelve a mostrar "Toda la canción" en el selector
+        // (durante la reproducción mostraba la sección real que sonaba).
+        if(els.sectionSelect){ els.sectionSelect.classList.remove('live-fullsong'); els.sectionSelect.value='__song__'; }
+    } else if(els.sectionSelect){
+        activeSongSection=els.sectionSelect.value; activeSongPartLabel = sectionNames[activeSongSection] || activeSongSection;
+    }
     if(timer) cancelAnimationFrame(timer); timer=null; clearKeys();
     lastVisualTimer.forEach(clearTimeout); lastVisualTimer=[];
     els.chordLabel.textContent='Modo manual'; updatePartDisplay(); updateStepGrid(-1);
+    updatePlayButtonMode();
     broadcastMainTransportState(false);
 }
 
@@ -1659,7 +1692,7 @@ function renderAll(){
     els.grooveVol.value = project.grooveVol;
     soloEnabled = project.soloOn !== false; if(els.soloBtn){ els.soloBtn.textContent = soloEnabled ? 'Solo ON' : 'Solo OFF'; els.soloBtn.classList.toggle('active',soloEnabled); }
     loadSoloFromSelectedSection();
-    renderSectionOptions(); renderChordSelect(); renderSectionList(); loadEditorFromSelected(); updateStyleHelp(); updatePartDisplay(); updateStepGrid(-1); updateSectionNoteMap(); renderArrangementBuilder(); setBPM(project.bpm);
+    renderSectionOptions(); renderChordSelect(); renderSectionList(); loadEditorFromSelected(); updateStyleHelp(); updatePartDisplay(); updateStepGrid(-1); updateSectionNoteMap(); renderArrangementBuilder(); setBPM(project.bpm); updatePlayButtonMode();
     if(stringInstrumentId(project.instrument)) setTimeout(()=>renderMainStringSurface(chordIdx,true),0);
     else if(project.instrument === 'drums') setTimeout(()=>scheduleMainDrumSurface(),0);
 }
@@ -1962,8 +1995,7 @@ function importJson(file){
 }
 
 function bind(){
-    els.playBtn.onclick=startStop;
-    els.playSongBtn.onclick=startFullSong;
+    els.playBtn.onclick=unifiedPlayToggle;
     els.metroBtn.onclick=()=>{ metroEnabled=!metroEnabled; const metroSpan=els.metroBtn.querySelector('span'); if(metroSpan) metroSpan.textContent=metroEnabled?'🔊':'🥁'; else if(!els.metroBtn.querySelector('img')) els.metroBtn.textContent=metroEnabled?'🔊':'🥁'; els.metroBtn.classList.toggle('active',metroEnabled); if(metroEnabled){ previewMetronome(); flashStatus('Metrónomo activado: escucharás el click junto con Start Groove o Escuchar canción.'); } else { flashStatus('Metrónomo apagado.'); } };
     if(els.soloBtn) els.soloBtn.onclick=()=>{ soloEnabled=!soloEnabled; project.soloOn=soloEnabled; els.soloBtn.textContent=soloEnabled?'Solo ON':'Solo OFF'; els.soloBtn.classList.toggle('active',soloEnabled); saveProject(false); };
     if(els.chordHoldBtn) els.chordHoldBtn.onclick=toggleChordHold;
@@ -2014,7 +2046,17 @@ function bind(){
     if(els.fretModeSelect) els.fretModeSelect.onchange=()=>{ project.fretMode=els.fretModeSelect.value; buildFretboard(); updateFretboardMap(); saveProject(false); flashStatus(project.fretMode==='bass'?'Diapasón bajo activo.':project.fretMode==='ukulele'?'Diapasón ukelele activo.':'Diapasón guitarra activo.'); };
     if(els.tuningSelect) els.tuningSelect.onchange=()=>{ project.tuningHz = els.tuningSelect.value==='custom' ? clamp(Number(els.tuningCustom.value)||440,390,470) : clamp(Number(els.tuningSelect.value)||440,390,470); if(els.tuningCustom) els.tuningCustom.value=project.tuningHz; saveProject(false); flashStatus('Afinación A4 = '+project.tuningHz+' Hz.'); };
     if(els.tuningCustom) els.tuningCustom.onchange=()=>{ project.tuningHz=clamp(Number(els.tuningCustom.value)||440,390,470); els.tuningCustom.value=project.tuningHz; if(els.tuningSelect) els.tuningSelect.value=[440,432,444].includes(Math.round(project.tuningHz))?String(Math.round(project.tuningHz)):'custom'; saveProject(false); flashStatus('Afinación A4 = '+project.tuningHz+' Hz.'); };
-    els.sectionSelect.onchange=()=>{ saveSoloForSection(lastEditorSection, false); activeSongSection=els.sectionSelect.value; lastEditorSection=els.sectionSelect.value; chordIdx=0; stepInChord=0; renderChordSelect(); loadEditorFromSelected(); renderSectionList(); loadSoloFromSelectedSection(); updateSectionNoteMap(); renderArrangementBuilder(); updateLiveUI(currentItem(),0,1,{}); saveProject(false); };
+    els.sectionSelect.onchange=()=>{
+        if(els.sectionSelect.value === '__song__'){
+            // Cambio 140: "Toda la canción" no es una sección real — no
+            // se intenta cargar editor/acordes para ella, solo se
+            // actualiza el aspecto del botón único.
+            updatePlayButtonMode();
+            return;
+        }
+        saveSoloForSection(lastEditorSection, false); activeSongSection=els.sectionSelect.value; lastEditorSection=els.sectionSelect.value; chordIdx=0; stepInChord=0; renderChordSelect(); loadEditorFromSelected(); renderSectionList(); loadSoloFromSelectedSection(); updateSectionNoteMap(); renderArrangementBuilder(); updateLiveUI(currentItem(),0,1,{}); saveProject(false);
+        updatePlayButtonMode();
+    };
     els.chordSelect.onchange=()=>{ loadEditorFromSelected(); renderSectionList(); updateSectionNoteMap(); };
     if(window.Studio936UiBindings?.bindEditorActions){
         window.Studio936UiBindings.bindEditorActions({
