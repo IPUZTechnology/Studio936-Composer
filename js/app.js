@@ -1301,6 +1301,20 @@ function setVisual(time,fn){
     lastVisualTimer.push(setTimeout(fn,delay));
 }
 function clearKeys(){ Object.values(keyMap).forEach(k=>k.classList.remove('active-chord','active-bass','active-solo')); clearFretboardActive(); window.Studio936DrumSurface?.clearActive?.(); updateHeldChordVisual(); }
+// Cambio 146: encendido/apagado preciso por nota, para tocar en vivo con
+// un teclado MIDI físico — se enciende al presionar la tecla real y se
+// apaga al soltarla (a diferencia de flashKeys, que usa un temporizador
+// fijo pensado para la reproducción programada del groove).
+function liveKeyOn(midi){
+    const stringLive = stringInstrumentId(project.instrument);
+    if(!stringLive){ if(keyMap[midi]) keyMap[midi].classList.add('active-chord'); }
+    else { flashFretboard([midi],'active-chord',60000); }
+}
+function liveKeyOff(midi){
+    const stringLive = stringInstrumentId(project.instrument);
+    if(!stringLive){ if(keyMap[midi]) keyMap[midi].classList.remove('active-chord'); }
+    else { clearFretboardActive(); }
+}
 function resumeAudio(){ return AudioEngine.resumeAudio(); }
 
 const AudioEngine = (window.Studio936AudioEngine || {}).setup({
@@ -2353,6 +2367,28 @@ function installStudio936AppBridge(){
             return true;
         }, false);
     }
+    // Cambio 146: tocar en vivo desde un teclado MIDI físico — enciende la
+    // tecla real en el piano/diapasón principal y suena con el timbre del
+    // instrumento actualmente seleccionado (no el sonido del teclado MIDI).
+    function playLiveNote(midiNumber, velocity01){
+        return safe(() => {
+            resumeAudio();
+            const midi = Number(midiNumber);
+            if(!Number.isFinite(midi)) return false;
+            const vol = Math.max(.08, Math.min(1, Number(velocity01) || .7)) * .5;
+            playNote(midi, 1.6, vol, 'triangle', audioCtx.currentTime);
+            liveKeyOn(midi);
+            return true;
+        }, false);
+    }
+    function stopLiveNote(midiNumber){
+        return safe(() => {
+            const midi = Number(midiNumber);
+            if(!Number.isFinite(midi)) return false;
+            liveKeyOff(midi);
+            return true;
+        }, false);
+    }
     // Cambio 104: el Chart nunca reproducía batería — su groove de práctica
     // solo tocaba bajo/acordes/arpegio/click, sin percusión, por eso sonaba
     // "sin groove" comparado con Main. Este método reutiliza el motor de
@@ -3053,7 +3089,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.3.18-cambio133-channel-pan',
+        version: 'suite-pro-bridge-v0.7.3.19-cambio146-midi-live',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -3068,6 +3104,8 @@ function installStudio936AppBridge(){
         setChannelMute,
         setChannelVolume,
         setChannelPan,
+        playLiveNote,
+        stopLiveNote,
         scheduleDrumStep,
         saveBassLine,
         saveLeadLine,

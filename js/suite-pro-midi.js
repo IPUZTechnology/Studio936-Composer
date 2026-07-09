@@ -664,8 +664,12 @@
     const noteName = midiNoteName(noteNumber);
     if (type === "note-on") {
       activeNotes.set(noteNumber, { noteNumber, noteName, velocity, channel, time: Date.now() });
+      // Cambio 146: encender el piano/diapasón principal y sonar con el
+      // instrumento actual de Studio 936 (no el sonido del teclado MIDI).
+      try { window.Studio936AppBridge?.playLiveNote?.(noteNumber, velocity / 127); } catch(_) {}
     } else if (type === "note-off") {
       activeNotes.delete(noteNumber);
+      try { window.Studio936AppBridge?.stopLiveNote?.(noteNumber); } catch(_) {}
     }
 
     const message = {
