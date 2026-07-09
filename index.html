@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>Studio 936 Composer v25 Song Structure Builder</title>
-<link rel="stylesheet" href="css/styles.css?v=cambio-141-fuchsia-cyan" />
+<link rel="stylesheet" href="css/styles.css?v=cambio-143-clean-icon" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap" rel="stylesheet" />
@@ -60,6 +60,7 @@
                 <option value="solo">Solo</option>
                 <option value="outro">Outro</option>
             </select>
+            <button type="button" class="btn btn-dark" data-tip="Transponer la canción a otra tonalidad" onclick="showTranspose();" style="font-size:.68rem;padding:8px 10px;">🎼 Transponer</button>
         </div>
     </div>
     <div class="tempo-zone">
@@ -74,6 +75,7 @@
         </div>
     </div>
 </header>
+
 <section class="status-bar">
     <div class="now-box">
         <div class="label-small">Sección actual</div>
@@ -85,10 +87,10 @@
         <button id="studioToggleBtn" class="btn btn-dark img-icon-btn" data-tip="Studio 936" onclick="window.Studio936SuitePro &amp;&amp; window.Studio936SuitePro.openArea &amp;&amp; window.Studio936SuitePro.openArea('studio');"><img src="docs/icon/Studio_936_ico.png" alt="Studio 936" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">Studio 936</span></button>
         <button id="tableroBtn" class="btn btn-dark img-icon-btn" data-tip="Chart / Tablero"><img src="docs/icon/Tablero_Practica_chart_icon.png" alt="Chart" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">Chart</span></button>
         <button id="playBtn" class="btn btn-play" data-tip="Tocar Sección" style="display:inline-flex;align-items:center;gap:6px;">
-            <img class="icon-section-play" src="docs/icon/Play_session_936.png" alt="Play Sección" style="height:26px;width:auto;flex-shrink:0;" onerror="this.style.display='none';" />
-            <img class="icon-section-stop" src="docs/icon/Pause_Seccion_936.png" alt="Pause Sección" style="height:26px;width:auto;flex-shrink:0;display:none;" onerror="this.style.display='none';" />
-            <img class="icon-song-play" src="docs/icon/Play_song_936.png" alt="Play Canción" style="height:26px;width:auto;flex-shrink:0;display:none;" onerror="this.style.display='none';" />
-            <img class="icon-song-stop" src="docs/icon/Pause_play__song.png" alt="Pause Canción" style="height:26px;width:auto;flex-shrink:0;display:none;" onerror="this.style.display='none';" />
+            <img class="icon-section-play" src="docs/icon/Play_session_936.png" alt="Play Sección" style="height:44px;width:auto;flex-shrink:0;" onerror="this.style.display='none';" />
+            <img class="icon-section-stop" src="docs/icon/Pause_Seccion_936.png" alt="Pause Sección" style="height:44px;width:auto;flex-shrink:0;display:none;" onerror="this.style.display='none';" />
+            <img class="icon-song-play" src="docs/icon/Play_song_936.png" alt="Play Canción" style="height:44px;width:auto;flex-shrink:0;display:none;" onerror="this.style.display='none';" />
+            <img class="icon-song-stop" src="docs/icon/Pause_play__song.png" alt="Pause Canción" style="height:44px;width:auto;flex-shrink:0;display:none;" onerror="this.style.display='none';" />
             <span class="btn-label">Start Groove</span>
         </button>
         <button class="btn btn-dark img-icon-btn" id="channelMixerBtn" data-tip="Canales / Instrumentos" onclick="window.Studio936ChannelMixer &amp;&amp; window.Studio936ChannelMixer.toggle &amp;&amp; window.Studio936ChannelMixer.toggle();"><img src="docs/icon/Instrument_setting_icon.png" alt="Canales" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">🎚</span></button>
@@ -288,6 +290,7 @@
                 </ol>
                 <div class="help-note"><b>Importante:</b> debajo del editor aparece el <b>Mapa de notas de la sección seleccionada</b>. Ahí confirmas qué acordes, bajos, notas y compases llevas en esa parte.</div>
             </div>
+
             <div class="help-block">
                 <h3>5. Botones del editor</h3>
                 <ul>
@@ -455,7 +458,7 @@
 <script src="js/suite-pro.js?v=cambio-112-openarea"></script>
 <script src="js/suite-pro-library.js?v=cambio-127-library"></script>
 <script src="js/suite-pro-channel-mixer.js?v=cambio-135-full-redesign"></script>
-<script src="js/app.js?v=cambio-141-play-icons-color"></script>
+<script src="js/app.js?v=cambio-142-real-transpose"></script>
 <!-- Studio 936 v0.7.0.3: persistent Editor instrument tabs hotfix -->
 <!-- Studio 936 v0.7.2.15: Piano Editor Reopen Final -->
     <button class="btn btn-dark icon-btn" id="helpBtn" data-tip="Ayuda">❓</button>
