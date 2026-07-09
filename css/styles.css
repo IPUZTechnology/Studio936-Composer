@@ -142,8 +142,6 @@
        izquierda — en vez de íconos sueltos flotando en el aire. */
     .bpm-line{
         display:flex;align-items:center;gap:6px;flex-wrap:nowrap;
-        background:#101010;border:1px solid #2c2c2c;border-radius:12px;
-        padding:6px 9px;
     }
     .bpm-line input[type="range"]{flex:1;min-width:44px;max-width:60px;}
     .tempo-box{
@@ -1903,29 +1901,33 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
   z-index:9999!important;
 }
 
-/* Cambio 119: tooltip propio (el "title" nativo del navegador no se
-   puede colorear) — aparece arriba del botón al pasar el mouse, letra
-   en el verde/teal de la marca. */
+/* Cambio 155: el tooltip aparecía ARRIBA del botón (bottom:100%), pero en
+   la fila de íconos principales casi no hay espacio antes del header, y
+   su z-index (50) era muy bajo frente a otros elementos del proyecto —
+   quedaba tapado o cortado. Ahora aparece DEBAJO del ícono (ahí sí sobra
+   espacio) con z-index altísimo para no volver a quedar oculto, más
+   compacto y con más color de marca. */
 [data-tip]{ position:relative; }
 [data-tip]::after{
   content:attr(data-tip);
   position:absolute;
-  bottom:calc(100% + 8px);
+  top:calc(100% + 6px);
   left:50%;
   transform:translateX(-50%);
-  background:rgba(8,14,14,.96);
+  background:#04120f;
   color:#5be8c9;
-  font-size:.7rem;
-  font-weight:600;
+  font-size:.64rem;
+  font-weight:800;
   letter-spacing:.3px;
-  padding:5px 10px;
-  border-radius:7px;
-  border:1px solid rgba(91,232,201,.35);
+  padding:4px 9px;
+  border-radius:6px;
+  border:1px solid #00ffcc;
+  box-shadow:0 0 10px rgba(0,255,204,.3);
   white-space:nowrap;
   opacity:0;
   pointer-events:none;
   transition:opacity .12s ease;
-  z-index:50;
+  z-index:99999;
 }
 [data-tip]:hover::after{
   opacity:1;
