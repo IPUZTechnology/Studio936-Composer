@@ -1581,6 +1581,14 @@ function broadcastMainTransportState(active){
         }));
     } catch(_) {}
 }
+// Cambio 138: cambia solo el texto de un botón (su <span class="btn-label">
+// si existe), sin tocar ningún ícono (SVG/img) que tenga adentro — mismo
+// patrón usado antes para Play Piano/Metrónomo, generalizado aquí.
+function setBtnLabel(btn, text){
+    if(!btn) return;
+    const label = btn.querySelector('.btn-label');
+    if(label) label.textContent = text; else btn.textContent = text;
+}
 function startStop(){
     resumeAudio();
     console.log('[S936_AUDIO_DEBUG] PLAY_FROM_MAIN', {alreadyPlaying:isPlaying, playAllMode, t:audioCtx.currentTime});
@@ -1590,8 +1598,8 @@ function startStop(){
     if(isPlaying) stopPlayback();
     playAllMode=false;
     isPlaying = true;
-    els.playBtn.textContent='Stop Groove'; els.playBtn.className='btn btn-stop';
-    els.playSongBtn.textContent='Escuchar canción'; els.playSongBtn.classList.remove('active');
+    setBtnLabel(els.playBtn,'Stop Groove'); els.playBtn.className='btn btn-stop';
+    setBtnLabel(els.playSongBtn,'Escuchar canción'); els.playSongBtn.classList.remove('active');
     chordIdx = Number(els.chordSelect.value)||0; stepInChord=0; globalStep=0; nextTime=audioCtx.currentTime+.04;
     scheduler();
     broadcastMainTransportState(true);
@@ -1605,16 +1613,16 @@ function startFullSong(){
     if(!parts.length){ flashStatus('No hay secciones para reproducir.'); return; }
     playAllMode=true; isPlaying=true; songSectionIdx=0; activeSongSection=parts[0].section; activeSongPartLabel = parts[0].label || sectionNames[activeSongSection] || activeSongSection; selectedArrangementIndex=0; renderArrangementBuilder();
     chordIdx=0; stepInChord=0; globalStep=0; nextTime=audioCtx.currentTime+.04;
-    els.playBtn.textContent='Start Groove'; els.playBtn.className='btn btn-play';
-    els.playSongBtn.textContent='Stop canción'; els.playSongBtn.classList.add('active');
+    setBtnLabel(els.playBtn,'Start Groove'); els.playBtn.className='btn btn-play';
+    setBtnLabel(els.playSongBtn,'Stop canción'); els.playSongBtn.classList.add('active');
     scheduler();
     broadcastMainTransportState(true);
 }
 function stopPlayback(){
     console.log('[S936_AUDIO_DEBUG] STOP_MAIN_TRANSPORT', {t:audioCtx.currentTime});
     isPlaying=false; playAllMode=false; activeSongSection=els.sectionSelect.value; activeSongPartLabel = sectionNames[activeSongSection] || activeSongSection;
-    els.playBtn.textContent='Start Groove'; els.playBtn.className='btn btn-play';
-    els.playSongBtn.textContent='Escuchar canción'; els.playSongBtn.classList.remove('active');
+    setBtnLabel(els.playBtn,'Start Groove'); els.playBtn.className='btn btn-play';
+    setBtnLabel(els.playSongBtn,'Escuchar canción'); els.playSongBtn.classList.remove('active');
     if(timer) cancelAnimationFrame(timer); timer=null; clearKeys();
     lastVisualTimer.forEach(clearTimeout); lastVisualTimer=[];
     els.chordLabel.textContent='Modo manual'; updatePartDisplay(); updateStepGrid(-1);

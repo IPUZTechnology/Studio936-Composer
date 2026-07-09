@@ -102,20 +102,20 @@
             applyLanguage();
         });
     }
-    function hasIconChild(node){ return !!(node && node.querySelector && node.querySelector('img')); }
+    function hasIconChild(node){ return !!(node && node.querySelector && (node.querySelector('img') || node.querySelector('svg'))); }
     function isIconOnlyBtn(node){ return !!(node && node.classList && (node.classList.contains('icon-btn') || node.classList.contains('img-icon-btn'))); }
     function setTextById(id, value){ const node = el(id); safeText(node, value); }
     function safeText(node, value){
         if(!node) return;
-        // Cambio 121: los botones que ahora muestran un ícono de imagen
-        // (Compose, Studio 936, Chart, Metrónomo, Play Piano) o que son
-        // puramente decorativos (Ayuda) no deben perder su ícono cada vez
-        // que este sistema de traducción "reaplica" texto. Si el botón
-        // tiene una imagen adentro, se actualiza solo su <span> de
-        // respaldo oculto (nunca se toca la imagen); si es un botón-ícono
-        // sin imagen (como Ayuda), se deja completamente intacto.
+        // Cambio 121/138: los botones que muestran un ícono (imagen o SVG:
+        // Compose, Studio 936, Chart, Metrónomo, Play Piano, Start Groove,
+        // Escuchar canción) o que son puramente decorativos (Ayuda) no
+        // deben perder su ícono cada vez que este sistema de traducción
+        // "reaplica" texto. Se actualiza solo su <span class="btn-label">
+        // (o el primer <span> de respaldo si no tiene esa clase) — nunca
+        // se toca el ícono.
         if(hasIconChild(node)){
-            const sp = node.querySelector('span');
+            const sp = node.querySelector('.btn-label') || node.querySelector('span');
             if(sp && sp.textContent !== value) sp.textContent = value;
             return;
         }
@@ -150,6 +150,8 @@
         const style = el('styleSelect'); if(style) style.title = t.styleTitle;
         const instr = el('instrumentSelect'); if(instr) instr.title = t.instrumentTitle;
         const section = el('sectionSelect'); if(section) section.title = t.sectionTitle;
+        const playBtnTip = el('playBtn'); if(playBtnTip) playBtnTip.setAttribute('data-tip', lang === 'en' ? 'Play Session' : 'Tocar Sección');
+        const playSongBtnTip = el('playSongBtn'); if(playSongBtnTip) playSongBtnTip.setAttribute('data-tip', lang === 'en' ? 'Play Song' : 'Tocar Canción');
         optionText('styleSelect', t.options.styles);
         optionText('instrumentSelect', t.options.instruments);
         optionText('sectionSelect', t.options.sections);
