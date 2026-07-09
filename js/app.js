@@ -1649,6 +1649,18 @@ function transposeSongInPlace(semi){
 // un select normal, igual que Estilo/Instrumento/Sección. Elegir una nota
 // nueva transporta la canción al instante, sin pantalla de confirmación.
 let s936CurrentSongKey = 'C';
+// Cambio 151: el estilo inline de un <option> no se refleja en la caja
+// cerrada del <select> en la mayoría de navegadores (solo se ve dentro de
+// la lista desplegada) — por eso "Canción completa" se veía sin color/
+// negrilla aunque el <option> ya tenía el estilo puesto. Se resuelve
+// alternando una clase sobre el propio <select> según el valor elegido.
+function s936UpdateSectionSelectStyle(){
+    const sel = document.getElementById('sectionSelect');
+    if(!sel) return;
+    sel.classList.toggle('is-full-song', sel.value === '__song__');
+}
+document.addEventListener('DOMContentLoaded', ()=>setTimeout(s936UpdateSectionSelectStyle, 0));
+document.addEventListener('change', (e)=>{ if(e.target && e.target.id === 'sectionSelect') s936UpdateSectionSelectStyle(); });
 function s936InitKeySelect(){
     const sel = document.getElementById('s936KeySelect');
     if(!sel) return;
