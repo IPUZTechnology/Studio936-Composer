@@ -1600,6 +1600,7 @@ function startStop(){
     playAllMode=false;
     isPlaying = true;
     setBtnLabel(els.playBtn,'Stop Groove'); els.playBtn.className='btn btn-stop';
+    if(els.sectionSelect) els.sectionSelect.classList.add('live-section-active');
     chordIdx = Number(els.chordSelect.value)||0; stepInChord=0; globalStep=0; nextTime=audioCtx.currentTime+.04;
     scheduler();
     broadcastMainTransportState(true);
@@ -1648,6 +1649,7 @@ function stopPlayback(){
     console.log('[S936_AUDIO_DEBUG] STOP_MAIN_TRANSPORT', {t:audioCtx.currentTime});
     const wasFullSong = playAllMode;
     isPlaying=false; playAllMode=false;
+    if(els.sectionSelect) els.sectionSelect.classList.remove('live-section-active');
     if(wasFullSong){
         // Cambio 140: vuelve a mostrar "Toda la canción" en el selector
         // (durante la reproducción mostraba la sección real que sonaba).
