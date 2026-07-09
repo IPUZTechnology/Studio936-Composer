@@ -1,5 +1,6 @@
 // Studio 936 Composer - extracted JavaScript from legacy v25.9 + Editor Pro bridge v0.7.2.7 Drum Patterns Base
 // Keep script order intact.
+
 (() => {
 'use strict';
 const debugArrangementEnabled = new URLSearchParams(window.location.search).get('debugArrangement') === '1';
@@ -1584,6 +1585,85 @@ function broadcastMainTransportState(active){
 // Cambio 138: cambia solo el texto de un botón (su <span class="btn-label">
 // si existe), sin tocar ningún ícono (SVG/img) que tenga adentro — mismo
 // patrón usado antes para Play Piano/Metrónomo, generalizado aquí.
+// Cambio 142: Transponer — motor propio y activo (el que existía antes
+// vivía dentro de un bloque deshabilitado a propósito,
+// `ENABLE_LEGACY_V18_PRO_SUITE = false`, por eso nunca funcionó). Este
+// transforma la canción EN VIVO (sin recargar la página), reutilizando
+// el mismo patrón de refresco que ya usa el resto de la app.
+const S936_NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const S936_PC = {C:0,'C#':1,DB:1,D:2,'D#':3,EB:3,E:4,FB:4,'E#':5,F:5,'F#':6,GB:6,G:7,'G#':8,AB:8,A:9,'A#':10,BB:10,B:11,CB:11,'B#':0};
+function s936ParseRoot(root){
+    if(!root) return null;
+    root = String(root).trim().toUpperCase().replace(/♭/g,'B').replace(/♯/g,'#');
+    const v = S936_PC[root];
+    return v===undefined ? null : v;
+}
+function s936PcToName(pc){ return S936_NOTE_NAMES[((pc%12)+12)%12]; }
+function s936TransposeRoot(root,semi){ const pc=s936ParseRoot(root); return pc==null?root:s936PcToName(pc+semi); }
+function s936TransposeChordName(name,semi){
+    return String(name||'').replace(/^([A-Ga-g](?:#|b)?)(.*?)(?:\/([A-Ga-g](?:#|b)?))?$/i,
+        (m,r,rest,slash)=> s936TransposeRoot(r,semi)+(rest||'')+(slash?('/'+s936TransposeRoot(slash,semi)):''));
+}
+function s936TransposeNoteToken(tok,semi){
+    const m = String(tok||'').match(/^([A-Ga-g](?:#|b)?)(-?\d+)?$/i);
+    if(!m) return tok;
+    return s936TransposeRoot(m[1],semi)+(m[2]||'');
+}
+function s936TransposeNotes(str,semi){
+    return String(str||'').split(/(\s+|,|;)/).map(x=>/^[\s,;]+$/.test(x)?x:s936TransposeNoteToken(x,semi)).join('');
+}
+function s936TransposeSoloPhrase(str,semi){
+    return String(str||'').replace(/([A-Ga-g](?:#|b)?)(-?\d+)(?=\s*:)/gi,(m,r,o)=>s936TransposeRoot(r,semi)+o);
+}
+function transposeSongInPlace(semi){
+    if(!semi) return;
+    songOrder.forEach(k=>{
+        (project.sections[k]||[]).forEach(c=>{
+            if(c.name) c.name = s936TransposeChordName(c.name, semi);
+            if(c.bass) c.bass = s936TransposeNotes(c.bass, semi);
+            if(c.notes) c.notes = s936TransposeNotes(c.notes, semi);
+        });
+        if(project.sectionSolos && project.sectionSolos[k]){
+            if(project.sectionSolos[k].key) project.sectionSolos[k].key = s936TransposeRoot(project.sectionSolos[k].key, semi);
+            if(project.sectionSolos[k].phrase) project.sectionSolos[k].phrase = s936TransposeSoloPhrase(project.sectionSolos[k].phrase, semi);
+        }
+    });
+    saveProject(false);
+    renderChordSelect(); renderSectionList(); loadEditorFromSelected(); updateSectionNoteMap(); renderArrangementBuilder(); updateLiveUI(currentItem(),0,1,{});
+}
+function showTransposePanel(){
+    let overlay = document.getElementById('s936TransposeOverlay');
+    if(overlay){ overlay.style.display='flex'; return; }
+    overlay = document.createElement('div');
+    overlay.id = 's936TransposeOverlay';
+    Object.assign(overlay.style, {position:'fixed',inset:'0',zIndex:'10000',background:'rgba(0,0,0,.55)',display:'flex',alignItems:'center',justifyContent:'center'});
+    const noteOpts = S936_NOTE_NAMES.map(n=>`<option value="${n}">${n}</option>`).join('');
+    overlay.innerHTML = `<div style="width:min(360px,92vw);background:radial-gradient(circle at 20% 0%, rgba(0,255,204,.14), transparent 26%),linear-gradient(180deg, rgba(13,18,28,.98), rgba(5,7,12,.97));border:1px solid rgba(0,255,204,.34);border-radius:18px;box-shadow:0 30px 90px rgba(0,0,0,.72);padding:18px 20px;color:#e8f4f2;font-family:inherit;">
+        <h2 style="margin:0 0 8px;font-size:.95rem;color:#00ffcc;font-weight:900;text-transform:uppercase;">🎼 Transponer</h2>
+        <p style="font-size:.72rem;color:#9fb0ae;margin:0 0 14px;">Cambia la tonalidad de todos los acordes, bajo, notas y solos de la canción — en vivo, sin recargar.</p>
+        <label style="font-size:.7rem;color:#9fb0ae;display:block;margin-bottom:4px;">Tono actual</label>
+        <select id="s936KeyFrom" style="width:100%;padding:7px;border-radius:8px;background:#1c2224;border:1px solid #333;color:#e8f4f2;margin-bottom:12px;">${noteOpts}</select>
+        <label style="font-size:.7rem;color:#9fb0ae;display:block;margin-bottom:4px;">Nueva tonalidad</label>
+        <select id="s936KeyTo" style="width:100%;padding:7px;border-radius:8px;background:#1c2224;border:1px solid #333;color:#e8f4f2;margin-bottom:16px;">${noteOpts}</select>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <button id="s936TransposeCancel" style="background:transparent;border:none;color:#9fb0ae;cursor:pointer;font-size:.78rem;">Cancelar</button>
+            <button id="s936TransposeApply" style="background:#00ffcc;color:#04342c;border:none;border-radius:8px;padding:8px 16px;font-weight:800;cursor:pointer;font-size:.78rem;">Transportar</button>
+        </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.style.display='none'; });
+    document.getElementById('s936TransposeCancel').onclick = ()=>{ overlay.style.display='none'; };
+    document.getElementById('s936TransposeApply').onclick = ()=>{
+        const from = s936ParseRoot(document.getElementById('s936KeyFrom').value);
+        const to = s936ParseRoot(document.getElementById('s936KeyTo').value);
+        const semi = to - from;
+        if(semi){ transposeSongInPlace(semi); flashStatus(`Canción transportada ${semi>0?'+':''}${semi} semitono(s).`); }
+        else flashStatus('Mismo tono — no hay nada que transportar.');
+        overlay.style.display='none';
+    };
+}
+window.showTranspose = showTransposePanel;
+
 function setBtnLabel(btn, text){
     if(!btn) return;
     const label = btn.querySelector('.btn-label');
@@ -1686,9 +1766,12 @@ function renderAll(){
     buildFretboard();
     if(els.tuningSelect){ const hz=Number(project.tuningHz)||440; els.tuningSelect.value = [440,432,444].includes(Math.round(hz)) ? String(Math.round(hz)) : 'custom'; if(els.tuningCustom) els.tuningCustom.value = hz; }
     setViewMode(project.viewMode || 'piano');
-    els.sectionSelect.value = (els.sectionSelect.value && project.sections[els.sectionSelect.value]) ? els.sectionSelect.value : 'intro';
-    activeSongSection = els.sectionSelect.value; activeSongPartLabel = sectionNames[activeSongSection] || activeSongSection;
-    lastEditorSection = els.sectionSelect.value;
+    if(els.sectionSelect.value !== '__song__'){
+        els.sectionSelect.value = (els.sectionSelect.value && project.sections[els.sectionSelect.value]) ? els.sectionSelect.value : 'intro';
+    }
+    const initSectionKey = (els.sectionSelect.value === '__song__') ? 'intro' : els.sectionSelect.value;
+    activeSongSection = initSectionKey; activeSongPartLabel = sectionNames[initSectionKey] || initSectionKey;
+    lastEditorSection = initSectionKey;
     els.bpmSlider.value = project.bpm; els.bpmDisplay.textContent = project.bpm;
     els.grooveVol.value = project.grooveVol;
     soloEnabled = project.soloOn !== false; if(els.soloBtn){ els.soloBtn.textContent = soloEnabled ? 'Solo ON' : 'Solo OFF'; els.soloBtn.classList.toggle('active',soloEnabled); }
@@ -3254,7 +3337,26 @@ function showLibrary(){ renderLibraryModal(); }
 function library(){ try{return JSON.parse(localStorage.getItem(LIB_KEY)||'[]')}catch(e){return []} }
 function saveLibrary(list){ localStorage.setItem(LIB_KEY,JSON.stringify(list)); }
 function renderLibraryModal(){ const list=library(); const body=`<div class="v18-actions"><button class="v18-btn" id="v18SaveLib">${T('save')} actual</button><button class="v18-btn" id="v18NewBlank">${T('newSong')}</button></div>${list.length?`<div class="v18-list">${list.map(x=>`<div class="v18-list-row"><div><b>${esc(x.title)}</b><small>${esc(x.author||'')} · ${new Date(x.updated).toLocaleString()}</small></div><div><button class="v18-mini" data-open="${x.id}">${T('open')}</button><button class="v18-mini" data-dup="${x.id}">${T('duplicate')}</button><button class="v18-mini danger" data-del="${x.id}">${T('delete')}</button></div></div>`).join('')}</div>`:`<p>${T('libraryEmpty')}</p>`}`; openModal('library',T('library'),body); $('v18SaveLib').onclick=()=>{ const p=getProject(); const l=library(); l.unshift({id:Date.now().toString(36),title:p.title,author:p.author,updated:Date.now(),project:p}); saveLibrary(l.slice(0,60)); flash(T('saved')); renderLibraryModal(); }; $('v18NewBlank').onclick=()=>{ const p=baseProject(); p.title='Nueva canción'; p.author=''; SONG_ORDER.forEach(k=>{p.lyrics[k]=''; if(k!=='intro')p.sections[k]=[];}); setProject(p); }; qa('[data-open]').forEach(b=>b.onclick=()=>{ const it=library().find(x=>x.id===b.dataset.open); if(it) setProject(it.project); }); qa('[data-dup]').forEach(b=>b.onclick=()=>{ const l=library(); const it=l.find(x=>x.id===b.dataset.dup); if(it){ const cp=clone(it); cp.id=Date.now().toString(36); cp.title=cp.title+' copia'; cp.updated=Date.now(); l.unshift(cp); saveLibrary(l); renderLibraryModal(); }}); qa('[data-del]').forEach(b=>b.onclick=()=>{ saveLibrary(library().filter(x=>x.id!==b.dataset.del)); renderLibraryModal(); }); }
-function showTranspose(){ const body=`<p>Transpone acordes, bajos, notas y melodías/solos.</p><div class="v18-form"><label>Semitonos</label><input id="v18Semi" type="number" value="0" min="-12" max="12"><label>Acción rápida</label><select id="v18SemiQuick"><option value="0">0</option><option value="1">+1</option><option value="2">+2</option><option value="-1">-1</option><option value="-2">-2</option><option value="5">+5</option><option value="-5">-5</option></select></div><div class="v18-actions"><button class="v18-btn primary" id="v18DoTranspose">${T('apply')}</button></div>`; openModal('transpose',T('transpose'),body); $('v18SemiQuick').onchange=e=>$('v18Semi').value=e.target.value; $('v18DoTranspose').onclick=()=>{ const semi=Number($('v18Semi').value)||0; if(semi) setProject(transposeProject(getProject(),semi)); else flash('0'); }; }
+function showTranspose(){
+    const noteOptions = NOTE_NAMES.map(n=>`<option value="${n}">${n}</option>`).join('');
+    const body = `<p>Transporta acordes, bajo, notas y melodías/solos de toda la canción a otra tonalidad.</p>
+        <div class="v18-form">
+            <label>Tono actual</label>
+            <select id="v18KeyFrom">${noteOptions}</select>
+            <label>Nueva tonalidad</label>
+            <select id="v18KeyTo">${noteOptions}</select>
+        </div>
+        <p style="font-size:.75rem;color:#9fb0ae;">Al aplicar, la página se recarga sola para mostrar la canción ya transportada.</p>
+        <div class="v18-actions"><button class="v18-btn primary" id="v18DoTranspose">${T('apply')}</button></div>`;
+    openModal('transpose',T('transpose'),body);
+    $('v18DoTranspose').onclick=()=>{
+        const from = parseRoot($('v18KeyFrom').value);
+        const to = parseRoot($('v18KeyTo').value);
+        const semi = to - from;
+        if(semi) setProject(transposeProject(getProject(),semi));
+        else flashStatus('Mismo tono — no hay nada que transportar.');
+    };
+}
 function showScales(){ const p=getProject(); const sec=$('sectionSelect')?.value||'intro'; const solo=p.sectionSolos?.[sec]||{key:'C',scale:'major'}; const notes=scaleNotes(solo.key,solo.scale); const body=`<div class="v18-form"><label>${T('section')}</label><b>${esc(sectionName(sec))}</b><label>${T('key')}</label><input id="v18ScaleKey" value="${esc(solo.key||'C')}"><label>${T('scale')}</label><select id="v18ScaleName">${Object.keys(SCALE_INTERVALS).map(k=>`<option value="${k}" ${k===solo.scale?'selected':''}>${SCALE_LABELS[k]}</option>`).join('')}</select></div><div id="v18ScaleOut" class="v18-notechips">${notes.map(n=>`<span>${n}</span>`).join('')}</div><p class="v18-muted">Estas son notas recomendadas para improvisar o construir melodías sobre la sección.</p>`; openModal('scales',T('scales'),body); const upd=()=>{ $('v18ScaleOut').innerHTML=scaleNotes($('v18ScaleKey').value,$('v18ScaleName').value).map(n=>`<span>${n}</span>`).join(''); }; $('v18ScaleKey').oninput=upd; $('v18ScaleName').onchange=upd; }
 function chordVoicing(name){ return MusicTheory.chordVoicing(name); }
 function suggestChords(root,mood){ const R=transposeRoot(root||'C',0); const pc=parseRoot(R)||0; const deg=[0,2,4,5,7,9,11].map(i=>pcToName(pc+i)); const map={soft:[`${deg[3]}maj7`,`${deg[5]}m7`,`${deg[1]}m7`,`${deg[4]}7`],epic:[`${deg[0]}add9`,`${deg[3]}maj9`,`${deg[4]}sus4`,`${deg[0]}maj9`],sad:[`${deg[5]}m7`,`${deg[1]}m7`,`${deg[3]}maj7`,`${deg[4]}7`],funk:[`${deg[0]}maj13`,`${deg[4]}6/9`,`${deg[5]}m6`,`${deg[0]}maj7`],jazz:[`${deg[1]}m9`,`${deg[4]}13`,`${deg[0]}maj9`,`${deg[5]}7alt`],resolve:[`${deg[4]}7`,`${deg[0]}maj7`,`${deg[0]}`,`${deg[0]}6/9`]}; return map[mood]||map.soft; }
