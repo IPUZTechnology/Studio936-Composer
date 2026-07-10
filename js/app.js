@@ -3098,6 +3098,12 @@ function installStudio936AppBridge(){
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
+        // Cambio 165: la Librería nueva necesita leer la composición actual
+        // (para "Guardar composición actual") y cargar una guardada (para
+        // "Abrir") sin reinventar nada — reutiliza getProjectJson/setProject
+        // que ya existen y ya están probados.
+        getProjectSnapshot: () => { try { return JSON.parse(getProjectJson()); } catch(_) { return null; } },
+        loadProject: (projectObj) => { setProject(projectObj); return true; },
         getEditorState,
         setInstrument,
         setKey,
