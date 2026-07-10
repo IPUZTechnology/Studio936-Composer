@@ -62,7 +62,7 @@
       },
       icons: {
         compose: 'Componer', studio: 'Studio 936', chart: 'Tocar-Partitura',
-        mixer: 'Mezclador', library: 'Librería', pianoZoom: 'Tocar Piano'
+        mixer: 'Mezclador', library: '936 Player', pianoZoom: 'Tocar Piano'
       },
       play: {
         section: { play: 'Tocar Sección', stop: 'Parar Sección' },
@@ -104,7 +104,7 @@
       },
       icons: {
         compose: 'Compose', studio: 'Studio 936', chart: 'Play-Score',
-        mixer: 'Mixer', library: 'Library', pianoZoom: 'Play Piano'
+        mixer: 'Mixer', library: '936 Player', pianoZoom: 'Play Piano'
       },
       play: {
         section: { play: 'Play Session', stop: 'Stop Session' },

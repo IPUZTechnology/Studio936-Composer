@@ -231,17 +231,64 @@
     // ---------------------------------------------------------------
     function compositionCardActions(item){
         const box = el('div', 's936lib-cardactions');
+        const playBtn = el('button', 's936lib-mini', currentPlayingId === item.previewAudioId && item.previewAudioId ? '⏸ Reproduciendo' : '▶ Play');
+        playBtn.onclick = (e) => { e.stopPropagation(); previewComposition(item.id); };
         const openBtn = el('button', 's936lib-mini', 'Abrir');
         openBtn.onclick = (e) => { e.stopPropagation(); openComposition(item.id); };
         const dupBtn = el('button', 's936lib-mini', 'Duplicar');
         dupBtn.onclick = (e) => { e.stopPropagation(); duplicateComposition(item.id); };
         const delBtn = el('button', 's936lib-mini danger', 'Borrar');
         delBtn.onclick = (e) => { e.stopPropagation(); deleteComposition(item.id); };
-        box.append(openBtn, dupBtn, delBtn);
+        box.append(playBtn, openBtn, dupBtn, delBtn);
         return box;
     }
 
+    // Cambio 166: el motor de audio de Studio 936 (Bridge) solo sabe tocar
+    // LA canción cargada en el editor en este momento — no está hecho para
+    // reproducir de fondo una composición distinta sin reemplazar lo que
+    // tienes abierto. Por eso "Play" aquí no usa el motor de acordes: usa
+    // un audio de referencia que tú vinculas (de tu pestaña Audios), igual
+    // que en un reproductor real. Si no has vinculado ninguno, te deja
+    // elegir uno de tus Audios ya importados.
+    function previewComposition(id){
+        const item = store.compositions.find(x => x.id === id);
+        if(!item) return;
+        if(item.previewAudioId && audioObjectURLs[item.previewAudioId]){
+            playAudio(item.previewAudioId);
+            return;
+        }
+        if(!store.audios.length){
+            alert('Todavía no tienes ningún audio importado en la pestaña Audios para usar como referencia de "' + item.title + '". Importa uno ahí primero.');
+            return;
+        }
+        const options = store.audios.map((a, i) => (i+1) + ') ' + a.title).join('\n');
+        const choice = prompt('¿Cuál audio de tus Audios quieres usar como referencia de "' + item.title + '"?\n' + options + '\n\nEscribe el número:');
+        const idx = parseInt(choice, 10) - 1;
+        if(isNaN(idx) || !store.audios[idx]) return;
+        item.previewAudioId = store.audios[idx].id;
+        saveStore();
+        playAudio(item.previewAudioId);
+    }
+
+    function genreLabel(rawStyle){
+        if(!rawStyle) return '';
+        const core = window.Studio936I18nCore;
+        if(!core) return rawStyle;
+        const options = core.dict?.[core.getLang()]?.select?.style?.options;
+        return (options && options[rawStyle]) || rawStyle;
+    }
+
     function genreTag(type, item){
+        if(type === 'compositions'){
+            // Cambio 166: el género de una composición viene solo del
+            // estilo elegido en la barra principal (Pop/Funk/Jazz...) al
+            // guardarla — no se pregunta ni se edita aquí, sería
+            // redundante con un campo que ya existe.
+            const tag = el('span', 's936lib-genretag', genreLabel(item.genre) || 'Sin estilo');
+            tag.style.cursor = 'default';
+            tag.title = 'Viene del estilo elegido en la barra principal al guardar.';
+            return tag;
+        }
         const tag = el('span', 's936lib-genretag', item.genre || '+ género');
         tag.onclick = (e) => {
             e.stopPropagation();
@@ -289,7 +336,8 @@
             title: snapshot.title || 'Sin título',
             author: snapshot.author || '',
             updated: Date.now(),
-            genre: '',
+            genre: snapshot.style || '',
+            previewAudioId: null,
             project: snapshot
         });
         saveStore();
@@ -305,7 +353,7 @@
         if(viewMode === 'grid'){
             const grid = el('div', 's936lib-grid');
             list.forEach((item) => {
-                const card = el('div', 's936lib-card');
+                const card = el('div', 's936lib-card' + (currentPlayingId === item.previewAudioId && item.previewAudioId ? ' playing' : ''));
                 const bubble = el('div', 's936lib-bubble', '🎼');
                 const title = el('div', 's936lib-cardtitle', item.title);
                 const meta = el('div', 's936lib-cardmeta', (item.author || 'Sin autor') + ' · ' + fmtDate(item.updated));
@@ -314,16 +362,24 @@
             });
             body.appendChild(grid);
         } else {
+            // Cambio 166: vista lista tipo reproductor, igual estilo que
+            // Audios — con scroll propio, para que el LCD/transporte de
+            // arriba se quede siempre fijo aunque tengas muchas guardadas.
+            const listWrap = el('div', '');
+            listWrap.style.cssText = 'max-height:100%;overflow-y:auto;';
             list.forEach((item) => {
-                const row = el('div', 's936lib-list-row');
-                const icon = el('div', 's936lib-list-icon', '🎼');
+                const isPlaying = currentPlayingId === item.previewAudioId && item.previewAudioId;
+                const row = el('div', 's936lib-list-row' + (isPlaying ? ' playing' : ''));
+                const icon = el('div', 's936lib-list-icon', isPlaying ? '▶' : '🎼');
                 const title = el('div', 's936lib-list-title', item.title);
                 const meta = el('div', 's936lib-list-meta', (item.author || 'Sin autor') + ' · ' + fmtDate(item.updated));
                 const actions = el('div', 's936lib-list-actions');
                 actions.append(genreTag('compositions', item), compositionCardActions(item));
                 row.append(icon, title, meta, actions);
-                body.appendChild(row);
+                row.onclick = () => previewComposition(item.id);
+                listWrap.appendChild(row);
             });
+            body.appendChild(listWrap);
         }
     }
 
@@ -645,7 +701,7 @@
         icon.src = 'docs/icon/library_icon_s936.svg';
         icon.alt = 'Librería';
         icon.onerror = () => { icon.style.display = 'none'; };
-        const title = el('h2', '', 'Librería — Studio 936');
+        const title = el('h2', '', '936 Player');
         const gridBtn = el('button', 's936lib-viewbtn', '⊞');
         gridBtn.dataset.view = 'grid';
         gridBtn.title = 'Vista cuadrícula';
