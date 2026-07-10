@@ -51,6 +51,7 @@
         },
         section: {
           title: 'Sección de la canción',
+          fullSong: 'Canción completa',
           options: { intro:'Introducción', verse:'Verso', verse1:'Verso 1', verse2:'Verso 2', verse3:'Verso 3', prechorus:'Pre-coro', chorus:'Coro', interlude:'Interludio', solo:'Solo' }
         }
       },
@@ -66,7 +67,8 @@
       play: {
         section: { play: 'Tocar Sección', stop: 'Parar Sección' },
         song: { play: 'Tocar canción', stop: 'Parar Canción' }
-      }
+      },
+      transpose: { keyPrefix: 'Clave' }
     },
     en: {
       app: {
@@ -91,6 +93,7 @@
         },
         section: {
           title: 'Song section',
+          fullSong: 'Full Song',
           options: { intro:'Introduction', verse:'Verse', verse1:'Verse 1', verse2:'Verse 2', verse3:'Verse 3', prechorus:'Pre-chorus', chorus:'Chorus', interlude:'Interlude', solo:'Solo' }
         }
       },
@@ -106,7 +109,8 @@
       play: {
         section: { play: 'Play Session', stop: 'Stop Session' },
         song: { play: 'Play Song', stop: 'Stop Song' }
-      }
+      },
+      transpose: { keyPrefix: 'Key' }
     }
   };
 

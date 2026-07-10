@@ -219,6 +219,31 @@
         const tableroTip = el('tableroBtn'); if(tableroTip) tableroTip.setAttribute('data-tip', icons ? icons.chart : (lang==='en'?'Play-Score':'Tocar-Partitura'));
         const mixerTip = el('channelMixerBtn'); if(mixerTip) mixerTip.setAttribute('data-tip', icons ? icons.mixer : (lang==='en'?'Mixer':'Mezclador'));
         const libraryTip = el('libraryBtn'); if(libraryTip) libraryTip.setAttribute('data-tip', icons ? icons.library : (lang==='en'?'Library':'Librería'));
+        // Cambio 160: la opción "Canción completa" del selector de sección
+        // vivía como texto fijo en el HTML, sin conexión al idioma — se
+        // traduce aquí buscando la opción por su value (__song__), sin
+        // tocar la lógica que depende de ese value.
+        const fullSongOpt = q('#sectionSelect option[value="__song__"]');
+        if(fullSongOpt && Core) fullSongOpt.textContent = Core.dict[lang].select.section.fullSong;
+        // Cambio 160: los 12 "Clave: X" del selector de transponer también
+        // eran texto fijo — se regeneran con el prefijo traducido,
+        // conservando la nota (el value de cada <option> no cambia, así
+        // que la selección y la lógica de transposición no se afectan).
+        if(Core){
+            const keyPrefix = Core.dict[lang].transpose.keyPrefix;
+            qa('#s936KeySelect option').forEach((opt)=>{ opt.textContent = `${keyPrefix}: ${opt.value}`; });
+        }
+        // Cambio 160: el tooltip de Play Piano se generaba UNA sola vez al
+        // crear el botón (ensureZoomButton, en app.js) y nunca se volvía a
+        // tocar — quedaba congelado en el idioma que estuviera activo en
+        // ese momento. Se refresca aquí cada vez que cambia el idioma.
+        const pianoZoomBtn = el('pianoZoomBtn');
+        if(pianoZoomBtn && Core){
+            const zoomLabel = Core.t('icons.pianoZoom');
+            pianoZoomBtn.setAttribute('data-tip', zoomLabel);
+            const fallbackSpan = pianoZoomBtn.querySelector('span');
+            if(fallbackSpan) fallbackSpan.textContent = zoomLabel;
+        }
         optionText('styleSelect', t.options.styles);
         optionText('instrumentSelect', t.options.instruments);
         optionText('sectionSelect', t.options.sections);
