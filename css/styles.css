@@ -58,7 +58,7 @@
        comparten literalmente la misma fila del grid — alineación
        garantizada por CSS, no por márgenes calculados a ojo.
     */
-    .brand{ grid-column:1; grid-row:1 / 3; }
+    .brand{ grid-column:1; grid-row:1 / 3; justify-self:start; }
     .song-center{ display:contents; }
     .song-title-input{ grid-column:2; grid-row:1; }
     .song-row{ grid-column:2; grid-row:2; }
@@ -1906,7 +1906,8 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
    de la barra ni quede tapado por nada de arriba o de abajo. Legible
    sobre cualquier ícono gracias al resplandor de texto (text-shadow),
    sin necesitar ningún fondo. */
-[data-tip]{ position:relative; }
+[data-tip]{ position:relative; z-index:1; }
+[data-tip]:hover{ z-index:99999; }
 [data-tip]::after{
   content:attr(data-tip);
   position:absolute;
