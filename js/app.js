@@ -1023,12 +1023,10 @@ function toggleTablero(){
     if(!Chart){ flashStatus('El Tablero no está disponible todavía (Chart no cargó).'); return; }
     tableroEnabled = !tableroEnabled;
     if(els.tableroBtn){
-        // Cambio 153: antes esto ponía .textContent='Tablero ON/OFF', lo que
-        // borraba el <img> del ícono (mismo patrón de bug que Play Piano/
-        // Metrónomo en ciclos anteriores). El ícono debe quedarse siempre
-        // ahí — el estado ON/OFF se indica con el mismo brillo cian que ya
-        // usan los demás botones de ícono activos (.img-icon-btn.active img).
-        els.tableroBtn.setAttribute('data-tip', tableroEnabled ? 'Chart / Tablero (activo)' : 'Chart / Tablero');
+        // Cambio 158: el tooltip bilingüe ("Tocar-Partitura"/"Play-Score")
+        // ahora lo controla i18n.js de forma centralizada — aquí solo se
+        // marca visualmente el estado ON con el mismo brillo cian que usan
+        // los demás íconos activos (.img-icon-btn.active img).
         els.tableroBtn.classList.toggle('active', tableroEnabled);
     }
     if(tableroEnabled){
@@ -3922,10 +3920,13 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
   const solfege={do:'C',re:'D',mi:'E',fa:'F',sol:'G',la:'A',si:'B'};
   const tr=()=>((document.documentElement.lang||localStorage.getItem(LANG_KEY)||'es').startsWith('en')?'en':'es');
   const dict={
-    es:{zoom:'Play piano',closeZoom:'Cerrar zoom',charts:'Charts de acordes',hint:'Toca un chart para cargar ese acorde en el editor',shape:'Forma',noShape:'Sin forma clara',tools:'Herramientas'},
-    en:{zoom:'Play piano',closeZoom:'Close zoom',charts:'Chord charts',hint:'Tap a chart to load that chord into the editor',shape:'Shape',noShape:'No clear shape',tools:'Tools'}
+    es:{zoom:'Tocar Piano',closeZoom:'Cerrar zoom',charts:'Charts de acordes',hint:'Toca un chart para cargar ese acorde en el editor',shape:'Forma',noShape:'Sin forma clara',tools:'Herramientas'},
+    en:{zoom:'Play Piano',closeZoom:'Close zoom',charts:'Chord charts',hint:'Tap a chart to load that chord into the editor',shape:'Shape',noShape:'No clear shape',tools:'Tools'}
   };
-  const T=k=>(dict[tr()]||dict.es)[k]||k;
+  const T=k=>{
+    if(k==='zoom' && window.Studio936I18nCore) return window.Studio936I18nCore.t('icons.pianoZoom');
+    return (dict[tr()]||dict.es)[k]||k;
+  };
   function load(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}')}catch(e){return {}}}
   function save(p){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(p))}catch(e){}}
   function parseNote(token){

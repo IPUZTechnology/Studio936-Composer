@@ -1,7 +1,14 @@
 (function(){
     'use strict';
-    const LANG_KEY = 'pianoComposerUiLangV15';
-    let lang = localStorage.getItem(LANG_KEY) || 'es';
+    // Cambio 159: el idioma actual y su persistencia ahora viven en un solo
+    // sitio — window.Studio936I18nCore (js/i18n-core.js, debe cargar antes
+    // que este archivo). Este módulo sigue funcionando igual por fuera
+    // (mismas funciones, mismo comportamiento) pero ya no guarda su propia
+    // copia de localStorage — delega en el núcleo para no tener dos
+    // fuentes de verdad del idioma.
+    const Core = window.Studio936I18nCore || null;
+    const LANG_KEY = Core ? Core.LANG_KEY : 'pianoComposerUiLangV15';
+    let lang = Core ? Core.getLang() : (localStorage.getItem(LANG_KEY) || 'es');
 
     const sectionEsToEn = {
         'Introducción':'Introduction','Verso':'Verse','Verso 1':'Verse 1','Verso 2':'Verse 2','Verso 3':'Verse 3','Pre-coro':'Pre-chorus','Coro':'Chorus','Interludio':'Interlude','Solo':'Solo'
@@ -81,6 +88,38 @@
         }
     };
 
+    // Cambio 159: los campos del "menú principal" (arriba) ya viven en el
+    // núcleo central (js/i18n-core.js) — se pisan aquí con el valor real
+    // de ahí, para que haya una sola fuente de verdad. El resto de
+    // `texts` (labels del editor, hints, styleHelp, modal de ayuda/letra)
+    // todavía no está migrado — sigue local, se hace en un paso aparte.
+    if(Core){
+        ['es','en'].forEach((code)=>{
+            const t = texts[code];
+            const c = Core.dict[code];
+            if(!t || !c) return;
+            t.toggle = c.lang.cycleLabel;
+            t.htmlLang = c.app.htmlLang;
+            t.title = c.app.title;
+            t.version = c.app.version;
+            t.songAria = c.song.titleAria;
+            t.authorAria = c.song.authorAria;
+            t.authorPlaceholder = c.song.authorPlaceholder;
+            t.styleTitle = c.select.style.title;
+            t.instrumentTitle = c.select.instrument.title;
+            t.sectionTitle = c.select.section.title;
+            t.options.styles = c.select.style.options;
+            t.options.instruments = c.select.instrument.options;
+            t.options.sections = c.select.section.options;
+            t.buttons.start = c.buttons.start;
+            t.buttons.stop = c.buttons.stop;
+            t.buttons.playSong = c.buttons.playSong;
+            t.buttons.stopSong = c.buttons.stopSong;
+            t.buttons.metroOn = c.buttons.metroOn;
+            t.buttons.metroOff = c.buttons.metroOff;
+        });
+    }
+
     function el(id){ return document.getElementById(id); }
     function q(sel, root=document){ return root.querySelector(sel); }
     function qa(sel, root=document){ return [...root.querySelectorAll(sel)]; }
@@ -97,8 +136,8 @@
         const brand = q('.brand');
         if(brand) brand.appendChild(btn);
         btn.addEventListener('click', () => {
-            lang = lang === 'es' ? 'en' : 'es';
-            localStorage.setItem(LANG_KEY, lang);
+            lang = Core ? Core.cycleLang() : (lang === 'es' ? 'en' : 'es');
+            if(!Core) localStorage.setItem(LANG_KEY, lang);
             applyLanguage();
         });
     }
@@ -122,10 +161,30 @@
         if(isIconOnlyBtn(node)) return;
         if(node.textContent !== value) node.textContent = value;
     }
+    // Cambio 158: el botón Play comparte un solo elemento para 4 estados
+    // (Tocar Sección / Parar Sección / Tocar canción / Parar Canción) — el
+    // tooltip debe reflejar el estado real, no un texto fijo. Se llama
+    // tanto al cambiar de idioma como cada vez que el botón cambia de
+    // estado (via setButtonState, enganchado al click de playBtn).
+    function updatePlayBtnTip(){
+        const playBtn = el('playBtn');
+        if(!playBtn) return;
+        const tips = Core ? Core.dict[lang].play : (lang === 'en'
+            ? {section:{play:'Play Session', stop:'Stop Session'}, song:{play:'Play Song', stop:'Stop Song'}}
+            : {section:{play:'Tocar Sección', stop:'Parar Sección'}, song:{play:'Tocar canción', stop:'Parar Canción'}});
+        let tip;
+        if(playBtn.classList.contains('btn-all')){
+            tip = playBtn.classList.contains('btn-song-active') ? tips.song.stop : tips.song.play;
+        } else {
+            tip = playBtn.classList.contains('btn-stop') ? tips.section.stop : tips.section.play;
+        }
+        playBtn.setAttribute('data-tip', tip);
+    }
     function setButtonState(){
         const t = T().buttons;
         const playBtn = el('playBtn');
         if(playBtn) safeText(playBtn, playBtn.classList.contains('btn-stop') ? t.stop : t.start);
+        updatePlayBtnTip();
         const playSongBtn = el('playSongBtn');
         if(playSongBtn) safeText(playSongBtn, playSongBtn.classList.contains('active') ? t.stopSong : t.playSong);
         const metroBtn = el('metroBtn');
@@ -150,8 +209,16 @@
         const style = el('styleSelect'); if(style) style.title = t.styleTitle;
         const instr = el('instrumentSelect'); if(instr) instr.title = t.instrumentTitle;
         const section = el('sectionSelect'); if(section) section.title = t.sectionTitle;
-        const playBtnTip = el('playBtn'); if(playBtnTip) playBtnTip.setAttribute('data-tip', lang === 'en' ? 'Play Session' : 'Tocar Sección');
-        const playSongBtnTip = el('playSongBtn'); if(playSongBtnTip) playSongBtnTip.setAttribute('data-tip', lang === 'en' ? 'Play Song' : 'Tocar Canción');
+        updatePlayBtnTip();
+        // Cambio 159: tooltips de los íconos principales, ahora sourced
+        // directamente del núcleo central (icons.*) — agregar un idioma
+        // nuevo ahí ya los cubre, sin tocar esta línea.
+        const icons = Core ? Core.dict[lang].icons : null;
+        const composeTip = el('composeToggleBtn'); if(composeTip) composeTip.setAttribute('data-tip', icons ? icons.compose : (lang==='en'?'Compose':'Componer'));
+        const studioTip = el('studioToggleBtn'); if(studioTip) studioTip.setAttribute('data-tip', icons ? icons.studio : 'Studio 936');
+        const tableroTip = el('tableroBtn'); if(tableroTip) tableroTip.setAttribute('data-tip', icons ? icons.chart : (lang==='en'?'Play-Score':'Tocar-Partitura'));
+        const mixerTip = el('channelMixerBtn'); if(mixerTip) mixerTip.setAttribute('data-tip', icons ? icons.mixer : (lang==='en'?'Mixer':'Mezclador'));
+        const libraryTip = el('libraryBtn'); if(libraryTip) libraryTip.setAttribute('data-tip', icons ? icons.library : (lang==='en'?'Library':'Librería'));
         optionText('styleSelect', t.options.styles);
         optionText('instrumentSelect', t.options.instruments);
         optionText('sectionSelect', t.options.sections);
@@ -320,8 +387,8 @@
         applyLanguage: (helpers) => { void helpers; applyLanguage(); },
         cycleLanguage: (helpers) => {
             void helpers;
-            lang = lang === 'es' ? 'en' : 'es';
-            localStorage.setItem(LANG_KEY, lang);
+            lang = Core ? Core.cycleLang() : (lang === 'es' ? 'en' : 'es');
+            if(!Core) localStorage.setItem(LANG_KEY, lang);
             applyLanguage();
         },
         bindLanguage
