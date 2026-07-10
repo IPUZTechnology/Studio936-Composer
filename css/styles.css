@@ -175,7 +175,7 @@
     .current-part-pill{margin:8px auto 0;padding:6px 10px;border-radius:999px;border:1px solid rgba(0,255,204,.35);background:rgba(0,255,204,.09);color:var(--accent);font-size:.74rem;font-weight:900;letter-spacing:.8px;text-transform:uppercase;max-width:max-content}
     .current-part-pill.fullsong{border-color:rgba(255,216,77,.5);background:rgba(255,216,77,.12);color:var(--solo);box-shadow:0 0 14px rgba(255,216,77,.12)}
     #sectionLabel{font-size:.82rem;color:var(--accent);font-weight:800;text-transform:uppercase}
-    .transport{display:flex;gap:14px;justify-content:flex-start;align-items:center;flex-wrap:wrap;width:100%;}
+    .transport{display:flex;gap:14px;justify-content:flex-start;align-items:center;flex-wrap:nowrap;overflow-x:auto;width:100%;}
     .btn{padding:11px 15px;font-size:.72rem;min-height:42px}
     .btn-play{background:var(--accent);color:#000;min-width:130px}
     .btn-stop{background:var(--danger);color:white;min-width:130px}
@@ -323,7 +323,7 @@
         .song-row{grid-template-columns:1fr 1fr 1fr;max-width:100%}
         .tempo-zone{align-items:center;justify-content:center;}.bpm-line,.bpm-presets{justify-content:center}
         .main{grid-template-rows:auto auto}.keyboard{transform:scale(.82);transform-origin:center bottom}.editor{max-height:none}.status-bar{gap:14px}
-        .brand{margin-left:0!important}
+        .brand{margin-left:14px!important}
     }
 
     .prod-panel{margin-top:12px;padding:10px;border:1px solid #303030;border-radius:14px;background:#141414}
@@ -684,7 +684,7 @@ body.v25ux-clean .now-box{padding:7px 10px !important;min-height:45px !important
 body.v25ux-clean .label-small{font-size:.55rem !important;}
 body.v25ux-clean #sectionLabel, body.v25ux-clean #chordLabel{font-size:1rem !important;line-height:1.05 !important;}
 body.v25ux-clean #measureLabel{font-size:.62rem !important;}
-body.v25ux-clean .transport{gap:14px !important;display:flex !important;flex-wrap:wrap !important;justify-content:flex-start !important;width:100% !important;margin:0 !important;}
+body.v25ux-clean .transport{gap:14px !important;display:flex !important;flex-wrap:nowrap !important;overflow-x:auto !important;justify-content:flex-start !important;width:100% !important;margin:0 !important;}
 body.v25ux-clean .btn{padding:7px 9px !important;min-height:31px !important;font-size:.6rem !important;border-radius:8px !important;}
 body.v25ux-clean .btn-play, body.v25ux-clean .btn-stop{min-width:96px !important;}
 body.v25ux-clean .btn-all{min-width:118px !important;}
@@ -729,7 +729,7 @@ body.v25ux-clean .v18-suite-title::after{content:' · Pro Suite';color:#777;marg
   .v25ux-btn{font-size:.57rem;padding:7px 8px;}
   body.v25ux-clean .song-row{grid-template-columns:1fr 1fr 1fr !important;}
   body.v25ux-clean .song-row .select{font-size:.62rem !important;padding:6px 5px !important;}
-  body.v25ux-clean .transport{display:grid !important;grid-template-columns:repeat(3,minmax(0,1fr)) !important;}
+  body.v25ux-clean .transport{display:flex !important;flex-wrap:nowrap !important;overflow-x:auto !important;gap:8px !important;}
   body.v25ux-clean .btn{width:100% !important;min-width:0 !important;font-size:.56rem !important;padding:7px 5px !important;}
   body.v25ux-clean #pianoContainer{justify-content:flex-start !important;overflow:auto !important;padding:8px 4px 12px !important;}
   body.v25ux-clean .keyboard{height:225px !important;transform:none !important;}
