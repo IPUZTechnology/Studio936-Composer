@@ -4,14 +4,14 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>Studio 936 Composer v25 Song Structure Builder</title>
-<link rel="stylesheet" href="css/styles.css?v=cambio-157-align-fix" />
+<link rel="stylesheet" href="css/styles.css?v=cambio-158-tooltips-logo" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap" rel="stylesheet" />
 </head>
 <body>
 <header>
-    <div class="brand" style="margin-left:6px;text-align:center;">
+    <div class="brand" style="margin-left:0px;text-align:center;">
         <img src="docs/Studio_936_logo.png" alt="Studio 936" style="height:84px;width:auto;display:inline-block;margin:0 auto;" onerror="this.style.display='none'; this.closest('.brand').querySelector('h1').style.display='block';" />
         <h1 style="display:none;">Studio 936</h1>
         <div style="font-size:.75rem;color:#5be8c9;font-weight:800;letter-spacing:1.5px;margin-top:-14px;text-transform:uppercase;text-align:center;">Composer Station</div>
@@ -95,9 +95,9 @@
         <div class="label-small" id="measureLabel">Compás 1 · Paso 1/16</div>
     </div>
     <div class="transport">
-        <button id="composeToggleBtn" class="btn btn-dark img-icon-btn" data-tip="Compose" onclick="window.Studio936SuitePro &amp;&amp; window.Studio936SuitePro.openArea &amp;&amp; window.Studio936SuitePro.openArea('compose');"><img src="docs/icon/Composer_studio_936_icon1.png" alt="Compose" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">Compose</span></button>
+        <button id="composeToggleBtn" class="btn btn-dark img-icon-btn" data-tip="Componer" onclick="window.Studio936SuitePro &amp;&amp; window.Studio936SuitePro.openArea &amp;&amp; window.Studio936SuitePro.openArea('compose');"><img src="docs/icon/Composer_studio_936_icon1.png" alt="Compose" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">Compose</span></button>
         <button id="studioToggleBtn" class="btn btn-dark img-icon-btn" data-tip="Studio 936" onclick="window.Studio936SuitePro &amp;&amp; window.Studio936SuitePro.openArea &amp;&amp; window.Studio936SuitePro.openArea('studio');"><img src="docs/icon/Studio_936_ico.png" alt="Studio 936" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">Studio 936</span></button>
-        <button id="tableroBtn" class="btn btn-dark img-icon-btn" data-tip="Chart / Tablero"><img src="docs/icon/Tablero_Practica_chart_icon.png" alt="Chart" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">Chart</span></button>
+        <button id="tableroBtn" class="btn btn-dark img-icon-btn" data-tip="Tocar-Partitura"><img src="docs/icon/Tablero_Practica_chart_icon.png" alt="Chart" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">Chart</span></button>
         <button id="playBtn" class="btn btn-play" data-tip="Tocar Sección" style="display:inline-flex;align-items:center;gap:6px;">
             <img class="icon-section-play" src="docs/icon/Play_session_936.png" alt="Play Sección" style="height:44px;width:auto;flex-shrink:0;" onerror="this.style.setProperty(&quot;display&quot;,&quot;none&quot;,&quot;important&quot;);" />
             <img class="icon-section-stop" src="docs/icon/Pause_Seccion_936.png" alt="Pause Sección" style="height:44px;width:auto;flex-shrink:0;display:none;" onerror="this.style.setProperty(&quot;display&quot;,&quot;none&quot;,&quot;important&quot;);" />
@@ -105,7 +105,7 @@
             <img class="icon-song-stop" src="docs/icon/Pause_play__song.png" alt="Pause Canción" style="height:44px;width:auto;flex-shrink:0;display:none;" onerror="this.style.setProperty(&quot;display&quot;,&quot;none&quot;,&quot;important&quot;);" />
             <span class="btn-label">Start Groove</span>
         </button>
-        <button class="btn btn-dark img-icon-btn" id="channelMixerBtn" data-tip="Canales / Instrumentos" onclick="window.Studio936ChannelMixer &amp;&amp; window.Studio936ChannelMixer.toggle &amp;&amp; window.Studio936ChannelMixer.toggle();"><img src="docs/icon/Instrument_setting_icon.png" alt="Canales" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">🎚</span></button>
+        <button class="btn btn-dark img-icon-btn" id="channelMixerBtn" data-tip="Mezclador" onclick="window.Studio936ChannelMixer &amp;&amp; window.Studio936ChannelMixer.toggle &amp;&amp; window.Studio936ChannelMixer.toggle();"><img src="docs/icon/Instrument_setting_icon.png" alt="Canales" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">🎚</span></button>
         <button class="btn btn-dark img-icon-btn" id="libraryBtn" data-tip="Librería" onclick="window.Studio936Library &amp;&amp; window.Studio936Library.toggle &amp;&amp; window.Studio936Library.toggle();"><img src="docs/icon/Music_book_studio936.png" alt="Librería" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" /><span style="display:none;">📚</span></button>
     </div>
     <div class="now-box">
@@ -441,7 +441,8 @@
 <script src="js/lead-sheet.js"></script>
 <script src="js/midi-export.js"></script>
 <script src="js/flow8.js"></script>
-<script src="js/i18n.js?v=cambio-138-svg-safe-labels"></script>
+<script src="js/i18n-core.js?v=cambio-159-i18n-core"></script>
+<script src="js/i18n.js?v=cambio-159-i18n-core"></script>
 <script src="js/arrangement.js"></script>
 <script src="js/music-theory.js"></script>
 <script src="js/audio-engine.js"></script>
@@ -470,7 +471,7 @@
 <script src="js/suite-pro.js?v=cambio-112-openarea"></script>
 <script src="js/suite-pro-library.js?v=cambio-127-library"></script>
 <script src="js/suite-pro-channel-mixer.js?v=cambio-135-full-redesign"></script>
-<script src="js/app.js?v=cambio-153-tablero-icon-fix"></script>
+<script src="js/app.js?v=cambio-159-i18n-core"></script>
 <!-- Studio 936 v0.7.0.3: persistent Editor instrument tabs hotfix -->
 <!-- Studio 936 v0.7.2.15: Piano Editor Reopen Final -->
     <button class="btn btn-dark icon-btn" id="helpBtn" data-tip="Ayuda">❓</button>
