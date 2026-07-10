@@ -323,7 +323,7 @@
         .song-row{grid-template-columns:1fr 1fr 1fr;max-width:100%}
         .tempo-zone{align-items:center;justify-content:center;}.bpm-line,.bpm-presets{justify-content:center}
         .main{grid-template-rows:auto auto}.keyboard{transform:scale(.82);transform-origin:center bottom}.editor{max-height:none}.status-bar{gap:14px}
-        .brand{margin-left:14px!important}
+        .brand{margin-left:30px!important}
     }
 
     .prod-panel{margin-top:12px;padding:10px;border:1px solid #303030;border-radius:14px;background:#141414}
@@ -1929,8 +1929,13 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
   overflow-y:hidden!important;
   justify-content:flex-start!important;
   -webkit-overflow-scrolling:touch!important;
-  scrollbar-width:thin;
+  scrollbar-width:none!important;
+  -ms-overflow-style:none!important;
   gap:8px!important;
+}
+.transport::-webkit-scrollbar{
+  display:none!important;
+  height:0!important;
 }
 .transport > *{
   flex-shrink:0!important;
