@@ -108,9 +108,10 @@
         tag.src = 'https://www.youtube.com/iframe_api';
         document.head.appendChild(tag);
     }
+    let isYoutubePlaying = false;
     function handleYtStateChange(event){
-        if(window.YT && event.data === window.YT.PlayerState.PLAYING) startEqAnimation();
-        else stopEqAnimation();
+        if(window.YT && event.data === window.YT.PlayerState.PLAYING){ isYoutubePlaying = true; startEqAnimation(); }
+        else { isYoutubePlaying = false; stopEqAnimation(); }
     }
     // Cambio 172: cada barra del ecualizador se colorea interpolando entre
     // azul y verde según su posición — el lado izquierdo va de azul
@@ -255,14 +256,43 @@
 #${PANEL_ID}Overlay.s936lib-state-mini { background:transparent; pointer-events:none; align-items:flex-start; justify-content:flex-start; }
 #${PANEL_ID} { width:min(1000px,96vw); height:min(720px,93vh); background:linear-gradient(180deg,#14181a,#0a0d0e); border:1px solid rgba(91,232,201,.3); border-radius:18px; box-shadow:0 30px 90px rgba(0,0,0,.7), 0 0 40px rgba(0,255,204,.05); display:flex; flex-direction:column; overflow:hidden; font-family:inherit; color:#e8f4f2; }
 #${PANEL_ID}.s936lib-state-maximized { width:100vw; height:100vh; border-radius:0; }
-#${PANEL_ID}.s936lib-state-mini { position:fixed; width:360px; height:auto; max-height:300px; pointer-events:auto; box-shadow:0 20px 50px rgba(0,0,0,.6), 0 0 30px rgba(0,255,204,.15); }
+/* Cambio 182: en maximizado el video debe ser el protagonista — se
+   achica todo el "cromado" alrededor (pestañas ocultas, LCD delgado sin
+   ecualizador, controles compactos en una sola línea angosta) para que
+   quede la mayor parte de la pantalla real para el video. */
+#${PANEL_ID}.s936lib-state-maximized .s936lib-tabs { display:none !important; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-eqrow { display:none !important; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-header { padding:5px 14px; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-lcdwrap { padding:4px 14px 0; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-lcd { padding:4px 12px; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-nowtitle { font-size:.78rem; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-progress { margin-top:4px; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-controlrow { padding:5px 14px; }
+#${PANEL_ID}.s936lib-state-maximized #s936lib-yt-list-slot { max-height:120px; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-body { flex:1; min-height:0; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-ytembed { height:calc(100vh - 160px); max-height:none; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-ytembed iframe { height:100%; }
+#${PANEL_ID}.s936lib-state-mini { position:fixed; width:300px; height:auto; max-height:none; pointer-events:auto; box-shadow:0 20px 50px rgba(0,0,0,.6), 0 0 30px rgba(0,255,204,.15); }
 #${PANEL_ID}.s936lib-state-mini .s936lib-tabs,
 #${PANEL_ID}.s936lib-state-mini .s936lib-toolbar,
+#${PANEL_ID}.s936lib-state-mini .s936lib-eqrow,
 #${PANEL_ID}.s936lib-state-mini #s936lib-yt-list-slot { display:none !important; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-body { padding:8px 12px 12px; max-height:220px; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-ytembed { max-height:150px; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-header { cursor:grab; }
+/* Cambio 181: LCD mucho más chico en mini — sin ecualizador (ya no cabe
+   ni hace falta a este tamaño) ni la marca "936 PLAYER" repetida (ya
+   está en el header de arriba). Solo título + tiempo + progreso. */
+#${PANEL_ID}.s936lib-state-mini .s936lib-lcdwrap { padding:6px 10px 0; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-lcd { padding:6px 10px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-nowtitle { font-size:.72rem; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-nowtime { font-size:.6rem; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-nowsub { font-size:.62rem; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-progress { margin-top:5px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-controlrow { padding:5px 10px; gap:6px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-controlrow > button { width:24px; height:22px; font-size:.68rem; border-radius:7px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-body { padding:0; max-height:none; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-ytembed { margin:0; border-radius:0 0 16px 16px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-header { cursor:grab; padding:6px 10px; }
 #${PANEL_ID}.s936lib-state-mini .s936lib-header:active { cursor:grabbing; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-header h2 { font-size:.8rem; }
 #${PANEL_ID} .s936lib-winbtn { background:transparent; border:none; color:#9fb0ae; font-size:1rem; cursor:pointer; line-height:1; padding:4px 8px; border-radius:6px; }
 #${PANEL_ID} .s936lib-winbtn:hover { background:rgba(255,255,255,.08); color:#e8f4f2; }
 
@@ -1300,16 +1330,31 @@
         if(newState === 'maximized'){
             panel.classList.add('s936lib-state-maximized');
             panel.style.left = ''; panel.style.top = '';
+            // Cambio 182: pantalla completa real del navegador (sin barra
+            // de pestañas ni nada) cuando el navegador lo permita — si no,
+            // se queda con el "maximizado" normal (100vw/100vh), que
+            // sigue funcionando bien de todos modos.
+            const request = overlay.requestFullscreen || overlay.webkitRequestFullscreen;
+            if(request) request.call(overlay).catch?.(() => {});
         } else if(newState === 'mini'){
             panel.classList.add('s936lib-state-mini');
             overlay.classList.add('s936lib-state-mini');
             const pos = miniPos || { left: window.innerWidth - 380, top: window.innerHeight - 320 };
             panel.style.left = Math.max(8, pos.left) + 'px';
             panel.style.top = Math.max(8, pos.top) + 'px';
+            if(document.fullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
         } else {
             panel.style.left = ''; panel.style.top = '';
+            if(document.fullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
         }
     }
+
+    document.addEventListener('fullscreenchange', () => {
+        if(!document.fullscreenElement && windowState === 'maximized'){
+            const panel = document.getElementById(PANEL_ID);
+            if(panel){ windowState = 'normal'; panel.classList.remove('s936lib-state-maximized'); }
+        }
+    });
 
     function enableDrag(panel, headerEl){
         let dragging = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
@@ -1344,6 +1389,14 @@
         render();
     }
     function close(){
+        // Cambio 181: si algo sigue sonando (audio propio o YouTube), la X
+        // ya no cierra del todo — pasa a modo mini para que sigas teniendo
+        // un control a mano. Solo cierra de verdad cuando no suena nada.
+        const somethingPlaying = (audioEl && !audioEl.paused) || isYoutubePlaying;
+        if(somethingPlaying && windowState !== 'mini'){
+            setWindowState('mini');
+            return;
+        }
         const overlay = document.getElementById(PANEL_ID + 'Overlay');
         if(overlay) overlay.classList.remove('is-open');
         document.querySelectorAll('.s936lib-menu-floating').forEach((m) => m.remove());
