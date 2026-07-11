@@ -632,7 +632,8 @@
 
 /* Cambio 193: espacio grande de "video/carátula" al reproducir, mismo
    espíritu que el embed de Mini Rockola. */
-#${PANEL_ID} .s936lib-compvisual { width:100%; aspect-ratio:16/9; max-height:min(38vh,300px); border-radius:10px; overflow:hidden; margin-bottom:14px; position:relative; background:#000; display:flex; align-items:center; justify-content:center; }
+#${PANEL_ID} .s936lib-compvisual { width:100%; aspect-ratio:16/9; max-height:min(62vh,540px); border-radius:10px; overflow:hidden; margin-bottom:14px; position:relative; background:#000; display:flex; align-items:center; justify-content:center; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-compvisual { max-height:72vh; }
 #${PANEL_ID} .s936lib-compvisual-media { width:100%; height:100%; object-fit:cover; }
 #${PANEL_ID} .s936lib-compvisual-zoom { background-size:cover; background-position:center; animation:s936CompZoom 14s ease-in-out infinite alternate; }
 @keyframes s936CompZoom { from { transform:scale(1); } to { transform:scale(1.09); } }
@@ -1129,13 +1130,13 @@
 
         const overlay = document.createElement('div');
         overlay.id = 's936-album-config-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(10,13,14,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;';
 
         const modal = document.createElement('div');
-        modal.style.cssText = 'background:#0d1117;border:1px solid rgba(0,255,204,.35);border-radius:16px;width:100%;max-width:420px;max-height:85vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.9);';
+        modal.style.cssText = 'background:linear-gradient(180deg,#161b1d,#0d1112);border:1px solid rgba(91,232,201,.22);border-radius:18px;width:100%;max-width:420px;max-height:85vh;overflow-y:auto;box-shadow:0 24px 70px rgba(0,0,0,.55), 0 0 30px rgba(0,255,204,.04);';
 
         const head = document.createElement('div');
-        head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(0,255,204,.04);position:sticky;top:0;';
+        head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(0,255,204,.03);position:sticky;top:0;border-radius:18px 18px 0 0;';
         head.innerHTML = '<span style="font-size:.82rem;font-weight:700;color:#00ffcc;">💿 Álbumes</span>';
         const closeX = document.createElement('button');
         closeX.innerHTML = '✕';
@@ -1219,24 +1220,41 @@
             newTitle.textContent = '+ Nuevo álbum';
             newTitle.style.cssText = 'font-size:.68rem;text-transform:uppercase;letter-spacing:.6px;color:#9fb0ae;';
             const newHint = document.createElement('div');
-            newHint.textContent = 'Carátula: foto o video corto. La foto se guarda de verdad; el video se pierde al recargar la página hasta que tengamos guardado real en la nube.';
+            newHint.textContent = 'Carátula opcional: foto o video corto. La foto se guarda de verdad; el video se pierde al recargar la página hasta que tengamos guardado real en la nube.';
             newHint.style.cssText = 'font-size:.6rem;color:#7a8785;font-style:italic;';
             const nameInput = document.createElement('input');
             nameInput.placeholder = 'Nombre del álbum (ej. Fantasía Musical)';
             nameInput.style.cssText = 'background:#1c2224;border:1px solid #333;border-radius:8px;padding:8px 10px;color:#e8f4f2;font-size:.78rem;font-family:inherit;';
+            let selectedCoverFile = null;
             const coverRow = document.createElement('div');
-            coverRow.style.cssText = 'display:flex;align-items:center;gap:8px;';
-            const coverFileInput = document.createElement('input');
-            coverFileInput.type = 'file'; coverFileInput.accept = 'image/*,video/*';
-            coverFileInput.style.cssText = 'font-size:.68rem;color:#9fb0ae;flex:1;';
-            coverRow.appendChild(coverFileInput);
+            coverRow.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
+            const coverStatus = document.createElement('span');
+            coverStatus.textContent = 'Sin carátula';
+            coverStatus.style.cssText = 'font-size:.64rem;color:#7a8785;';
+            function makeCoverPickBtn(label, accept){
+                const pickBtn = document.createElement('button');
+                pickBtn.type = 'button';
+                pickBtn.textContent = label;
+                pickBtn.style.cssText = 'background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.14);color:#e8f4f2;border-radius:8px;padding:6px 11px;font-size:.68rem;font-weight:700;cursor:pointer;';
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'file'; hiddenInput.accept = accept; hiddenInput.style.display = 'none';
+                hiddenInput.onchange = (e) => {
+                    const f = e.target.files?.[0];
+                    if(f){ selectedCoverFile = f; coverStatus.textContent = '✓ ' + f.name; }
+                };
+                pickBtn.onclick = () => hiddenInput.click();
+                coverRow.append(pickBtn, hiddenInput);
+            }
+            makeCoverPickBtn('📷 Elegir foto', 'image/*');
+            makeCoverPickBtn('🎥 Elegir video', 'video/*');
+            coverRow.appendChild(coverStatus);
             const createBtn = document.createElement('button');
             createBtn.textContent = '💿 Crear álbum';
             createBtn.style.cssText = 'background:rgba(0,255,204,.12);border:1px solid #00ffcc;color:#00ffcc;border-radius:8px;padding:8px 12px;font-size:.74rem;font-weight:700;cursor:pointer;align-self:flex-start;';
             createBtn.onclick = () => {
                 const name = nameInput.value.trim();
                 if(!name){ nameInput.focus(); return; }
-                createAlbum(name, coverFileInput.files?.[0] || null, () => { renderAlbumBody(); render(); });
+                createAlbum(name, selectedCoverFile, () => { renderAlbumBody(); render(); });
             };
             sep1.append(newTitle, newHint, nameInput, coverRow, createBtn);
             body.appendChild(sep1);
@@ -1246,7 +1264,7 @@
             const folderBtn = document.createElement('button');
             const structureMod = window.Studio936SuiteProStructure;
             folderBtn.textContent = '📁 Configurar carpeta de guardado';
-            folderBtn.style.cssText = 'background:transparent;border:1px solid rgba(255,255,255,.15);color:#e8f4f2;border-radius:8px;padding:8px 12px;font-size:.72rem;font-weight:700;cursor:pointer;width:100%;';
+            folderBtn.style.cssText = 'background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.1);color:#cdd8d6;border-radius:10px;padding:9px 12px;font-size:.72rem;font-weight:700;cursor:pointer;width:100%;';
             folderBtn.disabled = !structureMod || typeof structureMod.openLibraryConfig !== 'function';
             if(folderBtn.disabled) folderBtn.title = 'El módulo de Estructura todavía no cargó en esta página.';
             folderBtn.onclick = () => structureMod.openLibraryConfig({});
