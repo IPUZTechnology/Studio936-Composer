@@ -248,25 +248,26 @@
 #${PANEL_ID}Overlay.is-open { display:flex; }
 #${PANEL_ID} { width:min(1000px,96vw); height:min(720px,93vh); background:linear-gradient(180deg,#14181a,#0a0d0e); border:1px solid rgba(91,232,201,.3); border-radius:18px; box-shadow:0 30px 90px rgba(0,0,0,.7), 0 0 40px rgba(0,255,204,.05); display:flex; flex-direction:column; overflow:hidden; font-family:inherit; color:#e8f4f2; }
 
-#${PANEL_ID} .s936lib-header { display:flex; align-items:center; gap:12px; padding:12px 18px; border-bottom:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.02); }
+#${PANEL_ID} .s936lib-header { display:flex; align-items:center; gap:12px; padding:8px 16px; border-bottom:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.02); }
+#${PANEL_ID} .s936lib-headertext { display:flex; align-items:baseline; gap:8px; }
+#${PANEL_ID} .s936lib-eyebrow { font-size:.58rem; letter-spacing:1.5px; color:#9fb0ae; text-transform:uppercase; }
+#${PANEL_ID} .s936lib-header h2 { margin:0; font-size:.95rem; color:#00ffcc; font-weight:900; letter-spacing:1.2px; text-shadow:0 0 12px rgba(0,255,204,.4); }
 #${PANEL_ID} .s936lib-headertext { flex:1; }
-#${PANEL_ID} .s936lib-eyebrow { font-size:.6rem; letter-spacing:2px; color:#9fb0ae; text-transform:uppercase; margin-bottom:2px; }
-#${PANEL_ID} .s936lib-header h2 { margin:0; font-size:1.15rem; color:#00ffcc; font-weight:900; letter-spacing:1.5px; text-shadow:0 0 16px rgba(0,255,204,.4); }
 #${PANEL_ID} .s936lib-viewbtn { background:#1c2224; border:1px solid #333; color:#9fb0ae; border-radius:8px; padding:6px 10px; font-size:.7rem; cursor:pointer; font-weight:700; }
 #${PANEL_ID} .s936lib-viewbtn.active { background:#00ffcc; color:#04342c; border-color:#00ffcc; }
 #${PANEL_ID} .s936lib-closebtn { background:transparent; border:none; color:#9fb0ae; font-size:1.3rem; cursor:pointer; line-height:1; padding:4px 8px; }
 
-#${PANEL_ID} .s936lib-tabs { display:flex; gap:4px; padding:8px 14px 0; border-bottom:1px solid rgba(255,255,255,.06); flex-wrap:wrap; }
-#${PANEL_ID} .s936lib-tab { background:transparent; border:none; color:#9fb0ae; padding:9px 13px; font-size:.76rem; font-weight:800; cursor:pointer; border-radius:10px 10px 0 0; border-bottom:2px solid transparent; }
+#${PANEL_ID} .s936lib-tabs { display:flex; gap:4px; padding:5px 14px 0; border-bottom:1px solid rgba(255,255,255,.06); flex-wrap:wrap; }
+#${PANEL_ID} .s936lib-tab { background:transparent; border:none; color:#9fb0ae; padding:6px 12px; font-size:.74rem; font-weight:800; cursor:pointer; border-radius:10px 10px 0 0; border-bottom:2px solid transparent; }
 #${PANEL_ID} .s936lib-tab.active { color:#5be8c9; border-bottom-color:#5be8c9; background:rgba(91,232,201,.06); }
 
-#${PANEL_ID} .s936lib-lcdwrap { padding:12px 16px 0; }
-#${PANEL_ID} .s936lib-lcd { background:#020805; border:1px solid rgba(0,255,204,.35); border-radius:10px; padding:10px 16px; box-shadow:inset 0 0 20px rgba(0,255,204,.06); }
+#${PANEL_ID} .s936lib-lcdwrap { padding:8px 16px 0; }
+#${PANEL_ID} .s936lib-lcd { background:#020805; border:1px solid rgba(0,255,204,.35); border-radius:10px; padding:7px 14px; box-shadow:inset 0 0 20px rgba(0,255,204,.06); }
 #${PANEL_ID} .s936lib-lcd .row1 { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
 #${PANEL_ID} .s936lib-nowtitle { font-size:.92rem; font-weight:800; color:#00ffcc; text-shadow:0 0 10px rgba(0,255,204,.5); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #${PANEL_ID} .s936lib-nowtime { font-family:monospace; color:#5be8c9; font-size:.76rem; flex-shrink:0; }
 #${PANEL_ID} .s936lib-nowsub { color:#9fb0ae; font-size:.66rem; margin-top:2px; }
-#${PANEL_ID} .s936lib-eqrow { display:flex; align-items:center; justify-content:center; gap:18px; margin-top:10px; padding-bottom:10px; border-bottom:1px solid rgba(0,255,204,.12); }
+#${PANEL_ID} .s936lib-eqrow { display:flex; align-items:center; justify-content:center; gap:14px; margin-top:6px; padding-bottom:6px; border-bottom:1px solid rgba(0,255,204,.12); }
 #${PANEL_ID} .s936lib-eqside { display:flex; gap:3px; align-items:flex-end; height:24px; flex:1; min-width:0; justify-content:center; }
 #${PANEL_ID} .s936lib-eqside.left { justify-content:flex-end; }
 #${PANEL_ID} .s936lib-eqside.right { justify-content:flex-start; }
@@ -345,19 +346,20 @@
 #${PANEL_ID} .s936lib-ytembed { width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; border:1px solid #333; margin-bottom:14px; }
 #${PANEL_ID} .s936lib-ytembed iframe { width:100%; height:100%; border:none; border-radius:10px; }
 #${PANEL_ID} .s936lib-ytplaceholder { width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; border:1px solid #333; margin-bottom:14px; display:flex; align-items:center; justify-content:center; color:#9fb0ae; font-size:.8rem; text-align:center; padding:20px; }
-#${PANEL_ID} .s936lib-ytsearchbar { display:flex; align-items:center; gap:10px; width:100%; background:#1c2224; border:1px solid #333; border-radius:999px; padding:11px 18px; margin-bottom:16px; }
+#${PANEL_ID} .s936lib-ytsearchbar { display:flex; align-items:center; gap:8px; width:100%; background:#1c2224; border:1px solid #333; border-radius:999px; padding:6px 14px; margin-bottom:0; }
+#${PANEL_ID} .s936lib-ytsearchbar input { font-size:.8rem; }
 #${PANEL_ID} .s936lib-ytsearchbar:focus-within { border-color:#00ffcc; box-shadow:0 0 0 2px rgba(0,255,204,.15); }
 #${PANEL_ID} .s936lib-ytsearchbar .mag { color:#9fb0ae; font-size:1rem; flex-shrink:0; }
 #${PANEL_ID} .s936lib-ytsearchbar input { flex:1; background:transparent; border:none; color:#e8f4f2; font-size:.88rem; outline:none; }
-#${PANEL_ID} .s936lib-ytgrid { display:flex; flex-direction:column; gap:10px; }
-#${PANEL_ID} .s936lib-ytcard { cursor:pointer; display:flex; gap:10px; border-radius:10px; padding:6px; border:1px solid transparent; }
+#${PANEL_ID} .s936lib-ytgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:14px; }
+#${PANEL_ID} .s936lib-ytcard { cursor:pointer; display:flex; flex-direction:column; border-radius:10px; padding:0; border:1px solid transparent; overflow:hidden; }
 #${PANEL_ID} .s936lib-ytcard:hover { background:rgba(255,255,255,.04); }
 #${PANEL_ID} .s936lib-ytcard.active { border-color:#00ffcc; background:rgba(0,255,204,.08); }
-#${PANEL_ID} .s936lib-ytthumb { width:168px; flex-shrink:0; aspect-ratio:16/9; border-radius:8px; overflow:hidden; background:#000 center/cover no-repeat; position:relative; }
+#${PANEL_ID} .s936lib-ytthumb { width:100%; flex-shrink:0; aspect-ratio:16/9; border-radius:8px; overflow:hidden; background:#000 center/cover no-repeat; position:relative; }
 #${PANEL_ID} .s936lib-ytthumb .ph { width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#9fb0ae; font-size:.65rem; background:#111; }
 #${PANEL_ID} .s936lib-ytthumb .playicon { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:1.4rem; color:#fff; background:rgba(0,0,0,.15); opacity:0; transition:opacity .15s ease; }
 #${PANEL_ID} .s936lib-ytcard:hover .playicon { opacity:1; }
-#${PANEL_ID} .s936lib-ytcardbody { padding:2px 4px; flex:1; min-width:0; display:flex; flex-direction:column; }
+#${PANEL_ID} .s936lib-ytcardbody { padding:8px 2px; flex:1; min-width:0; display:flex; flex-direction:column; }
 #${PANEL_ID} .s936lib-ytcardtitle { font-size:.8rem; font-weight:700; color:#e8f4f2; line-height:1.3; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 #${PANEL_ID} .s936lib-ytcardnotes { font-size:.68rem; color:#9fb0ae; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 #${PANEL_ID} .s936lib-ytcardactions { display:flex; align-items:center; gap:8px; margin-top:auto; padding-top:6px; }
@@ -635,6 +637,16 @@
         playAudio(queue.shift());
     }
 
+    function renameAudio(id){
+        const item = store.audios.find(x => x.id === id);
+        if(!item) return;
+        const value = prompt('Nuevo nombre para este MP3:', item.title);
+        if(value === null || !value.trim()) return;
+        item.title = value.trim();
+        saveStore();
+        render();
+    }
+
     function deleteAudio(id){
         const item = store.audios.find(x => x.id === id);
         if(!item) return;
@@ -682,13 +694,16 @@
                 const actions = el('div', 's936lib-cardactions');
                 const playBtn = el('button', 's936lib-mini play', isPlaying ? '⏸ Sonando' : '▶ Play');
                 playBtn.onclick = (e) => { e.stopPropagation(); playAudio(song.id); };
+                const editBtn = el('button', 's936lib-iconbtn', '✎');
+                editBtn.title = 'Editar nombre';
+                editBtn.onclick = (e) => { e.stopPropagation(); renameAudio(song.id); };
                 const qBtn = el('button', 's936lib-iconbtn' + (queue.includes(song.id) ? ' active' : ''), '➕');
                 qBtn.title = queue.includes(song.id) ? 'En cola — quitar' : 'Agregar a la cola';
                 qBtn.onclick = (e) => { e.stopPropagation(); toggleQueue(song.id); };
                 const delBtn = el('button', 's936lib-iconbtn danger', '✕');
                 delBtn.title = 'Quitar';
                 delBtn.onclick = (e) => { e.stopPropagation(); deleteAudio(song.id); };
-                actions.append(playBtn, qBtn, delBtn);
+                actions.append(playBtn, editBtn, qBtn, delBtn);
                 card.append(bubble, title, meta, genreTag('audios', song), actions);
                 card.onclick = () => playAudio(song.id);
                 grid.appendChild(card);
@@ -703,11 +718,14 @@
                 const title = el('div', 's936lib-list-title', song.title);
                 const meta = el('div', 's936lib-list-meta', song.author || 'Sin autor');
                 const actions = el('div', 's936lib-list-actions');
+                const editBtn = el('button', 's936lib-iconbtn', '✎');
+                editBtn.title = 'Editar nombre';
+                editBtn.onclick = (e) => { e.stopPropagation(); renameAudio(song.id); };
                 const qBtn = el('button', 's936lib-mini', queue.includes(song.id) ? 'En cola ✓' : '+ Cola');
                 qBtn.onclick = (e) => { e.stopPropagation(); toggleQueue(song.id); };
                 const delBtn = el('button', 's936lib-mini danger', 'Quitar');
                 delBtn.onclick = (e) => { e.stopPropagation(); deleteAudio(song.id); };
-                actions.append(genreTag('audios', song), qBtn, delBtn);
+                actions.append(genreTag('audios', song), editBtn, qBtn, delBtn);
                 row.append(icon, title, meta, actions);
                 row.onclick = () => playAudio(song.id);
                 listWrap.appendChild(row);
@@ -780,6 +798,16 @@
     function addYoutubeFavorite(url, title, notes){
         if(!url || !url.trim()) return;
         store.youtube.unshift({ id: uid('y'), title: (title||'').trim() || 'Video de YouTube', url: url.trim(), notes:(notes||'').trim(), genre:'', addedAt:Date.now() });
+        saveStore();
+        render();
+    }
+
+    function renameYoutube(id){
+        const item = store.youtube.find(x => x.id === id);
+        if(!item) return;
+        const value = prompt('Nuevo nombre para este video:', item.title);
+        if(value === null || !value.trim()) return;
+        item.title = value.trim();
         saveStore();
         render();
     }
@@ -874,6 +902,7 @@
                 { icon:'▶', label:'Reproducir aquí', onClick: () => selectYoutubeVideo(item) },
                 { icon:'↗', label:'Abrir en YouTube', onClick: () => window.open(item.url, '_blank', 'noopener') },
                 { icon:'⧉', label:'Copiar link', onClick: () => { navigator.clipboard?.writeText(item.url); } },
+                { icon:'✎', label:'Editar nombre', onClick: () => renameYoutube(item.id) },
                 { icon:'🏷', label:'Editar género/etiqueta', onClick: () => {
                     const value = prompt('Género / etiqueta para "' + item.title + '":', item.genre || '');
                     if(value === null) return;
@@ -1061,6 +1090,12 @@
         const isYoutube = activeTab === 'youtube';
         if(playBtn) playBtn.style.display = isYoutube ? 'none' : '';
         if(vol) vol.style.display = isYoutube ? 'none' : '';
+        // Cambio 177: el toggle cuadrícula/lista no aplica en YouTube — esa
+        // pestaña siempre usa su propio mosaico, no hay elección real ahí.
+        const gridBtnEl = panel.querySelector('.s936lib-viewbtn[data-view="grid"]');
+        const listBtnEl = panel.querySelector('.s936lib-viewbtn[data-view="list"]');
+        if(gridBtnEl) gridBtnEl.style.display = isYoutube ? 'none' : '';
+        if(listBtnEl) listBtnEl.style.display = isYoutube ? 'none' : '';
         renderToolbar(panel.querySelector('.s936lib-toolbar'));
         renderBodyOnly();
         updateLcd();
@@ -1072,7 +1107,7 @@
     const TABS = [
         ['recent', 'Recientes'],
         ['compositions', 'Composiciones'],
-        ['audios', 'Audios'],
+        ['audios', 'MP3'],
         ['youtube', 'YouTube'],
         ['genres', 'Géneros']
     ];
