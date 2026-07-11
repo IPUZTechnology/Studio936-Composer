@@ -938,13 +938,42 @@
         linkAudioPopoverEl = pop;
     }
 
-    function previewComposition(id, anchorEl){
+    // Cambio 192: si esta canción ya tenía un audio vinculado en una
+    // sesión anterior y se copió a la carpeta configurada, se trae de
+    // vuelta solo (sin pedir nada) usando el nombre que quedó anotado en
+    // song.diskFileName — esto es lo que le da sentido real a tener JSON
+    // y MP3 "enganchados" en la misma carpeta.
+    async function tryRestoreAudioFromDisk(audioId){
+        const song = store.audios.find(x => x.id === audioId);
+        if(!song || !song.diskFileName) return false;
+        if(audioObjectURLs[audioId]) return true; // ya está en memoria, nada que hacer
+        try {
+            const structureMod = window.Studio936SuiteProStructure;
+            if(!structureMod || typeof structureMod.getLibraryAudioDirHandle !== 'function') return false;
+            const audioDirHandle = await structureMod.getLibraryAudioDirHandle();
+            if(!audioDirHandle) return false;
+            const fh = await audioDirHandle.getFileHandle(song.diskFileName);
+            const file = await fh.getFile();
+            audioObjectURLs[audioId] = URL.createObjectURL(file);
+            return true;
+        } catch(_) { return false; }
+    }
+
+    async function previewComposition(id, anchorEl){
         const item = store.compositions.find(x => x.id === id);
         if(!item) return;
         if(item.previewAudioId && audioObjectURLs[item.previewAudioId]){
             currentPlayingComp = id;
             playAudio(item.previewAudioId, item.title, item.author || 'Artista sin definir');
             return;
+        }
+        if(item.previewAudioId){
+            const restored = await tryRestoreAudioFromDisk(item.previewAudioId);
+            if(restored){
+                currentPlayingComp = id;
+                playAudio(item.previewAudioId, item.title, item.author || 'Artista sin definir');
+                return;
+            }
         }
         openLinkAudioPopover(item, anchorEl);
     }
@@ -1005,29 +1034,32 @@
             const slug = String(entry.title || 'cancion').toLowerCase()
                 .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
                 .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || 'cancion';
-            // Cambio 190: si ya vinculaste un audio de referencia (Play →
-            // elegir de Audio MP3), se copia también a la carpeta y su
-            // nombre queda anotado dentro del propio JSON — así, cuando
-            // abras esa carpeta más adelante, JSON y MP3 quedan ligados por
-            // nombre de archivo, sin depender de la memoria del navegador.
-            // Solo funciona si ya importaste ese audio EN ESTA SESIÓN (el
-            // navegador no recuerda archivos entre sesiones, límite ya
-            // conocido) — no genera un MP3 nuevo por su cuenta.
+            // Cambio 192: el audio va en su propia subcarpeta "audio/" (no
+            // mezclado con los JSON), y su nombre se anota en el propio
+            // registro del audio en la Librería (song.diskFileName) — así,
+            // la próxima vez que abras la app, se puede traer de vuelta
+            // solo desde esa carpeta, sin volver a pedírtelo (Cambio 192
+            // también hizo que la carpeta misma se recuerde entre
+            // sesiones — antes ni eso pasaba).
             let audioFile = null;
             if(entry.previewAudioId && audioObjectURLs[entry.previewAudioId]){
                 try {
                     const song = store.audios.find(x => x.id === entry.previewAudioId);
                     const ext = (song && song.fileName && song.fileName.match(/\.[a-z0-9]+$/i)?.[0]) || '.mp3';
                     audioFile = 'studio936-' + slug + '-audio' + ext;
+                    const audioDirHandle = (typeof structureMod.getLibraryAudioDirHandle === 'function')
+                        ? await structureMod.getLibraryAudioDirHandle()
+                        : dirHandle;
                     const resp = await fetch(audioObjectURLs[entry.previewAudioId]);
                     const blob = await resp.blob();
-                    const audioFh = await dirHandle.getFileHandle(audioFile, { create:true });
+                    const audioFh = await audioDirHandle.getFileHandle(audioFile, { create:true });
                     const audioWritable = await audioFh.createWritable();
                     await audioWritable.write(blob);
                     await audioWritable.close();
+                    if(song){ song.diskFileName = audioFile; saveStore(); }
                 } catch(_) { audioFile = null; }
             }
-            const payload = audioFile ? Object.assign({}, entry, { audioFile }) : entry;
+            const payload = audioFile ? Object.assign({}, entry, { audioFile: 'audio/' + audioFile }) : entry;
             const filename = 'studio936-' + slug + '-composicion.json';
             const fh = await dirHandle.getFileHandle(filename, { create:true });
             const writable = await fh.createWritable();

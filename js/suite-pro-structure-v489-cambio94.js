@@ -71,7 +71,7 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProStructure = { version: "structure-v4.4.6-cambio-42", render, openLibraryConfig, getLibraryDirHandle };
+    window.Studio936SuiteProStructure = { version: "structure-v4.4.6-cambio-42", render, openLibraryConfig, getLibraryDirHandle, getLibraryAudioDirHandle };
     window.Studio936SuiteProModules.structure = window.Studio936SuiteProStructure;
   }
 
@@ -5876,12 +5876,71 @@ ${measures}  </part>
   const LS_SONGS_KEY = "s936_library_songs_v1";
   let _dirHandle = null; // FileSystemDirectoryHandle en memoria
 
+  // Cambio 192: hasta ahora _dirHandle se perdía al recargar la página —
+  // había que reconfigurar la carpeta cada sesión, lo cual no tenía
+  // sentido. Un FileSystemDirectoryHandle SÍ se puede guardar en
+  // IndexedDB (a diferencia de localStorage, que solo guarda texto) y
+  // recuperarse después, re-verificando el permiso con un clic.
+  const S936_IDB_NAME = "studio936_fs";
+  const S936_IDB_STORE = "handles";
+  const S936_IDB_KEY = "libraryDir";
+  function s936IdbOpen(){
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(S936_IDB_NAME, 1);
+      req.onupgradeneeded = () => { req.result.createObjectStore(S936_IDB_STORE); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function s936IdbSaveDirHandle(handle){
+    try {
+      const db = await s936IdbOpen();
+      await new Promise((res, rej) => {
+        const tx = db.transaction(S936_IDB_STORE, "readwrite");
+        tx.objectStore(S936_IDB_STORE).put(handle, S936_IDB_KEY);
+        tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+      });
+    } catch(_) {}
+  }
+  async function s936IdbLoadDirHandle(){
+    try {
+      const db = await s936IdbOpen();
+      return await new Promise((res, rej) => {
+        const tx = db.transaction(S936_IDB_STORE, "readonly");
+        const req = tx.objectStore(S936_IDB_STORE).get(S936_IDB_KEY);
+        req.onsuccess = () => res(req.result || null);
+        req.onerror = () => rej(req.error);
+      });
+    } catch(_) { return null; }
+  }
+
   async function getLibraryDirHandle() {
     // Devuelve el handle si está en memoria o si el user lo re-verifica
     if (_dirHandle) {
       try { await _dirHandle.requestPermission({ mode: "readwrite" }); return _dirHandle; } catch(_) {}
     }
+    // Cambio 192: intentar recuperar la carpeta recordada de una sesión
+    // anterior antes de rendirse — así no hay que reconfigurar cada vez
+    // que se cierra y abre el navegador.
+    try {
+      const saved = await s936IdbLoadDirHandle();
+      if (saved) {
+        const already = await saved.queryPermission({ mode: "readwrite" });
+        const granted = already === "granted" || (await saved.requestPermission({ mode: "readwrite" })) === "granted";
+        if (granted) { _dirHandle = saved; return _dirHandle; }
+      }
+    } catch(_) {}
     return null;
+  }
+
+  // Cambio 192: subcarpeta "audio" dentro de la carpeta configurada — así
+  // el JSON de cada canción y su MP3 quedan organizados por separado en
+  // vez de mezclados en el mismo nivel.
+  async function getLibraryAudioDirHandle(){
+    const root = await getLibraryDirHandle();
+    if (!root) return null;
+    try { return await root.getDirectoryHandle("audio", { create: true }); }
+    catch(_) { return null; }
   }
 
   async function saveToLibraryDir(ctx, s, parts) {
@@ -5983,6 +6042,7 @@ ${measures}  </part>
         try {
           const handle = await window.showDirectoryPicker({ mode: "readwrite" });
           _dirHandle = handle;
+          s936IdbSaveDirHandle(handle);
           localStorage.setItem(LS_DIR_KEY, handle.name);
           status.innerHTML = `<span style="color:#00ffcc;">✓ Carpeta configurada:</span><br><span style="color:#fff;font-weight:700;">${handle.name}</span>`;
           toast(ctx, `Carpeta configurada: ${handle.name}`);
