@@ -261,7 +261,13 @@
    ecualizador, controles compactos en una sola línea angosta) para que
    quede la mayor parte de la pantalla real para el video. */
 #${PANEL_ID}.s936lib-state-maximized .s936lib-tabs { display:none !important; }
-#${PANEL_ID}.s936lib-state-maximized .s936lib-eqrow { display:none !important; }
+/* Cambio 184: mismo concepto de "mini mixer" del modo mini, aplicado
+   también a maximizado — barras chiquitas junto al título, sin repetir
+   el texto "936 PLAYER" (ya está en el header). */
+#${PANEL_ID}.s936lib-state-maximized .s936lib-eqrow { margin-top:3px; padding-bottom:3px; gap:8px; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-eqbrand { display:none; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-eqside { height:12px; gap:1px; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-eqside i { width:3px; }
 #${PANEL_ID}.s936lib-state-maximized .s936lib-header { padding:5px 14px; }
 #${PANEL_ID}.s936lib-state-maximized .s936lib-lcdwrap { padding:4px 14px 0; }
 #${PANEL_ID}.s936lib-state-maximized .s936lib-lcd { padding:4px 12px; }
@@ -270,7 +276,7 @@
 #${PANEL_ID}.s936lib-state-maximized .s936lib-controlrow { padding:5px 14px; }
 #${PANEL_ID}.s936lib-state-maximized #s936lib-yt-list-slot { max-height:120px; }
 #${PANEL_ID}.s936lib-state-maximized .s936lib-body { flex:1; min-height:0; }
-#${PANEL_ID}.s936lib-state-maximized .s936lib-ytembed { height:calc(100vh - 160px); max-height:none; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-ytembed { height:calc(100vh - 180px); max-height:none; }
 #${PANEL_ID}.s936lib-state-maximized .s936lib-ytembed iframe { height:100%; }
 #${PANEL_ID}.s936lib-state-mini { position:fixed; width:300px; height:auto; max-height:none; pointer-events:auto; box-shadow:0 20px 50px rgba(0,0,0,.6), 0 0 30px rgba(0,255,204,.15); }
 #${PANEL_ID}.s936lib-state-mini .s936lib-tabs,
@@ -292,6 +298,7 @@
 #${PANEL_ID}.s936lib-state-mini .s936lib-controlrow { padding:5px 10px; gap:6px; }
 #${PANEL_ID}.s936lib-state-mini .s936lib-controlrow > button { width:24px; height:22px; font-size:.68rem; border-radius:7px; }
 #${PANEL_ID}.s936lib-state-mini .s936lib-body { padding:0; max-height:none; }
+#${PANEL_ID}.s936lib-state-mini #s936lib-yt-embed-slot { margin:0; }
 #${PANEL_ID}.s936lib-state-mini .s936lib-ytembed { margin:0; border-radius:0 0 16px 16px; }
 #${PANEL_ID}.s936lib-state-mini .s936lib-header { cursor:grab; padding:6px 10px; }
 #${PANEL_ID}.s936lib-state-mini .s936lib-header:active { cursor:grabbing; }
@@ -404,7 +411,13 @@
 .s936lib-ytform-floating .s936lib-actionbtn { background:rgba(0,255,204,.12); border:1px solid #00ffcc; color:#00ffcc; border-radius:8px; padding:7px 12px; font-size:.76rem; font-weight:700; cursor:pointer; }
 #${PANEL_ID} .s936lib-ytform input, #${PANEL_ID} .s936lib-ytform textarea { background:#1c2224; border:1px solid #333; border-radius:8px; padding:7px 9px; color:#e8f4f2; font-size:.78rem; font-family:inherit; }
 #${PANEL_ID} .s936lib-ytform textarea { resize:vertical; min-height:44px; }
-#${PANEL_ID} .s936lib-ytembed { width:100%; max-width:100%; aspect-ratio:16/9; max-height:min(46vh,420px); margin:0 auto 14px; background:#000; border-radius:10px; border:1px solid #333; }
+#${PANEL_ID} .s936lib-ytembed { width:100%; max-width:100%; aspect-ratio:16/9; max-height:min(60vh,560px); margin:0 auto 12px; background:#000; border-radius:10px; border:1px solid #333; }
+/* Cambio 184: el video usa casi todo el ancho real del panel en vista
+   normal — contrarresta el padding del body con márgenes negativos, en
+   vez de dejar franjas oscuras a los lados solo para verlo completo sin
+   tener que maximizar. */
+#${PANEL_ID} #s936lib-yt-embed-slot { margin:-14px -18px 0; }
+#${PANEL_ID} #s936lib-yt-embed-slot .s936lib-ytembed { border-radius:0; border-left:none; border-right:none; }
 #${PANEL_ID} .s936lib-ytembed iframe { width:100%; height:100%; border:none; border-radius:10px; }
 #${PANEL_ID} .s936lib-ytplaceholder { width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; border:1px solid #333; margin-bottom:14px; display:flex; align-items:center; justify-content:center; color:#9fb0ae; font-size:.8rem; text-align:center; padding:20px; }
 #${PANEL_ID} .s936lib-ytsearchbar { display:flex; align-items:center; gap:8px; width:100%; background:#1c2224; border:1px solid #333; border-radius:999px; padding:6px 14px; margin-bottom:0; }
