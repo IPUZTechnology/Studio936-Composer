@@ -39,6 +39,7 @@
     let currentPlayingId = null;   // id de audio sonando (de store.audios)
     let currentPlayingComp = null; // id de composición cuyo preview está sonando (mismo audio, distinta procedencia)
     let currentYoutubeId = null;   // favorito mostrado en el embed
+    let ytFormOpen = false;        // si el mini-formulario de "+ agregar" está abierto
     let queue = [];
     let audioEl = null;
     let eqTimer = null;
@@ -224,6 +225,11 @@
 #${PANEL_ID} .s936lib-nowsub { color:#9fb0ae; font-size:.66rem; margin-top:2px; }
 #${PANEL_ID} .s936lib-bars { display:flex; gap:2px; align-items:flex-end; height:20px; margin-top:10px; padding-bottom:10px; border-bottom:1px solid rgba(0,255,204,.12); }
 #${PANEL_ID} .s936lib-bars i { width:4px; background:linear-gradient(180deg,#00ffcc,#0a3d33); border-radius:2px; height:3px; display:block; }
+#${PANEL_ID} .s936lib-idlebrand { display:none; text-align:center; padding:6px 0 10px; margin-top:10px; border-bottom:1px solid rgba(0,255,204,.12); }
+#${PANEL_ID} .s936lib-lcd.is-idle .s936lib-idlebrand { display:block; }
+#${PANEL_ID} .s936lib-lcd.is-idle .s936lib-bars { display:none; }
+#${PANEL_ID} .s936lib-idlebrand b { font-size:.9rem; font-weight:900; letter-spacing:7px; background:linear-gradient(90deg,#0a3d33 0%,#00ffcc 50%,#0a3d33 100%); background-size:200% 100%; -webkit-background-clip:text; background-clip:text; color:transparent; animation:s936libShimmer 3.4s linear infinite; }
+@keyframes s936libShimmer { 0% { background-position:200% 0; } 100% { background-position:-200% 0; } }
 #${PANEL_ID} .s936lib-progress { height:6px; background:#111; border-radius:3px; margin-top:12px; overflow:hidden; }
 #${PANEL_ID} .s936lib-progress b { display:block; height:100%; width:0%; background:#00ffcc; box-shadow:0 0 8px #00ffcc; transition:width .2s linear; }
 
@@ -288,18 +294,18 @@
 #${PANEL_ID} .s936lib-ytsearchbar:focus-within { border-color:#00ffcc; box-shadow:0 0 0 2px rgba(0,255,204,.15); }
 #${PANEL_ID} .s936lib-ytsearchbar .mag { color:#9fb0ae; font-size:1rem; flex-shrink:0; }
 #${PANEL_ID} .s936lib-ytsearchbar input { flex:1; background:transparent; border:none; color:#e8f4f2; font-size:.88rem; outline:none; }
-#${PANEL_ID} .s936lib-ytgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; }
-#${PANEL_ID} .s936lib-ytcard { cursor:pointer; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.06); background:rgba(255,255,255,.015); }
-#${PANEL_ID} .s936lib-ytcard:hover { border-color:rgba(0,255,204,.4); }
-#${PANEL_ID} .s936lib-ytcard.active { border-color:#00ffcc; box-shadow:0 0 16px rgba(0,255,204,.15); }
-#${PANEL_ID} .s936lib-ytthumb { width:100%; aspect-ratio:16/9; background:#000 center/cover no-repeat; position:relative; }
-#${PANEL_ID} .s936lib-ytthumb .ph { width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#9fb0ae; font-size:.7rem; background:#111; }
-#${PANEL_ID} .s936lib-ytthumb .playicon { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:1.6rem; color:#fff; background:rgba(0,0,0,.15); opacity:0; transition:opacity .15s ease; }
+#${PANEL_ID} .s936lib-ytgrid { display:flex; flex-direction:column; gap:10px; }
+#${PANEL_ID} .s936lib-ytcard { cursor:pointer; display:flex; gap:10px; border-radius:10px; padding:6px; border:1px solid transparent; }
+#${PANEL_ID} .s936lib-ytcard:hover { background:rgba(255,255,255,.04); }
+#${PANEL_ID} .s936lib-ytcard.active { border-color:#00ffcc; background:rgba(0,255,204,.08); }
+#${PANEL_ID} .s936lib-ytthumb { width:168px; flex-shrink:0; aspect-ratio:16/9; border-radius:8px; overflow:hidden; background:#000 center/cover no-repeat; position:relative; }
+#${PANEL_ID} .s936lib-ytthumb .ph { width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#9fb0ae; font-size:.65rem; background:#111; }
+#${PANEL_ID} .s936lib-ytthumb .playicon { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:1.4rem; color:#fff; background:rgba(0,0,0,.15); opacity:0; transition:opacity .15s ease; }
 #${PANEL_ID} .s936lib-ytcard:hover .playicon { opacity:1; }
-#${PANEL_ID} .s936lib-ytcardbody { padding:8px 10px; }
+#${PANEL_ID} .s936lib-ytcardbody { padding:2px 4px; flex:1; min-width:0; display:flex; flex-direction:column; }
 #${PANEL_ID} .s936lib-ytcardtitle { font-size:.76rem; font-weight:800; color:#e8f4f2; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 #${PANEL_ID} .s936lib-ytcardnotes { font-size:.64rem; color:#9fb0ae; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-#${PANEL_ID} .s936lib-ytcardactions { display:flex; justify-content:flex-end; gap:5px; margin-top:6px; }
+#${PANEL_ID} .s936lib-ytcardactions { display:flex; align-items:center; gap:8px; margin-top:auto; padding-top:6px; }
 `;
         document.head.appendChild(style);
     }
@@ -634,6 +640,7 @@
         const subEl = panel.querySelector('.s936lib-nowsub');
         const progressBar = panel.querySelector('.s936lib-progress b');
         const playBtn = panel.querySelector('.s936lib-playbtn');
+        const lcdEl = panel.querySelector('.s936lib-lcd');
         if(!titleEl) return;
         if(titleOverride){
             titleEl.textContent = titleOverride;
@@ -642,6 +649,7 @@
             titleEl.textContent = 'Nada sonando';
             if(subEl) subEl.textContent = queue.length ? queue.length + ' en cola' : 'Elige algo en Audios o Composiciones';
         }
+        if(lcdEl) lcdEl.classList.toggle('is-idle', !(audioEl && !audioEl.paused));
         if(audioEl && timeEl) timeEl.textContent = fmtTime(audioEl.currentTime) + ' / ' + fmtTime(audioEl.duration);
         if(audioEl && progressBar && audioEl.duration) progressBar.style.width = ((audioEl.currentTime/audioEl.duration)*100) + '%';
         if(playBtn) playBtn.textContent = (audioEl && !audioEl.paused) ? '⏸' : '⏵';
@@ -652,7 +660,7 @@
     // ---------------------------------------------------------------
     function addYoutubeFavorite(url, title, notes){
         if(!url || !url.trim()) return;
-        store.youtube.unshift({ id: uid('y'), title: (title||'').trim() || url.trim(), url: url.trim(), notes:(notes||'').trim(), genre:'', addedAt:Date.now() });
+        store.youtube.unshift({ id: uid('y'), title: (title||'').trim() || 'Video de YouTube', url: url.trim(), notes:(notes||'').trim(), genre:'', addedAt:Date.now() });
         saveStore();
         render();
     }
@@ -668,11 +676,12 @@
     }
 
     function renderYoutubeAddForm(body){
+        if(!ytFormOpen) return;
         const form = el('div', 's936lib-ytform');
         const urlInput = document.createElement('input');
         urlInput.placeholder = 'Pegar link de YouTube para agregarlo a tu lista (https://...)';
         const titleInput = document.createElement('input');
-        titleInput.placeholder = 'Título (opcional)';
+        titleInput.placeholder = 'Título (recomendado — si lo dejas vacío, se ve feo el link solo)';
         const notesInput = document.createElement('textarea');
         notesInput.placeholder = 'Notas (opcional) — ej. "para el solo de guitarra"...';
         const addBtn = el('button', 's936lib-actionbtn', '+ Agregar a mi lista');
@@ -680,7 +689,8 @@
         addBtn.onclick = () => {
             if(!urlInput.value.trim()){ urlInput.focus(); return; }
             addYoutubeFavorite(urlInput.value, titleInput.value, notesInput.value);
-            urlInput.value = ''; titleInput.value = ''; notesInput.value = '';
+            ytFormOpen = false;
+            renderBodyOnly();
         };
         form.append(urlInput, titleInput, notesInput, addBtn);
         body.appendChild(form);
@@ -692,18 +702,27 @@
     // API oficial de Google) — es tu lista curada, sin basura, como
     // pediste.
     function renderYoutubeSearchBar(body){
+        const row = el('div', '');
+        row.style.cssText = 'display:flex;gap:10px;align-items:center;';
         const bar = el('div', 's936lib-ytsearchbar');
+        bar.style.flex = '1';
         bar.appendChild(el('span', 'mag', '🔍'));
         const input = document.createElement('input');
         input.placeholder = 'Buscar en tu lista de YouTube...';
         input.value = searchQuery;
         input.oninput = () => { searchQuery = input.value; renderBodyOnly(); };
         bar.appendChild(input);
-        body.appendChild(bar);
+        const addBtn = el('button', 's936lib-iconbtn' + (ytFormOpen ? ' active' : ''), '+');
+        addBtn.title = 'Agregar un video a tu lista';
+        addBtn.style.cssText = 'width:40px;height:40px;font-size:1.2rem;flex-shrink:0;';
+        addBtn.onclick = () => { ytFormOpen = !ytFormOpen; renderBodyOnly(); };
+        row.append(bar, addBtn);
+        body.appendChild(row);
     }
 
     function renderYoutube(body){
         renderYoutubeSearchBar(body);
+        renderYoutubeAddForm(body);
 
         const current = store.youtube.find(x => x.id === currentYoutubeId) || store.youtube[0];
         if(current){
@@ -745,8 +764,6 @@
             grid.appendChild(card);
         });
         body.appendChild(grid);
-
-        renderYoutubeAddForm(body);
 
         if(!list.length){
             body.appendChild(el('div', 's936lib-empty', store.youtube.length ? 'Sin resultados en tu lista.' : 'Todavía no tienes favoritos de YouTube guardados — pega un link abajo para empezar tu mini lista.'));
@@ -931,9 +948,12 @@
         const nowSub = el('div', 's936lib-nowsub', 'Elige algo en Audios o Composiciones');
         const bars = el('div', 's936lib-bars');
         for(let i=0;i<32;i++) bars.appendChild(el('i'));
+        const idleBrand = el('div', 's936lib-idlebrand');
+        idleBrand.appendChild(el('b', '', 'STUDIO 936'));
         const progress = el('div', 's936lib-progress');
         progress.appendChild(el('b'));
-        lcd.append(row1, nowSub, bars, progress);
+        lcd.append(row1, nowSub, bars, idleBrand, progress);
+        lcd.classList.add('is-idle');
         lcdWrap.appendChild(lcd);
 
         const transport = el('div', 's936lib-transport');
