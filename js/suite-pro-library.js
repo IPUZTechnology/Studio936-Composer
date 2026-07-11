@@ -280,7 +280,13 @@
    bloquear clics — así se puede seguir trabajando en el Studio 936 de
    atrás mientras el video/audio sigue sonando en la ventanita. */
 #${PANEL_ID}Overlay.s936lib-state-mini { background:transparent; pointer-events:none; align-items:flex-start; justify-content:flex-start; }
-#${PANEL_ID} { width:min(1000px,96vw); height:min(720px,93vh); background:linear-gradient(180deg,#14181a,#0a0d0e); border:1px solid rgba(91,232,201,.3); border-radius:18px; box-shadow:0 30px 90px rgba(0,0,0,.7), 0 0 40px rgba(0,255,204,.05); display:flex; flex-direction:column; overflow:hidden; font-family:inherit; color:#e8f4f2; }
+/* Cambio 187: el panel en estado normal ya no tiene una altura fija de
+   720px siempre — ahora crece hacia abajo con el contenido real (menos
+   ítems = ventana más compacta) hasta un tope de min(720px,93vh); pasado
+   ese tope, deja de crecer y el cuerpo (.s936lib-body) es lo único que
+   hace scroll interno. min-height evita que se vea demasiado angosta
+   con listas muy cortas o vacías. */
+#${PANEL_ID} { width:min(1000px,96vw); height:auto; min-height:420px; max-height:min(720px,93vh); background:linear-gradient(180deg,#14181a,#0a0d0e); border:1px solid rgba(91,232,201,.3); border-radius:18px; box-shadow:0 30px 90px rgba(0,0,0,.7), 0 0 40px rgba(0,255,204,.05); display:flex; flex-direction:column; overflow:hidden; font-family:inherit; color:#e8f4f2; }
 #${PANEL_ID}.s936lib-state-maximized { width:100vw; height:100vh; border-radius:0; }
 /* Cambio 182: en maximizado el video debe ser el protagonista — se
    achica todo el "cromado" alrededor (pestañas ocultas, LCD delgado sin
@@ -370,7 +376,7 @@
 #${PANEL_ID} .s936lib-search { flex:1; min-width:160px; background:#1c2224; border:1px solid #333; border-radius:8px; padding:7px 10px; color:#e8f4f2; font-size:.8rem; }
 #${PANEL_ID} .s936lib-actionbtn { background:rgba(0,255,204,.12); border:1px solid #00ffcc; color:#00ffcc; border-radius:8px; padding:7px 12px; font-size:.76rem; font-weight:700; cursor:pointer; white-space:nowrap; }
 
-#${PANEL_ID} .s936lib-body { flex:1; overflow-y:auto; padding:14px 18px; scrollbar-width:thin; scrollbar-color:rgba(0,255,204,.35) transparent; }
+#${PANEL_ID} .s936lib-body { flex:1; min-height:0; overflow-y:auto; padding:14px 18px; scrollbar-width:thin; scrollbar-color:rgba(0,255,204,.35) transparent; }
 #${PANEL_ID} .s936lib-body::-webkit-scrollbar { width:7px; }
 #${PANEL_ID} .s936lib-body::-webkit-scrollbar-track { background:transparent; }
 #${PANEL_ID} .s936lib-body::-webkit-scrollbar-thumb { background:rgba(0,255,204,.28); border-radius:10px; }
