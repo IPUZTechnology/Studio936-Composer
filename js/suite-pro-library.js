@@ -456,6 +456,7 @@
 #${PANEL_ID}.s936lib-state-mini .s936lib-controlrow { padding:5px 10px; gap:6px; }
 #${PANEL_ID}.s936lib-state-mini .s936lib-controlrow > button { width:24px; height:22px; font-size:.68rem; border-radius:7px; }
 #${PANEL_ID}.s936lib-state-mini .s936lib-body { padding:0; max-height:none; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-body > *:not(.s936lib-mini-keep) { display:none !important; }
 #${PANEL_ID}.s936lib-state-mini #s936lib-yt-embed-slot { margin:0; }
 #${PANEL_ID}.s936lib-state-mini .s936lib-ytembed { margin:0; border-radius:0 0 16px 16px; }
 #${PANEL_ID}.s936lib-state-mini .s936lib-header { cursor:grab; padding:6px 10px; }
@@ -692,6 +693,48 @@
                 chips.appendChild(chip);
             });
             if(!allPlaylists().length) chips.appendChild(el('div', 's936lib-gpempty', 'Todavía no tienes listas creadas.'));
+            pop.appendChild(chips);
+            pop.addEventListener('click', (ev) => ev.stopPropagation());
+            document.body.appendChild(pop);
+            positionFloatingPopover(pop, btn);
+            genrePlaylistPopoverEl = pop;
+        };
+        return btn;
+    }
+
+    // Cambio 194: la flecha de Composiciones ahora es un filtro rápido por
+    // álbum (mismo patrón que el de listas), en vez de abrir el modal de
+    // configuración completo — ese quedó en su propio botón aparte.
+    function buildAlbumFilterButton(){
+        const activeAlbum = activeAlbumFilter && activeAlbumFilter !== 'none' ? getAlbum(activeAlbumFilter) : null;
+        const label = activeAlbumFilter === 'none' ? 'Sin álbum' : (activeAlbum ? activeAlbum.name : null);
+        const btn = el('button', 's936lib-iconbtn' + (activeAlbumFilter ? ' active' : ''), '⏷');
+        btn.title = label ? ('Filtrando: ' + label) : 'Filtrar por álbum';
+        btn.style.cssText = 'width:32px;height:32px;font-size:.85rem;flex-shrink:0;';
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            if(genrePlaylistPopoverEl){ closeGenrePlaylistPopover(); return; }
+            const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover');
+            pop.appendChild(el('div', 's936lib-gptitle', 'Filtrar por álbum'));
+            const chips = el('div', 's936lib-gpchips');
+            const allBtn = el('button', 's936lib-gpchip' + (!activeAlbumFilter ? ' active' : ''), 'Todos');
+            allBtn.type = 'button';
+            allBtn.onclick = (ev) => { ev.preventDefault(); activeAlbumFilter = null; closeGenrePlaylistPopover(); renderBodyOnly(); };
+            chips.appendChild(allBtn);
+            const noAlbumCount = store.compositions.filter(x => !x.albumId).length;
+            if(noAlbumCount){
+                const noneBtn = el('button', 's936lib-gpchip' + (activeAlbumFilter === 'none' ? ' active' : ''), 'Sin álbum');
+                noneBtn.type = 'button';
+                noneBtn.onclick = (ev) => { ev.preventDefault(); activeAlbumFilter = 'none'; closeGenrePlaylistPopover(); renderBodyOnly(); };
+                chips.appendChild(noneBtn);
+            }
+            allAlbums().forEach((a) => {
+                const chip = el('button', 's936lib-gpchip' + (activeAlbumFilter === a.id ? ' active' : ''), a.name);
+                chip.type = 'button';
+                chip.onclick = (ev) => { ev.preventDefault(); activeAlbumFilter = a.id; closeGenrePlaylistPopover(); renderBodyOnly(); };
+                chips.appendChild(chip);
+            });
+            if(!allAlbums().length) chips.appendChild(el('div', 's936lib-gpempty', 'Todavía no tienes álbumes — créalos con el botón ⚙ de aquí al lado.'));
             pop.appendChild(chips);
             pop.addEventListener('click', (ev) => ev.stopPropagation());
             document.body.appendChild(pop);
@@ -1311,7 +1354,7 @@
     // álbum con video, se ve el video; si solo tiene foto, la foto hace un
     // zoom lento (Ken Burns); si no tiene nada, el ícono de ondas grande.
     function buildCompositionsVisual(){
-        const wrap = el('div', 's936lib-compvisual');
+        const wrap = el('div', 's936lib-compvisual s936lib-mini-keep');
         const playingItem = currentPlayingComp ? store.compositions.find(x => x.id === currentPlayingComp) : null;
         const videoUrl = playingItem ? albumVideoUrl(playingItem.albumId) : null;
         const coverUrl = playingItem ? compositionCoverUrl(playingItem) : null;
@@ -1336,26 +1379,6 @@
 
     function renderCompositions(body){
         body.appendChild(buildCompositionsVisual());
-        // Cambio 188: barra de filtro por álbum, igual patrón que los chips
-        // de Géneros — "Todos", "Sin álbum" y cada álbum con su conteo.
-        const albumBar = el('div', 's936lib-genrechips');
-        const allChip = el('button', 's936lib-chip' + (!activeAlbumFilter ? ' active' : ''), 'Todos (' + store.compositions.length + ')');
-        allChip.onclick = () => { activeAlbumFilter = null; renderBodyOnly(); };
-        albumBar.appendChild(allChip);
-        const noAlbumCount = store.compositions.filter(x => !x.albumId).length;
-        if(noAlbumCount){
-            const noneChip = el('button', 's936lib-chip' + (activeAlbumFilter === 'none' ? ' active' : ''), 'Sin álbum (' + noAlbumCount + ')');
-            noneChip.onclick = () => { activeAlbumFilter = 'none'; renderBodyOnly(); };
-            albumBar.appendChild(noneChip);
-        }
-        allAlbums().forEach((a) => {
-            const count = store.compositions.filter(x => x.albumId === a.id).length;
-            if(!count) return;
-            const chip = el('button', 's936lib-chip' + (activeAlbumFilter === a.id ? ' active' : ''), a.name + ' (' + count + ')');
-            chip.onclick = () => { activeAlbumFilter = a.id; renderBodyOnly(); };
-            albumBar.appendChild(chip);
-        });
-        if(allAlbums().length || noAlbumCount) body.appendChild(albumBar);
 
         const list = store.compositions.filter(x => {
             if(!matchesSearch(x)) return false;
@@ -1834,7 +1857,7 @@
         let listSlot = body.querySelector('#s936lib-yt-list-slot');
         if(!embedSlot || !listSlot){
             body.innerHTML = '';
-            embedSlot = el('div', ''); embedSlot.id = 's936lib-yt-embed-slot';
+            embedSlot = el('div', 's936lib-mini-keep'); embedSlot.id = 's936lib-yt-embed-slot';
             listSlot = el('div', ''); listSlot.id = 's936lib-yt-list-slot';
             body.append(embedSlot, listSlot);
         }
@@ -1952,14 +1975,15 @@
         if(activeTab !== 'compositions') toolbar.appendChild(buildPlaylistFilterButton());
 
         if(activeTab === 'compositions'){
-            // Cambio 193: mismo tipo de botón que la flecha de listas en
-            // Mini Rockola (ícono chico), aunque aquí abre Álbumes en vez
-            // de listas — para que se sienta consistente en toda la app.
-            const btn = el('button', 's936lib-iconbtn', '⏷');
-            btn.title = 'Álbumes';
-            btn.style.cssText = 'width:32px;height:32px;font-size:.85rem;flex-shrink:0;';
-            btn.onclick = (e) => { e.stopPropagation(); openAlbumConfig(); };
-            toolbar.appendChild(btn);
+            // Cambio 194: dos botones separados — la flecha filtra rápido
+            // por álbum (mismo patrón que listas), y un botón aparte de
+            // configuración (⚙) abre el modal completo (crear álbum,
+            // carátula/video, carpeta).
+            const configBtn = el('button', 's936lib-iconbtn', '⚙');
+            configBtn.title = 'Configurar álbumes';
+            configBtn.style.cssText = 'width:32px;height:32px;font-size:.85rem;flex-shrink:0;';
+            configBtn.onclick = (e) => { e.stopPropagation(); openAlbumConfig(); };
+            toolbar.append(buildAlbumFilterButton(), configBtn);
         } else if(activeTab === 'audios'){
             const btn = el('button', 's936lib-actionbtn', '⬆ Importar MP3/MP4');
             const fileInput = document.createElement('input');
