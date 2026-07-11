@@ -270,6 +270,15 @@
 #${PANEL_ID} .s936lib-mini.play { color:#00ffcc; border-color:rgba(0,255,204,.4); flex:1; }
 #${PANEL_ID} .s936lib-mini.danger { border-color:rgba(255,90,90,.5); color:#ff9a9a; }
 #${PANEL_ID} .s936lib-iconbtn { background:transparent; border:1px solid #2c3234; color:#9fb0ae; border-radius:6px; width:24px; height:24px; flex-shrink:0; cursor:pointer; font-size:.72rem; display:flex; align-items:center; justify-content:center; }
+#${PANEL_ID} .s936lib-kebabwrap { position:relative; margin-left:auto; }
+#${PANEL_ID} .s936lib-kebab { background:transparent; border:none; color:#9fb0ae; cursor:pointer; font-size:1rem; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+#${PANEL_ID} .s936lib-kebab:hover { background:rgba(255,255,255,.08); color:#e8f4f2; }
+#${PANEL_ID} .s936lib-menu { position:absolute; right:0; top:100%; z-index:20; min-width:190px; background:#181e20; border:1px solid rgba(255,255,255,.1); border-radius:10px; box-shadow:0 12px 30px rgba(0,0,0,.5); padding:6px; display:none; }
+#${PANEL_ID} .s936lib-menu.open { display:block; }
+#${PANEL_ID} .s936lib-menu-item { display:flex; align-items:center; gap:9px; width:100%; background:transparent; border:none; color:#e8f4f2; text-align:left; padding:8px 10px; border-radius:7px; font-size:.76rem; cursor:pointer; }
+#${PANEL_ID} .s936lib-menu-item:hover { background:rgba(0,255,204,.08); }
+#${PANEL_ID} .s936lib-menu-item.danger { color:#ff9a9a; }
+#${PANEL_ID} .s936lib-menu-item .ic { width:16px; text-align:center; flex-shrink:0; }
 #${PANEL_ID} .s936lib-iconbtn:hover { border-color:#5be8c9; color:#5be8c9; }
 #${PANEL_ID} .s936lib-iconbtn.danger:hover { border-color:#ff9a9a; color:#ff9a9a; }
 #${PANEL_ID} .s936lib-iconbtn.active { background:rgba(0,255,204,.15); border-color:#00ffcc; color:#00ffcc; }
@@ -315,8 +324,8 @@
 #${PANEL_ID} .s936lib-ytthumb .playicon { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:1.4rem; color:#fff; background:rgba(0,0,0,.15); opacity:0; transition:opacity .15s ease; }
 #${PANEL_ID} .s936lib-ytcard:hover .playicon { opacity:1; }
 #${PANEL_ID} .s936lib-ytcardbody { padding:2px 4px; flex:1; min-width:0; display:flex; flex-direction:column; }
-#${PANEL_ID} .s936lib-ytcardtitle { font-size:.76rem; font-weight:800; color:#e8f4f2; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
-#${PANEL_ID} .s936lib-ytcardnotes { font-size:.64rem; color:#9fb0ae; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#${PANEL_ID} .s936lib-ytcardtitle { font-size:.8rem; font-weight:700; color:#e8f4f2; line-height:1.3; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+#${PANEL_ID} .s936lib-ytcardnotes { font-size:.68rem; color:#9fb0ae; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 #${PANEL_ID} .s936lib-ytcardactions { display:flex; align-items:center; gap:8px; margin-top:auto; padding-top:6px; }
 `;
         document.head.appendChild(style);
@@ -381,6 +390,38 @@
             box.append(openBtn, dupBtn, delBtn);
         }
         return box;
+    }
+
+    // Cambio 174: menú de tres puntos genérico — igual patrón que el "..."
+    // de YouTube, reutilizable en cualquier tarjeta. Solo un menú abierto
+    // a la vez (se cierra al abrir otro o al hacer clic afuera).
+    let openMenuEl = null;
+    function closeAnyOpenMenu(){
+        if(openMenuEl){ openMenuEl.classList.remove('open'); openMenuEl = null; }
+    }
+    document.addEventListener('click', (e) => {
+        if(openMenuEl && !e.target.closest('.s936lib-kebabwrap')) closeAnyOpenMenu();
+    });
+    function buildKebabMenu(items){
+        const wrap = el('div', 's936lib-kebabwrap');
+        const btn = el('button', 's936lib-kebab', '⋮');
+        const menu = el('div', 's936lib-menu');
+        items.forEach(({icon, label, danger, onClick}) => {
+            const item = el('button', 's936lib-menu-item' + (danger ? ' danger' : ''));
+            item.appendChild(el('span', 'ic', icon || ''));
+            item.appendChild(el('span', '', label));
+            item.onclick = (e) => { e.stopPropagation(); closeAnyOpenMenu(); onClick(); };
+            menu.appendChild(item);
+        });
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            if(openMenuEl === menu){ closeAnyOpenMenu(); return; }
+            closeAnyOpenMenu();
+            menu.classList.add('open');
+            openMenuEl = menu;
+        };
+        wrap.append(btn, menu);
+        return wrap;
     }
 
     function genreTag(type, item){
@@ -678,6 +719,7 @@
     function selectYoutubeVideo(item){
         currentYoutubeId = item.id;
         lcdYoutubeTitle = item.title;
+        startEqAnimation();
         render();
     }
 
@@ -777,13 +819,22 @@
             thumb.appendChild(el('div', 'playicon', '▶'));
             const cardBody = el('div', 's936lib-ytcardbody');
             cardBody.appendChild(el('div', 's936lib-ytcardtitle', item.title));
-            if(item.notes) cardBody.appendChild(el('div', 's936lib-ytcardnotes', item.notes));
+            cardBody.appendChild(el('div', 's936lib-ytcardnotes', item.notes || ('Agregado a tu lista · ' + fmtDate(item.addedAt))));
             const actions = el('div', 's936lib-ytcardactions');
             actions.append(genreTag('youtube', item));
-            const delBtn = el('button', 's936lib-iconbtn danger', '✕');
-            delBtn.title = 'Borrar de mi lista';
-            delBtn.onclick = (e) => { e.stopPropagation(); deleteYoutube(item.id); };
-            actions.appendChild(delBtn);
+            const kebab = buildKebabMenu([
+                { icon:'▶', label:'Reproducir aquí', onClick: () => selectYoutubeVideo(item) },
+                { icon:'↗', label:'Abrir en YouTube', onClick: () => window.open(item.url, '_blank', 'noopener') },
+                { icon:'⧉', label:'Copiar link', onClick: () => { navigator.clipboard?.writeText(item.url); } },
+                { icon:'🏷', label:'Editar género/etiqueta', onClick: () => {
+                    const value = prompt('Género / etiqueta para "' + item.title + '":', item.genre || '');
+                    if(value === null) return;
+                    setGenre('youtube', item.id, value.trim());
+                    render();
+                } },
+                { icon:'✕', label:'Borrar de mi lista', danger:true, onClick: () => deleteYoutube(item.id) }
+            ]);
+            actions.appendChild(kebab);
             cardBody.appendChild(actions);
             card.append(thumb, cardBody);
             card.onclick = () => selectYoutubeVideo(item);
