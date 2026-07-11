@@ -628,6 +628,15 @@
 #${PANEL_ID} .s936lib-list-thumb { width:38px; height:38px; border-radius:7px; flex-shrink:0; background-position:center; background-size:cover; background-color:#0a1614; }
 #${PANEL_ID} .s936lib-list-thumb.s936lib-comp-noart { display:flex; }
 #${PANEL_ID} .s936lib-list-thumb .s936lib-comp-wave { width:80%; height:60%; }
+
+/* Cambio 193: espacio grande de "video/carátula" al reproducir, mismo
+   espíritu que el embed de Mini Rockola. */
+#${PANEL_ID} .s936lib-compvisual { width:100%; aspect-ratio:16/9; max-height:min(38vh,300px); border-radius:10px; overflow:hidden; margin-bottom:14px; position:relative; background:#000; display:flex; align-items:center; justify-content:center; }
+#${PANEL_ID} .s936lib-compvisual-media { width:100%; height:100%; object-fit:cover; }
+#${PANEL_ID} .s936lib-compvisual-zoom { background-size:cover; background-position:center; animation:s936CompZoom 14s ease-in-out infinite alternate; }
+@keyframes s936CompZoom { from { transform:scale(1); } to { transform:scale(1.09); } }
+#${PANEL_ID} .s936lib-compvisual-hint { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#9fb0ae; font-size:.8rem; background:rgba(0,0,0,.35); text-align:center; padding:0 20px; }
+#${PANEL_ID} .s936lib-compvisual.s936lib-comp-noart .s936lib-comp-wave { width:60%; height:50%; }
 `;
         document.head.appendChild(style);
     }
@@ -1297,7 +1306,36 @@
         genrePlaylistPopoverEl = pop;
     }
 
+    // Cambio 193: espacio grande tipo "pantalla de video", igual espíritu
+    // que el embed de Mini Rockola — si la composición que suena tiene un
+    // álbum con video, se ve el video; si solo tiene foto, la foto hace un
+    // zoom lento (Ken Burns); si no tiene nada, el ícono de ondas grande.
+    function buildCompositionsVisual(){
+        const wrap = el('div', 's936lib-compvisual');
+        const playingItem = currentPlayingComp ? store.compositions.find(x => x.id === currentPlayingComp) : null;
+        const videoUrl = playingItem ? albumVideoUrl(playingItem.albumId) : null;
+        const coverUrl = playingItem ? compositionCoverUrl(playingItem) : null;
+        if(videoUrl){
+            const video = document.createElement('video');
+            video.src = videoUrl; video.autoplay = true; video.loop = true; video.muted = true; video.playsInline = true;
+            video.className = 's936lib-compvisual-media';
+            wrap.appendChild(video);
+        } else if(coverUrl){
+            const bg = el('div', 's936lib-compvisual-media s936lib-compvisual-zoom');
+            bg.style.backgroundImage = `url('${coverUrl}')`;
+            wrap.appendChild(bg);
+        } else {
+            wrap.classList.add('s936lib-comp-noart');
+            wrap.innerHTML = `<svg viewBox="0 0 100 40" preserveAspectRatio="none" class="s936lib-comp-wave">
+                <path d="M0 20 Q 12 4 25 20 T 50 20 T 75 20 T 100 20" />
+            </svg>`;
+        }
+        if(!playingItem) wrap.appendChild(el('div', 's936lib-compvisual-hint', 'Elige "▶ Play" en una composición para verla aquí'));
+        return wrap;
+    }
+
     function renderCompositions(body){
+        body.appendChild(buildCompositionsVisual());
         // Cambio 188: barra de filtro por álbum, igual patrón que los chips
         // de Géneros — "Todos", "Sin álbum" y cada álbum con su conteo.
         const albumBar = el('div', 's936lib-genrechips');
@@ -1914,9 +1952,12 @@
         if(activeTab !== 'compositions') toolbar.appendChild(buildPlaylistFilterButton());
 
         if(activeTab === 'compositions'){
-            // Cambio 188: aquí ya no se guarda (eso pasa donde editas la
-            // canción) — este botón abre la gestión de álbumes en su lugar.
-            const btn = el('button', 's936lib-actionbtn', '💿 Álbumes');
+            // Cambio 193: mismo tipo de botón que la flecha de listas en
+            // Mini Rockola (ícono chico), aunque aquí abre Álbumes en vez
+            // de listas — para que se sienta consistente en toda la app.
+            const btn = el('button', 's936lib-iconbtn', '⏷');
+            btn.title = 'Álbumes';
+            btn.style.cssText = 'width:32px;height:32px;font-size:.85rem;flex-shrink:0;';
             btn.onclick = (e) => { e.stopPropagation(); openAlbumConfig(); };
             toolbar.appendChild(btn);
         } else if(activeTab === 'audios'){
