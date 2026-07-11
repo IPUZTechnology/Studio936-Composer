@@ -309,6 +309,12 @@
 #${PANEL_ID} .s936lib-kebab { background:transparent; border:none; color:#9fb0ae; cursor:pointer; font-size:1rem; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 #${PANEL_ID} .s936lib-kebab:hover { background:rgba(255,255,255,.08); color:#e8f4f2; }
 #${PANEL_ID} .s936lib-menu { position:absolute; right:0; top:100%; z-index:20; min-width:190px; background:#181e20; border:1px solid rgba(255,255,255,.1); border-radius:10px; box-shadow:0 12px 30px rgba(0,0,0,.5); padding:6px; display:none; }
+.s936lib-menu-floating { position:fixed !important; z-index:2147483000; min-width:190px; background:#181e20; border:1px solid rgba(255,255,255,.1); border-radius:10px; box-shadow:0 12px 30px rgba(0,0,0,.5); padding:6px; display:none; }
+.s936lib-menu-floating.open { display:block; }
+.s936lib-menu-floating .s936lib-menu-item { display:flex; align-items:center; gap:9px; width:100%; background:transparent; border:none; color:#e8f4f2; text-align:left; padding:8px 10px; border-radius:7px; font-size:.76rem; cursor:pointer; }
+.s936lib-menu-floating .s936lib-menu-item:hover { background:rgba(0,255,204,.08); }
+.s936lib-menu-floating .s936lib-menu-item.danger { color:#ff9a9a; }
+.s936lib-menu-floating .s936lib-menu-item .ic { width:16px; text-align:center; flex-shrink:0; }
 #${PANEL_ID} .s936lib-menu.open { display:block; }
 #${PANEL_ID} .s936lib-menu-item { display:flex; align-items:center; gap:9px; width:100%; background:transparent; border:none; color:#e8f4f2; text-align:left; padding:8px 10px; border-radius:7px; font-size:.76rem; cursor:pointer; }
 #${PANEL_ID} .s936lib-menu-item:hover { background:rgba(0,255,204,.08); }
@@ -341,6 +347,10 @@
 #${PANEL_ID} .s936lib-back { background:transparent; border:none; color:#00ffcc; font-size:.76rem; font-weight:800; cursor:pointer; margin-bottom:10px; padding:0; }
 
 #${PANEL_ID} .s936lib-ytform { display:grid; grid-template-columns:1fr; gap:8px; background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:12px; margin-bottom:14px; }
+.s936lib-ytform-floating { position:fixed !important; z-index:2147483000; width:min(320px,90vw); display:grid; grid-template-columns:1fr; gap:8px; background:#181e20; border:1px solid rgba(0,255,204,.3); border-radius:12px; padding:14px; box-shadow:0 16px 40px rgba(0,0,0,.55); }
+.s936lib-ytform-floating input, .s936lib-ytform-floating textarea { background:#1c2224; border:1px solid #333; border-radius:8px; padding:7px 9px; color:#e8f4f2; font-size:.78rem; font-family:inherit; }
+.s936lib-ytform-floating textarea { resize:vertical; min-height:44px; }
+.s936lib-ytform-floating .s936lib-actionbtn { background:rgba(0,255,204,.12); border:1px solid #00ffcc; color:#00ffcc; border-radius:8px; padding:7px 12px; font-size:.76rem; font-weight:700; cursor:pointer; }
 #${PANEL_ID} .s936lib-ytform input, #${PANEL_ID} .s936lib-ytform textarea { background:#1c2224; border:1px solid #333; border-radius:8px; padding:7px 9px; color:#e8f4f2; font-size:.78rem; font-family:inherit; }
 #${PANEL_ID} .s936lib-ytform textarea { resize:vertical; min-height:44px; }
 #${PANEL_ID} .s936lib-ytembed { width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; border:1px solid #333; margin-bottom:14px; }
@@ -436,12 +446,12 @@
         if(openMenuEl){ openMenuEl.classList.remove('open'); openMenuEl = null; }
     }
     document.addEventListener('click', (e) => {
-        if(openMenuEl && !e.target.closest('.s936lib-kebabwrap')) closeAnyOpenMenu();
+        if(openMenuEl && !e.target.closest('.s936lib-kebabwrap') && !e.target.closest('.s936lib-menu-floating')) closeAnyOpenMenu();
     });
     function buildKebabMenu(items){
         const wrap = el('div', 's936lib-kebabwrap');
         const btn = el('button', 's936lib-kebab', '⋮');
-        const menu = el('div', 's936lib-menu');
+        const menu = el('div', 's936lib-menu s936lib-menu-floating');
         items.forEach(({icon, label, danger, onClick}) => {
             const item = el('button', 's936lib-menu-item' + (danger ? ' danger' : ''));
             item.appendChild(el('span', 'ic', icon || ''));
@@ -449,14 +459,30 @@
             item.onclick = (e) => { e.stopPropagation(); closeAnyOpenMenu(); onClick(); };
             menu.appendChild(item);
         });
+        // Cambio 178: el menú se agrega directo a <body> con position:fixed
+        // (no dentro de la tarjeta) — así el scroll de la lista nunca lo
+        // recorta ni lo tapa, igual que el tooltip global (Cambio 162).
+        document.body.appendChild(menu);
         btn.onclick = (e) => {
             e.stopPropagation();
             if(openMenuEl === menu){ closeAnyOpenMenu(); return; }
             closeAnyOpenMenu();
+            const rect = btn.getBoundingClientRect();
+            menu.style.left = '0px';
+            menu.style.top = '0px';
             menu.classList.add('open');
+            // Medir después de mostrarlo para saber su tamaño real y no
+            // salirse de la pantalla por abajo o por la derecha.
+            const menuRect = menu.getBoundingClientRect();
+            let left = rect.right - menuRect.width;
+            let top = rect.bottom + 4;
+            if(top + menuRect.height > window.innerHeight - 8) top = rect.top - menuRect.height - 4;
+            if(left < 8) left = 8;
+            menu.style.left = left + 'px';
+            menu.style.top = top + 'px';
             openMenuEl = menu;
         };
-        wrap.append(btn, menu);
+        wrap.appendChild(btn);
         return wrap;
     }
 
@@ -757,7 +783,7 @@
             // viendo.
             if(lcdYoutubeTitle){
                 titleEl.textContent = lcdYoutubeTitle;
-                if(subEl) subEl.textContent = 'YouTube';
+                if(subEl) subEl.textContent = '';
                 // Cambio 175: no hay forma de leer el tiempo real de un
                 // iframe de YouTube — mostrar "--:-- / --:--" ahí se veía
                 // como un reloj roto. Se deja en blanco en vez de un
@@ -822,26 +848,48 @@
         render();
     }
 
-    function renderYoutubeAddForm(body){
-        if(!ytFormOpen) return;
-        const form = el('div', 's936lib-ytform');
+    let ytAddPopoverEl = null;
+    function closeYoutubeAddPopover(){
+        if(ytAddPopoverEl){ ytAddPopoverEl.remove(); ytAddPopoverEl = null; }
+        ytFormOpen = false;
+    }
+    function toggleYoutubeAddPopover(anchorBtn){
+        if(ytAddPopoverEl){ closeYoutubeAddPopover(); return; }
+        ytFormOpen = true;
+        const pop = el('div', 's936lib-ytform s936lib-ytform-floating');
         const urlInput = document.createElement('input');
-        urlInput.placeholder = 'Pegar link de YouTube para agregarlo a tu lista (https://...)';
+        urlInput.placeholder = 'Pegar link de YouTube (https://...)';
         const titleInput = document.createElement('input');
-        titleInput.placeholder = 'Título (recomendado — si lo dejas vacío, se ve feo el link solo)';
+        titleInput.placeholder = 'Título (recomendado)';
         const notesInput = document.createElement('textarea');
         notesInput.placeholder = 'Notas (opcional) — ej. "para el solo de guitarra"...';
         const addBtn = el('button', 's936lib-actionbtn', '+ Agregar a mi lista');
         addBtn.style.alignSelf = 'flex-start';
-        addBtn.onclick = () => {
+        addBtn.onclick = (e) => {
+            e.stopPropagation();
             if(!urlInput.value.trim()){ urlInput.focus(); return; }
             addYoutubeFavorite(urlInput.value, titleInput.value, notesInput.value);
-            ytFormOpen = false;
-            renderBodyOnly();
+            closeYoutubeAddPopover();
         };
-        form.append(urlInput, titleInput, notesInput, addBtn);
-        body.appendChild(form);
+        pop.append(urlInput, titleInput, notesInput, addBtn);
+        pop.addEventListener('click', (e) => e.stopPropagation());
+        document.body.appendChild(pop);
+        const rect = anchorBtn.getBoundingClientRect();
+        const popRect = pop.getBoundingClientRect();
+        let left = rect.right - popRect.width;
+        let top = rect.bottom + 6;
+        if(top + popRect.height > window.innerHeight - 8) top = rect.top - popRect.height - 6;
+        if(left < 8) left = 8;
+        pop.style.left = left + 'px';
+        pop.style.top = top + 'px';
+        ytAddPopoverEl = pop;
+        urlInput.focus();
     }
+    document.addEventListener('click', (e) => {
+        if(ytAddPopoverEl && !e.target.closest('.s936lib-ytform-floating') && !e.target.closest('.s936lib-iconbtn[title="Agregar un video a tu lista"]')){
+            closeYoutubeAddPopover();
+        }
+    });
 
     // Cambio 169: "mini YouTube" — busca DENTRO de tus favoritos guardados
     // manualmente (título/notas), con la estética de un buscador de
@@ -882,8 +930,12 @@
     }
 
     function renderYoutubeList(listSlot){
+        // Cambio 178: los menús de tres puntos viven en <body>, no dentro
+        // de la tarjeta — si no se limpian antes de reconstruir la lista,
+        // se van acumulando huérfanos en el fondo de la página.
+        document.querySelectorAll('.s936lib-menu-floating').forEach((m) => m.remove());
+        openMenuEl = null;
         listSlot.innerHTML = '';
-        renderYoutubeAddForm(listSlot);
         const list = youtubeFilteredList();
         const grid = el('div', 's936lib-ytgrid');
         list.forEach((item) => {
@@ -1029,7 +1081,7 @@
             const addBtn = el('button', 's936lib-iconbtn' + (ytFormOpen ? ' active' : ''), '+');
             addBtn.title = 'Agregar un video a tu lista';
             addBtn.style.cssText = 'width:34px;height:32px;font-size:1.1rem;flex-shrink:0;';
-            addBtn.onclick = () => { ytFormOpen = !ytFormOpen; renderBodyOnly(); };
+            addBtn.onclick = (e) => { e.stopPropagation(); toggleYoutubeAddPopover(addBtn); };
             toolbar.append(bar, addBtn);
             return;
         }
@@ -1079,6 +1131,8 @@
     function render(){
         const panel = document.getElementById(PANEL_ID);
         if(!panel) return;
+        closeAnyOpenMenu();
+        closeYoutubeAddPopover();
         panel.querySelectorAll('.s936lib-tab').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === activeTab));
         panel.querySelectorAll('.s936lib-viewbtn').forEach((btn) => btn.classList.toggle('active', btn.dataset.view === viewMode));
         // Cambio 176: en YouTube, Play y Volumen no controlan nada real
@@ -1107,7 +1161,7 @@
     const TABS = [
         ['recent', 'Recientes'],
         ['compositions', 'Composiciones'],
-        ['audios', 'MP3'],
+        ['audios', 'Audio MP3'],
         ['youtube', 'YouTube'],
         ['genres', 'Géneros']
     ];
@@ -1203,6 +1257,8 @@
     function close(){
         const overlay = document.getElementById(PANEL_ID + 'Overlay');
         if(overlay) overlay.classList.remove('is-open');
+        document.querySelectorAll('.s936lib-menu-floating').forEach((m) => m.remove());
+        openMenuEl = null;
     }
     function toggle(){
         const overlay = document.getElementById(PANEL_ID + 'Overlay');
