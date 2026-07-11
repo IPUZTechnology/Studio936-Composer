@@ -34,6 +34,7 @@
     let activeTab = 'recent';
     let viewMode = localStorage.getItem(VIEW_MODE_KEY) === 'list' ? 'list' : 'grid';
     let activeGenreFilter = null;
+    let activePlaylistFilter = null;
     let searchQuery = '';
     let audioObjectURLs = {};
     let currentPlayingId = null;   // id de audio sonando (de store.audios)
@@ -137,6 +138,14 @@
     // ---------------------------------------------------------------
     function emptyStore(){ return { compositions:[], audios:[], youtube:[] }; }
 
+    // Cambio 186: cada ítem ahora también tiene .playlists (array de
+    // nombres) — muchos-a-muchos, distinto de .genre (un solo valor,
+    // musical). Esta función asegura que TODO ítem existente tenga el
+    // campo, sin importar si vino de antes de este cambio.
+    function ensurePlaylistsField(list){
+        (list || []).forEach((item) => { if(!Array.isArray(item.playlists)) item.playlists = []; });
+    }
+
     function loadStore(){
         try {
             const raw = localStorage.getItem(STORE_KEY);
@@ -145,12 +154,29 @@
             s.compositions = Array.isArray(s.compositions) ? s.compositions : [];
             s.audios = Array.isArray(s.audios) ? s.audios : [];
             s.youtube = Array.isArray(s.youtube) ? s.youtube : [];
+            ensurePlaylistsField(s.compositions);
+            ensurePlaylistsField(s.audios);
+            ensurePlaylistsField(s.youtube);
             return s;
         } catch(_) { return emptyStore(); }
     }
 
     function saveStore(){
         try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch(_) {}
+    }
+
+    function allPlaylists(){
+        const set = new Set();
+        [...store.compositions, ...store.audios, ...store.youtube].forEach((item) => {
+            (item.playlists || []).forEach((p) => { if(p) set.add(p); });
+        });
+        return Array.from(set).sort((a,b)=>a.localeCompare(b));
+    }
+
+    function setItemPlaylists(type, id, playlists){
+        const list = store[type];
+        const item = list && list.find(x => x.id === id);
+        if(item){ item.playlists = playlists.filter(Boolean); saveStore(); }
     }
 
     function migrateOldDataIfNeeded(){
@@ -404,6 +430,19 @@
 #${PANEL_ID} .s936lib-chip.active { background:#ffe066; color:#3a2f00; border-color:#ffe066; }
 #${PANEL_ID} .s936lib-back { background:transparent; border:none; color:#00ffcc; font-size:.76rem; font-weight:800; cursor:pointer; margin-bottom:10px; padding:0; }
 
+.s936lib-gpfields { display:flex; flex-direction:column; gap:6px; }
+.s936lib-gptitle { font-size:.8rem; font-weight:800; color:#e8f4f2; margin-bottom:4px; }
+.s936lib-gplabel { font-size:.62rem; text-transform:uppercase; letter-spacing:.6px; color:#9fb0ae; margin-top:4px; }
+.s936lib-gpgenre-input { background:#1c2224; border:1px solid #333; border-radius:8px; padding:7px 9px; color:#e8f4f2; font-size:.78rem; font-family:inherit; }
+.s936lib-gpgenre-readonly { background:rgba(91,232,201,.08); border:1px solid rgba(91,232,201,.25); border-radius:8px; padding:6px 9px; color:#7fe9d2; font-size:.78rem; font-weight:700; }
+.s936lib-gpchips { display:flex; flex-wrap:wrap; gap:6px; }
+.s936lib-gpchip { background:#1c2224; border:1px solid #333; color:#9fb0ae; border-radius:999px; padding:5px 12px; font-size:.7rem; font-weight:700; cursor:pointer; }
+.s936lib-gpchip.active { background:rgba(0,255,204,.15); border-color:#00ffcc; color:#00ffcc; }
+.s936lib-gpempty { font-size:.68rem; color:#7a8785; font-style:italic; }
+.s936lib-gpnewrow { display:flex; gap:6px; }
+.s936lib-gpnewrow input { flex:1; background:#1c2224; border:1px solid #333; border-radius:8px; padding:6px 9px; color:#e8f4f2; font-size:.74rem; font-family:inherit; }
+.s936lib-gpaddbtn { background:transparent; border:1px solid #00ffcc; color:#00ffcc; border-radius:8px; padding:6px 12px; font-size:.7rem; font-weight:700; cursor:pointer; white-space:nowrap; }
+
 #${PANEL_ID} .s936lib-ytform { display:grid; grid-template-columns:1fr; gap:8px; background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:12px; margin-bottom:14px; }
 .s936lib-ytform-floating { position:fixed !important; z-index:2147483000; width:min(320px,90vw); display:grid; grid-template-columns:1fr; gap:8px; background:#181e20; border:1px solid rgba(0,255,204,.3); border-radius:12px; padding:14px; box-shadow:0 16px 40px rgba(0,0,0,.55); }
 .s936lib-ytform-floating input, .s936lib-ytform-floating textarea { background:#1c2224; border:1px solid #333; border-radius:8px; padding:7px 9px; color:#e8f4f2; font-size:.78rem; font-family:inherit; }
@@ -411,7 +450,7 @@
 .s936lib-ytform-floating .s936lib-actionbtn { background:rgba(0,255,204,.12); border:1px solid #00ffcc; color:#00ffcc; border-radius:8px; padding:7px 12px; font-size:.76rem; font-weight:700; cursor:pointer; }
 #${PANEL_ID} .s936lib-ytform input, #${PANEL_ID} .s936lib-ytform textarea { background:#1c2224; border:1px solid #333; border-radius:8px; padding:7px 9px; color:#e8f4f2; font-size:.78rem; font-family:inherit; }
 #${PANEL_ID} .s936lib-ytform textarea { resize:vertical; min-height:44px; }
-#${PANEL_ID} .s936lib-ytembed { width:100%; max-width:100%; aspect-ratio:16/9; max-height:min(60vh,560px); margin:0 auto 12px; background:#000; border-radius:10px; border:1px solid #333; }
+#${PANEL_ID} .s936lib-ytembed { width:100%; max-width:100%; aspect-ratio:16/9; max-height:min(52vh,480px); margin:0 auto 16px; background:#000; border-radius:10px; border:1px solid #333; }
 /* Cambio 184: el video usa casi todo el ancho real del panel en vista
    normal — contrarresta el padding del body con márgenes negativos, en
    vez de dejar franjas oscuras a los lados solo para verlo completo sin
@@ -464,10 +503,41 @@
     // Búsqueda genérica
     // ---------------------------------------------------------------
     function matchesSearch(item, extraFields){
+        if(activePlaylistFilter && !(item.playlists || []).includes(activePlaylistFilter)) return false;
         if(!searchQuery) return true;
         const q = searchQuery.toLowerCase();
         const fields = [item.title, item.author, item.genre].concat(extraFields||[]);
         return fields.some(f => (f||'').toLowerCase().includes(q));
+    }
+
+    function buildPlaylistFilterButton(){
+        const btn = el('button', 's936lib-iconbtn' + (activePlaylistFilter ? ' active' : ''), '⏷');
+        btn.title = activePlaylistFilter ? ('Filtrando: ' + activePlaylistFilter) : 'Filtrar por lista';
+        btn.style.cssText = 'width:32px;height:32px;font-size:.85rem;flex-shrink:0;';
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            if(genrePlaylistPopoverEl){ closeGenrePlaylistPopover(); return; }
+            const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover');
+            pop.appendChild(el('div', 's936lib-gptitle', 'Filtrar por lista'));
+            const chips = el('div', 's936lib-gpchips');
+            const allBtn = el('button', 's936lib-gpchip' + (!activePlaylistFilter ? ' active' : ''), 'Todas');
+            allBtn.type = 'button';
+            allBtn.onclick = (ev) => { ev.preventDefault(); activePlaylistFilter = null; closeGenrePlaylistPopover(); renderBodyOnly(); };
+            chips.appendChild(allBtn);
+            allPlaylists().forEach((name) => {
+                const chip = el('button', 's936lib-gpchip' + (activePlaylistFilter === name ? ' active' : ''), name);
+                chip.type = 'button';
+                chip.onclick = (ev) => { ev.preventDefault(); activePlaylistFilter = name; closeGenrePlaylistPopover(); renderBodyOnly(); };
+                chips.appendChild(chip);
+            });
+            if(!allPlaylists().length) chips.appendChild(el('div', 's936lib-gpempty', 'Todavía no tienes listas creadas.'));
+            pop.appendChild(chips);
+            pop.addEventListener('click', (ev) => ev.stopPropagation());
+            document.body.appendChild(pop);
+            positionFloatingPopover(pop, btn);
+            genrePlaylistPopoverEl = pop;
+        };
+        return btn;
     }
 
     // ---------------------------------------------------------------
@@ -550,21 +620,106 @@
         return wrap;
     }
 
+    // Cambio 186: componente reutilizable de "género + listas", usado al
+    // agregar/guardar en los 3 lados (Composiciones, Audio MP3, YouTube)
+    // y también al editar después. El género es un solo valor musical
+    // (editable solo si genreEditable=true — en Composiciones viene
+    // automático del estilo, no se pregunta de nuevo); las listas son
+    // muchas-a-muchas, siempre editables: casillas de las que ya existen
+    // + un campo para crear una nueva sobre la marcha.
+    function buildGenrePlaylistFields(opts){
+        const wrap = el('div', 's936lib-gpfields');
+        let genreInput = null;
+        if(opts.genreEditable){
+            wrap.appendChild(el('label', 's936lib-gplabel', 'Género'));
+            genreInput = document.createElement('input');
+            genreInput.className = 's936lib-gpgenre-input';
+            genreInput.placeholder = 'Género / estilo (ej. Rock, Bolero...)';
+            genreInput.value = opts.genre || '';
+            wrap.appendChild(genreInput);
+        } else if(opts.genre !== undefined){
+            wrap.appendChild(el('label', 's936lib-gplabel', 'Género'));
+            const badge = el('div', 's936lib-gpgenre-readonly', genreLabel(opts.genre) || 'Sin estilo');
+            wrap.appendChild(badge);
+        }
+
+        wrap.appendChild(el('label', 's936lib-gplabel', 'Listas'));
+        const chipsWrap = el('div', 's936lib-gpchips');
+        const selected = new Set(opts.playlists || []);
+        function renderChips(){
+            chipsWrap.innerHTML = '';
+            allPlaylists().forEach((name) => {
+                const chip = el('button', 's936lib-gpchip' + (selected.has(name) ? ' active' : ''), name);
+                chip.type = 'button';
+                chip.onclick = (e) => {
+                    e.preventDefault();
+                    if(selected.has(name)) selected.delete(name); else selected.add(name);
+                    renderChips();
+                };
+                chipsWrap.appendChild(chip);
+            });
+            if(!allPlaylists().length){
+                chipsWrap.appendChild(el('div', 's936lib-gpempty', 'Todavía no tienes listas — crea la primera abajo.'));
+            }
+        }
+        renderChips();
+        wrap.appendChild(chipsWrap);
+
+        const newRow = el('div', 's936lib-gpnewrow');
+        const newInput = document.createElement('input');
+        newInput.placeholder = '+ Nueva lista (ej. Guitarra, Karaoke...)';
+        const newBtn = el('button', 's936lib-gpaddbtn', '+ Crear');
+        newBtn.type = 'button';
+        newBtn.onclick = (e) => {
+            e.preventDefault();
+            const name = newInput.value.trim();
+            if(!name) return;
+            selected.add(name);
+            newInput.value = '';
+            renderChips();
+        };
+        newRow.append(newInput, newBtn);
+        wrap.appendChild(newRow);
+
+        return {
+            wrap,
+            getGenre: () => genreInput ? genreInput.value.trim() : (opts.genre || ''),
+            getPlaylists: () => Array.from(selected)
+        };
+    }
+
+    function openEditGenrePlaylistPopover(type, item){
+        if(genrePlaylistPopoverEl) closeGenrePlaylistPopover();
+        const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover');
+        pop.appendChild(el('div', 's936lib-gptitle', 'Editar "' + item.title + '"'));
+        const gp = buildGenrePlaylistFields({ genre: item.genre || '', genreEditable: type !== 'compositions', playlists: item.playlists || [] });
+        const saveBtn = el('button', 's936lib-actionbtn', 'Guardar cambios');
+        saveBtn.style.alignSelf = 'flex-start';
+        saveBtn.onclick = (e) => {
+            e.stopPropagation();
+            if(type !== 'compositions') setGenre(type, item.id, gp.getGenre());
+            setItemPlaylists(type, item.id, gp.getPlaylists());
+            closeGenrePlaylistPopover();
+            render();
+        };
+        pop.append(gp.wrap, saveBtn);
+        pop.addEventListener('click', (e) => e.stopPropagation());
+        document.body.appendChild(pop);
+        positionFloatingPopover(pop, null);
+        genrePlaylistPopoverEl = pop;
+    }
+
     function genreTag(type, item){
         if(type === 'compositions'){
             const tag = el('span', 's936lib-genretag', genreLabel(item.genre) || 'Sin estilo');
-            tag.title = 'Viene del estilo elegido en la barra principal al guardar.';
+            tag.title = 'El género viene del estilo elegido al guardar. Clic para editar las listas.';
+            tag.style.cursor = 'pointer';
+            tag.onclick = (e) => { e.stopPropagation(); openEditGenrePlaylistPopover('compositions', item); };
             return tag;
         }
         const tag = el('span', 's936lib-genretag', item.genre || '+ género');
         tag.style.cursor = 'pointer';
-        tag.onclick = (e) => {
-            e.stopPropagation();
-            const value = prompt('Género / etiqueta para "' + item.title + '":', item.genre || '');
-            if(value === null) return;
-            setGenre(type, item.id, value.trim());
-            render();
-        };
+        tag.onclick = (e) => { e.stopPropagation(); openEditGenrePlaylistPopover(type, item); };
         return tag;
     }
 
@@ -618,20 +773,47 @@
         render();
     }
 
-    function saveCurrentComposition(){
+    let genrePlaylistPopoverEl = null;
+    function closeGenrePlaylistPopover(){
+        if(genrePlaylistPopoverEl){ genrePlaylistPopoverEl.remove(); genrePlaylistPopoverEl = null; }
+    }
+    document.addEventListener('click', (e) => {
+        if(genrePlaylistPopoverEl && !e.target.closest('.s936lib-gppopover')) closeGenrePlaylistPopover();
+    });
+
+    function saveCurrentComposition(anchorBtn){
         const snapshot = window.Studio936AppBridge?.getProjectSnapshot?.();
         if(!snapshot){ alert('No se pudo leer la composición actual.'); return; }
-        store.compositions.unshift({
-            id: uid('c'),
-            title: snapshot.title || 'Sin título',
-            author: snapshot.author || '',
-            updated: Date.now(),
-            genre: snapshot.style || '',
-            previewAudioId: null,
-            project: snapshot
-        });
-        saveStore();
-        render();
+        if(genrePlaylistPopoverEl){ closeGenrePlaylistPopover(); return; }
+        const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover');
+        pop.appendChild(el('div', 's936lib-gptitle', 'Guardar "' + (snapshot.title || 'Sin título') + '"'));
+        // Cambio 186: el género NO se pregunta aquí — ya viene automático
+        // del estilo elegido en la barra principal (decisión ya tomada
+        // antes, sigue vigente). Solo se piden las listas.
+        const gp = buildGenrePlaylistFields({ genre: snapshot.style || '', genreEditable:false, playlists:[] });
+        const saveBtn = el('button', 's936lib-actionbtn', '💾 Guardar composición');
+        saveBtn.style.alignSelf = 'flex-start';
+        saveBtn.onclick = (e) => {
+            e.stopPropagation();
+            store.compositions.unshift({
+                id: uid('c'),
+                title: snapshot.title || 'Sin título',
+                author: snapshot.author || '',
+                updated: Date.now(),
+                genre: snapshot.style || '',
+                playlists: gp.getPlaylists(),
+                previewAudioId: null,
+                project: snapshot
+            });
+            saveStore();
+            closeGenrePlaylistPopover();
+            render();
+        };
+        pop.append(gp.wrap, saveBtn);
+        pop.addEventListener('click', (e) => e.stopPropagation());
+        document.body.appendChild(pop);
+        positionFloatingPopover(pop, anchorBtn);
+        genrePlaylistPopoverEl = pop;
     }
 
     function renderCompositions(body){
@@ -673,16 +855,37 @@
     // ---------------------------------------------------------------
     // Audios
     // ---------------------------------------------------------------
-    function importAudioFiles(fileList){
+    function importAudioFiles(fileList, anchorEl){
         const files = Array.from(fileList || []);
-        files.forEach((file) => {
+        if(!files.length) return;
+        const staged = files.map((file) => {
             const id = uid('a');
             audioObjectURLs[id] = URL.createObjectURL(file);
             const nameGuess = file.name.replace(/\.(mp3|mp4|wav|m4a|ogg)$/i, '').replace(/[_-]+/g,' ').trim();
-            store.audios.push({ id, title: nameGuess || file.name, author:'', fileName:file.name, genre:'', addedAt:Date.now() });
+            return { id, title: nameGuess || file.name, fileName: file.name };
         });
-        saveStore();
-        render();
+        if(genrePlaylistPopoverEl) closeGenrePlaylistPopover();
+        const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover');
+        pop.appendChild(el('div', 's936lib-gptitle', staged.length > 1 ? ('Importar ' + staged.length + ' archivos') : ('Importar "' + staged[0].title + '"')));
+        const gp = buildGenrePlaylistFields({ genre:'', genreEditable:true, playlists:[] });
+        const importBtn = el('button', 's936lib-actionbtn', '⬆ Importar');
+        importBtn.style.alignSelf = 'flex-start';
+        importBtn.onclick = (e) => {
+            e.stopPropagation();
+            const genre = gp.getGenre();
+            const playlists = gp.getPlaylists();
+            staged.forEach((s) => {
+                store.audios.push({ id:s.id, title:s.title, author:'', fileName:s.fileName, genre, playlists, addedAt:Date.now() });
+            });
+            saveStore();
+            closeGenrePlaylistPopover();
+            render();
+        };
+        pop.append(gp.wrap, importBtn);
+        pop.addEventListener('click', (e) => e.stopPropagation());
+        document.body.appendChild(pop);
+        positionFloatingPopover(pop, anchorEl);
+        genrePlaylistPopoverEl = pop;
     }
 
     function playAudio(id, titleOverride, subOverride){
@@ -753,7 +956,7 @@
         tile.appendChild(el('div', '', 'Importar MP3/MP4'));
         const fileInput = document.createElement('input');
         fileInput.type = 'file'; fileInput.accept = 'audio/*,video/mp4'; fileInput.multiple = true; fileInput.style.display = 'none';
-        fileInput.onchange = (e) => importAudioFiles(e.target.files);
+        fileInput.onchange = (e) => importAudioFiles(e.target.files, tile);
         tile.onclick = () => fileInput.click();
         tile.appendChild(fileInput);
         return tile;
@@ -886,9 +1089,9 @@
     // ---------------------------------------------------------------
     // YouTube
     // ---------------------------------------------------------------
-    function addYoutubeFavorite(url, title, notes){
+    function addYoutubeFavorite(url, title, genre, playlists){
         if(!url || !url.trim()) return;
-        store.youtube.unshift({ id: uid('y'), title: (title||'').trim() || 'Video de YouTube', url: url.trim(), notes:(notes||'').trim(), genre:'', addedAt:Date.now() });
+        store.youtube.unshift({ id: uid('y'), title: (title||'').trim() || 'Video de YouTube', url: url.trim(), notes:'', genre:(genre||'').trim(), playlists:(playlists||[]).filter(Boolean), addedAt:Date.now() });
         saveStore();
         render();
     }
@@ -918,6 +1121,22 @@
         if(ytAddPopoverEl){ ytAddPopoverEl.remove(); ytAddPopoverEl = null; }
         ytFormOpen = false;
     }
+    function positionFloatingPopover(pop, anchorBtn){
+        const popRect = pop.getBoundingClientRect();
+        if(!anchorBtn){
+            pop.style.left = ((window.innerWidth - popRect.width) / 2) + 'px';
+            pop.style.top = ((window.innerHeight - popRect.height) / 2) + 'px';
+            return;
+        }
+        const rect = anchorBtn.getBoundingClientRect();
+        let left = rect.right - popRect.width;
+        let top = rect.bottom + 6;
+        if(top + popRect.height > window.innerHeight - 8) top = rect.top - popRect.height - 6;
+        if(left < 8) left = 8;
+        pop.style.left = left + 'px';
+        pop.style.top = top + 'px';
+    }
+
     function toggleYoutubeAddPopover(anchorBtn){
         if(ytAddPopoverEl){ closeYoutubeAddPopover(); return; }
         ytFormOpen = true;
@@ -926,27 +1145,21 @@
         urlInput.placeholder = 'Pegar link de YouTube (https://...)';
         const titleInput = document.createElement('input');
         titleInput.placeholder = 'Título (recomendado)';
-        const notesInput = document.createElement('textarea');
-        notesInput.placeholder = 'Notas (opcional) — ej. "para el solo de guitarra"...';
+        // Cambio 186: el campo de "notas" se convierte en género + listas
+        // — se elige/crea sobre la marcha, en el mismo paso de agregar.
+        const gp = buildGenrePlaylistFields({ genre:'', genreEditable:true, playlists:[] });
         const addBtn = el('button', 's936lib-actionbtn', '+ Agregar a mi lista');
         addBtn.style.alignSelf = 'flex-start';
         addBtn.onclick = (e) => {
             e.stopPropagation();
             if(!urlInput.value.trim()){ urlInput.focus(); return; }
-            addYoutubeFavorite(urlInput.value, titleInput.value, notesInput.value);
+            addYoutubeFavorite(urlInput.value, titleInput.value, gp.getGenre(), gp.getPlaylists());
             closeYoutubeAddPopover();
         };
-        pop.append(urlInput, titleInput, notesInput, addBtn);
+        pop.append(urlInput, titleInput, gp.wrap, addBtn);
         pop.addEventListener('click', (e) => e.stopPropagation());
         document.body.appendChild(pop);
-        const rect = anchorBtn.getBoundingClientRect();
-        const popRect = pop.getBoundingClientRect();
-        let left = rect.right - popRect.width;
-        let top = rect.bottom + 6;
-        if(top + popRect.height > window.innerHeight - 8) top = rect.top - popRect.height - 6;
-        if(left < 8) left = 8;
-        pop.style.left = left + 'px';
-        pop.style.top = top + 'px';
+        positionFloatingPopover(pop, anchorBtn);
         ytAddPopoverEl = pop;
         urlInput.focus();
     }
@@ -1028,12 +1241,7 @@
                 { icon:'↗', label:'Abrir en YouTube', onClick: () => window.open(item.url, '_blank', 'noopener') },
                 { icon:'⧉', label:'Copiar link', onClick: () => { navigator.clipboard?.writeText(item.url); } },
                 { icon:'✎', label:'Editar nombre', onClick: () => renameYoutube(item.id) },
-                { icon:'🏷', label:'Editar género/etiqueta', onClick: () => {
-                    const value = prompt('Género / etiqueta para "' + item.title + '":', item.genre || '');
-                    if(value === null) return;
-                    setGenre('youtube', item.id, value.trim());
-                    render();
-                } },
+                { icon:'🏷', label:'Editar género y listas', onClick: () => openEditGenrePlaylistPopover('youtube', item) },
                 { icon:'✕', label:'Borrar de mi lista', danger:true, onClick: () => deleteYoutube(item.id) }
             ]);
             actions.appendChild(kebab);
@@ -1157,7 +1365,7 @@
             addBtn.title = 'Agregar un video a tu lista';
             addBtn.style.cssText = 'width:34px;height:32px;font-size:1.1rem;flex-shrink:0;';
             addBtn.onclick = (e) => { e.stopPropagation(); toggleYoutubeAddPopover(addBtn); };
-            toolbar.append(bar, addBtn);
+            toolbar.append(bar, buildPlaylistFilterButton(), addBtn);
             return;
         }
         const search = document.createElement('input');
@@ -1166,16 +1374,17 @@
         search.value = searchQuery;
         search.oninput = () => { searchQuery = search.value; renderBodyOnly(); };
         toolbar.appendChild(search);
+        toolbar.appendChild(buildPlaylistFilterButton());
 
         if(activeTab === 'compositions'){
             const btn = el('button', 's936lib-actionbtn', '💾 Guardar composición actual');
-            btn.onclick = saveCurrentComposition;
+            btn.onclick = (e) => { e.stopPropagation(); saveCurrentComposition(btn); };
             toolbar.appendChild(btn);
         } else if(activeTab === 'audios'){
             const btn = el('button', 's936lib-actionbtn', '⬆ Importar MP3/MP4');
             const fileInput = document.createElement('input');
             fileInput.type = 'file'; fileInput.accept = 'audio/*,video/mp4'; fileInput.multiple = true; fileInput.style.display = 'none';
-            fileInput.onchange = (e) => importAudioFiles(e.target.files);
+            fileInput.onchange = (e) => importAudioFiles(e.target.files, btn);
             btn.onclick = () => fileInput.click();
             toolbar.append(btn, fileInput);
         }
@@ -1273,7 +1482,7 @@
         TABS.forEach(([key, label]) => {
             const btn = el('button', 's936lib-tab', label);
             btn.dataset.tab = key;
-            btn.onclick = () => { activeTab = key; activeGenreFilter = null; searchQuery = ''; render(); };
+            btn.onclick = () => { activeTab = key; activeGenreFilter = null; activePlaylistFilter = null; searchQuery = ''; render(); };
             tabs.appendChild(btn);
         });
 
