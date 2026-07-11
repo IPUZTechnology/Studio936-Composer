@@ -39,6 +39,9 @@
     let currentPlayingId = null;   // id de audio sonando (de store.audios)
     let currentPlayingComp = null; // id de composición cuyo preview está sonando (mismo audio, distinta procedencia)
     let currentYoutubeId = null;   // favorito mostrado en el embed
+    let ytAutoplayNext = false;    // si el próximo embed debe iniciar sonando (solo tras elegir a mano)
+    let windowState = 'normal';    // normal | maximized | mini
+    let miniPos = null;            // {left, top} recordada mientras está en modo mini
     let lcdYoutubeTitle = null;    // título a mostrar en el LCD mientras no suene audio
     let ytFormOpen = false;        // si el mini-formulario de "+ agregar" está abierto
     let queue = [];
@@ -77,11 +80,11 @@
             return id || null;
         } catch(_) { return null; }
     }
-    function youtubeEmbedUrl(url){
+    function youtubeEmbedUrl(url, autoplay){
         const id = youtubeVideoId(url);
         if(!id) return null;
         const origin = typeof location !== 'undefined' ? encodeURIComponent(location.origin) : '';
-        return 'https://www.youtube.com/embed/' + id + '?enablejsapi=1&origin=' + origin;
+        return 'https://www.youtube.com/embed/' + id + '?enablejsapi=1&origin=' + origin + (autoplay ? '&autoplay=1' : '');
     }
     // Cambio 176: API oficial de YouTube (postMessage, la misma que
     // provee YouTube para integraciones — no hay nada indebido aquí) para
@@ -246,7 +249,22 @@
         style.textContent = `
 #${PANEL_ID}Overlay { position:fixed; inset:0; z-index:10000; background:rgba(0,0,0,.65); display:none; align-items:center; justify-content:center; }
 #${PANEL_ID}Overlay.is-open { display:flex; }
+/* Cambio 180: en modo mini/flotante, el fondo deja de oscurecer y de
+   bloquear clics — así se puede seguir trabajando en el Studio 936 de
+   atrás mientras el video/audio sigue sonando en la ventanita. */
+#${PANEL_ID}Overlay.s936lib-state-mini { background:transparent; pointer-events:none; align-items:flex-start; justify-content:flex-start; }
 #${PANEL_ID} { width:min(1000px,96vw); height:min(720px,93vh); background:linear-gradient(180deg,#14181a,#0a0d0e); border:1px solid rgba(91,232,201,.3); border-radius:18px; box-shadow:0 30px 90px rgba(0,0,0,.7), 0 0 40px rgba(0,255,204,.05); display:flex; flex-direction:column; overflow:hidden; font-family:inherit; color:#e8f4f2; }
+#${PANEL_ID}.s936lib-state-maximized { width:100vw; height:100vh; border-radius:0; }
+#${PANEL_ID}.s936lib-state-mini { position:fixed; width:360px; height:auto; max-height:300px; pointer-events:auto; box-shadow:0 20px 50px rgba(0,0,0,.6), 0 0 30px rgba(0,255,204,.15); }
+#${PANEL_ID}.s936lib-state-mini .s936lib-tabs,
+#${PANEL_ID}.s936lib-state-mini .s936lib-toolbar,
+#${PANEL_ID}.s936lib-state-mini #s936lib-yt-list-slot { display:none !important; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-body { padding:8px 12px 12px; max-height:220px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-ytembed { max-height:150px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-header { cursor:grab; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-header:active { cursor:grabbing; }
+#${PANEL_ID} .s936lib-winbtn { background:transparent; border:none; color:#9fb0ae; font-size:1rem; cursor:pointer; line-height:1; padding:4px 8px; border-radius:6px; }
+#${PANEL_ID} .s936lib-winbtn:hover { background:rgba(255,255,255,.08); color:#e8f4f2; }
 
 #${PANEL_ID} .s936lib-header { display:flex; align-items:center; gap:12px; padding:8px 16px; border-bottom:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.02); }
 #${PANEL_ID} .s936lib-headertext { display:flex; align-items:baseline; gap:8px; }
@@ -359,7 +377,7 @@
 #${PANEL_ID} .s936lib-ytsearchbar { display:flex; align-items:center; gap:8px; width:100%; background:#1c2224; border:1px solid #333; border-radius:999px; padding:6px 14px; margin-bottom:0; }
 #${PANEL_ID} .s936lib-ytsearchbar input { font-size:.8rem; }
 #${PANEL_ID} .s936lib-ytsearchbar:focus-within { border-color:#00ffcc; box-shadow:0 0 0 2px rgba(0,255,204,.15); }
-#${PANEL_ID} .s936lib-ytsearchbar .mag { color:#9fb0ae; font-size:1rem; flex-shrink:0; }
+#${PANEL_ID} .s936lib-ytsearchbar .mag { color:#5be8c9; flex-shrink:0; display:flex; align-items:center; opacity:.85; }
 #${PANEL_ID} .s936lib-ytsearchbar input { flex:1; background:transparent; border:none; color:#e8f4f2; font-size:.88rem; outline:none; }
 #${PANEL_ID} .s936lib-ytgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:14px; }
 #${PANEL_ID} .s936lib-ytcard { cursor:pointer; display:flex; flex-direction:column; border-radius:10px; padding:0; border:1px solid transparent; overflow:hidden; }
@@ -814,6 +832,7 @@
     function selectYoutubeVideo(item){
         currentYoutubeId = item.id;
         lcdYoutubeTitle = item.title;
+        ytAutoplayNext = true;
         startEqAnimation();
         render();
     }
@@ -908,8 +927,16 @@
         lastEmbeddedYoutubeId = current ? current.id : null;
         if(ytPlayer){ try { ytPlayer.destroy(); } catch(_) {} ytPlayer = null; }
         embedSlot.innerHTML = '';
-        if(!current) return;
-        const embedUrl = youtubeEmbedUrl(current.url);
+        if(!current){ lcdYoutubeTitle = null; updateLcd(); return; }
+        // Cambio 179: el LCD debe reflejar el video que de verdad está en
+        // pantalla — antes solo se actualizaba cuando elegías uno a mano
+        // (selectYoutubeVideo); el video mostrado por defecto (el primero
+        // de la lista) nunca avisaba al LCD, y se quedaba diciendo "Nada
+        // sonando" aunque ya se viera/sonara algo.
+        lcdYoutubeTitle = current.title;
+        updateLcd();
+        const embedUrl = youtubeEmbedUrl(current.url, ytAutoplayNext);
+        ytAutoplayNext = false;
         if(!embedUrl){
             embedSlot.appendChild(el('div', 's936lib-ytplaceholder', 'No se pudo reconocer el link como un video de YouTube: ' + current.title));
             return;
@@ -1072,7 +1099,9 @@
             // alto para que se vea más pantalla del video.
             const bar = el('div', 's936lib-ytsearchbar');
             bar.style.flex = '1';
-            bar.appendChild(el('span', 'mag', '🔍'));
+            const magIcon = el('span', 'mag');
+            magIcon.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><line x1="19" y1="19" x2="15" y2="15"/></svg>';
+            bar.appendChild(magIcon);
             const input = document.createElement('input');
             input.placeholder = 'Buscar en tu lista de YouTube...';
             input.value = searchQuery;
@@ -1184,9 +1213,15 @@
         const listBtn = el('button', 's936lib-viewbtn', '☰');
         listBtn.dataset.view = 'list'; listBtn.title = 'Vista lista';
         listBtn.onclick = () => { viewMode = 'list'; localStorage.setItem(VIEW_MODE_KEY, 'list'); render(); };
+        const minimizeBtn = el('button', 's936lib-winbtn', '—');
+        minimizeBtn.title = 'Minimizar a ventana flotante';
+        minimizeBtn.onclick = () => setWindowState(windowState === 'mini' ? 'normal' : 'mini');
+        const maximizeBtn = el('button', 's936lib-winbtn', '⛶');
+        maximizeBtn.title = 'Maximizar';
+        maximizeBtn.onclick = () => setWindowState(windowState === 'maximized' ? 'normal' : 'maximized');
         const closeBtn = el('button', 's936lib-closebtn', '✕');
         closeBtn.onclick = close;
-        header.append(headerText, gridBtn, listBtn, closeBtn);
+        header.append(headerText, gridBtn, listBtn, minimizeBtn, maximizeBtn, closeBtn);
 
         const tabs = el('div', 's936lib-tabs');
         TABS.forEach(([key, label]) => {
@@ -1242,10 +1277,64 @@
         const body = el('div', 's936lib-body');
 
         panel.append(header, tabs, lcdWrap, controlRow, body);
+        enableDrag(panel, header);
         overlay.appendChild(panel);
         overlay.addEventListener('click', (e) => { if(e.target === overlay) close(); });
         document.body.appendChild(overlay);
         return overlay;
+    }
+
+    // Cambio 180: tres estados de ventana. "mini" quita el fondo oscuro y
+    // el bloqueo de clics del overlay para poder seguir trabajando en
+    // Studio 936 de fondo mientras el video/audio sigue sonando — el
+    // panel NUNCA se destruye ni se reconstruye al cambiar de estado, solo
+    // se redimensiona/reposiciona, así el iframe de YouTube nunca se
+    // interrumpe.
+    function setWindowState(newState){
+        const panel = document.getElementById(PANEL_ID);
+        const overlay = document.getElementById(PANEL_ID + 'Overlay');
+        if(!panel || !overlay) return;
+        panel.classList.remove('s936lib-state-maximized', 's936lib-state-mini');
+        overlay.classList.remove('s936lib-state-mini');
+        windowState = newState;
+        if(newState === 'maximized'){
+            panel.classList.add('s936lib-state-maximized');
+            panel.style.left = ''; panel.style.top = '';
+        } else if(newState === 'mini'){
+            panel.classList.add('s936lib-state-mini');
+            overlay.classList.add('s936lib-state-mini');
+            const pos = miniPos || { left: window.innerWidth - 380, top: window.innerHeight - 320 };
+            panel.style.left = Math.max(8, pos.left) + 'px';
+            panel.style.top = Math.max(8, pos.top) + 'px';
+        } else {
+            panel.style.left = ''; panel.style.top = '';
+        }
+    }
+
+    function enableDrag(panel, headerEl){
+        let dragging = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
+        headerEl.addEventListener('mousedown', (e) => {
+            if(windowState !== 'mini') return;
+            if(e.target.closest('button')) return; // no arrastrar al hacer clic en un botón del header
+            dragging = true;
+            startX = e.clientX; startY = e.clientY;
+            const rect = panel.getBoundingClientRect();
+            startLeft = rect.left; startTop = rect.top;
+            e.preventDefault();
+        });
+        document.addEventListener('mousemove', (e) => {
+            if(!dragging) return;
+            const left = startLeft + (e.clientX - startX);
+            const top = startTop + (e.clientY - startY);
+            panel.style.left = Math.max(4, left) + 'px';
+            panel.style.top = Math.max(4, top) + 'px';
+        });
+        document.addEventListener('mouseup', () => {
+            if(!dragging) return;
+            dragging = false;
+            const rect = panel.getBoundingClientRect();
+            miniPos = { left: rect.left, top: rect.top };
+        });
     }
 
     function open(){
