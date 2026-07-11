@@ -39,6 +39,7 @@
     let currentPlayingId = null;   // id de audio sonando (de store.audios)
     let currentPlayingComp = null; // id de composición cuyo preview está sonando (mismo audio, distinta procedencia)
     let currentYoutubeId = null;   // favorito mostrado en el embed
+    let lcdYoutubeTitle = null;    // título a mostrar en el LCD mientras no suene audio
     let ytFormOpen = false;        // si el mini-formulario de "+ agregar" está abierto
     let queue = [];
     let audioEl = null;
@@ -79,6 +80,20 @@
     function youtubeEmbedUrl(url){
         const id = youtubeVideoId(url);
         return id ? 'https://www.youtube.com/embed/' + id : null;
+    }
+    // Cambio 172: cada barra del ecualizador se colorea interpolando entre
+    // azul y verde según su posición — el lado izquierdo va de azul
+    // (afuera) a verde (junto a la marca central), el derecho al revés,
+    // como pediste ("degradan del azul al verde").
+    const EQ_BLUE = [59, 160, 255];
+    const EQ_GREEN = [0, 255, 204];
+    function lerpBarColor(index, total, reversed){
+        const t = total <= 1 ? 0 : index / (total - 1);
+        const ratio = reversed ? (1 - t) : t;
+        const r = Math.round(EQ_BLUE[0] + (EQ_GREEN[0]-EQ_BLUE[0]) * ratio);
+        const g = Math.round(EQ_BLUE[1] + (EQ_GREEN[1]-EQ_BLUE[1]) * ratio);
+        const b = Math.round(EQ_BLUE[2] + (EQ_GREEN[2]-EQ_BLUE[2]) * ratio);
+        return `rgb(${r},${g},${b})`;
     }
     function youtubeThumbUrl(url){
         const id = youtubeVideoId(url);
@@ -223,13 +238,10 @@
 #${PANEL_ID} .s936lib-nowtitle { font-size:.92rem; font-weight:800; color:#00ffcc; text-shadow:0 0 10px rgba(0,255,204,.5); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #${PANEL_ID} .s936lib-nowtime { font-family:monospace; color:#5be8c9; font-size:.76rem; flex-shrink:0; }
 #${PANEL_ID} .s936lib-nowsub { color:#9fb0ae; font-size:.66rem; margin-top:2px; }
-#${PANEL_ID} .s936lib-bars { display:flex; gap:2px; align-items:flex-end; height:20px; margin-top:10px; padding-bottom:10px; border-bottom:1px solid rgba(0,255,204,.12); }
-#${PANEL_ID} .s936lib-bars i { width:4px; background:linear-gradient(180deg,#00ffcc,#0a3d33); border-radius:2px; height:3px; display:block; }
-#${PANEL_ID} .s936lib-idlebrand { display:none; text-align:center; padding:6px 0 10px; margin-top:10px; border-bottom:1px solid rgba(0,255,204,.12); }
-#${PANEL_ID} .s936lib-lcd.is-idle .s936lib-idlebrand { display:block; }
-#${PANEL_ID} .s936lib-lcd.is-idle .s936lib-bars { display:none; }
-#${PANEL_ID} .s936lib-idlebrand b { font-size:.9rem; font-weight:900; letter-spacing:7px; background:linear-gradient(90deg,#0a3d33 0%,#00ffcc 50%,#0a3d33 100%); background-size:200% 100%; -webkit-background-clip:text; background-clip:text; color:transparent; animation:s936libShimmer 3.4s linear infinite; }
-@keyframes s936libShimmer { 0% { background-position:200% 0; } 100% { background-position:-200% 0; } }
+#${PANEL_ID} .s936lib-eqrow { display:flex; align-items:center; gap:14px; margin-top:10px; padding-bottom:10px; border-bottom:1px solid rgba(0,255,204,.12); }
+#${PANEL_ID} .s936lib-eqside { display:flex; gap:2px; align-items:flex-end; height:22px; flex:1; min-width:0; }
+#${PANEL_ID} .s936lib-eqside i { flex:1; max-width:5px; border-radius:2px; height:3px; display:block; }
+#${PANEL_ID} .s936lib-eqbrand { font-size:.8rem; font-weight:900; letter-spacing:3px; color:#5be8c9; text-shadow:0 0 10px rgba(0,255,204,.45); white-space:nowrap; flex-shrink:0; }
 #${PANEL_ID} .s936lib-progress { height:6px; background:#111; border-radius:3px; margin-top:12px; overflow:hidden; }
 #${PANEL_ID} .s936lib-progress b { display:block; height:100%; width:0%; background:#00ffcc; box-shadow:0 0 8px #00ffcc; transition:width .2s linear; }
 
@@ -318,15 +330,15 @@
         eqTimer = setInterval(() => {
             const panel = document.getElementById(PANEL_ID);
             if(!panel) return;
-            panel.querySelectorAll('.s936lib-bars i').forEach((bar) => {
-                bar.style.height = (3 + Math.random()*17) + 'px';
+            panel.querySelectorAll('.s936lib-eqside i').forEach((bar) => {
+                bar.style.height = (3 + Math.random()*19) + 'px';
             });
         }, 380);
     }
     function stopEqAnimation(){
         if(eqTimer){ clearInterval(eqTimer); eqTimer = null; }
         const panel = document.getElementById(PANEL_ID);
-        if(panel) panel.querySelectorAll('.s936lib-bars i').forEach((bar) => { bar.style.height = '3px'; });
+        if(panel) panel.querySelectorAll('.s936lib-eqside i').forEach((bar) => { bar.style.height = '3px'; });
     }
 
     // ---------------------------------------------------------------
@@ -640,19 +652,33 @@
         const subEl = panel.querySelector('.s936lib-nowsub');
         const progressBar = panel.querySelector('.s936lib-progress b');
         const playBtn = panel.querySelector('.s936lib-playbtn');
-        const lcdEl = panel.querySelector('.s936lib-lcd');
         if(!titleEl) return;
         if(titleOverride){
             titleEl.textContent = titleOverride;
             if(subEl) subEl.textContent = subOverride || 'Sonando ahora';
+            lcdYoutubeTitle = null;
         } else if(!audioEl || !audioEl.src){
-            titleEl.textContent = 'Nada sonando';
-            if(subEl) subEl.textContent = queue.length ? queue.length + ' en cola' : 'Elige algo en Audios o Composiciones';
+            // Cambio 172: si no hay audio sonando pero sí un video de
+            // YouTube seleccionado, el LCD muestra su título — antes se
+            // quedaba fijo en "Nada sonando" sin importar qué estuvieras
+            // viendo.
+            if(lcdYoutubeTitle){
+                titleEl.textContent = lcdYoutubeTitle;
+                if(subEl) subEl.textContent = 'YouTube';
+            } else {
+                titleEl.textContent = 'Nada sonando';
+                if(subEl) subEl.textContent = queue.length ? queue.length + ' en cola' : 'Elige algo en Audios o Composiciones';
+            }
         }
-        if(lcdEl) lcdEl.classList.toggle('is-idle', !(audioEl && !audioEl.paused));
         if(audioEl && timeEl) timeEl.textContent = fmtTime(audioEl.currentTime) + ' / ' + fmtTime(audioEl.duration);
         if(audioEl && progressBar && audioEl.duration) progressBar.style.width = ((audioEl.currentTime/audioEl.duration)*100) + '%';
         if(playBtn) playBtn.textContent = (audioEl && !audioEl.paused) ? '⏸' : '⏵';
+    }
+
+    function selectYoutubeVideo(item){
+        currentYoutubeId = item.id;
+        lcdYoutubeTitle = item.title;
+        render();
     }
 
     // ---------------------------------------------------------------
@@ -760,7 +786,7 @@
             actions.appendChild(delBtn);
             cardBody.appendChild(actions);
             card.append(thumb, cardBody);
-            card.onclick = () => { currentYoutubeId = item.id; render(); };
+            card.onclick = () => selectYoutubeVideo(item);
             grid.appendChild(card);
         });
         body.appendChild(grid);
@@ -797,7 +823,7 @@
                 );
                 if(type === 'compositions') row.onclick = () => previewComposition(item.id);
                 if(type === 'audios') row.onclick = () => playAudio(item.id);
-                if(type === 'youtube') row.onclick = () => { activeTab = 'youtube'; currentYoutubeId = item.id; render(); };
+                if(type === 'youtube') row.onclick = () => { activeTab = 'youtube'; selectYoutubeVideo(item); };
                 body.appendChild(row);
             });
             return;
@@ -834,7 +860,7 @@
             );
             if(type === 'compositions') row.onclick = () => previewComposition(item.id);
             if(type === 'audios') row.onclick = () => playAudio(item.id);
-            if(type === 'youtube') row.onclick = () => { activeTab = 'youtube'; currentYoutubeId = item.id; render(); };
+            if(type === 'youtube') row.onclick = () => { activeTab = 'youtube'; selectYoutubeVideo(item); };
             body.appendChild(row);
         });
     }
@@ -946,14 +972,23 @@
         const nowTime = el('div', 's936lib-nowtime', '--:-- / --:--');
         row1.append(nowTitle, nowTime);
         const nowSub = el('div', 's936lib-nowsub', 'Elige algo en Audios o Composiciones');
-        const bars = el('div', 's936lib-bars');
-        for(let i=0;i<32;i++) bars.appendChild(el('i'));
-        const idleBrand = el('div', 's936lib-idlebrand');
-        idleBrand.appendChild(el('b', '', 'STUDIO 936'));
+        const eqRow = el('div', 's936lib-eqrow');
+        const eqLeft = el('div', 's936lib-eqside');
+        const eqRight = el('div', 's936lib-eqside');
+        const BAR_COUNT = 16;
+        for(let i=0;i<BAR_COUNT;i++){
+            const leftBar = el('i');
+            leftBar.style.background = lerpBarColor(i, BAR_COUNT, false);
+            eqLeft.appendChild(leftBar);
+            const rightBar = el('i');
+            rightBar.style.background = lerpBarColor(i, BAR_COUNT, true);
+            eqRight.appendChild(rightBar);
+        }
+        const eqBrand = el('div', 's936lib-eqbrand', '936 PLAYER');
+        eqRow.append(eqLeft, eqBrand, eqRight);
         const progress = el('div', 's936lib-progress');
         progress.appendChild(el('b'));
-        lcd.append(row1, nowSub, bars, idleBrand, progress);
-        lcd.classList.add('is-idle');
+        lcd.append(row1, nowSub, eqRow, progress);
         lcdWrap.appendChild(lcd);
 
         const transport = el('div', 's936lib-transport');
