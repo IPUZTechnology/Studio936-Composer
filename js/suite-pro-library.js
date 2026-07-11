@@ -577,6 +577,10 @@
 .s936lib-gpnewrow input { flex:1; background:#1c2224; border:1px solid #333; border-radius:8px; padding:6px 9px; color:#e8f4f2; font-size:.74rem; font-family:inherit; }
 .s936lib-gpaddbtn { background:transparent; border:1px solid #00ffcc; color:#00ffcc; border-radius:8px; padding:6px 12px; font-size:.7rem; font-weight:700; cursor:pointer; white-space:nowrap; }
 
+.s936lib-linkaudio-list { display:flex; flex-direction:column; gap:4px; max-height:180px; overflow-y:auto; }
+.s936lib-linkaudio-row { text-align:left; background:#1c2224; border:1px solid #333; color:#e8f4f2; border-radius:8px; padding:7px 10px; font-size:.76rem; cursor:pointer; }
+.s936lib-linkaudio-row:hover { border-color:#00ffcc; color:#00ffcc; }
+
 #${PANEL_ID} .s936lib-ytform { display:grid; grid-template-columns:1fr; gap:8px; background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:12px; margin-bottom:14px; }
 .s936lib-ytform-floating { position:fixed !important; z-index:2147483000; width:min(320px,90vw); display:grid; grid-template-columns:1fr; gap:8px; background:#181e20; border:1px solid rgba(0,255,204,.3); border-radius:12px; padding:14px; box-shadow:0 16px 40px rgba(0,0,0,.55); }
 .s936lib-ytform-floating input, .s936lib-ytform-floating textarea { background:#1c2224; border:1px solid #333; border-radius:8px; padding:7px 9px; color:#e8f4f2; font-size:.78rem; font-family:inherit; }
@@ -871,7 +875,70 @@
         return tag;
     }
 
-    function previewComposition(id){
+    let linkAudioPopoverEl = null;
+    function closeLinkAudioPopover(){
+        if(linkAudioPopoverEl){ linkAudioPopoverEl.remove(); linkAudioPopoverEl = null; }
+    }
+    document.addEventListener('click', (e) => {
+        if(linkAudioPopoverEl && !e.target.closest('.s936lib-linkaudio')) closeLinkAudioPopover();
+    });
+
+    // Cambio 191: en vez de un prompt() con números (incómodo, como bien
+    // notaste), un popover real — elegir un audio ya importado, O
+    // importar uno nuevo y quedar vinculado en el mismo clic, sin ir a la
+    // pestaña Audio MP3 primero. Esa es la gracia de tenerlos juntos.
+    function openLinkAudioPopover(item, anchorEl){
+        if(linkAudioPopoverEl){ closeLinkAudioPopover(); return; }
+        const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover s936lib-linkaudio');
+        pop.appendChild(el('div', 's936lib-gptitle', 'Vincular audio a "' + item.title + '"'));
+
+        const linkAndPlay = (audioId) => {
+            item.previewAudioId = audioId;
+            saveStore();
+            tryWriteCompositionJsonToConfiguredFolder(item);
+            closeLinkAudioPopover();
+            currentPlayingComp = item.id;
+            playAudio(audioId, item.title, item.author || 'Artista sin definir');
+        };
+
+        if(store.audios.length){
+            const list = el('div', 's936lib-linkaudio-list');
+            store.audios.forEach((a) => {
+                const row = el('button', 's936lib-linkaudio-row', a.title);
+                row.type = 'button';
+                row.onclick = (e) => { e.stopPropagation(); linkAndPlay(a.id); };
+                list.appendChild(row);
+            });
+            pop.appendChild(list);
+            pop.appendChild(el('div', 's936lib-gplabel', 'o importa uno nuevo:'));
+        } else {
+            pop.appendChild(el('div', 's936lib-gpempty', 'Todavía no tienes ningún audio importado.'));
+        }
+
+        const importBtn = el('button', 's936lib-actionbtn', '⬆ Importar y vincular');
+        importBtn.style.alignSelf = 'flex-start';
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file'; fileInput.accept = 'audio/*,video/mp4'; fileInput.style.display = 'none';
+        fileInput.onchange = (e) => {
+            const file = e.target.files?.[0];
+            if(!file) return;
+            const id = uid('a');
+            audioObjectURLs[id] = URL.createObjectURL(file);
+            const nameGuess = file.name.replace(/\.(mp3|mp4|wav|m4a|ogg)$/i, '').replace(/[_-]+/g,' ').trim();
+            store.audios.push({ id, title: nameGuess || file.name, author:'', fileName:file.name, genre:'', playlists:[], addedAt:Date.now() });
+            saveStore();
+            linkAndPlay(id);
+        };
+        importBtn.onclick = (e) => { e.stopPropagation(); fileInput.click(); };
+        pop.append(importBtn, fileInput);
+
+        pop.addEventListener('click', (e) => e.stopPropagation());
+        document.body.appendChild(pop);
+        positionFloatingPopover(pop, anchorEl);
+        linkAudioPopoverEl = pop;
+    }
+
+    function previewComposition(id, anchorEl){
         const item = store.compositions.find(x => x.id === id);
         if(!item) return;
         if(item.previewAudioId && audioObjectURLs[item.previewAudioId]){
@@ -879,19 +946,7 @@
             playAudio(item.previewAudioId, item.title, item.author || 'Artista sin definir');
             return;
         }
-        if(!store.audios.length){
-            alert('Todavía no tienes ningún audio importado en la pestaña Audios para usar como referencia de "' + item.title + '". Importa uno ahí primero.');
-            return;
-        }
-        const options = store.audios.map((a, i) => (i+1) + ') ' + a.title).join('\n');
-        const choice = prompt('¿Cuál audio de tus Audios quieres usar como referencia de "' + item.title + '"?\n' + options + '\n\nEscribe el número:');
-        const idx = parseInt(choice, 10) - 1;
-        if(isNaN(idx) || !store.audios[idx]) return;
-        item.previewAudioId = store.audios[idx].id;
-        saveStore();
-        tryWriteCompositionJsonToConfiguredFolder(item);
-        currentPlayingComp = id;
-        playAudio(item.previewAudioId, item.title, item.author || 'Artista sin definir');
+        openLinkAudioPopover(item, anchorEl);
     }
 
     function openComposition(id){
@@ -1256,7 +1311,7 @@
                 cardBody.appendChild(el('div', 's936lib-ytcardnotes', (album ? album.name + ' · ' : '') + (item.author || 'Sin autor') + ' · ' + fmtDate(item.updated)));
                 const actions = el('div', 's936lib-ytcardactions');
                 const playBtn = el('button', 's936lib-mini play', isPlaying ? '⏸ Sonando' : '▶ Play');
-                playBtn.onclick = (e) => { e.stopPropagation(); previewComposition(item.id); };
+                playBtn.onclick = (e) => { e.stopPropagation(); previewComposition(item.id, playBtn); };
                 actions.append(playBtn, genreTag('compositions', item));
                 const kebab = buildKebabMenu([
                     { icon:'⏏', label:'Abrir', onClick: () => openComposition(item.id) },
@@ -1267,7 +1322,7 @@
                 actions.appendChild(kebab);
                 cardBody.appendChild(actions);
                 card.append(thumb, cardBody);
-                card.onclick = () => previewComposition(item.id);
+                card.onclick = () => previewComposition(item.id, card);
                 grid.appendChild(card);
             });
             body.appendChild(grid);
@@ -1282,7 +1337,7 @@
                 const meta = el('div', 's936lib-list-meta', (album ? album.name + ' · ' : '') + (item.author || 'Sin autor') + ' · ' + fmtDate(item.updated));
                 const actions = el('div', 's936lib-list-actions');
                 const playBtn = el('button', 's936lib-mini play', isPlaying ? '⏸' : '▶');
-                playBtn.onclick = (e) => { e.stopPropagation(); previewComposition(item.id); };
+                playBtn.onclick = (e) => { e.stopPropagation(); previewComposition(item.id, playBtn); };
                 actions.append(playBtn, genreTag('compositions', item));
                 const kebab = buildKebabMenu([
                     { icon:'⏏', label:'Abrir', onClick: () => openComposition(item.id) },
@@ -1292,7 +1347,7 @@
                 ]);
                 actions.appendChild(kebab);
                 row.append(thumb, title, meta, actions);
-                row.onclick = () => previewComposition(item.id);
+                row.onclick = () => previewComposition(item.id, row);
                 listWrap.appendChild(row);
             });
             body.appendChild(listWrap);
@@ -1743,7 +1798,7 @@
                     el('div', 's936lib-list-title', item.title + ' — ' + TYPE_LABEL[type]),
                     el('div', 's936lib-list-meta', item.author || '')
                 );
-                if(type === 'compositions') row.onclick = () => previewComposition(item.id);
+                if(type === 'compositions') row.onclick = () => previewComposition(item.id, row);
                 if(type === 'audios') row.onclick = () => playAudio(item.id);
                 if(type === 'youtube') row.onclick = () => { activeTab = 'youtube'; selectYoutubeVideo(item); };
                 body.appendChild(row);
@@ -1780,7 +1835,7 @@
                 el('div', 's936lib-list-title', item.title),
                 el('div', 's936lib-list-meta', TYPE_LABEL[type] + ' · ' + fmtDate(item.updated || item.addedAt))
             );
-            if(type === 'compositions') row.onclick = () => previewComposition(item.id);
+            if(type === 'compositions') row.onclick = () => previewComposition(item.id, row);
             if(type === 'audios') row.onclick = () => playAudio(item.id);
             if(type === 'youtube') row.onclick = () => { activeTab = 'youtube'; selectYoutubeVideo(item); };
             body.appendChild(row);
