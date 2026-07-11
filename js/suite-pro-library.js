@@ -238,20 +238,22 @@
 #${PANEL_ID} .s936lib-nowtitle { font-size:.92rem; font-weight:800; color:#00ffcc; text-shadow:0 0 10px rgba(0,255,204,.5); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #${PANEL_ID} .s936lib-nowtime { font-family:monospace; color:#5be8c9; font-size:.76rem; flex-shrink:0; }
 #${PANEL_ID} .s936lib-nowsub { color:#9fb0ae; font-size:.66rem; margin-top:2px; }
-#${PANEL_ID} .s936lib-eqrow { display:flex; align-items:center; gap:14px; margin-top:10px; padding-bottom:10px; border-bottom:1px solid rgba(0,255,204,.12); }
-#${PANEL_ID} .s936lib-eqside { display:flex; gap:2px; align-items:flex-end; height:22px; flex:1; min-width:0; }
-#${PANEL_ID} .s936lib-eqside i { flex:1; max-width:5px; border-radius:2px; height:3px; display:block; }
-#${PANEL_ID} .s936lib-eqbrand { font-size:.8rem; font-weight:900; letter-spacing:3px; color:#5be8c9; text-shadow:0 0 10px rgba(0,255,204,.45); white-space:nowrap; flex-shrink:0; }
+#${PANEL_ID} .s936lib-eqrow { display:flex; align-items:center; justify-content:center; gap:18px; margin-top:10px; padding-bottom:10px; border-bottom:1px solid rgba(0,255,204,.12); }
+#${PANEL_ID} .s936lib-eqside { display:flex; gap:3px; align-items:flex-end; height:24px; flex:1; min-width:0; justify-content:center; }
+#${PANEL_ID} .s936lib-eqside.left { justify-content:flex-end; }
+#${PANEL_ID} .s936lib-eqside.right { justify-content:flex-start; }
+#${PANEL_ID} .s936lib-eqside i { flex:0 0 auto; width:6px; border-radius:2px; height:3px; display:block; }
+#${PANEL_ID} .s936lib-eqbrand { font-size:1.05rem; font-weight:900; letter-spacing:4px; color:#5be8c9; text-shadow:0 0 14px rgba(0,255,204,.55); white-space:nowrap; flex-shrink:0; text-align:center; }
 #${PANEL_ID} .s936lib-progress { height:6px; background:#111; border-radius:3px; margin-top:12px; overflow:hidden; }
 #${PANEL_ID} .s936lib-progress b { display:block; height:100%; width:0%; background:#00ffcc; box-shadow:0 0 8px #00ffcc; transition:width .2s linear; }
 
-#${PANEL_ID} .s936lib-transport { display:flex; align-items:center; gap:8px; padding:10px 16px; }
-#${PANEL_ID} .s936lib-transport button { background:#1c2224; border:1px solid #333; color:#e8f4f2; border-radius:10px; width:36px; height:32px; cursor:pointer; font-size:.9rem; }
-#${PANEL_ID} .s936lib-transport button.s936lib-playbtn { background:#00ffcc; color:#04342c; border-color:#00ffcc; width:48px; box-shadow:0 0 14px rgba(0,255,204,.35); }
+#${PANEL_ID} .s936lib-controlrow { display:flex; align-items:center; gap:10px; padding:10px 18px; border-bottom:1px solid rgba(255,255,255,.06); }
+#${PANEL_ID} .s936lib-controlrow > button { background:#1c2224; border:1px solid #333; color:#e8f4f2; border-radius:10px; width:34px; height:32px; cursor:pointer; font-size:.9rem; flex-shrink:0; }
+#${PANEL_ID} .s936lib-controlrow > button.s936lib-playbtn { background:#00ffcc; color:#04342c; border-color:#00ffcc; width:44px; box-shadow:0 0 14px rgba(0,255,204,.35); }
 #${PANEL_ID} .s936lib-vol { margin-left:auto; display:flex; align-items:center; gap:6px; color:#9fb0ae; font-size:.72rem; }
 #${PANEL_ID} .s936lib-vol input[type=range] { accent-color:#00ffcc; width:80px; }
 
-#${PANEL_ID} .s936lib-toolbar { display:flex; gap:8px; padding:10px 18px; border-bottom:1px solid rgba(255,255,255,.06); align-items:center; flex-wrap:wrap; }
+#${PANEL_ID} .s936lib-toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; flex:1; min-width:0; }
 #${PANEL_ID} .s936lib-search { flex:1; min-width:160px; background:#1c2224; border:1px solid #333; border-radius:8px; padding:7px 10px; color:#e8f4f2; font-size:.8rem; }
 #${PANEL_ID} .s936lib-actionbtn { background:rgba(0,255,204,.12); border:1px solid #00ffcc; color:#00ffcc; border-radius:8px; padding:7px 12px; font-size:.76rem; font-weight:700; cursor:pointer; white-space:nowrap; }
 
@@ -706,9 +708,15 @@
             if(lcdYoutubeTitle){
                 titleEl.textContent = lcdYoutubeTitle;
                 if(subEl) subEl.textContent = 'YouTube';
+                // Cambio 175: no hay forma de leer el tiempo real de un
+                // iframe de YouTube — mostrar "--:-- / --:--" ahí se veía
+                // como un reloj roto. Se deja en blanco en vez de un
+                // placeholder que nunca se llena.
+                if(timeEl) timeEl.textContent = '';
             } else {
                 titleEl.textContent = 'Nada sonando';
                 if(subEl) subEl.textContent = queue.length ? queue.length + ' en cola' : 'Elige algo en Audios o Composiciones';
+                if(timeEl) timeEl.textContent = '';
             }
         }
         if(audioEl && timeEl) timeEl.textContent = fmtTime(audioEl.currentTime) + ' / ' + fmtTime(audioEl.duration);
@@ -768,28 +776,9 @@
     // manualmente (título/notas), con la estética de un buscador de
     // YouTube. No es búsqueda en vivo de todo YouTube (eso necesitaría la
     // API oficial de Google) — es tu lista curada, sin basura, como
-    // pediste.
-    function renderYoutubeSearchBar(body){
-        const row = el('div', '');
-        row.style.cssText = 'display:flex;gap:10px;align-items:center;';
-        const bar = el('div', 's936lib-ytsearchbar');
-        bar.style.flex = '1';
-        bar.appendChild(el('span', 'mag', '🔍'));
-        const input = document.createElement('input');
-        input.placeholder = 'Buscar en tu lista de YouTube...';
-        input.value = searchQuery;
-        input.oninput = () => { searchQuery = input.value; renderBodyOnly(); };
-        bar.appendChild(input);
-        const addBtn = el('button', 's936lib-iconbtn' + (ytFormOpen ? ' active' : ''), '+');
-        addBtn.title = 'Agregar un video a tu lista';
-        addBtn.style.cssText = 'width:40px;height:40px;font-size:1.2rem;flex-shrink:0;';
-        addBtn.onclick = () => { ytFormOpen = !ytFormOpen; renderBodyOnly(); };
-        row.append(bar, addBtn);
-        body.appendChild(row);
-    }
-
+    // pediste. Cambio 175: el buscador se movió a la fila fusionada de
+    // transporte (renderToolbar) para liberar una línea de alto.
     function renderYoutube(body){
-        renderYoutubeSearchBar(body);
         renderYoutubeAddForm(body);
 
         const current = store.youtube.find(x => x.id === currentYoutubeId) || store.youtube[0];
@@ -921,14 +910,27 @@
     // ---------------------------------------------------------------
     function renderToolbar(toolbar){
         toolbar.innerHTML = '';
+        toolbar.style.display = '';
         if(activeTab === 'youtube'){
-            // Cambio 169: YouTube tiene su propio buscador de línea completa
-            // (estilo "mini YouTube"), no el genérico compartido — se oculta
-            // toda la barra de herramientas para esta pestaña.
-            toolbar.style.display = 'none';
+            // Cambio 175: el buscador de YouTube ahora vive en la misma
+            // fila fusionada (transporte + búsqueda + volumen), en vez de
+            // tener su propia línea aparte — libera una línea entera de
+            // alto para que se vea más pantalla del video.
+            const bar = el('div', 's936lib-ytsearchbar');
+            bar.style.flex = '1';
+            bar.appendChild(el('span', 'mag', '🔍'));
+            const input = document.createElement('input');
+            input.placeholder = 'Buscar en tu lista de YouTube...';
+            input.value = searchQuery;
+            input.oninput = () => { searchQuery = input.value; renderBodyOnly(); };
+            bar.appendChild(input);
+            const addBtn = el('button', 's936lib-iconbtn' + (ytFormOpen ? ' active' : ''), '+');
+            addBtn.title = 'Agregar un video a tu lista';
+            addBtn.style.cssText = 'width:34px;height:32px;font-size:1.1rem;flex-shrink:0;';
+            addBtn.onclick = () => { ytFormOpen = !ytFormOpen; renderBodyOnly(); };
+            toolbar.append(bar, addBtn);
             return;
         }
-        toolbar.style.display = '';
         const search = document.createElement('input');
         search.className = 's936lib-search';
         search.placeholder = 'Buscar...';
@@ -1024,8 +1026,8 @@
         row1.append(nowTitle, nowTime);
         const nowSub = el('div', 's936lib-nowsub', 'Elige algo en Audios o Composiciones');
         const eqRow = el('div', 's936lib-eqrow');
-        const eqLeft = el('div', 's936lib-eqside');
-        const eqRight = el('div', 's936lib-eqside');
+        const eqLeft = el('div', 's936lib-eqside left');
+        const eqRight = el('div', 's936lib-eqside right');
         const BAR_COUNT = 16;
         for(let i=0;i<BAR_COUNT;i++){
             const leftBar = el('i');
@@ -1042,7 +1044,7 @@
         lcd.append(row1, nowSub, eqRow, progress);
         lcdWrap.appendChild(lcd);
 
-        const transport = el('div', 's936lib-transport');
+        const controlRow = el('div', 's936lib-controlrow');
         const prevBtn = el('button', '', '⏮');
         prevBtn.title = 'Antes en la cola';
         prevBtn.onclick = () => { if(queue.length) playNextInQueue(); };
@@ -1051,17 +1053,17 @@
         const nextBtn = el('button', '', '⏭');
         nextBtn.title = 'Siguiente en la cola';
         nextBtn.onclick = playNextInQueue;
+        const toolbar = el('div', 's936lib-toolbar');
         const vol = el('div', 's936lib-vol', '🔊');
         const volSlider = document.createElement('input');
         volSlider.type = 'range'; volSlider.min = '0'; volSlider.max = '100'; volSlider.value = '80';
         volSlider.oninput = () => { if(audioEl) audioEl.volume = volSlider.value/100; };
         vol.appendChild(volSlider);
-        transport.append(prevBtn, playBtn, nextBtn, vol);
+        controlRow.append(prevBtn, playBtn, nextBtn, toolbar, vol);
 
-        const toolbar = el('div', 's936lib-toolbar');
         const body = el('div', 's936lib-body');
 
-        panel.append(header, tabs, lcdWrap, transport, toolbar, body);
+        panel.append(header, tabs, lcdWrap, controlRow, body);
         overlay.appendChild(panel);
         overlay.addEventListener('click', (e) => { if(e.target === overlay) close(); });
         document.body.appendChild(overlay);
