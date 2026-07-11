@@ -71,7 +71,7 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProStructure = { version: "structure-v4.4.6-cambio-42", render };
+    window.Studio936SuiteProStructure = { version: "structure-v4.4.6-cambio-42", render, openLibraryConfig, getLibraryDirHandle };
     window.Studio936SuiteProModules.structure = window.Studio936SuiteProStructure;
   }
 

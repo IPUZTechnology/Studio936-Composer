@@ -35,6 +35,7 @@
     let viewMode = localStorage.getItem(VIEW_MODE_KEY) === 'list' ? 'list' : 'grid';
     let activeGenreFilter = null;
     let activePlaylistFilter = null;
+    let activeAlbumFilter = null; // Cambio 188: solo aplica en la pestaña Composiciones
     let searchQuery = '';
     let audioObjectURLs = {};
     let currentPlayingId = null;   // id de audio sonando (de store.audios)
@@ -136,7 +137,12 @@
     // ---------------------------------------------------------------
     // Almacenamiento + migración (idéntico a Cambio 165/166)
     // ---------------------------------------------------------------
-    function emptyStore(){ return { compositions:[], audios:[], youtube:[] }; }
+    // Cambio 188: modelo "Álbum" tipo Spotify — el compositor (Val) saca
+    // álbumes uno tras otro, trabaja en UNO activo a la vez ("álbum de
+    // trabajo"), cada álbum tiene su propia carátula diseñada por él.
+    // Es DISTINTO de .playlists (muchos-a-muchos, libre): una composición
+    // pertenece a UN álbum a la vez (o a ninguno), como un lanzamiento real.
+    function emptyStore(){ return { compositions:[], audios:[], youtube:[], albums:[], activeAlbumId:null }; }
 
     // Cambio 186: cada ítem ahora también tiene .playlists (array de
     // nombres) — muchos-a-muchos, distinto de .genre (un solo valor,
@@ -144,6 +150,13 @@
     // campo, sin importar si vino de antes de este cambio.
     function ensurePlaylistsField(list){
         (list || []).forEach((item) => { if(!Array.isArray(item.playlists)) item.playlists = []; });
+    }
+
+    // Cambio 188: toda composición existente (guardada antes de que
+    // existiera el concepto de álbum) queda con albumId=null — "Sin álbum",
+    // no se le inventa uno.
+    function ensureAlbumIdField(list){
+        (list || []).forEach((item) => { if(item.albumId === undefined) item.albumId = null; });
     }
 
     function loadStore(){
@@ -154,9 +167,12 @@
             s.compositions = Array.isArray(s.compositions) ? s.compositions : [];
             s.audios = Array.isArray(s.audios) ? s.audios : [];
             s.youtube = Array.isArray(s.youtube) ? s.youtube : [];
+            s.albums = Array.isArray(s.albums) ? s.albums : [];
+            s.activeAlbumId = s.activeAlbumId || null;
             ensurePlaylistsField(s.compositions);
             ensurePlaylistsField(s.audios);
             ensurePlaylistsField(s.youtube);
+            ensureAlbumIdField(s.compositions);
             return s;
         } catch(_) { return emptyStore(); }
     }
@@ -251,6 +267,92 @@
         const list = store[type];
         const item = list && list.find(x => x.id === id);
         if(item){ item.genre = genre; saveStore(); }
+    }
+
+    // ---------------------------------------------------------------
+    // Álbumes (Cambio 188)
+    // ---------------------------------------------------------------
+    function allAlbums(){ return store.albums; }
+    function getAlbum(id){ return id ? store.albums.find(a => a.id === id) || null : null; }
+    function getActiveAlbum(){ return getAlbum(store.activeAlbumId); }
+
+    // Comprime cualquier imagen que subas a un tamaño razonable antes de
+    // guardarla como texto (data URL) en localStorage — una carátula sin
+    // comprimir podría pesar varios MB y comerse la cuota de espacio ella
+    // sola. 480px de lado más largo + JPEG calidad .82 da un buen balance.
+    function resizeImageToDataUrl(file, maxDim, cb){
+        const reader = new FileReader();
+        reader.onload = () => {
+            const img = new Image();
+            img.onload = () => {
+                let w = img.width, h = img.height;
+                if(w > h && w > maxDim){ h = Math.round(h * maxDim / w); w = maxDim; }
+                else if(h > maxDim){ w = Math.round(w * maxDim / h); h = maxDim; }
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                try { cb(canvas.toDataURL('image/jpeg', 0.82)); }
+                catch(_) { cb(null); }
+            };
+            img.onerror = () => cb(null);
+            img.src = reader.result;
+        };
+        reader.onerror = () => cb(null);
+        reader.readAsDataURL(file);
+    }
+
+    function createAlbum(name, coverFile, cb){
+        const finish = (cover) => {
+            const album = { id: uid('al'), name: name || 'Álbum sin nombre', cover: cover || null, createdAt: Date.now() };
+            store.albums.unshift(album);
+            store.activeAlbumId = album.id;
+            saveStore();
+            if(cb) cb(album);
+        };
+        if(coverFile) resizeImageToDataUrl(coverFile, 480, finish);
+        else finish(null);
+    }
+
+    function setActiveAlbum(id){ store.activeAlbumId = id || null; saveStore(); render(); }
+
+    function renameAlbum(id, name){
+        const a = getAlbum(id);
+        if(!a || !name || !name.trim()) return;
+        a.name = name.trim();
+        saveStore();
+    }
+
+    function updateAlbumCover(id, coverFile, cb){
+        const a = getAlbum(id);
+        if(!a || !coverFile) return;
+        resizeImageToDataUrl(coverFile, 480, (cover) => {
+            if(cover){ a.cover = cover; saveStore(); }
+            if(cb) cb();
+        });
+    }
+
+    function deleteAlbum(id){
+        const a = getAlbum(id);
+        if(!a) return;
+        if(!confirm('¿Borrar el álbum "' + a.name + '"? Las composiciones que estaban ahí quedan sin álbum (no se borran).')) return;
+        store.albums = store.albums.filter(x => x.id !== id);
+        store.compositions.forEach((c) => { if(c.albumId === id) c.albumId = null; });
+        if(store.activeAlbumId === id) store.activeAlbumId = null;
+        saveStore();
+        render();
+    }
+
+    function moveCompositionToAlbum(compId, albumId){
+        const item = store.compositions.find(x => x.id === compId);
+        if(!item) return;
+        item.albumId = albumId || null;
+        saveStore();
+        render();
+    }
+
+    function compositionCoverUrl(item){
+        const album = getAlbum(item.albumId);
+        return album && album.cover ? album.cover : null;
     }
 
     // ---------------------------------------------------------------
@@ -482,6 +584,20 @@
 #${PANEL_ID} .s936lib-ytcardtitle { font-size:.8rem; font-weight:700; color:#e8f4f2; line-height:1.3; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 #${PANEL_ID} .s936lib-ytcardnotes { font-size:.68rem; color:#9fb0ae; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 #${PANEL_ID} .s936lib-ytcardactions { display:flex; align-items:center; gap:8px; margin-top:auto; padding-top:6px; }
+
+/* Cambio 188: carátula animada para composiciones sin álbum/portada —
+   ondas que respiran suavemente, para que no se vea como un ícono muerto
+   mientras la canción sigue en construcción. */
+#${PANEL_ID} .s936lib-comp-noart { background:radial-gradient(circle at 30% 20%,#1c5a4f,#0a1614 75%); display:flex; align-items:center; justify-content:center; }
+#${PANEL_ID} .s936lib-comp-wave { width:70%; height:50%; opacity:.85; }
+#${PANEL_ID} .s936lib-comp-wave path { fill:none; stroke:#5be8c9; stroke-width:2.4; stroke-linecap:round; animation:s936CompWave 2.6s ease-in-out infinite; }
+@keyframes s936CompWave {
+  0%, 100% { d: path("M0 20 Q 12 4 25 20 T 50 20 T 75 20 T 100 20"); }
+  50% { d: path("M0 20 Q 12 34 25 20 T 50 20 T 75 20 T 100 20"); }
+}
+#${PANEL_ID} .s936lib-list-thumb { width:38px; height:38px; border-radius:7px; flex-shrink:0; background-position:center; background-size:cover; background-color:#0a1614; }
+#${PANEL_ID} .s936lib-list-thumb.s936lib-comp-noart { display:flex; }
+#${PANEL_ID} .s936lib-list-thumb .s936lib-comp-wave { width:80%; height:60%; }
 `;
         document.head.appendChild(style);
     }
@@ -787,6 +903,150 @@
         if(genrePlaylistPopoverEl && !e.target.closest('.s936lib-gppopover')) closeGenrePlaylistPopover();
     });
 
+    // Cambio 188: reutiliza el módulo de Structure (carpeta configurada vía
+    // File System Access) en vez de construir un segundo sistema de carpeta
+    // — "Conecte el módulo de configuración existente". Si no hay carpeta
+    // configurada o el navegador no soporta la API, no hace nada (el
+    // guardado en localStorage ya ocurrió antes de llamar esto, así que
+    // nunca se pierde la composición por esto).
+    async function tryWriteCompositionJsonToConfiguredFolder(entry){
+        try {
+            const structureMod = window.Studio936SuiteProStructure;
+            if(!structureMod || typeof structureMod.getLibraryDirHandle !== 'function') return;
+            const dirHandle = await structureMod.getLibraryDirHandle();
+            if(!dirHandle || !window.FileSystemFileHandle) return;
+            const slug = String(entry.title || 'cancion').toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+                .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || 'cancion';
+            const filename = 'studio936-' + slug + '-composicion.json';
+            const fh = await dirHandle.getFileHandle(filename, { create:true });
+            const writable = await fh.createWritable();
+            await writable.write(JSON.stringify(entry, null, 2));
+            await writable.close();
+        } catch(_) { /* silencioso: la copia en localStorage ya está a salvo */ }
+    }
+
+    // Cambio 188: modal de gestión de álbumes — modelo tipo Spotify (el
+    // compositor saca álbumes uno tras otro, trabaja en uno "actual" a la
+    // vez). Vive fuera del panel (igual que los menús ⋮), por eso usa sus
+    // propios estilos inline en vez de las clases con scope de #PANEL_ID.
+    function openAlbumConfig(){
+        document.getElementById('s936-album-config-overlay')?.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 's936-album-config-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;';
+
+        const modal = document.createElement('div');
+        modal.style.cssText = 'background:#0d1117;border:1px solid rgba(0,255,204,.35);border-radius:16px;width:100%;max-width:420px;max-height:85vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.9);';
+
+        const head = document.createElement('div');
+        head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(0,255,204,.04);position:sticky;top:0;';
+        head.innerHTML = '<span style="font-size:.82rem;font-weight:700;color:#00ffcc;">💿 Álbumes</span>';
+        const closeX = document.createElement('button');
+        closeX.innerHTML = '✕';
+        closeX.style.cssText = 'background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:.9rem;';
+        closeX.onclick = () => overlay.remove();
+        head.appendChild(closeX);
+        modal.appendChild(head);
+
+        const body = document.createElement('div');
+        body.style.cssText = 'padding:16px;display:flex;flex-direction:column;gap:14px;';
+        modal.appendChild(body);
+
+        function renderAlbumBody(){
+            body.innerHTML = '';
+
+            const active = getActiveAlbum();
+            const activeBox = document.createElement('div');
+            activeBox.style.cssText = 'display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:10px 12px;';
+            const activeThumb = document.createElement('div');
+            activeThumb.style.cssText = 'width:44px;height:44px;border-radius:8px;flex-shrink:0;background:' + (active && active.cover ? `url('${active.cover}') center/cover` : 'radial-gradient(circle at 30% 25%,#1c5a4f,#0a1614 70%)') + ';';
+            const activeText = document.createElement('div');
+            activeText.style.cssText = 'font-size:.72rem;color:rgba(255,255,255,.65);line-height:1.4;';
+            activeText.innerHTML = active
+                ? `<span style="color:#00ffcc;">✓ Álbum de trabajo actual:</span><br><span style="color:#fff;font-weight:700;">${esc(active.name)}</span>`
+                : '<span style="color:rgba(255,255,255,.4);">Sin álbum activo — las composiciones que guardes no quedarán en ningún álbum.</span>';
+            activeBox.append(activeThumb, activeText);
+            body.appendChild(activeBox);
+
+            if(allAlbums().length){
+                const list = document.createElement('div');
+                list.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+                allAlbums().forEach((a) => {
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.02);border:1px solid ' + (a.id === store.activeAlbumId ? 'rgba(0,255,204,.4)' : 'rgba(255,255,255,.08)') + ';border-radius:10px;padding:7px 9px;';
+                    const thumb = document.createElement('div');
+                    thumb.style.cssText = 'width:32px;height:32px;border-radius:6px;flex-shrink:0;background:' + (a.cover ? `url('${a.cover}') center/cover` : 'radial-gradient(circle at 30% 25%,#1c5a4f,#0a1614 70%)') + ';cursor:pointer;';
+                    thumb.title = 'Cambiar carátula';
+                    const coverInput = document.createElement('input');
+                    coverInput.type = 'file'; coverInput.accept = 'image/*'; coverInput.style.display = 'none';
+                    coverInput.onchange = (e) => { const f = e.target.files?.[0]; if(f) updateAlbumCover(a.id, f, renderAlbumBody); };
+                    thumb.onclick = () => coverInput.click();
+                    const name = document.createElement('div');
+                    name.textContent = a.name;
+                    name.style.cssText = 'flex:1;font-size:.76rem;font-weight:700;color:#e8f4f2;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+                    name.title = 'Clic para renombrar';
+                    name.onclick = () => { const v = prompt('Nuevo nombre del álbum:', a.name); if(v && v.trim()){ renameAlbum(a.id, v); renderAlbumBody(); } };
+                    const useBtn = document.createElement('button');
+                    useBtn.textContent = a.id === store.activeAlbumId ? 'Activo' : 'Usar';
+                    useBtn.disabled = a.id === store.activeAlbumId;
+                    useBtn.style.cssText = 'background:' + (a.id === store.activeAlbumId ? 'rgba(0,255,204,.15)' : 'transparent') + ';border:1px solid rgba(0,255,204,.4);color:#00ffcc;border-radius:8px;padding:5px 9px;font-size:.66rem;font-weight:700;cursor:pointer;flex-shrink:0;';
+                    useBtn.onclick = () => { setActiveAlbum(a.id); renderAlbumBody(); };
+                    const delBtn = document.createElement('button');
+                    delBtn.textContent = '🗑';
+                    delBtn.style.cssText = 'background:transparent;border:1px solid rgba(255,90,90,.4);color:#ff9a9a;border-radius:8px;padding:5px 8px;font-size:.7rem;cursor:pointer;flex-shrink:0;';
+                    delBtn.onclick = () => { deleteAlbum(a.id); renderAlbumBody(); };
+                    row.append(thumb, coverInput, name, useBtn, delBtn);
+                    list.appendChild(row);
+                });
+                body.appendChild(list);
+            }
+
+            const sep1 = document.createElement('div');
+            sep1.style.cssText = 'border-top:1px solid rgba(255,255,255,.07);padding-top:12px;display:flex;flex-direction:column;gap:8px;';
+            const newTitle = document.createElement('div');
+            newTitle.textContent = '+ Nuevo álbum';
+            newTitle.style.cssText = 'font-size:.68rem;text-transform:uppercase;letter-spacing:.6px;color:#9fb0ae;';
+            const nameInput = document.createElement('input');
+            nameInput.placeholder = 'Nombre del álbum (ej. Fantasía Musical)';
+            nameInput.style.cssText = 'background:#1c2224;border:1px solid #333;border-radius:8px;padding:8px 10px;color:#e8f4f2;font-size:.78rem;font-family:inherit;';
+            const coverRow = document.createElement('div');
+            coverRow.style.cssText = 'display:flex;align-items:center;gap:8px;';
+            const coverFileInput = document.createElement('input');
+            coverFileInput.type = 'file'; coverFileInput.accept = 'image/*';
+            coverFileInput.style.cssText = 'font-size:.68rem;color:#9fb0ae;flex:1;';
+            coverRow.appendChild(coverFileInput);
+            const createBtn = document.createElement('button');
+            createBtn.textContent = '💿 Crear álbum';
+            createBtn.style.cssText = 'background:rgba(0,255,204,.12);border:1px solid #00ffcc;color:#00ffcc;border-radius:8px;padding:8px 12px;font-size:.74rem;font-weight:700;cursor:pointer;align-self:flex-start;';
+            createBtn.onclick = () => {
+                const name = nameInput.value.trim();
+                if(!name){ nameInput.focus(); return; }
+                createAlbum(name, coverFileInput.files?.[0] || null, () => { renderAlbumBody(); render(); });
+            };
+            sep1.append(newTitle, nameInput, coverRow, createBtn);
+            body.appendChild(sep1);
+
+            const sep2 = document.createElement('div');
+            sep2.style.cssText = 'border-top:1px solid rgba(255,255,255,.07);padding-top:12px;';
+            const folderBtn = document.createElement('button');
+            const structureMod = window.Studio936SuiteProStructure;
+            folderBtn.textContent = '📁 Configurar carpeta de guardado';
+            folderBtn.style.cssText = 'background:transparent;border:1px solid rgba(255,255,255,.15);color:#e8f4f2;border-radius:8px;padding:8px 12px;font-size:.72rem;font-weight:700;cursor:pointer;width:100%;';
+            folderBtn.disabled = !structureMod || typeof structureMod.openLibraryConfig !== 'function';
+            if(folderBtn.disabled) folderBtn.title = 'El módulo de Estructura todavía no cargó en esta página.';
+            folderBtn.onclick = () => structureMod.openLibraryConfig({});
+            sep2.appendChild(folderBtn);
+            body.appendChild(sep2);
+        }
+
+        renderAlbumBody();
+        overlay.appendChild(modal);
+        overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
+        document.body.appendChild(overlay);
+    }
+
     function saveCurrentComposition(anchorBtn){
         const snapshot = window.Studio936AppBridge?.getProjectSnapshot?.();
         if(!snapshot){ alert('No se pudo leer la composición actual.'); return; }
@@ -801,17 +1061,22 @@
         saveBtn.style.alignSelf = 'flex-start';
         saveBtn.onclick = (e) => {
             e.stopPropagation();
-            store.compositions.unshift({
+            const entry = {
                 id: uid('c'),
                 title: snapshot.title || 'Sin título',
                 author: snapshot.author || '',
                 updated: Date.now(),
                 genre: snapshot.style || '',
                 playlists: gp.getPlaylists(),
+                // Cambio 188: se pega solo el álbum de trabajo actual — no
+                // se pregunta nada, tal como pediste.
+                albumId: store.activeAlbumId || null,
                 previewAudioId: null,
                 project: snapshot
-            });
+            };
+            store.compositions.unshift(entry);
             saveStore();
+            tryWriteCompositionJsonToConfiguredFolder(entry);
             closeGenrePlaylistPopover();
             render();
         };
@@ -822,21 +1087,107 @@
         genrePlaylistPopoverEl = pop;
     }
 
+    // Cambio 188: carátula de la tarjeta de composición — usa la del álbum
+    // al que pertenece si tiene una; si no, un ícono animado (ondas SVG)
+    // que se ve "vivo" en vez de un emoji estático, ya que son canciones
+    // que todavía no tienen su forma final.
+    function buildCompositionThumb(item, className){
+        const thumb = el('div', className);
+        const coverUrl = compositionCoverUrl(item);
+        if(coverUrl){
+            thumb.style.backgroundImage = `url('${coverUrl}')`;
+        } else {
+            thumb.classList.add('s936lib-comp-noart');
+            thumb.innerHTML = `<svg viewBox="0 0 100 40" preserveAspectRatio="none" class="s936lib-comp-wave">
+                <path d="M0 20 Q 12 4 25 20 T 50 20 T 75 20 T 100 20" />
+            </svg>`;
+        }
+        return thumb;
+    }
+
+    // Popover chico para reasignar el álbum de una composición — reutiliza
+    // el mismo patrón visual que el filtro de listas.
+    function openMoveToAlbumPopover(item, anchorBtn){
+        if(genrePlaylistPopoverEl){ closeGenrePlaylistPopover(); return; }
+        const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover');
+        pop.appendChild(el('div', 's936lib-gptitle', 'Mover "' + item.title + '" a álbum'));
+        const chips = el('div', 's936lib-gpchips');
+        const noneChip = el('button', 's936lib-gpchip' + (!item.albumId ? ' active' : ''), 'Sin álbum');
+        noneChip.type = 'button';
+        noneChip.onclick = (e) => { e.preventDefault(); moveCompositionToAlbum(item.id, null); closeGenrePlaylistPopover(); };
+        chips.appendChild(noneChip);
+        allAlbums().forEach((a) => {
+            const chip = el('button', 's936lib-gpchip' + (item.albumId === a.id ? ' active' : ''), a.name);
+            chip.type = 'button';
+            chip.onclick = (e) => { e.preventDefault(); moveCompositionToAlbum(item.id, a.id); closeGenrePlaylistPopover(); };
+            chips.appendChild(chip);
+        });
+        if(!allAlbums().length) chips.appendChild(el('div', 's936lib-gpempty', 'Todavía no tienes álbumes — créalos con el botón "💿 Álbumes".'));
+        pop.appendChild(chips);
+        pop.addEventListener('click', (e) => e.stopPropagation());
+        document.body.appendChild(pop);
+        positionFloatingPopover(pop, anchorBtn);
+        genrePlaylistPopoverEl = pop;
+    }
+
     function renderCompositions(body){
-        const list = store.compositions.filter(x => matchesSearch(x) && (!activeGenreFilter || itemGenreLabel('compositions',x) === activeGenreFilter));
+        // Cambio 188: barra de filtro por álbum, igual patrón que los chips
+        // de Géneros — "Todos", "Sin álbum" y cada álbum con su conteo.
+        const albumBar = el('div', 's936lib-genrechips');
+        const allChip = el('button', 's936lib-chip' + (!activeAlbumFilter ? ' active' : ''), 'Todos (' + store.compositions.length + ')');
+        allChip.onclick = () => { activeAlbumFilter = null; renderBodyOnly(); };
+        albumBar.appendChild(allChip);
+        const noAlbumCount = store.compositions.filter(x => !x.albumId).length;
+        if(noAlbumCount){
+            const noneChip = el('button', 's936lib-chip' + (activeAlbumFilter === 'none' ? ' active' : ''), 'Sin álbum (' + noAlbumCount + ')');
+            noneChip.onclick = () => { activeAlbumFilter = 'none'; renderBodyOnly(); };
+            albumBar.appendChild(noneChip);
+        }
+        allAlbums().forEach((a) => {
+            const count = store.compositions.filter(x => x.albumId === a.id).length;
+            if(!count) return;
+            const chip = el('button', 's936lib-chip' + (activeAlbumFilter === a.id ? ' active' : ''), a.name + ' (' + count + ')');
+            chip.onclick = () => { activeAlbumFilter = a.id; renderBodyOnly(); };
+            albumBar.appendChild(chip);
+        });
+        if(allAlbums().length || noAlbumCount) body.appendChild(albumBar);
+
+        const list = store.compositions.filter(x => {
+            if(!matchesSearch(x)) return false;
+            if(activeGenreFilter && itemGenreLabel('compositions',x) !== activeGenreFilter) return false;
+            if(activeAlbumFilter === 'none' && x.albumId) return false;
+            if(activeAlbumFilter && activeAlbumFilter !== 'none' && x.albumId !== activeAlbumFilter) return false;
+            return true;
+        });
         if(!list.length){
-            body.appendChild(el('div', 's936lib-empty', store.compositions.length ? 'Sin resultados.' : 'Todavía no has guardado ninguna composición. Usa "Guardar composición actual" arriba.'));
+            body.appendChild(el('div', 's936lib-empty', store.compositions.length ? 'Sin resultados.' : 'Todavía no has guardado ninguna composición. Se guardan desde donde estás componiendo.'));
             return;
         }
         if(viewMode === 'grid'){
-            const grid = el('div', 's936lib-grid');
+            const grid = el('div', 's936lib-ytgrid');
             list.forEach((item) => {
-                const card = el('div', 's936lib-card' + (currentPlayingComp === item.id ? ' playing' : ''));
-                const bubble = el('div', 's936lib-bubble');
-                bubble.appendChild(el('span', '', '🎼'));
-                const title = el('div', 's936lib-cardtitle', item.title);
-                const meta = el('div', 's936lib-cardmeta', (item.author || 'Sin autor') + ' · ' + fmtDate(item.updated));
-                card.append(bubble, title, meta, genreTag('compositions', item), compositionCardActions(item, true));
+                const isPlaying = currentPlayingComp === item.id;
+                const card = el('div', 's936lib-ytcard' + (isPlaying ? ' active' : ''));
+                const thumb = buildCompositionThumb(item, 's936lib-ytthumb');
+                thumb.appendChild(el('div', 'playicon', isPlaying ? '⏸' : '▶'));
+                const cardBody = el('div', 's936lib-ytcardbody');
+                cardBody.appendChild(el('div', 's936lib-ytcardtitle', item.title));
+                const album = getAlbum(item.albumId);
+                cardBody.appendChild(el('div', 's936lib-ytcardnotes', (album ? album.name + ' · ' : '') + (item.author || 'Sin autor') + ' · ' + fmtDate(item.updated)));
+                const actions = el('div', 's936lib-ytcardactions');
+                const playBtn = el('button', 's936lib-mini play', isPlaying ? '⏸ Sonando' : '▶ Play');
+                playBtn.onclick = (e) => { e.stopPropagation(); previewComposition(item.id); };
+                actions.append(playBtn, genreTag('compositions', item));
+                const kebab = buildKebabMenu([
+                    { icon:'⏏', label:'Abrir', onClick: () => openComposition(item.id) },
+                    { icon:'⧉', label:'Duplicar', onClick: () => duplicateComposition(item.id) },
+                    { icon:'💿', label:'Mover a álbum', onClick: () => openMoveToAlbumPopover(item, kebab.querySelector('.s936lib-kebab')) },
+                    { icon:'✕', label:'Borrar', danger:true, onClick: () => deleteComposition(item.id) }
+                ]);
+                actions.appendChild(kebab);
+                cardBody.appendChild(actions);
+                card.append(thumb, cardBody);
+                card.onclick = () => previewComposition(item.id);
                 grid.appendChild(card);
             });
             body.appendChild(grid);
@@ -845,12 +1196,22 @@
             list.forEach((item) => {
                 const isPlaying = currentPlayingComp === item.id;
                 const row = el('div', 's936lib-list-row' + (isPlaying ? ' playing' : ''));
-                const icon = el('div', 's936lib-list-icon', isPlaying ? '▶' : '🎼');
+                const thumb = buildCompositionThumb(item, 's936lib-list-thumb');
                 const title = el('div', 's936lib-list-title', item.title);
-                const meta = el('div', 's936lib-list-meta', (item.author || 'Sin autor') + ' · ' + fmtDate(item.updated));
+                const album = getAlbum(item.albumId);
+                const meta = el('div', 's936lib-list-meta', (album ? album.name + ' · ' : '') + (item.author || 'Sin autor') + ' · ' + fmtDate(item.updated));
                 const actions = el('div', 's936lib-list-actions');
-                actions.append(genreTag('compositions', item), compositionCardActions(item));
-                row.append(icon, title, meta, actions);
+                const playBtn = el('button', 's936lib-mini play', isPlaying ? '⏸' : '▶');
+                playBtn.onclick = (e) => { e.stopPropagation(); previewComposition(item.id); };
+                actions.append(playBtn, genreTag('compositions', item));
+                const kebab = buildKebabMenu([
+                    { icon:'⏏', label:'Abrir', onClick: () => openComposition(item.id) },
+                    { icon:'⧉', label:'Duplicar', onClick: () => duplicateComposition(item.id) },
+                    { icon:'💿', label:'Mover a álbum', onClick: () => openMoveToAlbumPopover(item, kebab.querySelector('.s936lib-kebab')) },
+                    { icon:'✕', label:'Borrar', danger:true, onClick: () => deleteComposition(item.id) }
+                ]);
+                actions.appendChild(kebab);
+                row.append(thumb, title, meta, actions);
                 row.onclick = () => previewComposition(item.id);
                 listWrap.appendChild(row);
             });
@@ -1383,8 +1744,10 @@
         toolbar.appendChild(buildPlaylistFilterButton());
 
         if(activeTab === 'compositions'){
-            const btn = el('button', 's936lib-actionbtn', '💾 Guardar composición actual');
-            btn.onclick = (e) => { e.stopPropagation(); saveCurrentComposition(btn); };
+            // Cambio 188: aquí ya no se guarda (eso pasa donde editas la
+            // canción) — este botón abre la gestión de álbumes en su lugar.
+            const btn = el('button', 's936lib-actionbtn', '💿 Álbumes');
+            btn.onclick = (e) => { e.stopPropagation(); openAlbumConfig(); };
             toolbar.appendChild(btn);
         } else if(activeTab === 'audios'){
             const btn = el('button', 's936lib-actionbtn', '⬆ Importar MP3/MP4');
@@ -1488,7 +1851,7 @@
         TABS.forEach(([key, label]) => {
             const btn = el('button', 's936lib-tab', label);
             btn.dataset.tab = key;
-            btn.onclick = () => { activeTab = key; activeGenreFilter = null; activePlaylistFilter = null; searchQuery = ''; render(); };
+            btn.onclick = () => { activeTab = key; activeGenreFilter = null; activePlaylistFilter = null; activeAlbumFilter = null; searchQuery = ''; render(); };
             tabs.appendChild(btn);
         });
 
