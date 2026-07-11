@@ -79,7 +79,35 @@
     }
     function youtubeEmbedUrl(url){
         const id = youtubeVideoId(url);
-        return id ? 'https://www.youtube.com/embed/' + id : null;
+        if(!id) return null;
+        const origin = typeof location !== 'undefined' ? encodeURIComponent(location.origin) : '';
+        return 'https://www.youtube.com/embed/' + id + '?enablejsapi=1&origin=' + origin;
+    }
+    // Cambio 176: API oficial de YouTube (postMessage, la misma que
+    // provee YouTube para integraciones — no hay nada indebido aquí) para
+    // que el ecualizador reaccione al Play/Pausa REAL del video, sea que
+    // lo actives desde nuestra lista o desde los controles propios de
+    // YouTube encima del video.
+    let ytPlayer = null;
+    let ytApiCallbacks = [];
+    function ensureYoutubeApi(cb){
+        if(window.YT && window.YT.Player){ cb(); return; }
+        ytApiCallbacks.push(cb);
+        if(window.__s936YtApiLoading) return;
+        window.__s936YtApiLoading = true;
+        const prevReady = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => {
+            if(typeof prevReady === 'function') prevReady();
+            ytApiCallbacks.forEach((fn) => fn());
+            ytApiCallbacks = [];
+        };
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(tag);
+    }
+    function handleYtStateChange(event){
+        if(window.YT && event.data === window.YT.PlayerState.PLAYING) startEqAnimation();
+        else stopEqAnimation();
     }
     // Cambio 172: cada barra del ecualizador se colorea interpolando entre
     // azul y verde según su posición — el lado izquierdo va de azul
@@ -257,7 +285,11 @@
 #${PANEL_ID} .s936lib-search { flex:1; min-width:160px; background:#1c2224; border:1px solid #333; border-radius:8px; padding:7px 10px; color:#e8f4f2; font-size:.8rem; }
 #${PANEL_ID} .s936lib-actionbtn { background:rgba(0,255,204,.12); border:1px solid #00ffcc; color:#00ffcc; border-radius:8px; padding:7px 12px; font-size:.76rem; font-weight:700; cursor:pointer; white-space:nowrap; }
 
-#${PANEL_ID} .s936lib-body { flex:1; overflow-y:auto; padding:14px 18px; }
+#${PANEL_ID} .s936lib-body { flex:1; overflow-y:auto; padding:14px 18px; scrollbar-width:thin; scrollbar-color:rgba(0,255,204,.35) transparent; }
+#${PANEL_ID} .s936lib-body::-webkit-scrollbar { width:7px; }
+#${PANEL_ID} .s936lib-body::-webkit-scrollbar-track { background:transparent; }
+#${PANEL_ID} .s936lib-body::-webkit-scrollbar-thumb { background:rgba(0,255,204,.28); border-radius:10px; }
+#${PANEL_ID} .s936lib-body::-webkit-scrollbar-thumb:hover { background:rgba(0,255,204,.5); }
 #${PANEL_ID} .s936lib-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px; }
 #${PANEL_ID} .s936lib-card { display:flex; flex-direction:column; gap:6px; cursor:pointer; padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,.06); background:rgba(255,255,255,.015); }
 #${PANEL_ID} .s936lib-card:hover { border-color:rgba(0,255,204,.4); background:rgba(0,255,204,.05); }
@@ -724,6 +756,17 @@
         if(playBtn) playBtn.textContent = (audioEl && !audioEl.paused) ? '⏸' : '⏵';
     }
 
+    function youtubeFilteredList(){
+        return store.youtube.filter(x => matchesSearch(x, [x.notes, x.url]) && (!activeGenreFilter || x.genre === activeGenreFilter));
+    }
+    function youtubeListNav(step){
+        const list = youtubeFilteredList();
+        if(!list.length) return;
+        const idx = list.findIndex(x => x.id === currentYoutubeId);
+        const nextIdx = idx === -1 ? 0 : (idx + step + list.length) % list.length;
+        selectYoutubeVideo(list[nextIdx]);
+    }
+
     function selectYoutubeVideo(item){
         currentYoutubeId = item.id;
         lcdYoutubeTitle = item.title;
@@ -778,26 +821,42 @@
     // API oficial de Google) — es tu lista curada, sin basura, como
     // pediste. Cambio 175: el buscador se movió a la fila fusionada de
     // transporte (renderToolbar) para liberar una línea de alto.
-    function renderYoutube(body){
-        renderYoutubeAddForm(body);
-
-        const current = store.youtube.find(x => x.id === currentYoutubeId) || store.youtube[0];
-        if(current){
-            const embedUrl = youtubeEmbedUrl(current.url);
-            if(embedUrl){
-                const wrap = el('div', 's936lib-ytembed');
-                const iframe = document.createElement('iframe');
-                iframe.src = embedUrl;
-                iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
-                iframe.allowFullscreen = true;
-                wrap.appendChild(iframe);
-                body.appendChild(wrap);
-            } else {
-                body.appendChild(el('div', 's936lib-ytplaceholder', 'No se pudo reconocer el link como un video de YouTube: ' + current.title));
-            }
+    // Cambio 176: el embed y la lista viven en dos contenedores separados
+    // y persistentes — antes TODO el body se limpiaba y reconstruía en
+    // cada tecla del buscador, lo que recargaba el video de YouTube desde
+    // cero mientras escribías. Ahora el embed solo se toca si el video
+    // seleccionado realmente cambió.
+    let lastEmbeddedYoutubeId = undefined;
+    function renderYoutubeEmbed(embedSlot, current){
+        if((current ? current.id : null) === lastEmbeddedYoutubeId) return;
+        lastEmbeddedYoutubeId = current ? current.id : null;
+        if(ytPlayer){ try { ytPlayer.destroy(); } catch(_) {} ytPlayer = null; }
+        embedSlot.innerHTML = '';
+        if(!current) return;
+        const embedUrl = youtubeEmbedUrl(current.url);
+        if(!embedUrl){
+            embedSlot.appendChild(el('div', 's936lib-ytplaceholder', 'No se pudo reconocer el link como un video de YouTube: ' + current.title));
+            return;
         }
+        const wrap = el('div', 's936lib-ytembed');
+        const iframeId = 's936libYtIframe';
+        const iframe = document.createElement('iframe');
+        iframe.id = iframeId;
+        iframe.src = embedUrl;
+        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+        iframe.allowFullscreen = true;
+        wrap.appendChild(iframe);
+        embedSlot.appendChild(wrap);
+        ensureYoutubeApi(() => {
+            if(!document.getElementById(iframeId)) return;
+            ytPlayer = new window.YT.Player(iframeId, { events: { onStateChange: handleYtStateChange } });
+        });
+    }
 
-        const list = store.youtube.filter(x => matchesSearch(x, [x.notes, x.url]) && (!activeGenreFilter || x.genre === activeGenreFilter));
+    function renderYoutubeList(listSlot){
+        listSlot.innerHTML = '';
+        renderYoutubeAddForm(listSlot);
+        const list = youtubeFilteredList();
         const grid = el('div', 's936lib-ytgrid');
         list.forEach((item) => {
             const card = el('div', 's936lib-ytcard' + (currentYoutubeId === item.id ? ' active' : ''));
@@ -829,11 +888,25 @@
             card.onclick = () => selectYoutubeVideo(item);
             grid.appendChild(card);
         });
-        body.appendChild(grid);
+        listSlot.appendChild(grid);
 
         if(!list.length){
-            body.appendChild(el('div', 's936lib-empty', store.youtube.length ? 'Sin resultados en tu lista.' : 'Todavía no tienes favoritos de YouTube guardados — pega un link abajo para empezar tu mini lista.'));
+            listSlot.appendChild(el('div', 's936lib-empty', store.youtube.length ? 'Sin resultados en tu lista.' : 'Todavía no tienes favoritos de YouTube guardados — pega un link abajo para empezar tu mini lista.'));
         }
+    }
+
+    function renderYoutube(body){
+        let embedSlot = body.querySelector('#s936lib-yt-embed-slot');
+        let listSlot = body.querySelector('#s936lib-yt-list-slot');
+        if(!embedSlot || !listSlot){
+            body.innerHTML = '';
+            embedSlot = el('div', ''); embedSlot.id = 's936lib-yt-embed-slot';
+            listSlot = el('div', ''); listSlot.id = 's936lib-yt-list-slot';
+            body.append(embedSlot, listSlot);
+        }
+        const current = store.youtube.find(x => x.id === currentYoutubeId) || store.youtube[0];
+        renderYoutubeEmbed(embedSlot, current);
+        renderYoutubeList(listSlot);
     }
 
     // ---------------------------------------------------------------
@@ -959,11 +1032,18 @@
         const panel = document.getElementById(PANEL_ID);
         if(!panel) return;
         const body = panel.querySelector('.s936lib-body');
+        if(activeTab === 'youtube'){
+            // Cambio 176: YouTube maneja su propio DOM persistente (el
+            // embed no debe recrearse en cada tecla del buscador) — no se
+            // limpia el body aquí, eso ya lo hace renderYoutube solo
+            // cuando de verdad hace falta.
+            renderYoutube(body);
+            return;
+        }
         body.innerHTML = '';
         if(activeTab === 'recent') renderRecent(body);
         else if(activeTab === 'compositions') renderCompositions(body);
         else if(activeTab === 'audios') renderAudios(body);
-        else if(activeTab === 'youtube') renderYoutube(body);
         else if(activeTab === 'genres') renderGenres(body);
     }
 
@@ -972,6 +1052,15 @@
         if(!panel) return;
         panel.querySelectorAll('.s936lib-tab').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === activeTab));
         panel.querySelectorAll('.s936lib-viewbtn').forEach((btn) => btn.classList.toggle('active', btn.dataset.view === viewMode));
+        // Cambio 176: en YouTube, Play y Volumen no controlan nada real
+        // (el video vive en un iframe aparte, y YouTube ya trae su propio
+        // play/pausa y volumen encima del video) — se ocultan para no
+        // confundir con botones que no hacen nada.
+        const playBtn = panel.querySelector('.s936lib-playbtn');
+        const vol = panel.querySelector('.s936lib-vol');
+        const isYoutube = activeTab === 'youtube';
+        if(playBtn) playBtn.style.display = isYoutube ? 'none' : '';
+        if(vol) vol.style.display = isYoutube ? 'none' : '';
         renderToolbar(panel.querySelector('.s936lib-toolbar'));
         renderBodyOnly();
         updateLcd();
@@ -1047,12 +1136,12 @@
         const controlRow = el('div', 's936lib-controlrow');
         const prevBtn = el('button', '', '⏮');
         prevBtn.title = 'Antes en la cola';
-        prevBtn.onclick = () => { if(queue.length) playNextInQueue(); };
+        prevBtn.onclick = () => { activeTab === 'youtube' ? youtubeListNav(-1) : (queue.length && playNextInQueue()); };
         const playBtn = el('button', 's936lib-playbtn', '⏵');
         playBtn.onclick = togglePlayPause;
         const nextBtn = el('button', '', '⏭');
         nextBtn.title = 'Siguiente en la cola';
-        nextBtn.onclick = playNextInQueue;
+        nextBtn.onclick = () => { activeTab === 'youtube' ? youtubeListNav(1) : playNextInQueue(); };
         const toolbar = el('div', 's936lib-toolbar');
         const vol = el('div', 's936lib-vol', '🔊');
         const volSlider = document.createElement('input');
