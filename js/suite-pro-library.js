@@ -301,16 +301,29 @@
         reader.readAsDataURL(file);
     }
 
+    // Cambio 189: la carátula del álbum puede ser un video corto (loop),
+    // no solo una foto. Igual que TODO lo demás que se importa/graba hoy
+    // en la app, el video vive como blob: en memoria — se pierde al cerrar
+    // la pestaña, hasta que exista storage real (carpeta/nube). La FOTO sí
+    // persiste (queda comprimida como texto en localStorage).
+    let albumVideoURLs = {};
+
     function createAlbum(name, coverFile, cb){
-        const finish = (cover) => {
-            const album = { id: uid('al'), name: name || 'Álbum sin nombre', cover: cover || null, createdAt: Date.now() };
+        const album = { id: uid('al'), name: name || 'Álbum sin nombre', cover: null, createdAt: Date.now() };
+        const finish = () => {
             store.albums.unshift(album);
             store.activeAlbumId = album.id;
             saveStore();
             if(cb) cb(album);
         };
-        if(coverFile) resizeImageToDataUrl(coverFile, 480, finish);
-        else finish(null);
+        if(coverFile && coverFile.type.startsWith('video/')){
+            albumVideoURLs[album.id] = URL.createObjectURL(coverFile);
+            finish();
+        } else if(coverFile){
+            resizeImageToDataUrl(coverFile, 480, (cover) => { album.cover = cover || null; finish(); });
+        } else {
+            finish();
+        }
     }
 
     function setActiveAlbum(id){ store.activeAlbumId = id || null; saveStore(); render(); }
@@ -325,8 +338,14 @@
     function updateAlbumCover(id, coverFile, cb){
         const a = getAlbum(id);
         if(!a || !coverFile) return;
+        if(coverFile.type.startsWith('video/')){
+            albumVideoURLs[id] = URL.createObjectURL(coverFile);
+            saveStore();
+            if(cb) cb();
+            return;
+        }
         resizeImageToDataUrl(coverFile, 480, (cover) => {
-            if(cover){ a.cover = cover; saveStore(); }
+            if(cover){ a.cover = cover; delete albumVideoURLs[id]; saveStore(); }
             if(cb) cb();
         });
     }
@@ -338,6 +357,7 @@
         store.albums = store.albums.filter(x => x.id !== id);
         store.compositions.forEach((c) => { if(c.albumId === id) c.albumId = null; });
         if(store.activeAlbumId === id) store.activeAlbumId = null;
+        delete albumVideoURLs[id];
         saveStore();
         render();
     }
@@ -349,6 +369,10 @@
         saveStore();
         render();
     }
+
+    // Cambio 189: si el álbum tiene un video de carátula cargado en esta
+    // misma sesión, tiene prioridad sobre la foto fija.
+    function albumVideoUrl(albumId){ return albumId ? (albumVideoURLs[albumId] || null) : null; }
 
     function compositionCoverUrl(item){
         const album = getAlbum(item.albumId);
@@ -472,7 +496,9 @@
 #${PANEL_ID} .s936lib-controlrow > button { background:#1c2224; border:1px solid #333; color:#e8f4f2; border-radius:10px; width:34px; height:32px; cursor:pointer; font-size:.9rem; flex-shrink:0; }
 #${PANEL_ID} .s936lib-controlrow > button.s936lib-playbtn { background:#00ffcc; color:#04342c; border-color:#00ffcc; width:44px; box-shadow:0 0 14px rgba(0,255,204,.35); }
 #${PANEL_ID} .s936lib-vol { margin-left:auto; display:flex; align-items:center; gap:6px; color:#9fb0ae; font-size:.72rem; }
-#${PANEL_ID} .s936lib-vol input[type=range] { accent-color:#00ffcc; width:80px; }
+#${PANEL_ID} .s936lib-volicon { cursor:pointer; font-size:.95rem; padding:4px; }
+#${PANEL_ID} .s936lib-vol input[type=range] { accent-color:#00ffcc; width:0; opacity:0; overflow:hidden; transition:width .15s ease, opacity .15s ease; }
+#${PANEL_ID} .s936lib-vol.open input[type=range] { width:80px; opacity:1; }
 
 #${PANEL_ID} .s936lib-toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; flex:1; min-width:0; }
 #${PANEL_ID} .s936lib-search { flex:1; min-width:160px; background:#1c2224; border:1px solid #333; border-radius:8px; padding:7px 10px; color:#e8f4f2; font-size:.8rem; }
@@ -850,7 +876,7 @@
         if(!item) return;
         if(item.previewAudioId && audioObjectURLs[item.previewAudioId]){
             currentPlayingComp = id;
-            playAudio(item.previewAudioId, item.title, genreLabel(item.genre) || 'Composición');
+            playAudio(item.previewAudioId, item.title, item.author || 'Artista sin definir');
             return;
         }
         if(!store.audios.length){
@@ -863,8 +889,9 @@
         if(isNaN(idx) || !store.audios[idx]) return;
         item.previewAudioId = store.audios[idx].id;
         saveStore();
+        tryWriteCompositionJsonToConfiguredFolder(item);
         currentPlayingComp = id;
-        playAudio(item.previewAudioId, item.title, genreLabel(item.genre) || 'Composición');
+        playAudio(item.previewAudioId, item.title, item.author || 'Artista sin definir');
     }
 
     function openComposition(id){
@@ -902,6 +929,11 @@
     document.addEventListener('click', (e) => {
         if(genrePlaylistPopoverEl && !e.target.closest('.s936lib-gppopover')) closeGenrePlaylistPopover();
     });
+    // Cambio 189: el volumen se despliega con clic en la bocina (como
+    // YouTube) — se cierra al hacer clic en cualquier otro lado.
+    document.addEventListener('click', (e) => {
+        document.querySelectorAll('.s936lib-vol.open').forEach((v) => { if(!e.target.closest('.s936lib-vol')) v.classList.remove('open'); });
+    });
 
     // Cambio 188: reutiliza el módulo de Structure (carpeta configurada vía
     // File System Access) en vez de construir un segundo sistema de carpeta
@@ -918,10 +950,33 @@
             const slug = String(entry.title || 'cancion').toLowerCase()
                 .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
                 .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || 'cancion';
+            // Cambio 190: si ya vinculaste un audio de referencia (Play →
+            // elegir de Audio MP3), se copia también a la carpeta y su
+            // nombre queda anotado dentro del propio JSON — así, cuando
+            // abras esa carpeta más adelante, JSON y MP3 quedan ligados por
+            // nombre de archivo, sin depender de la memoria del navegador.
+            // Solo funciona si ya importaste ese audio EN ESTA SESIÓN (el
+            // navegador no recuerda archivos entre sesiones, límite ya
+            // conocido) — no genera un MP3 nuevo por su cuenta.
+            let audioFile = null;
+            if(entry.previewAudioId && audioObjectURLs[entry.previewAudioId]){
+                try {
+                    const song = store.audios.find(x => x.id === entry.previewAudioId);
+                    const ext = (song && song.fileName && song.fileName.match(/\.[a-z0-9]+$/i)?.[0]) || '.mp3';
+                    audioFile = 'studio936-' + slug + '-audio' + ext;
+                    const resp = await fetch(audioObjectURLs[entry.previewAudioId]);
+                    const blob = await resp.blob();
+                    const audioFh = await dirHandle.getFileHandle(audioFile, { create:true });
+                    const audioWritable = await audioFh.createWritable();
+                    await audioWritable.write(blob);
+                    await audioWritable.close();
+                } catch(_) { audioFile = null; }
+            }
+            const payload = audioFile ? Object.assign({}, entry, { audioFile }) : entry;
             const filename = 'studio936-' + slug + '-composicion.json';
             const fh = await dirHandle.getFileHandle(filename, { create:true });
             const writable = await fh.createWritable();
-            await writable.write(JSON.stringify(entry, null, 2));
+            await writable.write(JSON.stringify(payload, null, 2));
             await writable.close();
         } catch(_) { /* silencioso: la copia en localStorage ya está a salvo */ }
     }
@@ -954,6 +1009,20 @@
         body.style.cssText = 'padding:16px;display:flex;flex-direction:column;gap:14px;';
         modal.appendChild(body);
 
+        function paintThumb(node, albumId, cover){
+            const vidUrl = albumVideoUrl(albumId);
+            node.innerHTML = '';
+            if(vidUrl){
+                node.style.background = '#0a1614';
+                const v = document.createElement('video');
+                v.src = vidUrl; v.autoplay = true; v.loop = true; v.muted = true; v.playsInline = true;
+                v.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:inherit;';
+                node.appendChild(v);
+            } else {
+                node.style.background = cover ? `url('${cover}') center/cover` : 'radial-gradient(circle at 30% 25%,#1c5a4f,#0a1614 70%)';
+            }
+        }
+
         function renderAlbumBody(){
             body.innerHTML = '';
 
@@ -961,7 +1030,8 @@
             const activeBox = document.createElement('div');
             activeBox.style.cssText = 'display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:10px 12px;';
             const activeThumb = document.createElement('div');
-            activeThumb.style.cssText = 'width:44px;height:44px;border-radius:8px;flex-shrink:0;background:' + (active && active.cover ? `url('${active.cover}') center/cover` : 'radial-gradient(circle at 30% 25%,#1c5a4f,#0a1614 70%)') + ';';
+            activeThumb.style.cssText = 'width:44px;height:44px;border-radius:8px;flex-shrink:0;overflow:hidden;';
+            if(active) paintThumb(activeThumb, active.id, active.cover);
             const activeText = document.createElement('div');
             activeText.style.cssText = 'font-size:.72rem;color:rgba(255,255,255,.65);line-height:1.4;';
             activeText.innerHTML = active
@@ -977,10 +1047,11 @@
                     const row = document.createElement('div');
                     row.style.cssText = 'display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.02);border:1px solid ' + (a.id === store.activeAlbumId ? 'rgba(0,255,204,.4)' : 'rgba(255,255,255,.08)') + ';border-radius:10px;padding:7px 9px;';
                     const thumb = document.createElement('div');
-                    thumb.style.cssText = 'width:32px;height:32px;border-radius:6px;flex-shrink:0;background:' + (a.cover ? `url('${a.cover}') center/cover` : 'radial-gradient(circle at 30% 25%,#1c5a4f,#0a1614 70%)') + ';cursor:pointer;';
-                    thumb.title = 'Cambiar carátula';
+                    thumb.style.cssText = 'width:32px;height:32px;border-radius:6px;flex-shrink:0;cursor:pointer;overflow:hidden;';
+                    paintThumb(thumb, a.id, a.cover);
+                    thumb.title = 'Cambiar carátula (foto o video)';
                     const coverInput = document.createElement('input');
-                    coverInput.type = 'file'; coverInput.accept = 'image/*'; coverInput.style.display = 'none';
+                    coverInput.type = 'file'; coverInput.accept = 'image/*,video/*'; coverInput.style.display = 'none';
                     coverInput.onchange = (e) => { const f = e.target.files?.[0]; if(f) updateAlbumCover(a.id, f, renderAlbumBody); };
                     thumb.onclick = () => coverInput.click();
                     const name = document.createElement('div');
@@ -1008,13 +1079,16 @@
             const newTitle = document.createElement('div');
             newTitle.textContent = '+ Nuevo álbum';
             newTitle.style.cssText = 'font-size:.68rem;text-transform:uppercase;letter-spacing:.6px;color:#9fb0ae;';
+            const newHint = document.createElement('div');
+            newHint.textContent = 'Carátula: foto o video corto. La foto se guarda de verdad; el video se pierde al recargar la página hasta que tengamos guardado real en la nube.';
+            newHint.style.cssText = 'font-size:.6rem;color:#7a8785;font-style:italic;';
             const nameInput = document.createElement('input');
             nameInput.placeholder = 'Nombre del álbum (ej. Fantasía Musical)';
             nameInput.style.cssText = 'background:#1c2224;border:1px solid #333;border-radius:8px;padding:8px 10px;color:#e8f4f2;font-size:.78rem;font-family:inherit;';
             const coverRow = document.createElement('div');
             coverRow.style.cssText = 'display:flex;align-items:center;gap:8px;';
             const coverFileInput = document.createElement('input');
-            coverFileInput.type = 'file'; coverFileInput.accept = 'image/*';
+            coverFileInput.type = 'file'; coverFileInput.accept = 'image/*,video/*';
             coverFileInput.style.cssText = 'font-size:.68rem;color:#9fb0ae;flex:1;';
             coverRow.appendChild(coverFileInput);
             const createBtn = document.createElement('button');
@@ -1025,7 +1099,7 @@
                 if(!name){ nameInput.focus(); return; }
                 createAlbum(name, coverFileInput.files?.[0] || null, () => { renderAlbumBody(); render(); });
             };
-            sep1.append(newTitle, nameInput, coverRow, createBtn);
+            sep1.append(newTitle, newHint, nameInput, coverRow, createBtn);
             body.appendChild(sep1);
 
             const sep2 = document.createElement('div');
@@ -1093,8 +1167,14 @@
     // que todavía no tienen su forma final.
     function buildCompositionThumb(item, className){
         const thumb = el('div', className);
+        const videoUrl = albumVideoUrl(item.albumId);
         const coverUrl = compositionCoverUrl(item);
-        if(coverUrl){
+        if(videoUrl){
+            const video = document.createElement('video');
+            video.src = videoUrl; video.autoplay = true; video.loop = true; video.muted = true; video.playsInline = true;
+            video.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+            thumb.appendChild(video);
+        } else if(coverUrl){
             thumb.style.backgroundImage = `url('${coverUrl}')`;
         } else {
             thumb.classList.add('s936lib-comp-noart');
@@ -1741,7 +1821,10 @@
         search.value = searchQuery;
         search.oninput = () => { searchQuery = search.value; renderBodyOnly(); };
         toolbar.appendChild(search);
-        toolbar.appendChild(buildPlaylistFilterButton());
+        // Cambio 189: en Composiciones ya no se usa el filtro de "listas"
+        // (playlists) — el álbum es el concepto de agrupación aquí, y ya
+        // tiene sus propios chips debajo. Se evita el control redundante.
+        if(activeTab !== 'compositions') toolbar.appendChild(buildPlaylistFilterButton());
 
         if(activeTab === 'compositions'){
             // Cambio 188: aquí ya no se guarda (eso pasa donde editas la
@@ -1815,7 +1898,7 @@
         ['recent', 'Recientes'],
         ['compositions', 'Composiciones'],
         ['audios', 'Audio MP3'],
-        ['youtube', 'YouTube'],
+        ['youtube', 'Mini Rockola'],
         ['genres', 'Géneros']
     ];
 
@@ -1891,11 +1974,14 @@
         nextBtn.title = 'Siguiente en la cola';
         nextBtn.onclick = () => { activeTab === 'youtube' ? youtubeListNav(1) : playNextInQueue(); };
         const toolbar = el('div', 's936lib-toolbar');
-        const vol = el('div', 's936lib-vol', '🔊');
+        const vol = el('div', 's936lib-vol');
+        const volIcon = el('span', 's936lib-volicon', '🔊');
+        volIcon.title = 'Volumen';
         const volSlider = document.createElement('input');
         volSlider.type = 'range'; volSlider.min = '0'; volSlider.max = '100'; volSlider.value = '80';
         volSlider.oninput = () => { if(audioEl) audioEl.volume = volSlider.value/100; };
-        vol.appendChild(volSlider);
+        volIcon.onclick = (e) => { e.stopPropagation(); vol.classList.toggle('open'); };
+        vol.append(volIcon, volSlider);
         controlRow.append(prevBtn, playBtn, nextBtn, toolbar, vol);
 
         const body = el('div', 's936lib-body');
