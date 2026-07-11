@@ -67,14 +67,21 @@
         const m = Math.floor(sec/60), s = sec%60;
         return m + ':' + String(s).padStart(2,'0');
     }
-    function youtubeEmbedUrl(url){
+    function youtubeVideoId(url){
         try {
             const u = new URL(url);
             let id = u.searchParams.get('v');
             if(!id && u.hostname.includes('youtu.be')) id = u.pathname.slice(1);
-            if(!id) return null;
-            return 'https://www.youtube.com/embed/' + id;
+            return id || null;
         } catch(_) { return null; }
+    }
+    function youtubeEmbedUrl(url){
+        const id = youtubeVideoId(url);
+        return id ? 'https://www.youtube.com/embed/' + id : null;
+    }
+    function youtubeThumbUrl(url){
+        const id = youtubeVideoId(url);
+        return id ? 'https://img.youtube.com/vi/' + id + '/mqdefault.jpg' : null;
     }
 
     // ---------------------------------------------------------------
@@ -277,6 +284,22 @@
 #${PANEL_ID} .s936lib-ytembed { width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; border:1px solid #333; margin-bottom:14px; }
 #${PANEL_ID} .s936lib-ytembed iframe { width:100%; height:100%; border:none; border-radius:10px; }
 #${PANEL_ID} .s936lib-ytplaceholder { width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; border:1px solid #333; margin-bottom:14px; display:flex; align-items:center; justify-content:center; color:#9fb0ae; font-size:.8rem; text-align:center; padding:20px; }
+#${PANEL_ID} .s936lib-ytsearchbar { display:flex; align-items:center; gap:10px; width:100%; background:#1c2224; border:1px solid #333; border-radius:999px; padding:11px 18px; margin-bottom:16px; }
+#${PANEL_ID} .s936lib-ytsearchbar:focus-within { border-color:#00ffcc; box-shadow:0 0 0 2px rgba(0,255,204,.15); }
+#${PANEL_ID} .s936lib-ytsearchbar .mag { color:#9fb0ae; font-size:1rem; flex-shrink:0; }
+#${PANEL_ID} .s936lib-ytsearchbar input { flex:1; background:transparent; border:none; color:#e8f4f2; font-size:.88rem; outline:none; }
+#${PANEL_ID} .s936lib-ytgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; }
+#${PANEL_ID} .s936lib-ytcard { cursor:pointer; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.06); background:rgba(255,255,255,.015); }
+#${PANEL_ID} .s936lib-ytcard:hover { border-color:rgba(0,255,204,.4); }
+#${PANEL_ID} .s936lib-ytcard.active { border-color:#00ffcc; box-shadow:0 0 16px rgba(0,255,204,.15); }
+#${PANEL_ID} .s936lib-ytthumb { width:100%; aspect-ratio:16/9; background:#000 center/cover no-repeat; position:relative; }
+#${PANEL_ID} .s936lib-ytthumb .ph { width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#9fb0ae; font-size:.7rem; background:#111; }
+#${PANEL_ID} .s936lib-ytthumb .playicon { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:1.6rem; color:#fff; background:rgba(0,0,0,.15); opacity:0; transition:opacity .15s ease; }
+#${PANEL_ID} .s936lib-ytcard:hover .playicon { opacity:1; }
+#${PANEL_ID} .s936lib-ytcardbody { padding:8px 10px; }
+#${PANEL_ID} .s936lib-ytcardtitle { font-size:.76rem; font-weight:800; color:#e8f4f2; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+#${PANEL_ID} .s936lib-ytcardnotes { font-size:.64rem; color:#9fb0ae; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#${PANEL_ID} .s936lib-ytcardactions { display:flex; justify-content:flex-end; gap:5px; margin-top:6px; }
 `;
         document.head.appendChild(style);
     }
@@ -644,15 +667,15 @@
         render();
     }
 
-    function renderYoutubeForm(body){
+    function renderYoutubeAddForm(body){
         const form = el('div', 's936lib-ytform');
         const urlInput = document.createElement('input');
-        urlInput.placeholder = 'Link de YouTube (https://...)';
+        urlInput.placeholder = 'Pegar link de YouTube para agregarlo a tu lista (https://...)';
         const titleInput = document.createElement('input');
         titleInput.placeholder = 'Título (opcional)';
         const notesInput = document.createElement('textarea');
         notesInput.placeholder = 'Notas (opcional) — ej. "para el solo de guitarra"...';
-        const addBtn = el('button', 's936lib-actionbtn', '+ Agregar favorito');
+        const addBtn = el('button', 's936lib-actionbtn', '+ Agregar a mi lista');
         addBtn.style.alignSelf = 'flex-start';
         addBtn.onclick = () => {
             if(!urlInput.value.trim()){ urlInput.focus(); return; }
@@ -663,7 +686,25 @@
         body.appendChild(form);
     }
 
+    // Cambio 169: "mini YouTube" — busca DENTRO de tus favoritos guardados
+    // manualmente (título/notas), con la estética de un buscador de
+    // YouTube. No es búsqueda en vivo de todo YouTube (eso necesitaría la
+    // API oficial de Google) — es tu lista curada, sin basura, como
+    // pediste.
+    function renderYoutubeSearchBar(body){
+        const bar = el('div', 's936lib-ytsearchbar');
+        bar.appendChild(el('span', 'mag', '🔍'));
+        const input = document.createElement('input');
+        input.placeholder = 'Buscar en tu lista de YouTube...';
+        input.value = searchQuery;
+        input.oninput = () => { searchQuery = input.value; renderBodyOnly(); };
+        bar.appendChild(input);
+        body.appendChild(bar);
+    }
+
     function renderYoutube(body){
+        renderYoutubeSearchBar(body);
+
         const current = store.youtube.find(x => x.id === currentYoutubeId) || store.youtube[0];
         if(current){
             const embedUrl = youtubeEmbedUrl(current.url);
@@ -679,25 +720,37 @@
                 body.appendChild(el('div', 's936lib-ytplaceholder', 'No se pudo reconocer el link como un video de YouTube: ' + current.title));
             }
         }
-        renderYoutubeForm(body);
+
         const list = store.youtube.filter(x => matchesSearch(x, [x.notes, x.url]) && (!activeGenreFilter || x.genre === activeGenreFilter));
-        if(!list.length){
-            body.appendChild(el('div', 's936lib-empty', store.youtube.length ? 'Sin resultados.' : 'Todavía no tienes favoritos de YouTube guardados.'));
-            return;
-        }
+        const grid = el('div', 's936lib-ytgrid');
         list.forEach((item) => {
-            const row = el('div', 's936lib-list-row' + (currentYoutubeId === item.id ? ' playing' : ''));
-            const icon = el('div', 's936lib-list-icon', '📺');
-            const title = el('div', 's936lib-list-title', item.title);
-            const meta = el('div', 's936lib-list-meta', item.notes || '');
-            const actions = el('div', 's936lib-list-actions');
-            const delBtn = el('button', 's936lib-mini danger', 'Borrar');
+            const card = el('div', 's936lib-ytcard' + (currentYoutubeId === item.id ? ' active' : ''));
+            const thumbUrl = youtubeThumbUrl(item.url);
+            const thumb = el('div', 's936lib-ytthumb');
+            if(thumbUrl) thumb.style.backgroundImage = `url('${thumbUrl}')`;
+            else thumb.appendChild(el('div', 'ph', 'Sin miniatura'));
+            thumb.appendChild(el('div', 'playicon', '▶'));
+            const cardBody = el('div', 's936lib-ytcardbody');
+            cardBody.appendChild(el('div', 's936lib-ytcardtitle', item.title));
+            if(item.notes) cardBody.appendChild(el('div', 's936lib-ytcardnotes', item.notes));
+            const actions = el('div', 's936lib-ytcardactions');
+            actions.append(genreTag('youtube', item));
+            const delBtn = el('button', 's936lib-iconbtn danger', '✕');
+            delBtn.title = 'Borrar de mi lista';
             delBtn.onclick = (e) => { e.stopPropagation(); deleteYoutube(item.id); };
-            actions.append(genreTag('youtube', item), delBtn);
-            row.append(icon, title, meta, actions);
-            row.onclick = () => { currentYoutubeId = item.id; render(); };
-            body.appendChild(row);
+            actions.appendChild(delBtn);
+            cardBody.appendChild(actions);
+            card.append(thumb, cardBody);
+            card.onclick = () => { currentYoutubeId = item.id; render(); };
+            grid.appendChild(card);
         });
+        body.appendChild(grid);
+
+        renderYoutubeAddForm(body);
+
+        if(!list.length){
+            body.appendChild(el('div', 's936lib-empty', store.youtube.length ? 'Sin resultados en tu lista.' : 'Todavía no tienes favoritos de YouTube guardados — pega un link abajo para empezar tu mini lista.'));
+        }
     }
 
     // ---------------------------------------------------------------
@@ -774,6 +827,14 @@
     // ---------------------------------------------------------------
     function renderToolbar(toolbar){
         toolbar.innerHTML = '';
+        if(activeTab === 'youtube'){
+            // Cambio 169: YouTube tiene su propio buscador de línea completa
+            // (estilo "mini YouTube"), no el genérico compartido — se oculta
+            // toda la barra de herramientas para esta pestaña.
+            toolbar.style.display = 'none';
+            return;
+        }
+        toolbar.style.display = '';
         const search = document.createElement('input');
         search.className = 's936lib-search';
         search.placeholder = 'Buscar...';
