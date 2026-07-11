@@ -215,9 +215,9 @@
 #${PANEL_ID} .s936lib-nowtitle { font-size:.92rem; font-weight:800; color:#00ffcc; text-shadow:0 0 10px rgba(0,255,204,.5); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #${PANEL_ID} .s936lib-nowtime { font-family:monospace; color:#5be8c9; font-size:.76rem; flex-shrink:0; }
 #${PANEL_ID} .s936lib-nowsub { color:#9fb0ae; font-size:.66rem; margin-top:2px; }
-#${PANEL_ID} .s936lib-bars { display:flex; gap:2px; align-items:flex-end; height:20px; margin-top:8px; }
+#${PANEL_ID} .s936lib-bars { display:flex; gap:2px; align-items:flex-end; height:20px; margin-top:10px; padding-bottom:10px; border-bottom:1px solid rgba(0,255,204,.12); }
 #${PANEL_ID} .s936lib-bars i { width:4px; background:linear-gradient(180deg,#00ffcc,#0a3d33); border-radius:2px; height:3px; display:block; }
-#${PANEL_ID} .s936lib-progress { height:4px; background:#111; border-radius:2px; margin-top:8px; overflow:hidden; }
+#${PANEL_ID} .s936lib-progress { height:6px; background:#111; border-radius:3px; margin-top:12px; overflow:hidden; }
 #${PANEL_ID} .s936lib-progress b { display:block; height:100%; width:0%; background:#00ffcc; box-shadow:0 0 8px #00ffcc; transition:width .2s linear; }
 
 #${PANEL_ID} .s936lib-transport { display:flex; align-items:center; gap:8px; padding:10px 16px; }
@@ -235,14 +235,24 @@
 #${PANEL_ID} .s936lib-card { display:flex; flex-direction:column; gap:6px; cursor:pointer; padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,.06); background:rgba(255,255,255,.015); }
 #${PANEL_ID} .s936lib-card:hover { border-color:rgba(0,255,204,.4); background:rgba(0,255,204,.05); }
 #${PANEL_ID} .s936lib-card.playing { border-color:#00ffcc; background:rgba(0,255,204,.1); box-shadow:0 0 16px rgba(0,255,204,.15); }
-#${PANEL_ID} .s936lib-bubble { width:100%; height:76px; border-radius:10px; background:radial-gradient(circle at 35% 30%,#234b45,#0e1414); display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:#5be8c9; }
+#${PANEL_ID} .s936lib-bubble { width:100%; height:76px; border-radius:10px; background:radial-gradient(circle at 30% 25%,#1c5a4f,#0a1614 70%); display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
+#${PANEL_ID} .s936lib-bubble::after { content:''; position:absolute; width:44px; height:44px; border-radius:50%; border:2px solid rgba(91,232,201,.35); box-shadow:0 0 0 6px rgba(91,232,201,.08), inset 0 0 12px rgba(0,255,204,.15); }
+#${PANEL_ID} .s936lib-bubble span { position:relative; z-index:1; font-size:1.3rem; color:#5be8c9; }
 #${PANEL_ID} .s936lib-cardtitle { font-size:.76rem; color:#e8f4f2; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 #${PANEL_ID} .s936lib-cardmeta { font-size:.62rem; color:#9fb0ae; }
-#${PANEL_ID} .s936lib-cardactions { display:flex; gap:5px; flex-wrap:wrap; margin-top:2px; }
+#${PANEL_ID} .s936lib-cardactions { display:flex; align-items:center; gap:6px; margin-top:2px; }
 #${PANEL_ID} .s936lib-mini { background:#1c2224; border:1px solid #333; color:#cfe; border-radius:6px; padding:4px 7px; font-size:.62rem; font-weight:700; cursor:pointer; }
-#${PANEL_ID} .s936lib-mini.play { color:#00ffcc; border-color:rgba(0,255,204,.4); }
+#${PANEL_ID} .s936lib-mini.play { color:#00ffcc; border-color:rgba(0,255,204,.4); flex:1; }
 #${PANEL_ID} .s936lib-mini.danger { border-color:rgba(255,90,90,.5); color:#ff9a9a; }
-#${PANEL_ID} .s936lib-genretag { font-size:.6rem; background:rgba(255,224,102,.1); color:#ffe066; border:1px solid rgba(255,224,102,.35); border-radius:999px; padding:2px 7px; align-self:flex-start; }
+#${PANEL_ID} .s936lib-iconbtn { background:transparent; border:1px solid #2c3234; color:#9fb0ae; border-radius:6px; width:24px; height:24px; flex-shrink:0; cursor:pointer; font-size:.72rem; display:flex; align-items:center; justify-content:center; }
+#${PANEL_ID} .s936lib-iconbtn:hover { border-color:#5be8c9; color:#5be8c9; }
+#${PANEL_ID} .s936lib-iconbtn.danger:hover { border-color:#ff9a9a; color:#ff9a9a; }
+#${PANEL_ID} .s936lib-iconbtn.active { background:rgba(0,255,204,.15); border-color:#00ffcc; color:#00ffcc; }
+#${PANEL_ID} .s936lib-genretag { font-size:.58rem; background:rgba(91,232,201,.08); color:#7fe9d2; border:1px solid rgba(91,232,201,.25); border-radius:999px; padding:2px 8px; align-self:flex-start; font-weight:600; }
+
+#${PANEL_ID} .s936lib-addtile { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; cursor:pointer; padding:10px; border-radius:12px; border:1.5px dashed rgba(0,255,204,.35); background:rgba(0,255,204,.02); min-height:150px; color:#5be8c9; font-size:.76rem; font-weight:800; text-align:center; }
+#${PANEL_ID} .s936lib-addtile:hover { border-color:#00ffcc; background:rgba(0,255,204,.06); }
+#${PANEL_ID} .s936lib-addtile .plus { font-size:1.8rem; line-height:1; }
 
 #${PANEL_ID} .s936lib-listwrap { max-height:100%; }
 #${PANEL_ID} .s936lib-list-row { display:flex; align-items:center; gap:12px; padding:9px 10px; border-radius:8px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,.05); }
@@ -303,18 +313,32 @@
     // ---------------------------------------------------------------
     // Composiciones
     // ---------------------------------------------------------------
-    function compositionCardActions(item){
+    function compositionCardActions(item, compact){
         const box = el('div', 's936lib-cardactions');
         const isPlaying = currentPlayingComp === item.id;
         const playBtn = el('button', 's936lib-mini play', isPlaying ? '⏸ Sonando' : '▶ Play');
         playBtn.onclick = (e) => { e.stopPropagation(); previewComposition(item.id); };
-        const openBtn = el('button', 's936lib-mini', 'Abrir');
-        openBtn.onclick = (e) => { e.stopPropagation(); openComposition(item.id); };
-        const dupBtn = el('button', 's936lib-mini', 'Duplicar');
-        dupBtn.onclick = (e) => { e.stopPropagation(); duplicateComposition(item.id); };
-        const delBtn = el('button', 's936lib-mini danger', 'Borrar');
-        delBtn.onclick = (e) => { e.stopPropagation(); deleteComposition(item.id); };
-        box.append(playBtn, openBtn, dupBtn, delBtn);
+        box.appendChild(playBtn);
+        if(compact){
+            const openBtn = el('button', 's936lib-iconbtn', '⏏');
+            openBtn.title = 'Abrir';
+            openBtn.onclick = (e) => { e.stopPropagation(); openComposition(item.id); };
+            const dupBtn = el('button', 's936lib-iconbtn', '⧉');
+            dupBtn.title = 'Duplicar';
+            dupBtn.onclick = (e) => { e.stopPropagation(); duplicateComposition(item.id); };
+            const delBtn = el('button', 's936lib-iconbtn danger', '✕');
+            delBtn.title = 'Borrar';
+            delBtn.onclick = (e) => { e.stopPropagation(); deleteComposition(item.id); };
+            box.append(openBtn, dupBtn, delBtn);
+        } else {
+            const openBtn = el('button', 's936lib-mini', 'Abrir');
+            openBtn.onclick = (e) => { e.stopPropagation(); openComposition(item.id); };
+            const dupBtn = el('button', 's936lib-mini', 'Duplicar');
+            dupBtn.onclick = (e) => { e.stopPropagation(); duplicateComposition(item.id); };
+            const delBtn = el('button', 's936lib-mini danger', 'Borrar');
+            delBtn.onclick = (e) => { e.stopPropagation(); deleteComposition(item.id); };
+            box.append(openBtn, dupBtn, delBtn);
+        }
         return box;
     }
 
@@ -412,10 +436,11 @@
             const grid = el('div', 's936lib-grid');
             list.forEach((item) => {
                 const card = el('div', 's936lib-card' + (currentPlayingComp === item.id ? ' playing' : ''));
-                const bubble = el('div', 's936lib-bubble', '🎼');
+                const bubble = el('div', 's936lib-bubble');
+                bubble.appendChild(el('span', '', '🎼'));
                 const title = el('div', 's936lib-cardtitle', item.title);
                 const meta = el('div', 's936lib-cardmeta', (item.author || 'Sin autor') + ' · ' + fmtDate(item.updated));
-                card.append(bubble, title, meta, genreTag('compositions', item), compositionCardActions(item));
+                card.append(bubble, title, meta, genreTag('compositions', item), compositionCardActions(item, true));
                 grid.appendChild(card);
             });
             body.appendChild(grid);
@@ -504,26 +529,48 @@
         render();
     }
 
+    function buildImportTile(){
+        const tile = el('div', 's936lib-addtile');
+        tile.appendChild(el('div', 'plus', '+'));
+        tile.appendChild(el('div', '', 'Importar MP3/MP4'));
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file'; fileInput.accept = 'audio/*,video/mp4'; fileInput.multiple = true; fileInput.style.display = 'none';
+        fileInput.onchange = (e) => importAudioFiles(e.target.files);
+        tile.onclick = () => fileInput.click();
+        tile.appendChild(fileInput);
+        return tile;
+    }
+
     function renderAudios(body){
         const list = store.audios.filter(x => matchesSearch(x) && (!activeGenreFilter || x.genre === activeGenreFilter));
         if(!list.length){
+            if(viewMode === 'grid' && !store.audios.length){
+                const grid = el('div', 's936lib-grid');
+                grid.appendChild(buildImportTile());
+                body.appendChild(grid);
+                return;
+            }
             body.appendChild(el('div', 's936lib-empty', store.audios.length ? 'Sin resultados.' : 'Todavía no has importado audios. Usa "Importar MP3/MP4" arriba.'));
             return;
         }
         if(viewMode === 'grid'){
             const grid = el('div', 's936lib-grid');
+            grid.appendChild(buildImportTile());
             list.forEach((song) => {
                 const isPlaying = currentPlayingId === song.id && !currentPlayingComp;
                 const card = el('div', 's936lib-card' + (isPlaying ? ' playing' : ''));
-                const bubble = el('div', 's936lib-bubble', isPlaying ? '▶' : '🎧');
+                const bubble = el('div', 's936lib-bubble');
+                bubble.appendChild(el('span', '', isPlaying ? '▶' : '🎧'));
                 const title = el('div', 's936lib-cardtitle', song.title);
                 const meta = el('div', 's936lib-cardmeta', song.author || 'Sin autor');
                 const actions = el('div', 's936lib-cardactions');
                 const playBtn = el('button', 's936lib-mini play', isPlaying ? '⏸ Sonando' : '▶ Play');
                 playBtn.onclick = (e) => { e.stopPropagation(); playAudio(song.id); };
-                const qBtn = el('button', 's936lib-mini', queue.includes(song.id) ? 'En cola ✓' : '+ Cola');
+                const qBtn = el('button', 's936lib-iconbtn' + (queue.includes(song.id) ? ' active' : ''), '➕');
+                qBtn.title = queue.includes(song.id) ? 'En cola — quitar' : 'Agregar a la cola';
                 qBtn.onclick = (e) => { e.stopPropagation(); toggleQueue(song.id); };
-                const delBtn = el('button', 's936lib-mini danger', 'Quitar');
+                const delBtn = el('button', 's936lib-iconbtn danger', '✕');
+                delBtn.title = 'Quitar';
                 delBtn.onclick = (e) => { e.stopPropagation(); deleteAudio(song.id); };
                 actions.append(playBtn, qBtn, delBtn);
                 card.append(bubble, title, meta, genreTag('audios', song), actions);
