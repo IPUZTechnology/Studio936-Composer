@@ -1994,3 +1994,17 @@ body.v25ux-clean #v18Suite #b25SuiteClose{
 #playBtn.btn-all::before{ background:radial-gradient(circle, #26e8e0, transparent 70%); }
 #playBtn.btn-stop::before, #playBtn.btn-all.btn-song-active::before{ opacity:.85; }
 #playBtn img{ filter:drop-shadow(0 0 10px rgba(255,255,255,.25)); }
+
+/* Cambio 176: estándar de scrollbar para todo el proyecto — delgado,
+   verdoso/cian de marca, discreto. Cualquier módulo (Suite Pro, Chart,
+   Librería, etc.) que quiera un scroll bonito y consistente con el
+   resto de la app debe agregar esta clase a su contenedor con scroll,
+   en vez de inventar un estilo de scroll distinto cada vez. */
+.s936-thin-scroll{
+    scrollbar-width:thin;
+    scrollbar-color:rgba(0,255,204,.35) transparent;
+}
+.s936-thin-scroll::-webkit-scrollbar{ width:7px; height:7px; }
+.s936-thin-scroll::-webkit-scrollbar-track{ background:transparent; }
+.s936-thin-scroll::-webkit-scrollbar-thumb{ background:rgba(0,255,204,.28); border-radius:10px; }
+.s936-thin-scroll::-webkit-scrollbar-thumb:hover{ background:rgba(0,255,204,.5); }
