@@ -275,11 +275,14 @@
 #${PANEL_ID}.s936lib-state-mini { position:fixed; width:300px; height:auto; max-height:none; pointer-events:auto; box-shadow:0 20px 50px rgba(0,0,0,.6), 0 0 30px rgba(0,255,204,.15); }
 #${PANEL_ID}.s936lib-state-mini .s936lib-tabs,
 #${PANEL_ID}.s936lib-state-mini .s936lib-toolbar,
-#${PANEL_ID}.s936lib-state-mini .s936lib-eqrow,
 #${PANEL_ID}.s936lib-state-mini #s936lib-yt-list-slot { display:none !important; }
-/* Cambio 181: LCD mucho más chico en mini — sin ecualizador (ya no cabe
-   ni hace falta a este tamaño) ni la marca "936 PLAYER" repetida (ya
-   está en el header de arriba). Solo título + tiempo + progreso. */
+/* Cambio 183: en mini, el ecualizador ya no se oculta del todo — se
+   convierte en un mini-mixer chiquitito junto al título (sin repetir el
+   texto "936 PLAYER", que ya está arriba en el header). */
+#${PANEL_ID}.s936lib-state-mini .s936lib-eqrow { margin-top:3px; padding-bottom:3px; gap:6px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-eqbrand { display:none; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-eqside { height:11px; gap:1px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-eqside i { width:3px; }
 #${PANEL_ID}.s936lib-state-mini .s936lib-lcdwrap { padding:6px 10px 0; }
 #${PANEL_ID}.s936lib-state-mini .s936lib-lcd { padding:6px 10px; }
 #${PANEL_ID}.s936lib-state-mini .s936lib-nowtitle { font-size:.72rem; }
@@ -401,7 +404,7 @@
 .s936lib-ytform-floating .s936lib-actionbtn { background:rgba(0,255,204,.12); border:1px solid #00ffcc; color:#00ffcc; border-radius:8px; padding:7px 12px; font-size:.76rem; font-weight:700; cursor:pointer; }
 #${PANEL_ID} .s936lib-ytform input, #${PANEL_ID} .s936lib-ytform textarea { background:#1c2224; border:1px solid #333; border-radius:8px; padding:7px 9px; color:#e8f4f2; font-size:.78rem; font-family:inherit; }
 #${PANEL_ID} .s936lib-ytform textarea { resize:vertical; min-height:44px; }
-#${PANEL_ID} .s936lib-ytembed { width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; border:1px solid #333; margin-bottom:14px; }
+#${PANEL_ID} .s936lib-ytembed { width:100%; max-width:100%; aspect-ratio:16/9; max-height:min(46vh,420px); margin:0 auto 14px; background:#000; border-radius:10px; border:1px solid #333; }
 #${PANEL_ID} .s936lib-ytembed iframe { width:100%; height:100%; border:none; border-radius:10px; }
 #${PANEL_ID} .s936lib-ytplaceholder { width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; border:1px solid #333; margin-bottom:14px; display:flex; align-items:center; justify-content:center; color:#9fb0ae; font-size:.8rem; text-align:center; padding:20px; }
 #${PANEL_ID} .s936lib-ytsearchbar { display:flex; align-items:center; gap:8px; width:100%; background:#1c2224; border:1px solid #333; border-radius:999px; padding:6px 14px; margin-bottom:0; }
