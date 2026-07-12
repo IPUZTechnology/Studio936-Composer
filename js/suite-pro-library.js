@@ -63,6 +63,47 @@
     function esc(str){
         return String(str==null?'':str).replace(/[&<>"']/g, (c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
+
+    // Cambio 200: reemplaza confirm()/alert() nativos del navegador (se
+    // veían pegados arriba, con el nombre del sitio, fuera del look de la
+    // app) por un modal propio, con el mismo estilo suave del resto del
+    // 936 Player. Ambos devuelven una Promesa — se usan con "await".
+    function s936ModalBase(message, buttons){
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(10,13,14,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:16px;';
+            const modal = document.createElement('div');
+            modal.style.cssText = 'background:linear-gradient(180deg,#161b1d,#0d1112);border:1px solid rgba(91,232,201,.25);border-radius:16px;width:100%;max-width:380px;padding:20px;box-shadow:0 24px 70px rgba(0,0,0,.55), 0 0 30px rgba(0,255,204,.04);';
+            const text = document.createElement('div');
+            text.textContent = message;
+            text.style.cssText = 'color:#e8f4f2;font-size:.84rem;line-height:1.5;margin-bottom:18px;white-space:pre-line;';
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;';
+            const finish = (result) => { overlay.remove(); resolve(result); };
+            buttons.forEach(({label, value, primary}) => {
+                const btn = document.createElement('button');
+                btn.textContent = label;
+                btn.style.cssText = primary
+                    ? 'background:rgba(0,255,204,.12);border:1px solid #00ffcc;color:#00ffcc;border-radius:8px;padding:8px 16px;font-size:.76rem;font-weight:700;cursor:pointer;'
+                    : 'background:transparent;border:1px solid rgba(255,255,255,.15);color:#9fb0ae;border-radius:8px;padding:8px 16px;font-size:.76rem;font-weight:700;cursor:pointer;';
+                btn.onclick = () => finish(value);
+                row.appendChild(btn);
+            });
+            overlay.onclick = (e) => { if(e.target === overlay) finish(false); };
+            modal.append(text, row);
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+        });
+    }
+    function s936Confirm(message){
+        return s936ModalBase(message, [
+            { label:'Cancelar', value:false, primary:false },
+            { label:'Confirmar', value:true, primary:true }
+        ]);
+    }
+    function s936Alert(message){
+        return s936ModalBase(message, [{ label:'Entendido', value:true, primary:true }]);
+    }
     function fmtDate(ts){
         if(!ts) return '';
         try { return new Date(ts).toLocaleDateString(undefined, {day:'2-digit', month:'short', year:'numeric'}); }
@@ -350,10 +391,10 @@
         });
     }
 
-    function deleteAlbum(id){
+    async function deleteAlbum(id){
         const a = getAlbum(id);
         if(!a) return;
-        if(!confirm('¿Borrar el álbum "' + a.name + '"? Las composiciones que estaban ahí quedan sin álbum (no se borran).')) return;
+        if(!await s936Confirm('¿Borrar el álbum "' + a.name + '"? Las composiciones que estaban ahí quedan sin álbum (no se borran).')) return;
         store.albums = store.albums.filter(x => x.id !== id);
         store.compositions.forEach((c) => { if(c.albumId === id) c.albumId = null; });
         if(store.activeAlbumId === id) store.activeAlbumId = null;
@@ -1033,12 +1074,64 @@
         openLinkAudioPopover(item, anchorEl);
     }
 
-    function openComposition(id){
+    // Cambio 201: cuál composición quedó "actual" (la que se abrió por
+    // última vez) — se guarda para cuando el guardado real del editor
+    // (todavía pendiente de limpiar del otro lado, según nos dijiste)
+    // decida actualizar esta misma en vez de crear una copia nueva.
+    const CURRENT_OPEN_KEY = 's936_library_current_open_id';
+    function setCurrentOpenCompositionId(id){
+        try { localStorage.setItem(CURRENT_OPEN_KEY, id || ''); } catch(_) {}
+    }
+    function getCurrentOpenCompositionId(){
+        try { return localStorage.getItem(CURRENT_OPEN_KEY) || null; } catch(_) { return null; }
+    }
+
+    // Cambio 201: guarda o actualiza — si hay una composición marcada como
+    // "actual" (se abrió con Abrir), actualiza ESA en vez de crear una
+    // nueva. Pensado para que el botón de guardar real (del lado del
+    // editor, todavía pendiente de conectar) lo use en vez de duplicar
+    // canciones cada vez que guardas la misma.
+    function saveOrUpdateCurrent(snapshot){
+        if(!snapshot) return null;
+        const openId = getCurrentOpenCompositionId();
+        const existing = openId ? store.compositions.find(x => x.id === openId) : null;
+        if(existing){
+            existing.project = snapshot;
+            existing.title = snapshot.title || existing.title;
+            existing.author = snapshot.author || existing.author;
+            existing.genre = snapshot.style || existing.genre;
+            existing.updated = Date.now();
+            saveStore();
+            tryWriteCompositionJsonToConfiguredFolder(existing);
+            render();
+            return existing.id;
+        }
+        const entry = {
+            id: uid('c'),
+            title: snapshot.title || 'Sin título',
+            author: snapshot.author || '',
+            updated: Date.now(),
+            genre: snapshot.style || '',
+            playlists: [],
+            albumId: store.activeAlbumId || null,
+            previewAudioId: null,
+            project: snapshot
+        };
+        store.compositions.unshift(entry);
+        saveStore();
+        tryWriteCompositionJsonToConfiguredFolder(entry);
+        setCurrentOpenCompositionId(entry.id);
+        render();
+        return entry.id;
+    }
+
+    async function openComposition(id){
         const item = store.compositions.find(x => x.id === id);
         if(!item) return;
-        if(!confirm('¿Abrir "' + item.title + '" en el editor? Se reemplaza lo que tengas ahí ahora mismo sin guardar (si no lo has guardado, se pierde).')) return;
+        if(!await s936Confirm('¿Abrir "' + item.title + '" en el editor? Se reemplaza lo que tengas ahí ahora mismo sin guardar (si no lo has guardado, se pierde).')) return;
         const ok = window.Studio936AppBridge?.loadProject?.(item.project);
-        if(ok === false){ alert('No se pudo abrir esta composición — el proyecto guardado parece dañado o incompleto.'); return; }
+        if(ok === false){ await s936Alert('No se pudo abrir esta composición — el proyecto guardado parece dañado o incompleto.'); return; }
+        setCurrentOpenCompositionId(id);
         close();
         // Cambio 199: sin esto, los datos se actualizaban por detrás pero
         // nunca se veía nada — falta llamar a openArea('compose') para que
@@ -1056,26 +1149,6 @@
         render();
     }
 
-    // Cambio 196: sin esto, cada vez que guardabas de nuevo la misma
-    // canción mientras la refinabas, quedaba una copia nueva en vez de
-    // actualizar la que ya tenías — esto sobrescribe ESTA composición con
-    // lo que esté abierto ahora mismo en el editor.
-    function updateCompositionFromEditor(id){
-        const item = store.compositions.find(x => x.id === id);
-        if(!item) return;
-        const snapshot = window.Studio936AppBridge?.getProjectSnapshot?.();
-        if(!snapshot){ alert('No se pudo leer lo que está abierto en el editor ahora mismo.'); return; }
-        if(!confirm('¿Actualizar "' + item.title + '" con lo que tienes abierto ahora mismo en el editor? Esto reemplaza la versión guardada — no se puede deshacer.')) return;
-        item.project = snapshot;
-        item.title = snapshot.title || item.title;
-        item.author = snapshot.author || item.author;
-        item.genre = snapshot.style || item.genre;
-        item.updated = Date.now();
-        saveStore();
-        tryWriteCompositionJsonToConfiguredFolder(item);
-        render();
-    }
-
     function duplicateComposition(id){
         const item = store.compositions.find(x => x.id === id);
         if(!item) return;
@@ -1088,11 +1161,12 @@
         render();
     }
 
-    function deleteComposition(id){
+    async function deleteComposition(id){
         const item = store.compositions.find(x => x.id === id);
         if(!item) return;
-        if(!confirm('¿Borrar "' + item.title + '"? Esta acción no se puede deshacer.')) return;
+        if(!await s936Confirm('¿Borrar "' + item.title + '"? Esta acción no se puede deshacer.')) return;
         store.compositions = store.compositions.filter(x => x.id !== id);
+        if(getCurrentOpenCompositionId() === id) setCurrentOpenCompositionId(null);
         saveStore();
         render();
     }
@@ -1316,9 +1390,9 @@
         document.body.appendChild(overlay);
     }
 
-    function saveCurrentComposition(anchorBtn){
+    async function saveCurrentComposition(anchorBtn){
         const snapshot = window.Studio936AppBridge?.getProjectSnapshot?.();
-        if(!snapshot){ alert('No se pudo leer la composición actual.'); return; }
+        if(!snapshot){ await s936Alert('No se pudo leer la composición actual.'); return; }
         if(genrePlaylistPopoverEl){ closeGenrePlaylistPopover(); return; }
         const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover');
         pop.appendChild(el('div', 's936lib-gptitle', 'Guardar "' + (snapshot.title || 'Sin título') + '"'));
@@ -1346,6 +1420,7 @@
             store.compositions.unshift(entry);
             saveStore();
             tryWriteCompositionJsonToConfiguredFolder(entry);
+            setCurrentOpenCompositionId(entry.id);
             closeGenrePlaylistPopover();
             render();
         };
@@ -1464,7 +1539,6 @@
                 actions.append(playBtn, genreTag('compositions', item));
                 const kebab = buildKebabMenu([
                     { icon:'⏏', label:'Abrir', onClick: () => openComposition(item.id) },
-                    { icon:'🔄', label:'Actualizar desde el editor', onClick: () => updateCompositionFromEditor(item.id) },
                     { icon:'✎', label:'Cambiar nombre', onClick: () => renameComposition(item.id) },
                     { icon:'🏷', label:'Editar listas', onClick: () => openEditGenrePlaylistPopover('compositions', item) },
                     { icon:'⧉', label:'Duplicar', onClick: () => duplicateComposition(item.id) },
@@ -1493,7 +1567,6 @@
                 actions.append(playBtn, genreTag('compositions', item));
                 const kebab = buildKebabMenu([
                     { icon:'⏏', label:'Abrir', onClick: () => openComposition(item.id) },
-                    { icon:'🔄', label:'Actualizar desde el editor', onClick: () => updateCompositionFromEditor(item.id) },
                     { icon:'✎', label:'Cambiar nombre', onClick: () => renameComposition(item.id) },
                     { icon:'🏷', label:'Editar listas', onClick: () => openEditGenrePlaylistPopover('compositions', item) },
                     { icon:'⧉', label:'Duplicar', onClick: () => duplicateComposition(item.id) },
@@ -1545,12 +1618,12 @@
         genrePlaylistPopoverEl = pop;
     }
 
-    function playAudio(id, titleOverride, subOverride){
+    async function playAudio(id, titleOverride, subOverride){
         const song = store.audios.find(x => x.id === id);
         if(!song) return;
         const objectURL = audioObjectURLs[id];
         if(!objectURL){
-            alert('Este audio necesita que vuelvas a seleccionar su archivo (los navegadores no guardan el audio entre sesiones). Usa "Importar" de nuevo con el mismo archivo.');
+            await s936Alert('Este audio necesita que vuelvas a seleccionar su archivo (los navegadores no guardan el audio entre sesiones). Usa "Importar" de nuevo con el mismo archivo.');
             return;
         }
         currentPlayingId = id;
@@ -1598,10 +1671,10 @@
         render();
     }
 
-    function deleteAudio(id){
+    async function deleteAudio(id){
         const item = store.audios.find(x => x.id === id);
         if(!item) return;
-        if(!confirm('¿Quitar "' + item.title + '" de tus audios?')) return;
+        if(!await s936Confirm('¿Quitar "' + item.title + '" de tus audios?')) return;
         store.audios = store.audios.filter(x => x.id !== id);
         delete audioObjectURLs[id];
         saveStore();
@@ -1764,10 +1837,10 @@
         render();
     }
 
-    function deleteYoutube(id){
+    async function deleteYoutube(id){
         const item = store.youtube.find(x => x.id === id);
         if(!item) return;
-        if(!confirm('¿Borrar el favorito "' + item.title + '"?')) return;
+        if(!await s936Confirm('¿Borrar el favorito "' + item.title + '"?')) return;
         store.youtube = store.youtube.filter(x => x.id !== id);
         if(currentYoutubeId === id) currentYoutubeId = null;
         saveStore();
@@ -2312,6 +2385,12 @@
         open, close, toggle,
         importFiles: importAudioFiles,
         addYoutubeFavorite,
-        saveCurrentComposition
+        saveCurrentComposition,
+        // Cambio 201: para cuando se conecte el guardado real del lado del
+        // editor (pendiente, según Val) — guarda o actualiza según cuál
+        // composición esté marcada como "actual" (la última que se abrió).
+        saveOrUpdateCurrent,
+        getCurrentOpenCompositionId,
+        setCurrentOpenCompositionId
     };
 })();
