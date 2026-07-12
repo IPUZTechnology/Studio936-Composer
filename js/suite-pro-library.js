@@ -32,6 +32,10 @@
 
     let store = null;
     let activeTab = 'recent';
+    // Cambio 219: al entrar al Mini Player se muestra la fuente que de
+    // verdad está activa (Rockola, MP3 o Composición), aunque el usuario
+    // hubiera navegado a Recientes. Al restaurar vuelve a su pestaña previa.
+    let tabBeforeMini = null;
     let viewMode = localStorage.getItem(VIEW_MODE_KEY) === 'list' ? 'list' : 'grid';
     let activeGenreFilter = null;
     let activePlaylistFilter = null;
@@ -177,6 +181,11 @@
     // dejan de depender de la pestaña visible o del último botón pulsado.
     let youtubeStatus = 'idle'; // idle | loading | playing | paused | ended | error
     let ytClockTimer = null;
+    // Cambio 219: vigilancia ligera del estado real de YouTube. Algunos
+    // embeds pueden empezar a reproducir sin que el último callback deje
+    // actualizado el LCD; este único timer reconcilia PLAYING/BUFFERING/
+    // PAUSED para que nunca quede "CARGANDO" mientras el video ya suena.
+    let ytStateWatchTimer = null;
     let playerVolume = 80;
     // Cambio 212: cuál fue la última fuente que arrancó de verdad — sin
     // esto, si dejas un MP3 pausado (con audioEl.src aún puesto) y luego
@@ -241,6 +250,31 @@
     }
     function stopYoutubeClock(){
         if(ytClockTimer){ clearInterval(ytClockTimer); ytClockTimer = null; }
+    }
+    function stopYoutubeStateWatch(){
+        if(ytStateWatchTimer){ clearInterval(ytStateWatchTimer); ytStateWatchTimer = null; }
+    }
+    function startYoutubeStateWatch(){
+        stopYoutubeStateWatch();
+        ytStateWatchTimer = setInterval(() => {
+            if(!ytPlayer || !window.YT || typeof ytPlayer.getPlayerState !== 'function') return;
+            let realState;
+            try { realState = ytPlayer.getPlayerState(); } catch(_) { return; }
+            const expected = realState === window.YT.PlayerState.PLAYING ? 'playing'
+                : realState === window.YT.PlayerState.BUFFERING ? 'loading'
+                : realState === window.YT.PlayerState.PAUSED ? 'paused'
+                : realState === window.YT.PlayerState.ENDED ? 'ended'
+                : (realState === window.YT.PlayerState.CUED || realState === window.YT.PlayerState.UNSTARTED)
+                    ? (currentYoutubeId ? 'paused' : 'idle')
+                    : youtubeStatus;
+            if(expected !== youtubeStatus || (expected === 'playing' && !isYoutubePlaying)){
+                handleYtStateChange({ data: realState });
+            } else if(expected === 'playing' && !ytClockTimer){
+                // Asegura que tiempo y progreso sigan vivos incluso si un
+                // callback anterior detuvo temporalmente el reloj.
+                startYoutubeClock();
+            }
+        }, 700);
     }
     function handleYtStateChange(event){
         if(!window.YT) return;
@@ -711,32 +745,131 @@
 #${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube.s936lib-max-search-open #s936lib-yt-list-slot .s936lib-ytcard {
     min-width:0;
 }
-#${PANEL_ID}.s936lib-state-mini { position:fixed; width:300px; height:auto; max-height:none; pointer-events:auto; box-shadow:0 20px 50px rgba(0,0,0,.6), 0 0 30px rgba(0,255,204,.15); }
+/* Cambio 219: Mini Player común para Rockola, MP3 y Composiciones.
+   Importante: estas reglas NO modifican el Modo Práctica maximizado. */
+#${PANEL_ID}Overlay.s936lib-state-mini { z-index:2147483000; }
+#${PANEL_ID}.s936lib-state-mini {
+    position:fixed;
+    z-index:2147483001;
+    width:320px;
+    height:auto;
+    min-height:0;
+    max-height:calc(100dvh - 16px);
+    pointer-events:auto;
+    border-radius:14px;
+    box-shadow:0 20px 50px rgba(0,0,0,.68), 0 0 30px rgba(0,255,204,.15);
+}
 #${PANEL_ID}.s936lib-state-mini .s936lib-tabs,
 #${PANEL_ID}.s936lib-state-mini .s936lib-toolbar,
-#${PANEL_ID}.s936lib-state-mini #s936lib-yt-list-slot { display:none !important; }
-/* Cambio 183: en mini, el ecualizador ya no se oculta del todo — se
-   convierte en un mini-mixer chiquitito junto al título (sin repetir el
-   texto "936 PLAYER", que ya está arriba en el header). */
-#${PANEL_ID}.s936lib-state-mini .s936lib-eqrow { margin-top:3px; padding-bottom:3px; gap:6px; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-eqbrand { display:none; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-eqside { height:11px; gap:1px; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-eqside i { width:3px; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-lcdwrap { padding:6px 10px 0; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-lcd { padding:6px 10px; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-nowtitle { font-size:.72rem; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-nowtime { font-size:.6rem; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-nowsub { font-size:.62rem; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-progress { margin-top:5px; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-controlrow { padding:5px 10px; gap:6px; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-controlrow > button { width:24px; height:22px; font-size:.68rem; border-radius:7px; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-body { padding:0; max-height:none; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-body > *:not(.s936lib-mini-keep) { display:none !important; }
-#${PANEL_ID}.s936lib-state-mini #s936lib-yt-embed-slot { margin:0; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-ytembed { margin:0; border-radius:0 0 16px 16px; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-header { cursor:grab; padding:6px 10px; }
+#${PANEL_ID}.s936lib-state-mini #s936lib-yt-list-slot,
+#${PANEL_ID}.s936lib-state-mini .s936lib-viewbtn { display:none !important; }
+
+/* Encabezado compacto: LIBRERÍA MÚSICA, sin repetir 936 PLAYER. */
+#${PANEL_ID}.s936lib-state-mini .s936lib-header {
+    cursor:grab;
+    padding:6px 9px;
+    flex:0 0 auto;
+    gap:6px;
+}
 #${PANEL_ID}.s936lib-state-mini .s936lib-header:active { cursor:grabbing; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-header h2 { font-size:.8rem; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-headertext { gap:5px; align-items:center; min-width:0; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-eyebrow { font-size:.48rem; letter-spacing:1.1px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-header h2 { font-size:.72rem; letter-spacing:1px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-winbtn,
+#${PANEL_ID}.s936lib-state-mini .s936lib-closebtn { padding:3px 6px; }
+
+/* LCD mini: estado/título separados del mixer. La marca vuelve al centro
+   como 936 + STUDIO 936, tal como se definió para el mini. */
+#${PANEL_ID}.s936lib-state-mini .s936lib-lcdwrap { padding:5px 8px 0; flex:0 0 auto; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-lcd { padding:6px 8px 4px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-lcdstatus { font-size:.54rem; letter-spacing:.25px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-nowtitle { font-size:.72rem; margin-top:2px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-nowtime { font-size:.58rem; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-nowsub { display:none !important; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-eqrow {
+    margin-top:7px;
+    padding-bottom:4px;
+    gap:5px;
+    min-height:18px;
+}
+#${PANEL_ID}.s936lib-state-mini .s936lib-eqbrand {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-width:43px;
+    font-size:.62rem;
+    line-height:1;
+    letter-spacing:2.2px;
+    opacity:.9;
+}
+#${PANEL_ID}.s936lib-state-mini .s936lib-eqbrand::after {
+    content:'STUDIO 936';
+    margin-top:2px;
+    font-size:.36rem;
+    font-weight:700;
+    letter-spacing:.55px;
+    color:#9fb0ae;
+    text-shadow:none;
+    opacity:.8;
+}
+#${PANEL_ID}.s936lib-state-mini .s936lib-eqside { height:13px; gap:1px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-eqside i { width:3px; }
+
+/* Barra visualmente fina, pero con área de interacción cómoda. */
+#${PANEL_ID}.s936lib-state-mini .s936lib-progress { height:10px; margin-top:2px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-progress::before,
+#${PANEL_ID}.s936lib-state-mini .s936lib-progress b { height:3px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-progress b { box-shadow:0 0 3px rgba(0,255,204,.45); }
+#${PANEL_ID}.s936lib-state-mini .s936lib-progress b::after { width:7px; height:7px; right:-3px; }
+
+/* Transporte mínimo: anterior, play/pausa, siguiente y volumen. */
+#${PANEL_ID}.s936lib-state-mini .s936lib-controlrow {
+    padding:5px 8px;
+    gap:6px;
+    flex:0 0 auto;
+}
+#${PANEL_ID}.s936lib-state-mini .s936lib-controlrow > button {
+    width:25px;
+    height:23px;
+    font-size:.66rem;
+    border-radius:7px;
+}
+#${PANEL_ID}.s936lib-state-mini .s936lib-controlrow > button.s936lib-playbtn { width:42px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-vol { margin-left:auto; }
+
+/* El cuerpo deja de heredar la altura mínima de la biblioteca. Termina
+   exactamente donde termina el video o la carátula. */
+#${PANEL_ID}.s936lib-state-mini .s936lib-body {
+    flex:0 0 auto;
+    width:100%;
+    height:auto;
+    min-height:0;
+    max-height:none;
+    padding:0;
+    overflow:hidden;
+}
+#${PANEL_ID}.s936lib-state-mini .s936lib-body > *:not(.s936lib-mini-keep) { display:none !important; }
+#${PANEL_ID}.s936lib-state-mini #s936lib-yt-embed-slot {
+    width:100%;
+    height:auto;
+    min-height:0;
+    margin:0;
+}
+#${PANEL_ID}.s936lib-state-mini .s936lib-ytembed,
+#${PANEL_ID}.s936lib-state-mini .s936lib-compvisual {
+    width:100%;
+    height:auto;
+    aspect-ratio:16/9;
+    max-height:none;
+    margin:0;
+    border:0;
+    border-radius:0 0 13px 13px;
+    overflow:hidden;
+}
+#${PANEL_ID}.s936lib-state-mini .s936lib-ytembed iframe { border-radius:0 0 13px 13px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-compvisual-media { object-fit:contain; background:#000; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-compvisual-hint { font-size:.66rem; }
 #${PANEL_ID} .s936lib-winbtn { background:transparent; border:none; color:#9fb0ae; font-size:1rem; cursor:pointer; line-height:1; padding:4px 8px; border-radius:6px; }
 #${PANEL_ID} .s936lib-winbtn:hover { background:rgba(255,255,255,.08); color:#e8f4f2; }
 
@@ -2369,9 +2502,10 @@
     }
 
     function renderAudios(body){
-        // En búsqueda/filtro se priorizan resultados: el visual grande no
-        // debe empujar la lista fuera de la pantalla.
-        if(!searchQuery && !activePlaylistFilter && !activeGenreFilter) body.appendChild(buildAudioVisual());
+        // En la ventana normal, una búsqueda prioriza los resultados. En
+        // Mini Player la carátula/fallback es obligatoria aunque hubiera
+        // quedado una búsqueda activa antes de minimizar.
+        if(windowState === 'mini' || (!searchQuery && !activePlaylistFilter && !activeGenreFilter)) body.appendChild(buildAudioVisual());
         const list = store.audios.filter(x => matchesSearch(x, [x.fileName]) && (!activeGenreFilter || x.genre === activeGenreFilter));
         if(!list.length){
             if(viewMode === 'grid' && !store.audios.length){
@@ -2750,9 +2884,13 @@
     function renderYoutubeEmbed(embedSlot, current){
         if((current ? current.id : null) === lastEmbeddedYoutubeId) return;
         lastEmbeddedYoutubeId = current ? current.id : null;
-        if(ytPlayer){ try { ytPlayer.destroy(); } catch(_) {} ytPlayer = null; }
+        if(ytPlayer){
+            stopYoutubeStateWatch();
+            try { ytPlayer.destroy(); } catch(_) {}
+            ytPlayer = null;
+        }
         embedSlot.innerHTML = '';
-        if(!current){ lcdYoutubeTitle = null; updateLcd(); return; }
+        if(!current){ stopYoutubeStateWatch(); lcdYoutubeTitle = null; updateLcd(); return; }
         // Cambio 179: el LCD debe reflejar el video que de verdad está en
         // pantalla — antes solo se actualizaba cuando elegías uno a mano
         // (selectYoutubeVideo); el video mostrado por defecto (el primero
@@ -2779,7 +2917,10 @@
             if(!document.getElementById(iframeId)) return;
             ytPlayer = new window.YT.Player(iframeId, {
                 events: {
-                    onReady: (event) => { try { event.target.setVolume(playerVolume); } catch(_) {} },
+                    onReady: (event) => {
+                        try { event.target.setVolume(playerVolume); } catch(_) {}
+                        startYoutubeStateWatch();
+                    },
                     onStateChange: handleYtStateChange,
                     onError: handleYtError
                 }
@@ -3227,35 +3368,61 @@
     // panel NUNCA se destruye ni se reconstruye al cambiar de estado, solo
     // se redimensiona/reposiciona, así el iframe de YouTube nunca se
     // interrumpe.
+    function miniSourceTab(){
+        if(lastActiveSource === 'youtube' && lcdYoutubeTitle) return 'youtube';
+        if(lastActiveSource === 'local' && currentPlayingComp) return 'compositions';
+        if(lastActiveSource === 'local' && currentPlayingId) return 'audios';
+        return activeTab;
+    }
+
     function setWindowState(newState){
         const panel = document.getElementById(PANEL_ID);
         const overlay = document.getElementById(PANEL_ID + 'Overlay');
         if(!panel || !overlay) return;
+        const previousState = windowState;
+        let mustRender = false;
+
         panel.classList.remove('s936lib-state-maximized', 's936lib-state-mini');
         overlay.classList.remove('s936lib-state-mini', 's936lib-state-maximized');
         windowState = newState;
+
         if(newState === 'maximized'){
             panel.classList.add('s936lib-state-maximized');
             overlay.classList.add('s936lib-state-maximized');
             panel.style.left = ''; panel.style.top = '';
-            // Cambio 217: no usar Fullscreen API del navegador. Los menús,
-            // filtros y formularios flotantes se insertan en <body>; al
-            // entrar en fullscreen nativo quedaban fuera del árbol visible
-            // y parecían "no funcionar". El overlay fijo ya ocupa toda la
-            // ventana y conserva todas las acciones operativas.
+            // Modo Práctica del Cambio 218: se conserva exactamente.
             if(document.fullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+            if(previousState === 'mini') tabBeforeMini = null;
+            mustRender = true;
         } else if(newState === 'mini'){
+            if(previousState !== 'mini') tabBeforeMini = activeTab;
+            const sourceTab = miniSourceTab();
+            if(sourceTab !== activeTab){
+                activeTab = sourceTab;
+                activeGenreFilter = null;
+                activePlaylistFilter = null;
+                activeAlbumFilter = null;
+                searchQuery = '';
+            }
             panel.classList.add('s936lib-state-mini');
             overlay.classList.add('s936lib-state-mini');
             const pos = miniPos || { left: window.innerWidth - 380, top: window.innerHeight - 320 };
             panel.style.left = Math.max(8, pos.left) + 'px';
             panel.style.top = Math.max(8, pos.top) + 'px';
             if(document.fullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+            mustRender = true;
         } else {
+            if(previousState === 'mini' && tabBeforeMini){
+                activeTab = tabBeforeMini;
+                tabBeforeMini = null;
+            }
             panel.style.left = ''; panel.style.top = '';
             if(document.fullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+            mustRender = true;
         }
+
         syncMaximizedSearchOverlay();
+        if(mustRender) render();
     }
 
     function enableDrag(panel, headerEl){
