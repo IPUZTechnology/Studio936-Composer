@@ -49,6 +49,15 @@
     let queue = [];
     let audioEl = null;
     let eqTimer = null;
+    // Cambio 210 (Fase 2): análisis real de audio — un solo AudioContext y
+    // un solo AnalyserNode para TODO el reproductor, conectados una única
+    // vez al mismo <audio> que ya existe. Nunca se crea uno nuevo por
+    // tarjeta ni por canción — sería carísimo y no es lo que se pidió.
+    let s936AudioCtx = null;
+    let s936Analyser = null;
+    let s936AnalyserSource = null;
+    let s936FreqData = null;
+    let s936NextHintTimer = null;
     // Cambio 209: estado del LCD contextual — "cargando" y "error" son
     // momentos breves detectados por eventos reales del <audio>, nunca
     // inventados.
@@ -739,18 +748,53 @@
         document.head.appendChild(style);
     }
 
+    // Cambio 210 (Fase 2): conecta el analizador real UNA sola vez — si ya
+    // existe, lo reutiliza. `createMediaElementSource` solo se puede llamar
+    // una vez por elemento <audio> en toda su vida, por eso se cachea.
+    function ensureAudioAnalyser(){
+        if(!audioEl) return null;
+        if(s936Analyser) return s936Analyser;
+        try {
+            s936AudioCtx = s936AudioCtx || new (window.AudioContext || window.webkitAudioContext)();
+            s936AnalyserSource = s936AudioCtx.createMediaElementSource(audioEl);
+            s936Analyser = s936AudioCtx.createAnalyser();
+            s936Analyser.fftSize = 64;
+            s936AnalyserSource.connect(s936Analyser);
+            s936Analyser.connect(s936AudioCtx.destination);
+            s936FreqData = new Uint8Array(s936Analyser.frequencyBinCount);
+        } catch(_) { /* navegador sin soporte, o ya conectado — cae al procedimental */ }
+        return s936Analyser;
+    }
+
     // ---------------------------------------------------------------
     // Ecualizador animado — solo corre mientras algo esté sonando
     // ---------------------------------------------------------------
     function startEqAnimation(){
         stopEqAnimation();
+        if(s936AudioCtx && s936AudioCtx.state === 'suspended') s936AudioCtx.resume().catch(()=>{});
+        ensureAudioAnalyser();
         eqTimer = setInterval(() => {
             const panel = document.getElementById(PANEL_ID);
             if(!panel) return;
-            panel.querySelectorAll('.s936lib-eqside i').forEach((bar) => {
-                bar.style.height = (3 + Math.random()*19) + 'px';
-            });
-        }, 380);
+            const bars = panel.querySelectorAll('.s936lib-eqside i');
+            // Cambio 210: si hay audio LOCAL sonando (composición/MP3) y el
+            // analizador está conectado, usa datos REALES del espectro —
+            // no un patrón aleatorio disfrazado de "reactivo".
+            if(s936Analyser && audioEl && audioEl.src && !audioEl.paused){
+                s936Analyser.getByteFrequencyData(s936FreqData);
+                const n = s936FreqData.length;
+                bars.forEach((bar, i) => {
+                    const bin = 1 + Math.floor(((i % 16) / 16) * (n - 1) * 0.7);
+                    const v = s936FreqData[Math.min(bin, n - 1)] / 255;
+                    bar.style.height = (3 + v * 19) + 'px';
+                });
+            } else {
+                // YouTube (o cualquier fuente sin analizador real): animación
+                // procedimental sincronizada con "está sonando", sin fingir
+                // que analiza el audio — tal como se pidió.
+                bars.forEach((bar) => { bar.style.height = (3 + Math.random()*19) + 'px'; });
+            }
+        }, 110);
     }
     function stopEqAnimation(){
         if(eqTimer){ clearInterval(eqTimer); eqTimer = null; }
@@ -1849,6 +1893,22 @@
         startEqAnimation();
         updateLcd(null, titleOverride || song.title, subOverride || (song.author || 'Audio'));
         render();
+        // Cambio 210: si hay algo en cola, lo muestra unos segundos y luego
+        // vuelve al subtítulo normal — información contextual, temporal,
+        // tal como se pidió (no permanente). Va DESPUÉS de render() porque
+        // render() llama a updateLcd() y pisaría este texto si fuera antes.
+        if(queue.length && !titleOverride){
+            const nextSong = store.audios.find(x => x.id === queue[0]);
+            if(nextSong){
+                clearTimeout(s936NextHintTimer);
+                const panel = document.getElementById(PANEL_ID);
+                const subEl = panel?.querySelector('.s936lib-nowsub');
+                if(subEl) subEl.textContent = 'Siguiente: ' + nextSong.title;
+                s936NextHintTimer = setTimeout(() => {
+                    if(subEl) subEl.textContent = song.author || 'Audio';
+                }, 4000);
+            }
+        }
     }
 
     function togglePlayPause(){
