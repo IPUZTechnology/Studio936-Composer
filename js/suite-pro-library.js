@@ -634,9 +634,8 @@
    espíritu que el embed de Mini Rockola. */
 #${PANEL_ID} .s936lib-compvisual { width:100%; aspect-ratio:16/9; max-height:min(62vh,540px); border-radius:10px; overflow:hidden; margin-bottom:14px; position:relative; background:#000; display:flex; align-items:center; justify-content:center; }
 #${PANEL_ID}.s936lib-state-maximized .s936lib-compvisual { max-height:72vh; }
-#${PANEL_ID} .s936lib-compvisual-media { width:100%; height:100%; object-fit:cover; }
-#${PANEL_ID} .s936lib-compvisual-zoom { background-size:cover; background-position:center; animation:s936CompZoom 14s ease-in-out infinite alternate; }
-@keyframes s936CompZoom { from { transform:scale(1); } to { transform:scale(1.09); } }
+#${PANEL_ID} .s936lib-compvisual-media { width:100%; height:100%; object-fit:contain; }
+#${PANEL_ID} .s936lib-compvisual-zoom { background-size:contain; background-repeat:no-repeat; background-position:center; }
 #${PANEL_ID} .s936lib-compvisual-hint { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#9fb0ae; font-size:.8rem; background:rgba(0,0,0,.35); text-align:center; padding:0 20px; }
 #${PANEL_ID} .s936lib-compvisual.s936lib-comp-noart .s936lib-comp-wave { width:60%; height:50%; }
 `;
@@ -1038,6 +1037,36 @@
         if(window.Studio936AppBridge?.loadProject) window.Studio936AppBridge.loadProject(item.project);
     }
 
+    function renameComposition(id){
+        const item = store.compositions.find(x => x.id === id);
+        if(!item) return;
+        const value = prompt('Nuevo nombre para esta composición:', item.title);
+        if(value === null || !value.trim()) return;
+        item.title = value.trim();
+        saveStore();
+        render();
+    }
+
+    // Cambio 196: sin esto, cada vez que guardabas de nuevo la misma
+    // canción mientras la refinabas, quedaba una copia nueva en vez de
+    // actualizar la que ya tenías — esto sobrescribe ESTA composición con
+    // lo que esté abierto ahora mismo en el editor.
+    function updateCompositionFromEditor(id){
+        const item = store.compositions.find(x => x.id === id);
+        if(!item) return;
+        const snapshot = window.Studio936AppBridge?.getProjectSnapshot?.();
+        if(!snapshot){ alert('No se pudo leer lo que está abierto en el editor ahora mismo.'); return; }
+        if(!confirm('¿Actualizar "' + item.title + '" con lo que tienes abierto ahora mismo en el editor? Esto reemplaza la versión guardada — no se puede deshacer.')) return;
+        item.project = snapshot;
+        item.title = snapshot.title || item.title;
+        item.author = snapshot.author || item.author;
+        item.genre = snapshot.style || item.genre;
+        item.updated = Date.now();
+        saveStore();
+        tryWriteCompositionJsonToConfiguredFolder(item);
+        render();
+    }
+
     function duplicateComposition(id){
         const item = store.compositions.find(x => x.id === id);
         if(!item) return;
@@ -1426,6 +1455,8 @@
                 actions.append(playBtn, genreTag('compositions', item));
                 const kebab = buildKebabMenu([
                     { icon:'⏏', label:'Abrir', onClick: () => openComposition(item.id) },
+                    { icon:'🔄', label:'Actualizar desde el editor', onClick: () => updateCompositionFromEditor(item.id) },
+                    { icon:'✎', label:'Cambiar nombre', onClick: () => renameComposition(item.id) },
                     { icon:'⧉', label:'Duplicar', onClick: () => duplicateComposition(item.id) },
                     { icon:'💿', label:'Mover a álbum', onClick: () => openMoveToAlbumPopover(item, kebab.querySelector('.s936lib-kebab')) },
                     { icon:'✕', label:'Borrar', danger:true, onClick: () => deleteComposition(item.id) }
@@ -1452,6 +1483,8 @@
                 actions.append(playBtn, genreTag('compositions', item));
                 const kebab = buildKebabMenu([
                     { icon:'⏏', label:'Abrir', onClick: () => openComposition(item.id) },
+                    { icon:'🔄', label:'Actualizar desde el editor', onClick: () => updateCompositionFromEditor(item.id) },
+                    { icon:'✎', label:'Cambiar nombre', onClick: () => renameComposition(item.id) },
                     { icon:'⧉', label:'Duplicar', onClick: () => duplicateComposition(item.id) },
                     { icon:'💿', label:'Mover a álbum', onClick: () => openMoveToAlbumPopover(item, kebab.querySelector('.s936lib-kebab')) },
                     { icon:'✕', label:'Borrar', danger:true, onClick: () => deleteComposition(item.id) }
