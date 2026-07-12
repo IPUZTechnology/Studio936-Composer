@@ -49,6 +49,11 @@
     let queue = [];
     let audioEl = null;
     let eqTimer = null;
+    // Cambio 209: estado del LCD contextual — "cargando" y "error" son
+    // momentos breves detectados por eventos reales del <audio>, nunca
+    // inventados.
+    let lcdLoading = false;
+    let lcdError = false;
 
     // ---------------------------------------------------------------
     // Utilidades
@@ -529,19 +534,51 @@
 #${PANEL_ID} .s936lib-tab.active { color:#5be8c9; border-bottom-color:#5be8c9; background:rgba(91,232,201,.06); }
 
 #${PANEL_ID} .s936lib-lcdwrap { padding:8px 16px 0; }
-#${PANEL_ID} .s936lib-lcd { background:#020805; border:1px solid rgba(0,255,204,.35); border-radius:10px; padding:7px 14px; box-shadow:inset 0 0 20px rgba(0,255,204,.06); }
+#${PANEL_ID} .s936lib-lcd {
+    background:
+        radial-gradient(circle at 50% 100%, rgba(0,230,195,.08), transparent 55%),
+        linear-gradient(180deg, #020b09 0%, #001410 100%);
+    border:1px solid rgba(0,255,204,.35);
+    border-radius:10px;
+    padding:7px 14px;
+    box-shadow: inset 0 0 22px rgba(0,230,195,.05), inset 0 1px 0 rgba(255,255,255,.035);
+}
 #${PANEL_ID} .s936lib-lcd .row1 { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
-#${PANEL_ID} .s936lib-nowtitle { font-size:.92rem; font-weight:800; color:#00ffcc; text-shadow:0 0 10px rgba(0,255,204,.5); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#${PANEL_ID} .s936lib-lcdstatus { font-size:.62rem; font-weight:800; letter-spacing:.5px; color:#5be8c9; opacity:.85; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#${PANEL_ID} .s936lib-nowtitle { font-size:.92rem; font-weight:800; color:#00ffcc; text-shadow:0 0 10px rgba(0,255,204,.5); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
 #${PANEL_ID} .s936lib-nowtime { font-family:monospace; color:#5be8c9; font-size:.76rem; flex-shrink:0; }
-#${PANEL_ID} .s936lib-nowsub { color:#9fb0ae; font-size:.66rem; margin-top:2px; }
+#${PANEL_ID} .s936lib-nowsub { color:#9fb0ae; font-size:.66rem; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #${PANEL_ID} .s936lib-eqrow { display:flex; align-items:center; justify-content:center; gap:14px; margin-top:6px; padding-bottom:6px; border-bottom:1px solid rgba(0,255,204,.12); }
 #${PANEL_ID} .s936lib-eqside { display:flex; gap:3px; align-items:flex-end; height:24px; flex:1; min-width:0; justify-content:center; }
 #${PANEL_ID} .s936lib-eqside.left { justify-content:flex-end; }
 #${PANEL_ID} .s936lib-eqside.right { justify-content:flex-start; }
-#${PANEL_ID} .s936lib-eqside i { flex:0 0 auto; width:6px; border-radius:2px; height:3px; display:block; }
-#${PANEL_ID} .s936lib-eqbrand { font-size:1.05rem; font-weight:900; letter-spacing:4px; color:#5be8c9; text-shadow:0 0 14px rgba(0,255,204,.55); white-space:nowrap; flex-shrink:0; text-align:center; }
-#${PANEL_ID} .s936lib-progress { height:6px; background:#111; border-radius:3px; margin-top:12px; overflow:hidden; }
-#${PANEL_ID} .s936lib-progress b { display:block; height:100%; width:0%; background:#00ffcc; box-shadow:0 0 8px #00ffcc; transition:width .2s linear; }
+#${PANEL_ID} .s936lib-eqside i { flex:0 0 auto; width:6px; border-radius:2px; height:3px; display:block; transition:height .3s ease; }
+/* Cambio 209: marca central reducida a "936" chico — deja de competir con
+   el título mientras suena algo (el "936 PLAYER" grande solo aparece como
+   título cuando el reproductor está inactivo). */
+#${PANEL_ID} .s936lib-eqbrand { font-size:.72rem; font-weight:900; letter-spacing:3px; color:#5be8c9; text-shadow:0 0 10px rgba(0,255,204,.45); white-space:nowrap; flex-shrink:0; text-align:center; opacity:.75; }
+/* Cambio 209: barra de progreso funcional — más delgada visualmente pero
+   con una zona de clic/arrastre bastante más grande (padding transparente
+   arriba y abajo), como pide la especificación. */
+#${PANEL_ID} .s936lib-progress { position:relative; height:16px; margin-top:10px; cursor:pointer; }
+#${PANEL_ID} .s936lib-progress::before { content:''; position:absolute; left:0; right:0; top:50%; height:5px; transform:translateY(-50%); background:#111; border-radius:3px; }
+#${PANEL_ID} .s936lib-progress b { position:absolute; left:0; top:50%; transform:translateY(-50%); display:block; height:5px; width:0%; background:#00ffcc; box-shadow:0 0 8px #00ffcc; border-radius:3px; transition:width .2s linear; pointer-events:none; }
+#${PANEL_ID} .s936lib-progress b::after { content:''; position:absolute; right:-4px; top:50%; width:9px; height:9px; border-radius:50%; background:#00ffcc; transform:translateY(-50%); box-shadow:0 0 6px rgba(0,255,204,.7); opacity:0; transition:opacity .15s ease; }
+#${PANEL_ID} .s936lib-progress:hover b::after { opacity:1; }
+
+/* Estados del LCD (Cambio 209) — idle: respiración lenta; cargando: pulso
+   horizontal; pausado: ecualizador congelado; error: sin animación. */
+#${PANEL_ID} .s936lib-lcd.is-idle .s936lib-eqbrand { animation:s936LcdBreathe 3.2s ease-in-out infinite; }
+#${PANEL_ID} .s936lib-lcd.is-loading .s936lib-eqrow { animation:s936LcdLoadingPulse 1.2s ease-in-out infinite; }
+#${PANEL_ID} .s936lib-lcd.is-paused .s936lib-eqside i { height:3px !important; }
+#${PANEL_ID} .s936lib-lcd.is-error .s936lib-nowtitle { color:#ff8a8a; text-shadow:none; }
+#${PANEL_ID} .s936lib-lcd.is-error .s936lib-lcdstatus { color:#ff8a8a; }
+@keyframes s936LcdBreathe { 0%, 100% { opacity:.5; } 50% { opacity:.95; } }
+@keyframes s936LcdLoadingPulse { 0%, 100% { opacity:.5; } 50% { opacity:1; } }
+@media (prefers-reduced-motion: reduce) {
+  #${PANEL_ID} .s936lib-lcd.is-idle .s936lib-eqbrand,
+  #${PANEL_ID} .s936lib-lcd.is-loading .s936lib-eqrow { animation:none; }
+}
 
 #${PANEL_ID} .s936lib-controlrow { display:flex; align-items:center; gap:10px; padding:10px 18px; border-bottom:1px solid rgba(255,255,255,.06); }
 #${PANEL_ID} .s936lib-controlrow > button { background:#1c2224; border:1px solid #333; color:#e8f4f2; border-radius:10px; width:34px; height:32px; cursor:pointer; font-size:.9rem; flex-shrink:0; }
@@ -1795,11 +1832,17 @@
         }
         currentPlayingId = id;
         if(!titleOverride) currentPlayingComp = null;
+        lcdError = false;
+        lcdLoading = true;
         if(!audioEl){
             audioEl = new Audio();
             audioEl.addEventListener('ended', playNextInQueue);
             audioEl.addEventListener('timeupdate', updateLcd);
             audioEl.addEventListener('loadedmetadata', updateLcd);
+            audioEl.addEventListener('loadstart', () => { lcdLoading = true; updateLcd(); });
+            audioEl.addEventListener('canplay', () => { lcdLoading = false; updateLcd(); });
+            audioEl.addEventListener('playing', () => { lcdLoading = false; lcdError = false; updateLcd(); });
+            audioEl.addEventListener('error', () => { lcdLoading = false; lcdError = true; updateLcd(); });
         }
         audioEl.src = objectURL;
         audioEl.play().catch(()=>{});
@@ -1995,16 +2038,41 @@
     // ---------------------------------------------------------------
     // LCD — "ahora suena" persistente (visible en cualquier pestaña)
     // ---------------------------------------------------------------
+    // Cambio 209: qué tipo de contenido está sonando ahora mismo — se
+    // deduce de datos ya reales (nunca inventados): si el <audio> tiene
+    // fuente, es composición o audio MP3 según currentPlayingComp; si no,
+    // puede ser YouTube (lcdYoutubeTitle); si nada de eso, está inactivo.
+    function lcdContentType(){
+        if(audioEl && audioEl.src) return currentPlayingComp ? 'compositions' : 'audios';
+        if(lcdYoutubeTitle) return 'youtube';
+        return null;
+    }
+    function lcdStatusLabel(type){
+        if(type === 'youtube') return '● EN VIVO · YOUTUBE';
+        if(!type) return '';
+        const typeLabel = type === 'compositions' ? 'COMPOSICIÓN' : 'AUDIO MP3';
+        const icon = type === 'compositions' ? '◆' : '〜';
+        let state = 'REPRODUCIENDO';
+        if(lcdError) state = 'ERROR';
+        else if(lcdLoading) state = 'CARGANDO';
+        else if(audioEl && audioEl.paused) state = 'PAUSADO';
+        return icon + ' ' + typeLabel + ' · ' + state;
+    }
+
     function updateLcd(_evt, titleOverride, subOverride){
         const panel = document.getElementById(PANEL_ID);
         if(!panel) return;
+        const lcdEl = panel.querySelector('.s936lib-lcd');
+        const statusEl = panel.querySelector('.s936lib-lcdstatus');
         const titleEl = panel.querySelector('.s936lib-nowtitle');
         const timeEl = panel.querySelector('.s936lib-nowtime');
         const subEl = panel.querySelector('.s936lib-nowsub');
         const progressBar = panel.querySelector('.s936lib-progress b');
         const playBtn = panel.querySelector('.s936lib-playbtn');
         if(!titleEl) return;
+
         if(titleOverride){
+            titleEl.title = titleOverride;
             titleEl.textContent = titleOverride;
             if(subEl) subEl.textContent = subOverride || 'Sonando ahora';
             lcdYoutubeTitle = null;
@@ -2014,6 +2082,7 @@
             // quedaba fijo en "Nada sonando" sin importar qué estuvieras
             // viendo.
             if(lcdYoutubeTitle){
+                titleEl.title = lcdYoutubeTitle;
                 titleEl.textContent = lcdYoutubeTitle;
                 if(subEl) subEl.textContent = '';
                 // Cambio 175: no hay forma de leer el tiempo real de un
@@ -2022,14 +2091,37 @@
                 // placeholder que nunca se llena.
                 if(timeEl) timeEl.textContent = '';
             } else {
-                titleEl.textContent = 'Nada sonando';
-                if(subEl) subEl.textContent = queue.length ? queue.length + ' en cola' : 'Elige algo en Audios o Composiciones';
+                // Cambio 209: "936 PLAYER" vuelve a ser la identidad
+                // central solo cuando no hay nada activo — mientras suena
+                // algo, el protagonista es el título, no la marca.
+                titleEl.title = '';
+                titleEl.textContent = '936 PLAYER';
+                if(subEl) subEl.textContent = queue.length ? queue.length + ' en cola' : 'Selecciona música para comenzar';
                 if(timeEl) timeEl.textContent = '';
             }
         }
-        if(audioEl && timeEl) timeEl.textContent = fmtTime(audioEl.currentTime) + ' / ' + fmtTime(audioEl.duration);
+
+        const type = lcdContentType();
+        if(statusEl) statusEl.textContent = lcdStatusLabel(type);
+        if(lcdEl) lcdEl.classList.toggle('is-idle', !type);
+
+        if(audioEl && timeEl && audioEl.src) timeEl.textContent = fmtTime(audioEl.currentTime) + ' / ' + fmtTime(audioEl.duration);
         if(audioEl && progressBar && audioEl.duration) progressBar.style.width = ((audioEl.currentTime/audioEl.duration)*100) + '%';
-        if(playBtn) playBtn.textContent = (audioEl && !audioEl.paused) ? '⏸' : '⏵';
+        if(playBtn) playBtn.textContent = (audioEl && audioEl.src && !audioEl.paused) ? '⏸' : '⏵';
+
+        // Cambio 209: estados visuales del ecualizador — cargando, error,
+        // pausado — sin agregar temporizadores nuevos, solo clases CSS.
+        if(lcdEl){
+            lcdEl.classList.toggle('is-loading', lcdLoading);
+            lcdEl.classList.toggle('is-error', lcdError);
+            lcdEl.classList.toggle('is-paused', !!(audioEl && audioEl.src && audioEl.paused && !lcdLoading && !lcdError));
+        }
+        if(lcdError){
+            titleEl.title = '';
+            titleEl.textContent = 'NO SE PUDO REPRODUCIR';
+            if(subEl) subEl.textContent = 'Intenta nuevamente';
+        }
+
         // Cambio 208: anillo de progreso de la "936 Sonic Cover" activa —
         // solo se actualiza la que está sonando (tarjeta/fila activa o el
         // visual grande), nunca las demás carátulas del listado.
@@ -2040,6 +2132,24 @@
                 ring.style.strokeDashoffset = String(c * (1 - pct));
             });
         }
+    }
+
+    // Cambio 209: la barra de progreso ahora es funcional de verdad — clic
+    // o arrastre para saltar a una posición. Solo aplica cuando hay un
+    // <audio> real con duración conocida (no YouTube — no tocamos ese
+    // reproductor, tal como se pidió).
+    function seekToPointerEvent(e, progressEl){
+        if(!audioEl || !audioEl.duration) return;
+        const rect = progressEl.getBoundingClientRect();
+        const pct = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+        audioEl.currentTime = pct * audioEl.duration;
+        updateLcd();
+    }
+    function wireProgressSeek(progressEl){
+        let dragging = false;
+        progressEl.addEventListener('mousedown', (e) => { dragging = true; seekToPointerEvent(e, progressEl); });
+        document.addEventListener('mousemove', (e) => { if(dragging) seekToPointerEvent(e, progressEl); });
+        document.addEventListener('mouseup', () => { dragging = false; });
     }
 
     function youtubeFilteredList(){
@@ -2501,12 +2611,13 @@
         });
 
         const lcdWrap = el('div', 's936lib-lcdwrap');
-        const lcd = el('div', 's936lib-lcd');
+        const lcd = el('div', 's936lib-lcd is-idle');
         const row1 = el('div', 'row1');
-        const nowTitle = el('div', 's936lib-nowtitle', 'Nada sonando');
-        const nowTime = el('div', 's936lib-nowtime', '--:-- / --:--');
-        row1.append(nowTitle, nowTime);
-        const nowSub = el('div', 's936lib-nowsub', 'Elige algo en Audios o Composiciones');
+        const nowStatus = el('div', 's936lib-lcdstatus', '');
+        const nowTime = el('div', 's936lib-nowtime', '');
+        row1.append(nowStatus, nowTime);
+        const nowTitle = el('div', 's936lib-nowtitle', '936 PLAYER');
+        const nowSub = el('div', 's936lib-nowsub', 'Selecciona música para comenzar');
         const eqRow = el('div', 's936lib-eqrow');
         const eqLeft = el('div', 's936lib-eqside left');
         const eqRight = el('div', 's936lib-eqside right');
@@ -2519,11 +2630,15 @@
             rightBar.style.background = lerpBarColor(i, BAR_COUNT, true);
             eqRight.appendChild(rightBar);
         }
-        const eqBrand = el('div', 's936lib-eqbrand', '936 PLAYER');
+        // Cambio 209: la marca central se reduce a "936" (chico) mientras
+        // suena algo — "936 PLAYER" (grande) ya es el título cuando no hay
+        // nada activo, no hace falta repetirlo aquí también.
+        const eqBrand = el('div', 's936lib-eqbrand', '936');
         eqRow.append(eqLeft, eqBrand, eqRight);
         const progress = el('div', 's936lib-progress');
         progress.appendChild(el('b'));
-        lcd.append(row1, nowSub, eqRow, progress);
+        wireProgressSeek(progress);
+        lcd.append(row1, nowTitle, nowSub, eqRow, progress);
         lcdWrap.appendChild(lcd);
 
         const controlRow = el('div', 's936lib-controlrow');
