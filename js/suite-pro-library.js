@@ -1,4 +1,4 @@
-// Studio 936 Composer — Librería / "936 Player" (Cambio 226)
+// Studio 936 Composer — Librería / "936 Player" (Cambio 228)
 //
 // QUÉ ES: el mismo módulo unificado del Cambio 165/166 (Composiciones,
 // Audios, YouTube, Géneros, Recientes — con migración de los dos
@@ -29,6 +29,7 @@
     const RECENT_TYPE_FILTER_KEY = 's936_library_recent_type';
     const RECENT_SORT_KEY = 's936_library_recent_sort';
     const STAGE_VIEW_KEY = 's936_library_stage_view';
+    const STAGE_FILTERS_KEY = 's936_library_stage_filters';
     const OLD_COMPOSITIONS_KEY = 'studio936ComposerLibraryV18';
     const OLD_AUDIO_META_KEY = 's936_library_meta_v1';
     const PANEL_ID = 's936LibraryPanel';
@@ -49,7 +50,14 @@
     // recordados entre aperturas, sin alterar las demás pestañas.
     let recentTypeFilter = localStorage.getItem(RECENT_TYPE_FILTER_KEY) || 'all';
     let recentSortMode = localStorage.getItem(RECENT_SORT_KEY) || 'recent';
-    let stageViewMode = localStorage.getItem(STAGE_VIEW_KEY) || 'portfolio'; // portfolio | private | saved
+    let stageViewMode = localStorage.getItem(STAGE_VIEW_KEY) || 'portfolio'; // portfolio | private | saved | collab
+    let stageFilters = (() => {
+        const defaults = { genre:'all', source:'all', visibility:'all', collab:false, sort:'recent' };
+        try { return { ...defaults, ...(JSON.parse(localStorage.getItem(STAGE_FILTERS_KEY) || '{}') || {}) }; }
+        catch(_) { return defaults; }
+    })();
+    let stageSpotlightIndex = 0;
+    let stageSpotlightTimer = null;
     let audioObjectURLs = {};
     let currentPlayingId = null;   // id de audio sonando (de store.audios)
     let currentPlayingComp = null; // id de composición cuyo preview está sonando (mismo audio, distinta procedencia)
@@ -1282,7 +1290,7 @@
 /* Cambio 226: Recientes = continuidad de trabajo, no copia de la
    biblioteca. La jerarquía es Continuar → filtros → grupos cronológicos. */
 
-/* Cambio 227: Escenario 936 — portafolio publicable local, preparado
+/* Cambio 228: Escenario 936 — portafolio publicable local, preparado
    para conectarse después a cuentas, nube y comunidad real. */
 #${PANEL_ID} .s936stage-shell { display:flex; flex-direction:column; gap:17px; }
 #${PANEL_ID} .s936stage-hero {
@@ -1354,6 +1362,159 @@
 #${PANEL_ID} .s936stage-communitytitle { color:#dce9e7; font-size:.72rem; font-weight:950; }
 #${PANEL_ID} .s936stage-communitydesc { margin-top:3px; color:#738481; font-size:.61rem; line-height:1.4; }
 #${PANEL_ID} .s936stage-soon { color:#c58a4a; font-size:.56rem; font-weight:950; letter-spacing:.9px; text-transform:uppercase; }
+
+/* Cambio 228: Escenario Spotlight — banner editorial vivo, KPIs compactos
+   y filtros profesionales sin duplicar la acción principal Publicar obra. */
+#${PANEL_ID} .s936stage-hero.s936stage-spotlight {
+    min-height:202px; padding:0; isolation:isolate;
+    border-color:rgba(197,138,74,.34);
+    background:linear-gradient(135deg,#101917 0%,#071210 57%,#17120c 100%);
+}
+#${PANEL_ID} .s936stage-hero.s936stage-spotlight::before {
+    content:''; position:absolute; inset:0; z-index:-2;
+    background:
+      radial-gradient(circle at 16% 118%,rgba(197,138,74,.20),transparent 38%),
+      radial-gradient(circle at 82% 12%,rgba(0,255,204,.15),transparent 35%),
+      linear-gradient(90deg,rgba(255,255,255,.018),transparent 45%);
+}
+#${PANEL_ID} .s936stage-hero.s936stage-spotlight::after {
+    right:24px; bottom:-46px; color:rgba(0,255,204,.032); font-size:10rem;
+}
+#${PANEL_ID} .s936stage-spotlight-grid {
+    position:relative; z-index:1; display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(230px,300px); min-height:202px;
+}
+#${PANEL_ID} .s936stage-spotlight-main {
+    position:relative; min-width:0; padding:22px 25px 19px;
+    border-right:1px solid rgba(255,255,255,.055);
+}
+#${PANEL_ID} .s936stage-live-label {
+    display:inline-flex; align-items:center; gap:7px; color:#c58a4a;
+    font-size:.54rem; font-weight:950; letter-spacing:1.8px; text-transform:uppercase;
+}
+#${PANEL_ID} .s936stage-live-label::before {
+    content:''; width:5px; height:5px; border-radius:50%; background:#c58a4a;
+    box-shadow:0 0 9px rgba(197,138,74,.6);
+}
+#${PANEL_ID} .s936stage-slides { display:grid; margin-top:9px; min-height:113px; }
+#${PANEL_ID} .s936stage-slide {
+    grid-area:1/1; align-self:start; opacity:0; visibility:hidden; pointer-events:none;
+    transform:translateY(10px); transition:opacity .42s ease,transform .42s ease,visibility .42s;
+}
+#${PANEL_ID} .s936stage-slide.active { opacity:1; visibility:visible; pointer-events:auto; transform:translateY(0); }
+#${PANEL_ID} .s936stage-slide-kicker {
+    color:#5be8c9; font-size:.57rem; font-weight:900; letter-spacing:1.3px; text-transform:uppercase;
+}
+#${PANEL_ID} .s936stage-slide-title {
+    margin-top:5px; max-width:690px; color:#f3fbf9; font-size:1.42rem;
+    line-height:1.15; font-weight:950; letter-spacing:-.35px;
+}
+#${PANEL_ID} .s936stage-slide-desc {
+    margin-top:7px; max-width:690px; color:#91a5a1; font-size:.71rem; line-height:1.5;
+}
+#${PANEL_ID} .s936stage-slide-action {
+    margin-top:13px; border:1px solid rgba(197,138,74,.48); border-radius:9px;
+    background:rgba(197,138,74,.085); color:#e0ab72; padding:7px 12px;
+    font:inherit; font-size:.66rem; font-weight:900; cursor:pointer;
+    transition:border-color .16s ease,background .16s ease,transform .16s ease;
+}
+#${PANEL_ID} .s936stage-slide-action:hover { border-color:#c58a4a; background:rgba(197,138,74,.14); transform:translateY(-1px); }
+#${PANEL_ID} .s936stage-spotlight-nav {
+    display:flex; align-items:center; gap:7px; position:absolute; left:25px; bottom:14px;
+}
+#${PANEL_ID} .s936stage-spotlight-arrow {
+    width:24px; height:24px; display:grid; place-items:center; padding:0;
+    border:1px solid rgba(255,255,255,.10); border-radius:50%; background:rgba(0,0,0,.18);
+    color:#839693; font:inherit; font-size:.64rem; cursor:pointer;
+}
+#${PANEL_ID} .s936stage-spotlight-arrow:hover { color:#5be8c9; border-color:rgba(0,255,204,.35); }
+#${PANEL_ID} .s936stage-spotlight-dots { display:flex; align-items:center; gap:5px; margin:0 2px; }
+#${PANEL_ID} .s936stage-spotlight-dot {
+    width:5px; height:5px; padding:0; border:0; border-radius:99px;
+    background:#40504d; cursor:pointer; transition:width .2s ease,background .2s ease,box-shadow .2s ease;
+}
+#${PANEL_ID} .s936stage-spotlight-dot.active { width:18px; background:#00dcb1; box-shadow:0 0 8px rgba(0,255,204,.38); }
+#${PANEL_ID} .s936stage-spotlight-progress {
+    position:absolute; left:0; right:0; bottom:0; height:2px; overflow:hidden; background:rgba(255,255,255,.025);
+}
+#${PANEL_ID} .s936stage-spotlight-progress i { display:block; width:0; height:100%; background:linear-gradient(90deg,#c58a4a,#00dcb1); }
+#${PANEL_ID} .s936stage-spotlight.is-running .s936stage-spotlight-progress i { animation:s936StageSpotlightProgress 6.5s linear forwards; }
+@keyframes s936StageSpotlightProgress { from { width:0; } to { width:100%; } }
+#${PANEL_ID} .s936stage-insights {
+    position:relative; display:flex; flex-direction:column; justify-content:center;
+    gap:11px; padding:20px 20px 18px; background:linear-gradient(180deg,rgba(0,255,204,.035),rgba(0,0,0,.06));
+}
+#${PANEL_ID} .s936stage-insights-head { color:#768986; font-size:.53rem; font-weight:950; letter-spacing:1.4px; text-transform:uppercase; }
+#${PANEL_ID} .s936stage-metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+#${PANEL_ID} .s936stage-metric {
+    display:flex; align-items:center; gap:8px; min-width:0; padding:9px 9px;
+    border:1px solid rgba(255,255,255,.065); border-radius:10px; background:rgba(0,0,0,.15);
+}
+#${PANEL_ID} .s936stage-metric-icon { color:#c58a4a; font-size:.72rem; opacity:.95; }
+#${PANEL_ID} .s936stage-metric strong { display:block; color:#5be8c9; font-size:.88rem; line-height:1; font-weight:950; }
+#${PANEL_ID} .s936stage-metric span { display:block; margin-top:3px; color:#6f817e; font-size:.47rem; font-weight:850; letter-spacing:.45px; text-transform:uppercase; white-space:nowrap; }
+#${PANEL_ID} .s936stage-insights-foot {
+    display:flex; align-items:center; justify-content:space-between; gap:8px; color:#657673; font-size:.53rem;
+}
+#${PANEL_ID} .s936stage-insights-foot b { color:#c58a4a; font-weight:900; letter-spacing:.7px; }
+#${PANEL_ID} .s936stage-toolbar-filter { position:relative; }
+#${PANEL_ID} .s936stage-filterbtn.active {
+    border-color:rgba(197,138,74,.62); color:#dca369; background:rgba(197,138,74,.09);
+}
+#${PANEL_ID} .s936stage-filtercount {
+    display:inline-grid; place-items:center; min-width:16px; height:16px; margin-left:5px; padding:0 4px;
+    border-radius:99px; background:#c58a4a; color:#17110b; font-size:.52rem; font-weight:950;
+}
+.s936stage-filter-layer { position:fixed; inset:0; z-index:2147483600; background:transparent; }
+.s936stage-filter-popover {
+    position:fixed; width:min(330px,calc(100vw - 24px)); padding:14px;
+    border:1px solid rgba(91,232,201,.24); border-radius:13px;
+    background:linear-gradient(180deg,#171e1f,#0d1213); color:#eaf5f3;
+    box-shadow:0 22px 65px rgba(0,0,0,.62),0 0 30px rgba(0,255,204,.04);
+}
+.s936stage-filter-title { color:#f0f8f6; font-size:.78rem; font-weight:950; }
+.s936stage-filter-sub { margin-top:3px; color:#70817e; font-size:.58rem; line-height:1.4; }
+.s936stage-filter-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-top:12px; }
+.s936stage-filter-field { display:flex; flex-direction:column; gap:5px; }
+.s936stage-filter-field.wide { grid-column:1/-1; }
+.s936stage-filter-field label { color:#7e908d; font-size:.52rem; font-weight:900; letter-spacing:.65px; text-transform:uppercase; }
+.s936stage-filter-field select {
+    width:100%; border:1px solid #303a3b; border-radius:8px; background:#111718; color:#cbd8d5;
+    padding:7px 8px; font:inherit; font-size:.64rem;
+}
+.s936stage-filter-check { display:flex; align-items:center; gap:8px; color:#a5b4b1; font-size:.63rem; cursor:pointer; }
+.s936stage-filter-check input { accent-color:#00dcb1; }
+.s936stage-filter-actions { display:flex; justify-content:flex-end; gap:7px; margin-top:13px; }
+.s936stage-filter-actions button { border-radius:8px; padding:7px 11px; font:inherit; font-size:.62rem; font-weight:900; cursor:pointer; }
+.s936stage-filter-clear { border:1px solid #30393a; background:#121819; color:#899a97; }
+.s936stage-filter-apply { border:1px solid #00dcb1; background:#00dcb1; color:#052f28; }
+#${PANEL_ID} .s936stage-bar { align-items:center; }
+#${PANEL_ID} .s936stage-bar-right { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+#${PANEL_ID} .s936stage-resultcount { color:#71827f; font-size:.59rem; }
+#${PANEL_ID} .s936stage-filter-summary { display:flex; gap:5px; align-items:center; flex-wrap:wrap; }
+#${PANEL_ID} .s936stage-filter-pill {
+    padding:4px 7px; border:1px solid rgba(197,138,74,.28); border-radius:999px;
+    background:rgba(197,138,74,.055); color:#c99660; font-size:.52rem; font-weight:800;
+}
+#${PANEL_ID} .s936stage-badge.collab { color:#73e5cc; border-color:rgba(0,255,204,.34); }
+@media (max-width:760px) {
+  #${PANEL_ID} .s936stage-spotlight-grid { grid-template-columns:1fr; }
+  #${PANEL_ID} .s936stage-spotlight-main { border-right:0; border-bottom:1px solid rgba(255,255,255,.055); padding-bottom:45px; }
+  #${PANEL_ID} .s936stage-insights { padding:13px 18px; }
+  #${PANEL_ID} .s936stage-metrics { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  #${PANEL_ID} .s936stage-metric { flex-direction:column; text-align:center; gap:4px; }
+}
+@media (max-width:520px) {
+  #${PANEL_ID} .s936stage-slide-title { font-size:1.08rem; }
+  #${PANEL_ID} .s936stage-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .s936stage-filter-grid { grid-template-columns:1fr; }
+  .s936stage-filter-field.wide { grid-column:auto; }
+}
+@media (prefers-reduced-motion:reduce) {
+  #${PANEL_ID} .s936stage-slide { transition:none; }
+  #${PANEL_ID} .s936stage-spotlight-progress i { animation:none !important; }
+}
+
 .s936stage-modal-overlay { position:fixed; inset:0; z-index:2147483647; display:flex; align-items:center; justify-content:center; padding:18px; background:rgba(3,7,7,.72); backdrop-filter:blur(9px); }
 .s936stage-modal { width:min(720px,96vw); max-height:92vh; overflow:auto; border:1px solid rgba(0,255,204,.28); border-radius:17px; background:linear-gradient(180deg,#151b1c,#0b0f10); box-shadow:0 28px 90px rgba(0,0,0,.72),0 0 45px rgba(0,255,204,.055); color:#e9f5f3; }
 .s936stage-modal-head { position:sticky; top:0; z-index:2; display:flex; justify-content:space-between; gap:16px; align-items:flex-start; padding:17px 19px; border-bottom:1px solid rgba(255,255,255,.075); background:rgba(18,24,25,.96); backdrop-filter:blur(10px); }
@@ -3995,6 +4156,122 @@
     function stageVisibilityLabel(value){
         return value === 'community' ? 'Comunidad' : value === 'link' ? 'Solo con enlace' : 'Privado';
     }
+
+    function saveStageFilters(){
+        try { localStorage.setItem(STAGE_FILTERS_KEY, JSON.stringify(stageFilters)); } catch(_) {}
+    }
+    function stageActiveFilterCount(){
+        return ['genre','source','visibility'].reduce((n,key)=>n+(stageFilters[key] && stageFilters[key] !== 'all' ? 1 : 0),0)
+            + (stageFilters.collab ? 1 : 0) + (stageFilters.sort !== 'recent' ? 1 : 0);
+    }
+    function stageGenres(){
+        return Array.from(new Set(stagePosts().map(p=>String(p.genre||'').trim()).filter(Boolean)))
+            .sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'}));
+    }
+    function closeStageFilterPopover(){ document.querySelector('.s936stage-filter-layer')?.remove(); }
+    function openStageFilterPopover(anchor){
+        closeStageFilterPopover();
+        const draft = { ...stageFilters };
+        const layer = el('div','s936stage-filter-layer');
+        const pop = el('div','s936stage-filter-popover');
+        const rect = anchor.getBoundingClientRect();
+        const width = Math.min(330, window.innerWidth - 24);
+        pop.style.top = Math.min(rect.bottom + 8, window.innerHeight - 410) + 'px';
+        pop.style.left = Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12)) + 'px';
+        pop.append(el('div','s936stage-filter-title','Filtrar Escenario'),el('div','s936stage-filter-sub','Encuentra obras por género, origen, visibilidad o apertura a colaboración.'));
+        const grid = el('div','s936stage-filter-grid');
+        function selectField(label, options, value, onChange, wide){
+            const wrap=el('div','s936stage-filter-field'+(wide?' wide':''));
+            const lab=el('label','',label); const select=document.createElement('select');
+            options.forEach(([v,t])=>{const op=document.createElement('option');op.value=v;op.textContent=t;select.appendChild(op);});
+            select.value=value; select.onchange=()=>onChange(select.value); wrap.append(lab,select); return wrap;
+        }
+        grid.append(
+            selectField('Género',[['all','Todos los géneros'],...stageGenres().map(g=>[g,g])],draft.genre,v=>draft.genre=v),
+            selectField('Origen',[['all','Todo'],['compositions','Composiciones'],['audios','Audio MP3']],draft.source,v=>draft.source=v),
+            selectField('Visibilidad',[['all','Todas'],['private','Privadas'],['link','Solo con enlace'],['community','Comunidad']],draft.visibility,v=>draft.visibility=v),
+            selectField('Orden',[['recent','Más recientes'],['applause','Más aplaudidas'],['title','Título A–Z']],draft.sort,v=>draft.sort=v)
+        );
+        const collabWrap=el('div','s936stage-filter-field wide');
+        const collabLabel=el('label','s936stage-filter-check'); const collab=document.createElement('input'); collab.type='checkbox'; collab.checked=!!draft.collab;
+        collab.onchange=()=>draft.collab=collab.checked; collabLabel.append(collab,document.createTextNode(' Mostrar únicamente obras abiertas a colaboración'));
+        collabWrap.appendChild(collabLabel); grid.appendChild(collabWrap); pop.appendChild(grid);
+        const actions=el('div','s936stage-filter-actions');
+        const clear=el('button','s936stage-filter-clear','Restablecer');
+        clear.onclick=()=>{ stageFilters={genre:'all',source:'all',visibility:'all',collab:false,sort:'recent'}; saveStageFilters(); closeStageFilterPopover(); render(); };
+        const apply=el('button','s936stage-filter-apply','Aplicar filtros');
+        apply.onclick=()=>{ stageFilters=draft; saveStageFilters(); closeStageFilterPopover(); render(); };
+        actions.append(clear,apply); pop.appendChild(actions); layer.appendChild(pop); document.body.appendChild(layer);
+        layer.onclick=e=>{if(e.target===layer)closeStageFilterPopover();};
+        const onKey=e=>{if(e.key==='Escape'){closeStageFilterPopover();document.removeEventListener('keydown',onKey);}};
+        document.addEventListener('keydown',onKey,{once:true});
+    }
+    function stopStageSpotlightTimer(){
+        if(stageSpotlightTimer){ clearInterval(stageSpotlightTimer); stageSpotlightTimer=null; }
+        document.querySelector('.s936stage-spotlight')?.classList.remove('is-running');
+    }
+    function stageSetSpotlightIndex(index, count, restart){
+        if(!count) return;
+        stageSpotlightIndex=((index%count)+count)%count;
+        const hero=document.querySelector(`#${PANEL_ID} .s936stage-spotlight`);
+        if(!hero) return;
+        hero.querySelectorAll('.s936stage-slide').forEach((node,i)=>node.classList.toggle('active',i===stageSpotlightIndex));
+        hero.querySelectorAll('.s936stage-spotlight-dot').forEach((node,i)=>node.classList.toggle('active',i===stageSpotlightIndex));
+        hero.dataset.tone=hero.querySelector(`.s936stage-slide[data-index="${stageSpotlightIndex}"]`)?.dataset.tone || 'studio';
+        const progress=hero.querySelector('.s936stage-spotlight-progress i');
+        if(progress){ progress.style.animation='none'; void progress.offsetWidth; progress.style.animation=''; }
+        if(restart) startStageSpotlightTimer(count);
+    }
+    function startStageSpotlightTimer(count){
+        stopStageSpotlightTimer();
+        if(count<=1 || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+        const hero=document.querySelector(`#${PANEL_ID} .s936stage-spotlight`);
+        if(!hero || activeTab!=='genres') return;
+        hero.classList.add('is-running');
+        stageSpotlightTimer=setInterval(()=>stageSetSpotlightIndex(stageSpotlightIndex+1,count,false),6500);
+    }
+    function stageSpotlightSlides(all){
+        const applause=all.reduce((n,p)=>n+Number(p.applause||0),0);
+        const saved=all.filter(p=>p.saved).length;
+        const collabs=all.filter(p=>p.allowCollab);
+        const featured=all.slice().sort((a,b)=>Number(b.applause||0)-Number(a.applause||0) || Number(b.updatedAt||b.publishedAt||0)-Number(a.updatedAt||a.publishedAt||0))[0] || null;
+        const slides=[
+            {
+                kicker:'PRESENTA TU OBRA', tone:'studio',
+                title:'Tu música merece un lugar para ser presentada.',
+                desc:'Transforma una composición terminada en una presentación con historia, créditos, carátula, audio o video y control de visibilidad.',
+                cta:'Ver composiciones', run:()=>{activeTab='compositions';searchQuery='';render();}
+            },
+            {
+                kicker:'TU ESCENARIO EN MOVIMIENTO', tone:'community',
+                title:all.length ? `${all.length} ${all.length===1?'obra publicada':'obras publicadas'} en tu portafolio.` : 'Tu primer escenario ya está listo para recibir música.',
+                desc:all.length ? `${applause} aplausos y ${saved} obras guardadas resumen la actividad que has construido hasta ahora.` : 'Publica cuando la obra esté lista; la composición original siempre permanece intacta en tu biblioteca.',
+                cta:all.length?'Explorar portafolio':'Preparar una obra', run:()=>{ if(all.length){stageViewMode='portfolio';localStorage.setItem(STAGE_VIEW_KEY,'portfolio');renderBodyOnly();}else openStagePublishModal(); }
+            },
+            {
+                kicker:'COLABORACIÓN 936', tone:'collab',
+                title:collabs.length ? `${collabs.length} ${collabs.length===1?'obra está abierta':'obras están abiertas'} a colaboración.` : 'La próxima colaboración puede comenzar con una de tus canciones.',
+                desc:collabs.length ? 'Reúne voces, instrumentistas, arreglistas y productores alrededor de una obra con intención y créditos claros.' : 'Marca una publicación como abierta a colaboración para dejar preparada esta futura capa comunitaria.',
+                cta:collabs.length?'Ver colaboraciones':'Preparar publicación', run:()=>{ if(collabs.length){stageViewMode='collab';localStorage.setItem(STAGE_VIEW_KEY,'collab');renderBodyOnly();}else openStagePublishModal(); }
+            }
+        ];
+        if(featured){
+            slides.push({
+                kicker:'EN EL FOCO', tone:'featured',
+                title:`“${featured.title}”`,
+                desc:`${featured.author||'Studio 936'}${featured.genre?' · '+featured.genre:''}. Una obra destacada de tu escenario, lista para escuchar${featured.videoUrl?' o ver en video':''}.`,
+                cta:featured.videoUrl?'Abrir presentación':'Escuchar ahora', run:()=>featured.videoUrl?stageOpenVideo(featured):stagePlayPost(featured)
+            });
+        } else {
+            slides.push({
+                kicker:'DEL ESTUDIO AL ESCENARIO', tone:'featured',
+                title:'Compón, arregla, presenta y conserva la historia de cada versión.',
+                desc:'Escenario 936 conecta el trabajo creativo del estudio con una presentación pública limpia, sin convertir tu biblioteca en una red social compleja.',
+                cta:'Ver composiciones', run:()=>{activeTab='compositions';searchQuery='';render();}
+            });
+        }
+        return slides;
+    }
     function stagePostIsPlaying(post){
         if(post.sourceType === 'compositions') return currentPlayingComp === post.sourceId && !!audioEl?.src && !audioEl.paused;
         return isLocalAudioActuallyPlaying(post.sourceId);
@@ -4171,6 +4448,13 @@
         let posts=stagePosts().filter(post=>matchesSearch(post,[post.description,post.author,post.genre,stageVisibilityLabel(post.visibility)]));
         if(stageViewMode==='private') posts=posts.filter(post=>post.visibility==='private');
         if(stageViewMode==='saved') posts=posts.filter(post=>post.saved);
+        if(stageViewMode==='collab') posts=posts.filter(post=>post.allowCollab);
+        if(stageFilters.genre!=='all') posts=posts.filter(post=>String(post.genre||'').toLocaleLowerCase()===String(stageFilters.genre).toLocaleLowerCase());
+        if(stageFilters.source!=='all') posts=posts.filter(post=>post.sourceType===stageFilters.source);
+        if(stageFilters.visibility!=='all') posts=posts.filter(post=>post.visibility===stageFilters.visibility);
+        if(stageFilters.collab) posts=posts.filter(post=>post.allowCollab);
+        if(stageFilters.sort==='applause') return posts.sort((a,b)=>Number(b.applause||0)-Number(a.applause||0) || Number(b.updatedAt||b.publishedAt||0)-Number(a.updatedAt||a.publishedAt||0));
+        if(stageFilters.sort==='title') return posts.sort((a,b)=>String(a.title||'').localeCompare(String(b.title||''),undefined,{sensitivity:'base'}));
         return posts.sort((a,b)=>Number(b.updatedAt||b.publishedAt||0)-Number(a.updatedAt||a.publishedAt||0));
     }
     function stageBuildCard(post){
@@ -4180,6 +4464,7 @@
         const badges=el('div','s936stage-badges');
         badges.append(el('span','s936stage-badge',stageSourceLabel(post)),el('span','s936stage-badge visibility',stageVisibilityLabel(post.visibility)));
         if(post.videoUrl) badges.appendChild(el('span','s936stage-badge','VIDEO'));
+        if(post.allowCollab) badges.appendChild(el('span','s936stage-badge collab','COLABORACIÓN'));
         const play=el('button','s936stage-play',playing?'Ⅱ':'▶'); play.title=playing?'Pausar':'Escuchar'; play.onclick=e=>{e.stopPropagation();stagePlayPost(post);};
         media.append(badges,play);
         const content=el('div','s936stage-body');
@@ -4210,32 +4495,85 @@
         const posts=stageFilteredPosts();
         const all=stagePosts();
         const shell=el('div','s936stage-shell');
-        const hero=el('section','s936stage-hero');
-        const inner=el('div','s936stage-heroinner');
-        const copy=el('div','');
-        copy.append(el('div','s936stage-kicker','ESCENARIO 936'),el('div','s936stage-herotitle','Tu música merece un lugar para ser presentada.'),el('div','s936stage-herodesc','Convierte una composición o un audio terminado en una publicación elegante, con historia, créditos, carátula, video opcional y control de visibilidad. Esta primera versión funciona como tu portafolio musical personal.'));
-        const heroActions=el('div','s936stage-heroactions');
-        const publish=el('button','s936stage-primary','＋ Publicar una obra'); publish.onclick=()=>openStagePublishModal();
-        const originals=el('button','s936stage-secondary','Ver composiciones'); originals.onclick=()=>{activeTab='compositions';searchQuery='';render();};
-        heroActions.append(publish,originals); copy.appendChild(heroActions);
-        const stats=el('div','s936stage-stats');
-        [[all.length,'Publicaciones'],[all.reduce((n,p)=>n+Number(p.applause||0),0),'Aplausos'],[all.filter(p=>p.saved).length,'Guardadas']].forEach(([value,label])=>{const stat=el('div','s936stage-stat');stat.append(el('strong','',String(value)),el('span','',label));stats.appendChild(stat);});
-        inner.append(copy,stats); hero.appendChild(inner); shell.appendChild(hero);
 
-        const bar=el('div','s936stage-bar'); const tabs=el('div','s936stage-tabs');
-        [['portfolio','Portafolio',all.length],['private','Privadas',all.filter(p=>p.visibility==='private').length],['saved','Guardadas',all.filter(p=>p.saved).length]].forEach(([key,label,count])=>{const btn=el('button','s936stage-tab'+(stageViewMode===key?' active':''),`${label} · ${count}`);btn.onclick=()=>{stageViewMode=key;localStorage.setItem(STAGE_VIEW_KEY,key);renderBodyOnly();};tabs.appendChild(btn);});
-        bar.append(tabs,el('div','s936stage-localnote','Portafolio local preparado para futura comunidad y nube')); shell.appendChild(bar);
+        // Spotlight editorial: comunica, inspira y dirige acciones sin
+        // duplicar el botón principal “Publicar obra” de la barra superior.
+        const slides=stageSpotlightSlides(all);
+        stageSpotlightIndex=Math.min(stageSpotlightIndex,Math.max(0,slides.length-1));
+        const hero=el('section','s936stage-hero s936stage-spotlight');
+        const spotlightGrid=el('div','s936stage-spotlight-grid');
+        const main=el('div','s936stage-spotlight-main');
+        main.appendChild(el('div','s936stage-live-label','ESCENARIO 936 · SPOTLIGHT'));
+        const slidesWrap=el('div','s936stage-slides');
+        slides.forEach((slide,index)=>{
+            const node=el('article','s936stage-slide'+(index===stageSpotlightIndex?' active':''));
+            node.dataset.index=String(index); node.dataset.tone=slide.tone||'studio';
+            node.append(el('div','s936stage-slide-kicker',slide.kicker),el('div','s936stage-slide-title',slide.title),el('div','s936stage-slide-desc',slide.desc));
+            if(slide.cta){ const cta=el('button','s936stage-slide-action',slide.cta+'  →'); cta.onclick=slide.run; node.appendChild(cta); }
+            slidesWrap.appendChild(node);
+        });
+        main.appendChild(slidesWrap);
+        const nav=el('div','s936stage-spotlight-nav');
+        const prev=el('button','s936stage-spotlight-arrow','‹'); prev.title='Mensaje anterior'; prev.onclick=()=>stageSetSpotlightIndex(stageSpotlightIndex-1,slides.length,true);
+        const dots=el('div','s936stage-spotlight-dots');
+        slides.forEach((_,index)=>{ const dot=el('button','s936stage-spotlight-dot'+(index===stageSpotlightIndex?' active':'')); dot.title=`Ver mensaje ${index+1}`; dot.onclick=()=>stageSetSpotlightIndex(index,slides.length,true); dots.appendChild(dot); });
+        const next=el('button','s936stage-spotlight-arrow','›'); next.title='Mensaje siguiente'; next.onclick=()=>stageSetSpotlightIndex(stageSpotlightIndex+1,slides.length,true);
+        nav.append(prev,dots,next); main.appendChild(nav);
+        const progress=el('div','s936stage-spotlight-progress'); progress.appendChild(el('i')); main.appendChild(progress);
+
+        const insights=el('aside','s936stage-insights');
+        insights.appendChild(el('div','s936stage-insights-head','Tu escenario en cifras'));
+        const metrics=el('div','s936stage-metrics');
+        const metricData=[
+            ['▣',all.length,'Publicaciones'],
+            ['👏',all.reduce((n,p)=>n+Number(p.applause||0),0),'Aplausos'],
+            ['♡',all.filter(p=>p.saved).length,'Guardadas'],
+            ['◇',all.filter(p=>p.allowCollab).length,'Colaboraciones']
+        ];
+        metricData.forEach(([icon,value,label])=>{ const metric=el('div','s936stage-metric'); const copy=el('div',''); copy.append(el('strong','',String(value)),el('span','',label)); metric.append(el('div','s936stage-metric-icon',icon),copy); metrics.appendChild(metric); });
+        insights.appendChild(metrics);
+        const foot=el('div','s936stage-insights-foot'); foot.append(el('span','','Datos de tu portafolio local'),el('b','','STUDIO 936')); insights.appendChild(foot);
+        spotlightGrid.append(main,insights); hero.appendChild(spotlightGrid); shell.appendChild(hero);
+        hero.onmouseenter=stopStageSpotlightTimer;
+        hero.onmouseleave=()=>startStageSpotlightTimer(slides.length);
+        hero.onfocusin=stopStageSpotlightTimer;
+        hero.onfocusout=()=>startStageSpotlightTimer(slides.length);
+
+        const bar=el('div','s936stage-bar');
+        const tabs=el('div','s936stage-tabs');
+        const tabDefs=[
+            ['portfolio','Mi escenario',all.length],
+            ['private','Privadas',all.filter(p=>p.visibility==='private').length],
+            ['saved','Guardadas',all.filter(p=>p.saved).length],
+            ['collab','Colaboraciones',all.filter(p=>p.allowCollab).length]
+        ];
+        tabDefs.forEach(([key,label,count])=>{ const btn=el('button','s936stage-tab'+(stageViewMode===key?' active':''),`${label} · ${count}`); btn.onclick=()=>{stageViewMode=key;localStorage.setItem(STAGE_VIEW_KEY,key);renderBodyOnly();}; tabs.appendChild(btn); });
+        const right=el('div','s936stage-bar-right');
+        const summary=el('div','s936stage-filter-summary');
+        if(stageFilters.genre!=='all') summary.appendChild(el('span','s936stage-filter-pill',stageFilters.genre));
+        if(stageFilters.source!=='all') summary.appendChild(el('span','s936stage-filter-pill',stageFilters.source==='compositions'?'Composiciones':'Audio MP3'));
+        if(stageFilters.visibility!=='all') summary.appendChild(el('span','s936stage-filter-pill',stageVisibilityLabel(stageFilters.visibility)));
+        if(stageFilters.collab) summary.appendChild(el('span','s936stage-filter-pill','Solo colaboración'));
+        if(stageFilters.sort!=='recent') summary.appendChild(el('span','s936stage-filter-pill',stageFilters.sort==='applause'?'Más aplaudidas':'Título A–Z'));
+        right.append(summary,el('div','s936stage-resultcount',`${posts.length} ${posts.length===1?'obra visible':'obras visibles'}`));
+        bar.append(tabs,right); shell.appendChild(bar);
 
         if(posts.length){ const grid=el('div','s936stage-grid');posts.forEach(post=>grid.appendChild(stageBuildCard(post)));shell.appendChild(grid); }
         else {
-            const empty=el('div','s936stage-empty'); empty.append(el('div','s936stage-emptyicon','✦'),el('div','s936stage-emptytitle',stageViewMode==='portfolio'?'Tu escenario está listo':'No hay obras en esta vista'),el('div','s936stage-emptydesc',stageViewMode==='portfolio'?'Publica una composición o un audio terminado. Podrás presentarlo con portada, historia, créditos, video y visibilidad, sin alterar el archivo original.':'Cambia de filtro o prepara una nueva publicación.'));
-            const cta=el('button','s936stage-primary','Preparar primera publicación'); cta.onclick=()=>openStagePublishModal(); empty.appendChild(cta); shell.appendChild(empty);
+            const empty=el('div','s936stage-empty');
+            const title=all.length ? 'No hay obras con estos filtros' : 'Tu escenario está listo';
+            const desc=all.length ? 'Cambia la vista o restablece los filtros para volver a encontrar tus publicaciones.' : 'Publica una composición o un audio terminado. Podrás presentarlo con portada, historia, créditos, video y visibilidad, sin alterar el archivo original.';
+            empty.append(el('div','s936stage-emptyicon','✦'),el('div','s936stage-emptytitle',title),el('div','s936stage-emptydesc',desc));
+            const cta=el('button','s936stage-primary',all.length?'Restablecer filtros':'Preparar primera publicación');
+            cta.onclick=()=>{ if(all.length){stageFilters={genre:'all',source:'all',visibility:'all',collab:false,sort:'recent'};stageViewMode='portfolio';saveStageFilters();localStorage.setItem(STAGE_VIEW_KEY,'portfolio');render();}else openStagePublishModal(); };
+            empty.appendChild(cta); shell.appendChild(empty);
         }
         const community=el('div','s936stage-community');
         community.append(el('div','s936stage-communityicon','◎'));
-        const communityCopy=el('div',''); communityCopy.append(el('div','s936stage-communitytitle','Comunidad Studio 936'),el('div','s936stage-communitydesc','Perfiles de artistas, descubrimiento, aplausos públicos, colaboración y enlaces reales llegarán sobre esta misma base cuando se conecten cuentas y almacenamiento en nube.'));
+        const communityCopy=el('div',''); communityCopy.append(el('div','s936stage-communitytitle','Comunidad Studio 936'),el('div','s936stage-communitydesc','Esta interfaz ya está preparada para perfiles de artistas, descubrimiento, aplausos públicos, colaboración y enlaces reales cuando se conecten cuentas y almacenamiento en nube.'));
         community.append(communityCopy,el('div','s936stage-soon','PRÓXIMA ETAPA')); shell.appendChild(community);
         body.appendChild(shell);
+        requestAnimationFrame(()=>startStageSpotlightTimer(slides.length));
     }
 
 
@@ -4544,9 +4882,13 @@
             search.value = searchQuery;
             search.oninput = () => { searchQuery = search.value; renderBodyOnly(); };
             search.onkeydown = (e) => { if(e.key === 'Escape'){ searchQuery=''; search.value=''; renderBodyOnly(); } };
+            const filterBtn = el('button','s936lib-actionbtn s936stage-filterbtn'+(stageActiveFilterCount()?' active':''),'☷ Filtros');
+            const filterCount=stageActiveFilterCount();
+            if(filterCount) filterBtn.appendChild(el('span','s936stage-filtercount',String(filterCount)));
+            filterBtn.onclick = () => openStageFilterPopover(filterBtn);
             const publishBtn = el('button','s936lib-actionbtn','＋ Publicar obra');
             publishBtn.onclick = () => openStagePublishModal();
-            toolbar.append(search,publishBtn);
+            toolbar.append(search,filterBtn,publishBtn);
             return;
         }
         if(activeTab === 'youtube'){
@@ -4699,6 +5041,8 @@
     function render(){
         const panel = document.getElementById(PANEL_ID);
         if(!panel) return;
+        if(activeTab !== 'genres') stopStageSpotlightTimer();
+        closeStageFilterPopover();
         closeAnyOpenMenu();
         closeYoutubeAddPopover();
         closeRadioAddPopover();
