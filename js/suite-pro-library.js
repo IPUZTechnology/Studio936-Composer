@@ -749,7 +749,7 @@
     // ---------------------------------------------------------------
     function compositionCardActions(item, compact){
         const box = el('div', 's936lib-cardactions');
-        const isPlaying = currentPlayingComp === item.id;
+        const isPlaying = currentPlayingComp === item.id && !!audioEl && !audioEl.paused;
         const playBtn = el('button', 's936lib-mini play', isPlaying ? '⏸ Sonando' : '▶ Play');
         playBtn.onclick = (e) => { e.stopPropagation(); previewComposition(item.id); };
         box.appendChild(playBtn);
@@ -915,10 +915,13 @@
 
     function genreTag(type, item){
         if(type === 'compositions'){
+            // Cambio 197: ya no abre popup al hacer clic — confundía, porque
+            // el género no se puede editar aquí (viene del estilo elegido
+            // al guardar) y el popup solo mostraba listas, no género. Para
+            // corregir un género equivocado hay que editarlo donde se
+            // compone. "Editar listas" se movió al menú ⋮.
             const tag = el('span', 's936lib-genretag', genreLabel(item.genre) || 'Sin estilo');
-            tag.title = 'El género viene del estilo elegido al guardar. Clic para editar las listas.';
-            tag.style.cursor = 'pointer';
-            tag.onclick = (e) => { e.stopPropagation(); openEditGenrePlaylistPopover('compositions', item); };
+            tag.title = 'El género viene del estilo elegido al componer la canción.';
             return tag;
         }
         const tag = el('span', 's936lib-genretag', item.genre || '+ género');
@@ -1441,7 +1444,7 @@
         if(viewMode === 'grid'){
             const grid = el('div', 's936lib-ytgrid');
             list.forEach((item) => {
-                const isPlaying = currentPlayingComp === item.id;
+                const isPlaying = currentPlayingComp === item.id && !!audioEl && !audioEl.paused;
                 const card = el('div', 's936lib-ytcard' + (isPlaying ? ' active' : ''));
                 const thumb = buildCompositionThumb(item, 's936lib-ytthumb');
                 thumb.appendChild(el('div', 'playicon', isPlaying ? '⏸' : '▶'));
@@ -1457,6 +1460,7 @@
                     { icon:'⏏', label:'Abrir', onClick: () => openComposition(item.id) },
                     { icon:'🔄', label:'Actualizar desde el editor', onClick: () => updateCompositionFromEditor(item.id) },
                     { icon:'✎', label:'Cambiar nombre', onClick: () => renameComposition(item.id) },
+                    { icon:'🏷', label:'Editar listas', onClick: () => openEditGenrePlaylistPopover('compositions', item) },
                     { icon:'⧉', label:'Duplicar', onClick: () => duplicateComposition(item.id) },
                     { icon:'💿', label:'Mover a álbum', onClick: () => openMoveToAlbumPopover(item, kebab.querySelector('.s936lib-kebab')) },
                     { icon:'✕', label:'Borrar', danger:true, onClick: () => deleteComposition(item.id) }
@@ -1471,7 +1475,7 @@
         } else {
             const listWrap = el('div', 's936lib-listwrap');
             list.forEach((item) => {
-                const isPlaying = currentPlayingComp === item.id;
+                const isPlaying = currentPlayingComp === item.id && !!audioEl && !audioEl.paused;
                 const row = el('div', 's936lib-list-row' + (isPlaying ? ' playing' : ''));
                 const thumb = buildCompositionThumb(item, 's936lib-list-thumb');
                 const title = el('div', 's936lib-list-title', item.title);
@@ -1485,6 +1489,7 @@
                     { icon:'⏏', label:'Abrir', onClick: () => openComposition(item.id) },
                     { icon:'🔄', label:'Actualizar desde el editor', onClick: () => updateCompositionFromEditor(item.id) },
                     { icon:'✎', label:'Cambiar nombre', onClick: () => renameComposition(item.id) },
+                    { icon:'🏷', label:'Editar listas', onClick: () => openEditGenrePlaylistPopover('compositions', item) },
                     { icon:'⧉', label:'Duplicar', onClick: () => duplicateComposition(item.id) },
                     { icon:'💿', label:'Mover a álbum', onClick: () => openMoveToAlbumPopover(item, kebab.querySelector('.s936lib-kebab')) },
                     { icon:'✕', label:'Borrar', danger:true, onClick: () => deleteComposition(item.id) }
@@ -1562,6 +1567,7 @@
         if(audioEl.paused){ audioEl.play().catch(()=>{}); startEqAnimation(); }
         else { audioEl.pause(); stopEqAnimation(); }
         updateLcd();
+        render();
     }
 
     function toggleQueue(id){
