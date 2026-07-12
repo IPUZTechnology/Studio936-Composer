@@ -28,6 +28,7 @@
     const VIEW_MODE_KEY = 's936_library_view_mode';
     const RECENT_TYPE_FILTER_KEY = 's936_library_recent_type';
     const RECENT_SORT_KEY = 's936_library_recent_sort';
+    const STAGE_VIEW_KEY = 's936_library_stage_view';
     const OLD_COMPOSITIONS_KEY = 'studio936ComposerLibraryV18';
     const OLD_AUDIO_META_KEY = 's936_library_meta_v1';
     const PANEL_ID = 's936LibraryPanel';
@@ -48,6 +49,7 @@
     // recordados entre aperturas, sin alterar las demás pestañas.
     let recentTypeFilter = localStorage.getItem(RECENT_TYPE_FILTER_KEY) || 'all';
     let recentSortMode = localStorage.getItem(RECENT_SORT_KEY) || 'recent';
+    let stageViewMode = localStorage.getItem(STAGE_VIEW_KEY) || 'portfolio'; // portfolio | private | saved
     let audioObjectURLs = {};
     let currentPlayingId = null;   // id de audio sonando (de store.audios)
     let currentPlayingComp = null; // id de composición cuyo preview está sonando (mismo audio, distinta procedencia)
@@ -422,7 +424,7 @@
     // trabajo"), cada álbum tiene su propia carátula diseñada por él.
     // Es DISTINTO de .playlists (muchos-a-muchos, libre): una composición
     // pertenece a UN álbum a la vez (o a ninguno), como un lanzamiento real.
-    function emptyStore(){ return { compositions:[], audios:[], youtube:[], radio:[], albums:[], activeAlbumId:null }; }
+    function emptyStore(){ return { compositions:[], audios:[], youtube:[], radio:[], stagePosts:[], albums:[], activeAlbumId:null }; }
 
     // Cambio 186: cada ítem ahora también tiene .playlists (array de
     // nombres) — muchos-a-muchos, distinto de .genre (un solo valor,
@@ -448,6 +450,7 @@
             s.audios = Array.isArray(s.audios) ? s.audios : [];
             s.youtube = Array.isArray(s.youtube) ? s.youtube : [];
             s.radio = Array.isArray(s.radio) ? s.radio : [];
+            s.stagePosts = Array.isArray(s.stagePosts) ? s.stagePosts : [];
             s.albums = Array.isArray(s.albums) ? s.albums : [];
             s.activeAlbumId = s.activeAlbumId || null;
             ensurePlaylistsField(s.compositions);
@@ -1278,6 +1281,113 @@
 
 /* Cambio 226: Recientes = continuidad de trabajo, no copia de la
    biblioteca. La jerarquía es Continuar → filtros → grupos cronológicos. */
+
+/* Cambio 227: Escenario 936 — portafolio publicable local, preparado
+   para conectarse después a cuentas, nube y comunidad real. */
+#${PANEL_ID} .s936stage-shell { display:flex; flex-direction:column; gap:17px; }
+#${PANEL_ID} .s936stage-hero {
+    position:relative; overflow:hidden; min-height:184px; padding:23px;
+    border:1px solid rgba(197,138,74,.28); border-radius:16px;
+    background:
+      radial-gradient(circle at 84% 22%, rgba(0,255,204,.13), transparent 30%),
+      radial-gradient(circle at 10% 100%, rgba(197,138,74,.13), transparent 38%),
+      linear-gradient(135deg,#0e1716 0%,#071110 58%,#10100d 100%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.025),0 18px 45px rgba(0,0,0,.22);
+}
+#${PANEL_ID} .s936stage-hero::after {
+    content:'936'; position:absolute; right:22px; bottom:-38px; color:rgba(0,255,204,.035);
+    font-size:9rem; line-height:1; font-weight:950; letter-spacing:-10px; pointer-events:none;
+}
+#${PANEL_ID} .s936stage-heroinner { position:relative; z-index:1; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:24px; align-items:center; }
+#${PANEL_ID} .s936stage-kicker { color:#c58a4a; font-size:.59rem; font-weight:950; letter-spacing:2px; text-transform:uppercase; }
+#${PANEL_ID} .s936stage-herotitle { margin-top:7px; max-width:650px; color:#effbf8; font-size:1.35rem; line-height:1.18; font-weight:950; letter-spacing:-.25px; }
+#${PANEL_ID} .s936stage-herodesc { margin-top:8px; max-width:650px; color:#91a5a1; font-size:.73rem; line-height:1.55; }
+#${PANEL_ID} .s936stage-heroactions { margin-top:16px; display:flex; flex-wrap:wrap; gap:8px; }
+#${PANEL_ID} .s936stage-primary,
+#${PANEL_ID} .s936stage-secondary { border-radius:9px; padding:8px 13px; font:inherit; font-size:.7rem; font-weight:900; cursor:pointer; }
+#${PANEL_ID} .s936stage-primary { border:1px solid #00e6b8; background:#00dcb1; color:#042e27; box-shadow:0 0 18px rgba(0,255,204,.16); }
+#${PANEL_ID} .s936stage-primary:hover { background:#18ebc2; }
+#${PANEL_ID} .s936stage-secondary { border:1px solid rgba(197,138,74,.42); background:rgba(197,138,74,.07); color:#d9a66e; }
+#${PANEL_ID} .s936stage-stats { display:grid; grid-template-columns:repeat(3,90px); gap:8px; }
+#${PANEL_ID} .s936stage-stat { padding:12px 10px; border:1px solid rgba(255,255,255,.07); border-radius:12px; background:rgba(0,0,0,.18); text-align:center; backdrop-filter:blur(5px); }
+#${PANEL_ID} .s936stage-stat strong { display:block; color:#5be8c9; font-size:1.08rem; font-weight:950; }
+#${PANEL_ID} .s936stage-stat span { display:block; margin-top:3px; color:#758784; font-size:.55rem; font-weight:800; text-transform:uppercase; letter-spacing:.7px; }
+#${PANEL_ID} .s936stage-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+#${PANEL_ID} .s936stage-tabs { display:flex; gap:6px; flex-wrap:wrap; }
+#${PANEL_ID} .s936stage-tab { padding:7px 11px; border:1px solid #293233; border-radius:999px; background:#141a1b; color:#91a29f; font:inherit; font-size:.64rem; font-weight:850; cursor:pointer; }
+#${PANEL_ID} .s936stage-tab.active { border-color:rgba(0,255,204,.58); background:rgba(0,255,204,.095); color:#5be8c9; }
+#${PANEL_ID} .s936stage-localnote { display:flex; align-items:center; gap:7px; color:#768683; font-size:.6rem; }
+#${PANEL_ID} .s936stage-localnote::before { content:'●'; color:#c58a4a; font-size:.46rem; }
+#${PANEL_ID} .s936stage-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(235px,1fr)); gap:15px; }
+#${PANEL_ID} .s936stage-card { overflow:hidden; border:1px solid rgba(255,255,255,.075); border-radius:14px; background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.01)); transition:transform .16s ease,border-color .16s ease,background .16s ease; }
+#${PANEL_ID} .s936stage-card:hover { transform:translateY(-2px); border-color:rgba(0,255,204,.38); background:rgba(0,255,204,.025); }
+#${PANEL_ID} .s936stage-card.is-playing { border-color:rgba(0,255,204,.72); box-shadow:0 0 22px rgba(0,255,204,.08); }
+#${PANEL_ID} .s936stage-media { position:relative; width:100%; aspect-ratio:16/10; overflow:hidden; background:#06100e; }
+#${PANEL_ID} .s936stage-media > img { width:100%; height:100%; object-fit:cover; display:block; }
+#${PANEL_ID} .s936stage-media > .s936sc-wrap { width:100%; height:100%; border-radius:0; }
+#${PANEL_ID} .s936stage-media > .s936sc-wrap svg { width:100%; height:100%; object-fit:cover; }
+#${PANEL_ID} .s936stage-media::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg,transparent 48%,rgba(0,0,0,.58)); pointer-events:none; }
+#${PANEL_ID} .s936stage-badges { position:absolute; z-index:3; left:9px; top:9px; display:flex; gap:5px; flex-wrap:wrap; }
+#${PANEL_ID} .s936stage-badge { padding:4px 7px; border-radius:999px; border:1px solid rgba(255,255,255,.15); background:rgba(4,11,10,.78); backdrop-filter:blur(7px); color:#c8d6d3; font-size:.51rem; font-weight:900; letter-spacing:.45px; text-transform:uppercase; }
+#${PANEL_ID} .s936stage-badge.visibility { color:#d8a56e; border-color:rgba(197,138,74,.36); }
+#${PANEL_ID} .s936stage-play { position:absolute; z-index:4; left:50%; top:50%; transform:translate(-50%,-50%); width:46px; height:46px; border-radius:50%; border:1px solid rgba(0,255,204,.65); background:rgba(3,20,17,.76); color:#00ffcc; font-size:1rem; cursor:pointer; box-shadow:0 0 25px rgba(0,255,204,.14); opacity:.88; }
+#${PANEL_ID} .s936stage-card:hover .s936stage-play { opacity:1; transform:translate(-50%,-50%) scale(1.04); }
+#${PANEL_ID} .s936stage-body { padding:12px 13px 13px; }
+#${PANEL_ID} .s936stage-titleline { display:flex; align-items:flex-start; gap:8px; }
+#${PANEL_ID} .s936stage-cardtitle { min-width:0; flex:1; color:#edf7f5; font-size:.79rem; font-weight:950; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#${PANEL_ID} .s936stage-author { margin-top:4px; color:#a6b5b2; font-size:.64rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#${PANEL_ID} .s936stage-desc { margin-top:8px; min-height:34px; color:#788985; font-size:.61rem; line-height:1.42; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+#${PANEL_ID} .s936stage-meta { margin-top:9px; display:flex; align-items:center; gap:6px; color:#687875; font-size:.57rem; }
+#${PANEL_ID} .s936stage-meta .genre { color:#5bcdb6; }
+#${PANEL_ID} .s936stage-actions { margin-top:11px; display:flex; align-items:center; gap:6px; }
+#${PANEL_ID} .s936stage-action { min-height:29px; border:1px solid #2d3637; border-radius:8px; background:#151b1c; color:#9eafac; padding:5px 8px; font:inherit; font-size:.61rem; font-weight:800; cursor:pointer; }
+#${PANEL_ID} .s936stage-action:hover { border-color:rgba(0,255,204,.45); color:#5be8c9; }
+#${PANEL_ID} .s936stage-action.primary { flex:1; color:#00e7ba; border-color:rgba(0,255,204,.35); background:rgba(0,255,204,.055); }
+#${PANEL_ID} .s936stage-action.active { color:#d9a66e; border-color:rgba(197,138,74,.48); background:rgba(197,138,74,.07); }
+#${PANEL_ID} .s936stage-kebab { width:29px; padding:0; font-size:.9rem; }
+#${PANEL_ID} .s936stage-empty { padding:40px 24px; border:1px dashed rgba(91,232,201,.22); border-radius:15px; background:rgba(0,255,204,.018); text-align:center; }
+#${PANEL_ID} .s936stage-emptyicon { font-size:2rem; opacity:.8; }
+#${PANEL_ID} .s936stage-emptytitle { margin-top:9px; color:#dceae7; font-size:.85rem; font-weight:950; }
+#${PANEL_ID} .s936stage-emptydesc { margin:6px auto 14px; max-width:500px; color:#778986; font-size:.68rem; line-height:1.5; }
+#${PANEL_ID} .s936stage-community { display:grid; grid-template-columns:auto 1fr auto; gap:13px; align-items:center; padding:15px 16px; border:1px solid rgba(197,138,74,.18); border-radius:13px; background:linear-gradient(90deg,rgba(197,138,74,.055),rgba(0,255,204,.025)); }
+#${PANEL_ID} .s936stage-communityicon { width:42px; height:42px; border-radius:12px; display:grid; place-items:center; border:1px solid rgba(197,138,74,.28); background:rgba(197,138,74,.07); font-size:1.1rem; }
+#${PANEL_ID} .s936stage-communitytitle { color:#dce9e7; font-size:.72rem; font-weight:950; }
+#${PANEL_ID} .s936stage-communitydesc { margin-top:3px; color:#738481; font-size:.61rem; line-height:1.4; }
+#${PANEL_ID} .s936stage-soon { color:#c58a4a; font-size:.56rem; font-weight:950; letter-spacing:.9px; text-transform:uppercase; }
+.s936stage-modal-overlay { position:fixed; inset:0; z-index:2147483647; display:flex; align-items:center; justify-content:center; padding:18px; background:rgba(3,7,7,.72); backdrop-filter:blur(9px); }
+.s936stage-modal { width:min(720px,96vw); max-height:92vh; overflow:auto; border:1px solid rgba(0,255,204,.28); border-radius:17px; background:linear-gradient(180deg,#151b1c,#0b0f10); box-shadow:0 28px 90px rgba(0,0,0,.72),0 0 45px rgba(0,255,204,.055); color:#e9f5f3; }
+.s936stage-modal-head { position:sticky; top:0; z-index:2; display:flex; justify-content:space-between; gap:16px; align-items:flex-start; padding:17px 19px; border-bottom:1px solid rgba(255,255,255,.075); background:rgba(18,24,25,.96); backdrop-filter:blur(10px); }
+.s936stage-modal-kicker { color:#c58a4a; font-size:.55rem; font-weight:950; letter-spacing:1.6px; text-transform:uppercase; }
+.s936stage-modal-title { margin-top:4px; color:#f0f8f6; font-size:1rem; font-weight:950; }
+.s936stage-modal-close { border:0; background:transparent; color:#93a29f; font-size:1.1rem; cursor:pointer; }
+.s936stage-modal-body { display:grid; grid-template-columns:1.1fr .9fr; gap:18px; padding:18px 19px 20px; }
+.s936stage-form { display:flex; flex-direction:column; gap:11px; }
+.s936stage-field { display:flex; flex-direction:column; gap:5px; }
+.s936stage-field label { color:#8fa09d; font-size:.58rem; font-weight:900; letter-spacing:.6px; text-transform:uppercase; }
+.s936stage-field input,.s936stage-field select,.s936stage-field textarea { width:100%; box-sizing:border-box; border:1px solid #30393a; border-radius:9px; background:#111718; color:#e8f2f0; padding:8px 9px; font:inherit; font-size:.72rem; outline:none; }
+.s936stage-field textarea { min-height:88px; resize:vertical; line-height:1.45; }
+.s936stage-field input:focus,.s936stage-field select:focus,.s936stage-field textarea:focus { border-color:#00dcb1; box-shadow:0 0 0 2px rgba(0,255,204,.06); }
+.s936stage-checks { display:grid; gap:7px; padding:10px; border:1px solid rgba(255,255,255,.07); border-radius:10px; background:rgba(255,255,255,.015); }
+.s936stage-check { display:flex; gap:8px; align-items:flex-start; color:#9aaba7; font-size:.63rem; line-height:1.35; }
+.s936stage-check input { margin-top:2px; accent-color:#00dcb1; }
+.s936stage-preview { display:flex; flex-direction:column; gap:10px; }
+.s936stage-previewbox { overflow:hidden; aspect-ratio:16/10; border:1px solid rgba(91,232,201,.18); border-radius:13px; background:#07100f; }
+.s936stage-previewbox img { width:100%; height:100%; object-fit:cover; display:block; }
+.s936stage-previewbox .s936sc-wrap { width:100%; height:100%; }
+.s936stage-previewnote { color:#778784; font-size:.6rem; line-height:1.45; }
+.s936stage-modal-actions { display:flex; justify-content:flex-end; gap:8px; padding-top:4px; }
+@media (max-width:760px) {
+  #${PANEL_ID} .s936stage-heroinner { grid-template-columns:1fr; }
+  #${PANEL_ID} .s936stage-stats { grid-template-columns:repeat(3,1fr); }
+  .s936stage-modal-body { grid-template-columns:1fr; }
+}
+@media (max-width:520px) {
+  #${PANEL_ID} .s936stage-hero { padding:17px; }
+  #${PANEL_ID} .s936stage-herotitle { font-size:1.05rem; }
+  #${PANEL_ID} .s936stage-grid { grid-template-columns:1fr; }
+  #${PANEL_ID} .s936stage-community { grid-template-columns:auto 1fr; }
+  #${PANEL_ID} .s936stage-soon { grid-column:2; }
+}
 #${PANEL_ID} .s936recent-shell { display:flex; flex-direction:column; gap:16px; }
 #${PANEL_ID} .s936recent-hero {
     position:relative;
@@ -2311,7 +2421,7 @@
             return seed / 4294967296;
         };
     }
-    const SONIC_TYPE_ICON = { compositions:'♫', audios:'〜', youtube:'▶', recording:'🎙', radio:'📻' };
+    const SONIC_TYPE_ICON = { compositions:'♫', audios:'〜', youtube:'▶', recording:'🎙', radio:'📻', stage:'✦' };
 
     function buildSonicCoverSvg(item, typeKey){
         const seedStr = String(item.id || '') + '|' + String(item.title || '');
@@ -2489,6 +2599,7 @@
                     { icon:'🏷', label:'Editar listas', onClick: () => openEditPlaylistsOnlyPopover('compositions', item) },
                     { icon:'⧉', label:'Duplicar', onClick: () => duplicateComposition(item.id) },
                     { icon:'💿', label:'Mover a álbum', onClick: () => openMoveToAlbumPopover(item, kebab.querySelector('.s936lib-kebab')) },
+                    { icon:'🎤', label:'Publicar en Escenario', onClick: () => openStagePublishModal('compositions', item.id, stagePosts().find(p => p.sourceType === 'compositions' && p.sourceId === item.id)) },
                     { icon:'✕', label:'Borrar', danger:true, onClick: () => deleteComposition(item.id) }
                 ]);
                 actions.appendChild(kebab);
@@ -2517,6 +2628,7 @@
                     { icon:'🏷', label:'Editar listas', onClick: () => openEditPlaylistsOnlyPopover('compositions', item) },
                     { icon:'⧉', label:'Duplicar', onClick: () => duplicateComposition(item.id) },
                     { icon:'💿', label:'Mover a álbum', onClick: () => openMoveToAlbumPopover(item, kebab.querySelector('.s936lib-kebab')) },
+                    { icon:'🎤', label:'Publicar en Escenario', onClick: () => openStagePublishModal('compositions', item.id, stagePosts().find(p => p.sourceType === 'compositions' && p.sourceId === item.id)) },
                     { icon:'✕', label:'Borrar', danger:true, onClick: () => deleteComposition(item.id) }
                 ]);
                 actions.appendChild(kebab);
@@ -3361,6 +3473,7 @@
                 const kebab = buildKebabMenu([
                     { icon:'✎', label:'Cambiar nombre', onClick: () => renameAudio(song.id) },
                     { icon:'🏷', label:'Agregar a lista', onClick: () => openEditPlaylistsOnlyPopover('audios', song) },
+                    { icon:'🎤', label:'Publicar en Escenario', onClick: () => openStagePublishModal('audios', song.id, stagePosts().find(p => p.sourceType === 'audios' && p.sourceId === song.id)) },
                     { icon:'✕', label:'Quitar', danger:true, onClick: () => deleteAudio(song.id) }
                 ]);
                 actions.appendChild(kebab);
@@ -3390,6 +3503,7 @@
                 const kebab = buildKebabMenu([
                     { icon:'✎', label:'Cambiar nombre', onClick: () => renameAudio(song.id) },
                     { icon:'🏷', label:'Agregar a lista', onClick: () => openEditPlaylistsOnlyPopover('audios', song) },
+                    { icon:'🎤', label:'Publicar en Escenario', onClick: () => openStagePublishModal('audios', song.id, stagePosts().find(p => p.sourceType === 'audios' && p.sourceId === song.id)) },
                     { icon:'✕', label:'Quitar', danger:true, onClick: () => deleteAudio(song.id) }
                 ]);
                 actions.appendChild(kebab);
@@ -3867,32 +3981,263 @@
     const TYPE_ICON = { compositions:'🎼', audios:'🎧', youtube:'📺', radio:'📻' };
     const TYPE_LABEL = { compositions:'Composición', audios:'Audio', youtube:'YouTube', radio:'Radio' };
 
-    // Cambio 205: Géneros se retiró (confirmado que no aportaba nada útil)
-    // — este es el espacio reservado para "Comunidad", la idea de que los
-    // compositores puedan publicar sus canciones públicamente, tipo mini
-    // red social. Todavía no hace nada real: necesita cuentas de usuario y
-    // storage real (el mismo backend que sigue pausado aparte) antes de
-    // que esto pueda funcionar de verdad. El key interno sigue siendo
-    // 'genres' para no romper nada de lo guardado.
-    function renderGenres(body){
-        const isEn = stageTabLabel() === 'Stage';
-        const wrap = el('div', '');
-        wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 24px;gap:14px;color:#9fb0ae;';
-        const icon = el('div', '', '🎤');
-        icon.style.cssText = 'font-size:2.4rem;opacity:.7;';
-        const title = el('div', '', isEn ? 'Stage — Coming soon' : 'Escenario — Próximamente');
-        title.style.cssText = 'color:#5be8c9;font-size:1rem;font-weight:800;';
-        const desc = el('div', '', isEn
-            ? 'A place for composers and musicians to publish their songs and share them with others — like a mini social network for Studio 936.'
-            : 'Un espacio para que compositores y músicos publiquen sus canciones y las compartan con otros — como una mini red social de Studio 936.');
-        desc.style.cssText = 'font-size:.8rem;max-width:420px;line-height:1.6;';
-        const note = el('div', '', isEn
-            ? "Doesn't work yet: needs real user accounts and cloud storage, still pending separately."
-            : 'Todavía no funciona: necesita cuentas de usuario y almacenamiento real en la nube, que sigue pendiente aparte.');
-        note.style.cssText = 'font-size:.68rem;font-style:italic;color:#7a8785;max-width:380px;line-height:1.5;';
-        wrap.append(icon, title, desc, note);
-        body.appendChild(wrap);
+    // Cambio 227: el key interno sigue siendo 'genres' para no romper
+    // compatibilidad, pero la interfaz ya es Escenario 936: portafolio local
+    // publicable y base visual para comunidad, cuentas y nube futuras.
+    function stagePosts(){
+        return Array.isArray(store.stagePosts) ? store.stagePosts : (store.stagePosts = []);
     }
+    function stageSource(post){
+        const list = post?.sourceType === 'compositions' ? store.compositions : store.audios;
+        return list?.find(x => x.id === post?.sourceId) || null;
+    }
+    function stageSourceLabel(post){ return post?.sourceType === 'compositions' ? 'Composición original' : 'Audio original'; }
+    function stageVisibilityLabel(value){
+        return value === 'community' ? 'Comunidad' : value === 'link' ? 'Solo con enlace' : 'Privado';
+    }
+    function stagePostIsPlaying(post){
+        if(post.sourceType === 'compositions') return currentPlayingComp === post.sourceId && !!audioEl?.src && !audioEl.paused;
+        return isLocalAudioActuallyPlaying(post.sourceId);
+    }
+    function stagePostIsCurrent(post){
+        if(post.sourceType === 'compositions') return lastActiveSource === 'local' && currentPlayingComp === post.sourceId && !!audioEl?.src;
+        return lastActiveSource === 'local' && !currentPlayingComp && currentPlayingId === post.sourceId && !!audioEl?.src;
+    }
+    function stagePostCoverUrl(post){
+        if(post.cover) return post.cover;
+        const ytThumb = post.videoUrl ? youtubeThumbUrl(post.videoUrl) : null;
+        if(ytThumb) return ytThumb;
+        const source = stageSource(post);
+        if(post.sourceType === 'compositions' && source) return compositionCoverUrl(source);
+        if(post.sourceType === 'audios' && source){
+            const linked = audioLinkedComposition(source.id);
+            return linked ? compositionCoverUrl(linked) : null;
+        }
+        return null;
+    }
+    function stageBuildMedia(post, className){
+        const media = el('div', className || 's936stage-media');
+        const cover = stagePostCoverUrl(post);
+        if(cover){
+            const img = new Image();
+            img.alt = post.title || 'Publicación de Escenario';
+            img.src = cover;
+            img.onerror = () => {
+                img.remove();
+                if(!media.querySelector('.s936sc-wrap')) media.appendChild(buildSonicCover(post,'stage','',stagePostIsPlaying(post)));
+            };
+            media.appendChild(img);
+        } else {
+            media.appendChild(buildSonicCover(post,'stage','',stagePostIsPlaying(post)));
+        }
+        return media;
+    }
+    function stagePlayPost(post){
+        const source = stageSource(post);
+        if(!source){ s936Alert('La obra original ya no está disponible en tu biblioteca. Puedes editar o retirar esta publicación.'); return; }
+        if(post.sourceType === 'compositions') previewComposition(source.id);
+        else toggleAudioFromLibrary(source.id);
+    }
+    function stageOpenVideo(post){
+        if(!post.videoUrl) return;
+        const w = window.open(post.videoUrl, '_blank', 'noopener,noreferrer');
+        if(w) w.opener = null;
+    }
+    function stageToggleApplause(post){
+        post.applauded = !post.applauded;
+        post.applause = Math.max(0, Number(post.applause || 0) + (post.applauded ? 1 : -1));
+        saveStore(); renderBodyOnly();
+    }
+    function stageToggleSaved(post){ post.saved = !post.saved; saveStore(); renderBodyOnly(); }
+    async function stageShare(post){
+        const text = `${post.title} — ${post.author || 'Studio 936'}\nObra presentada en Escenario 936.`;
+        try {
+            if(navigator.share){ await navigator.share({ title:post.title, text, url:location.href }); return; }
+            await navigator.clipboard.writeText(text + '\n' + location.href);
+            await s936Alert('Información de la obra copiada. Cuando Escenario tenga publicación en nube, este botón compartirá el enlace público directo.');
+        } catch(_) {}
+    }
+    async function stageDeletePost(post){
+        if(!await s936Confirm(`¿Retirar “${post.title}” de Escenario? La composición o el audio original no se borrarán.`)) return;
+        store.stagePosts = stagePosts().filter(x => x.id !== post.id);
+        saveStore(); renderBodyOnly();
+    }
+    function stageSourceOptions(){
+        const out = [];
+        store.compositions.forEach(item => out.push({ value:`compositions:${item.id}`, type:'compositions', item, label:`Composición · ${item.title}` }));
+        store.audios.forEach(item => out.push({ value:`audios:${item.id}`, type:'audios', item, label:`Audio · ${displayAudioTitle(item.title || item.fileName)}` }));
+        return out;
+    }
+    function stageSourceDefaults(type,item){
+        if(!item) return { title:'', author:'', genre:'' };
+        if(type === 'compositions') return { title:item.title || '', author:item.author || '', genre:genreLabel(item.genre) || item.genre || '' };
+        const linked = audioLinkedComposition(item.id);
+        return { title:displayAudioTitle(item.title || item.fileName || ''), author:item.author || linked?.author || '', genre:item.genre || linked?.genre || '' };
+    }
+    function openStagePublishModal(preType, preId, editPost){
+        const options = stageSourceOptions();
+        if(!options.length){ s936Alert('Primero guarda una composición o importa un audio. Después podrás prepararlo para Escenario.'); return; }
+        document.querySelector('.s936stage-modal-overlay')?.remove();
+        const editing = !!editPost;
+        const selectedValue = editPost ? `${editPost.sourceType}:${editPost.sourceId}` : (preType && preId ? `${preType}:${preId}` : options[0].value);
+        let selectedCoverData = editPost?.cover || null;
+
+        const overlay = el('div','s936stage-modal-overlay');
+        const modal = el('div','s936stage-modal');
+        const head = el('div','s936stage-modal-head');
+        const headCopy = el('div','');
+        headCopy.append(el('div','s936stage-modal-kicker','ESCENARIO 936'),el('div','s936stage-modal-title',editing ? 'Editar presentación' : 'Preparar una obra para publicar'));
+        const closeBtn = el('button','s936stage-modal-close','✕');
+        const closeModal = () => overlay.remove();
+        closeBtn.onclick = closeModal;
+        head.append(headCopy,closeBtn);
+        const body = el('div','s936stage-modal-body');
+        const form = el('div','s936stage-form');
+        const preview = el('div','s936stage-preview');
+        const previewBox = el('div','s936stage-previewbox');
+        preview.append(previewBox,el('div','s936stage-previewnote','La publicación conserva la obra original en tu biblioteca. En esta primera etapa los datos viven localmente en este navegador; después se conectarán a perfiles y nube.'));
+
+        function field(label,control){ const wrap=el('div','s936stage-field'); wrap.append(el('label','',label),control); return wrap; }
+        const sourceSelect = document.createElement('select');
+        options.forEach(o => { const op=document.createElement('option'); op.value=o.value; op.textContent=o.label; sourceSelect.appendChild(op); });
+        sourceSelect.value = options.some(o=>o.value===selectedValue) ? selectedValue : options[0].value;
+        const titleInput=document.createElement('input');
+        const authorInput=document.createElement('input');
+        const descInput=document.createElement('textarea'); descInput.placeholder='Cuenta brevemente qué representa esta obra, en qué momento nació o qué quieres que escuche la comunidad.';
+        const genreInput=document.createElement('input'); genreInput.placeholder='Funk, rock, fusión, acústico…';
+        const videoInput=document.createElement('input'); videoInput.placeholder='Enlace opcional de YouTube o video público';
+        const visibility=document.createElement('select');
+        [['private','Privado'],['link','Solo con enlace'],['community','Comunidad Studio 936']].forEach(([v,l])=>{ const op=document.createElement('option');op.value=v;op.textContent=l;visibility.appendChild(op); });
+        const coverInput=document.createElement('input'); coverInput.type='file'; coverInput.accept='image/*';
+        const collab=document.createElement('input'); collab.type='checkbox';
+        const download=document.createElement('input'); download.type='checkbox';
+        const rights=document.createElement('input'); rights.type='checkbox';
+        const checks=el('div','s936stage-checks');
+        const checkRow=(input,text)=>{ const row=el('label','s936stage-check');row.append(input,document.createTextNode(text));return row; };
+        checks.append(checkRow(collab,'Abierto a colaboración: otros músicos podrán saber que aceptas propuestas.'),checkRow(download,'Permitir descarga cuando exista publicación en nube.'),checkRow(rights,'Declaro que soy propietario de esta obra o que tengo autorización para publicarla y acreditar a sus participantes.'));
+
+        function selectedOption(){ return options.find(o=>o.value===sourceSelect.value) || options[0]; }
+        function updatePreview(){
+            previewBox.innerHTML='';
+            const o=selectedOption();
+            const temp={ id:editPost?.id || o.item.id, title:titleInput.value || o.item.title, sourceType:o.type, sourceId:o.item.id, cover:selectedCoverData, videoUrl:videoInput.value.trim() };
+            previewBox.appendChild(stageBuildMedia(temp,'s936stage-media'));
+        }
+        function applyDefaults(force){
+            const o=selectedOption(); const d=stageSourceDefaults(o.type,o.item);
+            if(force || !titleInput.value) titleInput.value=d.title;
+            if(force || !authorInput.value) authorInput.value=d.author;
+            if(force || !genreInput.value) genreInput.value=d.genre;
+            updatePreview();
+        }
+        if(editPost){
+            titleInput.value=editPost.title || '';
+            authorInput.value=editPost.author || '';
+            descInput.value=editPost.description || '';
+            genreInput.value=editPost.genre || '';
+            videoInput.value=editPost.videoUrl || '';
+            visibility.value=editPost.visibility || 'private';
+            collab.checked=!!editPost.allowCollab;
+            download.checked=!!editPost.allowDownload;
+            rights.checked=!!editPost.rightsDeclared;
+        } else { visibility.value='private'; }
+        sourceSelect.onchange=()=>applyDefaults(true);
+        titleInput.oninput=updatePreview; videoInput.oninput=updatePreview;
+        coverInput.onchange=()=>{
+            const file=coverInput.files?.[0]; if(!file) return;
+            resizeImageToDataUrl(file,720,(data)=>{ selectedCoverData=data; updatePreview(); });
+        };
+        applyDefaults(!editing);
+
+        form.append(field('Obra original',sourceSelect),field('Título de publicación',titleInput),field('Artista / compositor',authorInput),field('Historia breve',descInput),field('Género o estilo',genreInput),field('Video opcional',videoInput),field('Visibilidad',visibility),field('Carátula opcional',coverInput),checks);
+        const actions=el('div','s936stage-modal-actions');
+        const cancel=el('button','s936stage-secondary','Cancelar'); cancel.onclick=closeModal;
+        const publish=el('button','s936stage-primary',editing ? 'Guardar cambios' : 'Publicar en Escenario');
+        publish.onclick=async()=>{
+            const o=selectedOption();
+            if(!titleInput.value.trim()){ await s936Alert('Escribe un título para la publicación.'); return; }
+            if(!rights.checked){ await s936Alert('Para publicar debes confirmar la declaración de derechos y autorizaciones.'); return; }
+            const now=Date.now();
+            const target=editPost || { id:uid('st'), publishedAt:now, applause:0, applauded:false, saved:false };
+            Object.assign(target,{ sourceType:o.type, sourceId:o.item.id, title:titleInput.value.trim(), author:authorInput.value.trim(), description:descInput.value.trim(), genre:genreInput.value.trim(), videoUrl:videoInput.value.trim(), visibility:visibility.value, cover:selectedCoverData, allowCollab:collab.checked, allowDownload:download.checked, rightsDeclared:true, updatedAt:now });
+            if(!editing) stagePosts().unshift(target);
+            saveStore(); closeModal(); activeTab='genres'; stageViewMode='portfolio'; localStorage.setItem(STAGE_VIEW_KEY,stageViewMode); render();
+        };
+        actions.append(cancel,publish); form.appendChild(actions);
+        body.append(form,preview); modal.append(head,body); overlay.appendChild(modal); document.body.appendChild(overlay);
+        overlay.onclick=e=>{ if(e.target===overlay) closeModal(); };
+    }
+    function stageFilteredPosts(){
+        let posts=stagePosts().filter(post=>matchesSearch(post,[post.description,post.author,post.genre,stageVisibilityLabel(post.visibility)]));
+        if(stageViewMode==='private') posts=posts.filter(post=>post.visibility==='private');
+        if(stageViewMode==='saved') posts=posts.filter(post=>post.saved);
+        return posts.sort((a,b)=>Number(b.updatedAt||b.publishedAt||0)-Number(a.updatedAt||a.publishedAt||0));
+    }
+    function stageBuildCard(post){
+        const current=stagePostIsCurrent(post), playing=stagePostIsPlaying(post);
+        const card=el('article','s936stage-card'+(playing?' is-playing':''));
+        const media=stageBuildMedia(post,'s936stage-media');
+        const badges=el('div','s936stage-badges');
+        badges.append(el('span','s936stage-badge',stageSourceLabel(post)),el('span','s936stage-badge visibility',stageVisibilityLabel(post.visibility)));
+        if(post.videoUrl) badges.appendChild(el('span','s936stage-badge','VIDEO'));
+        const play=el('button','s936stage-play',playing?'Ⅱ':'▶'); play.title=playing?'Pausar':'Escuchar'; play.onclick=e=>{e.stopPropagation();stagePlayPost(post);};
+        media.append(badges,play);
+        const content=el('div','s936stage-body');
+        const titleLine=el('div','s936stage-titleline'); titleLine.appendChild(el('div','s936stage-cardtitle',post.title));
+        content.append(titleLine,el('div','s936stage-author',post.author||'Artista sin definir'),el('div','s936stage-desc',post.description||'Una obra creada y presentada desde Studio 936.'));
+        const meta=el('div','s936stage-meta');
+        if(post.genre) meta.appendChild(el('span','genre',post.genre));
+        meta.appendChild(el('span','',fmtDate(post.publishedAt||post.updatedAt)));
+        if(post.allowCollab) meta.appendChild(el('span','','· Abierta a colaboración'));
+        content.appendChild(meta);
+        const actions=el('div','s936stage-actions');
+        const listen=el('button','s936stage-action primary',playing?'Ⅱ Pausar':'▶ Escuchar'); listen.onclick=e=>{e.stopPropagation();stagePlayPost(post);};
+        const clap=el('button','s936stage-action'+(post.applauded?' active':''),`👏 ${Number(post.applause||0)}`); clap.title='Aplaudir'; clap.onclick=e=>{e.stopPropagation();stageToggleApplause(post);};
+        const save=el('button','s936stage-action'+(post.saved?' active':''),post.saved?'◆':'♡'); save.title=post.saved?'Guardada':'Guardar'; save.onclick=e=>{e.stopPropagation();stageToggleSaved(post);};
+        const share=el('button','s936stage-action','↗'); share.title='Compartir'; share.onclick=e=>{e.stopPropagation();stageShare(post);};
+        const menu=buildKebabMenu([
+            {icon:'✎',label:'Editar presentación',onClick:()=>openStagePublishModal(null,null,post)},
+            ...(post.videoUrl?[{icon:'▶',label:'Abrir video',onClick:()=>stageOpenVideo(post)}]:[]),
+            {icon:'⏏',label:'Abrir obra original',onClick:()=>{ activeTab=post.sourceType; render(); }},
+            {icon:'✕',label:'Retirar de Escenario',danger:true,onClick:()=>stageDeletePost(post)}
+        ]);
+        menu.classList.add('s936stage-kebab');
+        actions.append(listen,clap,save,share,menu); content.appendChild(actions); card.append(media,content);
+        card.dataset.stageId=post.id; card.classList.toggle('is-current',current);
+        return card;
+    }
+    function renderGenres(body){
+        const posts=stageFilteredPosts();
+        const all=stagePosts();
+        const shell=el('div','s936stage-shell');
+        const hero=el('section','s936stage-hero');
+        const inner=el('div','s936stage-heroinner');
+        const copy=el('div','');
+        copy.append(el('div','s936stage-kicker','ESCENARIO 936'),el('div','s936stage-herotitle','Tu música merece un lugar para ser presentada.'),el('div','s936stage-herodesc','Convierte una composición o un audio terminado en una publicación elegante, con historia, créditos, carátula, video opcional y control de visibilidad. Esta primera versión funciona como tu portafolio musical personal.'));
+        const heroActions=el('div','s936stage-heroactions');
+        const publish=el('button','s936stage-primary','＋ Publicar una obra'); publish.onclick=()=>openStagePublishModal();
+        const originals=el('button','s936stage-secondary','Ver composiciones'); originals.onclick=()=>{activeTab='compositions';searchQuery='';render();};
+        heroActions.append(publish,originals); copy.appendChild(heroActions);
+        const stats=el('div','s936stage-stats');
+        [[all.length,'Publicaciones'],[all.reduce((n,p)=>n+Number(p.applause||0),0),'Aplausos'],[all.filter(p=>p.saved).length,'Guardadas']].forEach(([value,label])=>{const stat=el('div','s936stage-stat');stat.append(el('strong','',String(value)),el('span','',label));stats.appendChild(stat);});
+        inner.append(copy,stats); hero.appendChild(inner); shell.appendChild(hero);
+
+        const bar=el('div','s936stage-bar'); const tabs=el('div','s936stage-tabs');
+        [['portfolio','Portafolio',all.length],['private','Privadas',all.filter(p=>p.visibility==='private').length],['saved','Guardadas',all.filter(p=>p.saved).length]].forEach(([key,label,count])=>{const btn=el('button','s936stage-tab'+(stageViewMode===key?' active':''),`${label} · ${count}`);btn.onclick=()=>{stageViewMode=key;localStorage.setItem(STAGE_VIEW_KEY,key);renderBodyOnly();};tabs.appendChild(btn);});
+        bar.append(tabs,el('div','s936stage-localnote','Portafolio local preparado para futura comunidad y nube')); shell.appendChild(bar);
+
+        if(posts.length){ const grid=el('div','s936stage-grid');posts.forEach(post=>grid.appendChild(stageBuildCard(post)));shell.appendChild(grid); }
+        else {
+            const empty=el('div','s936stage-empty'); empty.append(el('div','s936stage-emptyicon','✦'),el('div','s936stage-emptytitle',stageViewMode==='portfolio'?'Tu escenario está listo':'No hay obras en esta vista'),el('div','s936stage-emptydesc',stageViewMode==='portfolio'?'Publica una composición o un audio terminado. Podrás presentarlo con portada, historia, créditos, video y visibilidad, sin alterar el archivo original.':'Cambia de filtro o prepara una nueva publicación.'));
+            const cta=el('button','s936stage-primary','Preparar primera publicación'); cta.onclick=()=>openStagePublishModal(); empty.appendChild(cta); shell.appendChild(empty);
+        }
+        const community=el('div','s936stage-community');
+        community.append(el('div','s936stage-communityicon','◎'));
+        const communityCopy=el('div',''); communityCopy.append(el('div','s936stage-communitytitle','Comunidad Studio 936'),el('div','s936stage-communitydesc','Perfiles de artistas, descubrimiento, aplausos públicos, colaboración y enlaces reales llegarán sobre esta misma base cuando se conecten cuentas y almacenamiento en nube.'));
+        community.append(communityCopy,el('div','s936stage-soon','PRÓXIMA ETAPA')); shell.appendChild(community);
+        body.appendChild(shell);
+    }
+
 
     // ---------------------------------------------------------------
     // Recientes — Cambio 226
@@ -4193,10 +4538,15 @@
         toolbar.innerHTML = '';
         toolbar.style.display = '';
         if(activeTab === 'genres'){
-            // Cambio 205: "Comunidad" es un espacio reservado por ahora —
-            // sin barra de búsqueda/filtros hasta que haya algo real que
-            // buscar ahí.
-            toolbar.style.display = 'none';
+            const search = document.createElement('input');
+            search.className = 's936lib-search';
+            search.placeholder = 'Buscar en Escenario...';
+            search.value = searchQuery;
+            search.oninput = () => { searchQuery = search.value; renderBodyOnly(); };
+            search.onkeydown = (e) => { if(e.key === 'Escape'){ searchQuery=''; search.value=''; renderBodyOnly(); } };
+            const publishBtn = el('button','s936lib-actionbtn','＋ Publicar obra');
+            publishBtn.onclick = () => openStagePublishModal();
+            toolbar.append(search,publishBtn);
             return;
         }
         if(activeTab === 'youtube'){
@@ -4364,8 +4714,9 @@
         // pestaña siempre usa su propio mosaico, no hay elección real ahí.
         const gridBtnEl = panel.querySelector('.s936lib-viewbtn[data-view="grid"]');
         const listBtnEl = panel.querySelector('.s936lib-viewbtn[data-view="list"]');
-        if(gridBtnEl) gridBtnEl.style.display = isYoutube ? 'none' : '';
-        if(listBtnEl) listBtnEl.style.display = isYoutube ? 'none' : '';
+        const fixedPresentation = isYoutube || activeTab === 'genres';
+        if(gridBtnEl) gridBtnEl.style.display = fixedPresentation ? 'none' : '';
+        if(listBtnEl) listBtnEl.style.display = fixedPresentation ? 'none' : '';
         renderToolbar(panel.querySelector('.s936lib-toolbar'));
         renderBodyOnly();
         updateLcd();
