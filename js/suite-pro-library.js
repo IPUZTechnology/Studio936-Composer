@@ -2392,6 +2392,7 @@
     // Radio — estaciones online, reutilizan el mismo <audio> que MP3
     // ---------------------------------------------------------------
     let currentPlayingRadioId = null; // id de la estación de radio sonando (mismo audio, distinta procedencia)
+    let radioPlayToken = 0;
 
     function addRadioStation(station){
         if(!station || !station.streamUrl) return;
@@ -2438,7 +2439,12 @@
     async function searchRadioStations(query){
         if(!query || !query.trim()) return [];
         try {
-            const url = 'https://de1.api.radio-browser.info/json/stations/search?name=' + encodeURIComponent(query.trim()) + '&limit=20&hidebroken=true&order=clickcount&reverse=true';
+            // Cambio 221: pedir solo streams https — tu sitio corre en
+            // https:// (GitHub Pages), y el navegador bloquea en SILENCIO
+            // cualquier audio http:// desde una página https:// (esto es
+            // "contenido mixto" — la causa más común de "dice reproduciendo
+            // pero no suena" con radios online).
+            const url = 'https://de1.api.radio-browser.info/json/stations/search?name=' + encodeURIComponent(query.trim()) + '&limit=25&hidebroken=true&order=clickcount&reverse=true';
             const resp = await fetch(url);
             if(!resp.ok) return [];
             const data = await resp.json();
@@ -2449,8 +2455,30 @@
                 favicon: s.favicon,
                 country: s.country,
                 tags: s.tags
-            })).filter((s) => s.streamUrl);
+            })).filter((s) => s.streamUrl && s.streamUrl.toLowerCase().startsWith('https://'));
         } catch(_) { return []; }
+    }
+
+    // Cambio 221: algunas emisoras devuelven un archivo de LISTA de
+    // reproducción (.pls/.m3u), no el audio en sí — un <audio> no puede
+    // reproducir eso directamente, hay que leer el archivo de texto y
+    // sacar la URL real de adentro.
+    async function resolveRadioStreamUrl(url){
+        const lower = url.toLowerCase().split('?')[0];
+        if(!lower.endsWith('.pls') && !lower.endsWith('.m3u')) return url;
+        try {
+            const resp = await fetch(url);
+            if(!resp.ok) return url;
+            const text = await resp.text();
+            if(lower.endsWith('.pls')){
+                const match = text.match(/File\d*\s*=\s*(\S+)/i);
+                if(match && match[1]) return match[1].trim();
+            } else {
+                const line = text.split(/\r?\n/).find((l) => l.trim() && !l.trim().startsWith('#'));
+                if(line) return line.trim();
+            }
+        } catch(_) { /* si falla, se intenta con la URL original de todas formas */ }
+        return url;
     }
 
     let radioAddPopoverEl = null;
@@ -2575,10 +2603,31 @@
                 renderTransportState?.();
             });
         }
-        audioEl.src = station.streamUrl;
+        // Cambio 221: si el enlace es una LISTA de reproducción (.pls/.m3u),
+        // se resuelve a la URL de audio real antes de asignarla — un
+        // <audio> no puede reproducir el archivo de lista directamente.
+        // El "token" evita que, si cambias de emisora rápido, una
+        // resolución vieja termine sonando encima de la nueva.
+        const myToken = ++radioPlayToken;
+        const resolvedUrl = await resolveRadioStreamUrl(station.streamUrl);
+        if(myToken !== radioPlayToken) return; // elegiste otra radio mientras tanto
+        audioEl.src = resolvedUrl;
         audioEl.play().catch(() => { lcdLoading = false; updateLcd(); });
         updateLcd(null, station.name, station.country || station.tags || '');
         render();
+        // Cambio 221: si a los 8 segundos NO empezó a sonar de verdad
+        // (evento 'playing' real), se marca como error en vez de dejar el
+        // LCD diciendo "reproduciendo" para siempre sin sonido — causa
+        // típica: la emisora bloquea reproducción externa o el stream
+        // quedó caído.
+        setTimeout(() => {
+            if(myToken !== radioPlayToken) return;
+            if(currentPlayingRadioId === id && audioEl && audioEl.paused){
+                lcdLoading = false;
+                lcdError = true;
+                updateLcd();
+            }
+        }, 8000);
     }
 
     function buildRadioVisual(){
