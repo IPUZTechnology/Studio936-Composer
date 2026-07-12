@@ -230,6 +230,15 @@
         return Array.from(set).sort((a,b)=>a.localeCompare(b));
     }
 
+    // Cambio 203: listas usadas SOLO por un tipo de ítem (ej. solo tus MP3)
+    // — para que el filtro de Audio MP3 no mezcle listas creadas desde
+    // Mini Rockola o Composiciones.
+    function playlistsUsedBy(list){
+        const set = new Set();
+        (list || []).forEach((item) => { (item.playlists || []).forEach((p) => { if(p) set.add(p); }); });
+        return Array.from(set).sort((a,b)=>a.localeCompare(b));
+    }
+
     function setItemPlaylists(type, id, playlists){
         const list = store[type];
         const item = list && list.find(x => x.id === id);
@@ -713,7 +722,8 @@
         return fields.some(f => (f||'').toLowerCase().includes(q));
     }
 
-    function buildPlaylistFilterButton(){
+    function buildPlaylistFilterButton(scopeList){
+        const options = scopeList ? playlistsUsedBy(scopeList) : allPlaylists();
         const btn = el('button', 's936lib-iconbtn' + (activePlaylistFilter ? ' active' : ''), '⏷');
         btn.title = activePlaylistFilter ? ('Filtrando: ' + activePlaylistFilter) : 'Filtrar por lista';
         btn.style.cssText = 'width:32px;height:32px;font-size:.85rem;flex-shrink:0;';
@@ -727,13 +737,13 @@
             allBtn.type = 'button';
             allBtn.onclick = (ev) => { ev.preventDefault(); activePlaylistFilter = null; closeGenrePlaylistPopover(); renderBodyOnly(); };
             chips.appendChild(allBtn);
-            allPlaylists().forEach((name) => {
+            options.forEach((name) => {
                 const chip = el('button', 's936lib-gpchip' + (activePlaylistFilter === name ? ' active' : ''), name);
                 chip.type = 'button';
                 chip.onclick = (ev) => { ev.preventDefault(); activePlaylistFilter = name; closeGenrePlaylistPopover(); renderBodyOnly(); };
                 chips.appendChild(chip);
             });
-            if(!allPlaylists().length) chips.appendChild(el('div', 's936lib-gpempty', 'Todavía no tienes listas creadas.'));
+            if(!options.length) chips.appendChild(el('div', 's936lib-gpempty', 'Todavía no tienes listas creadas.'));
             pop.appendChild(chips);
             pop.addEventListener('click', (ev) => ev.stopPropagation());
             document.body.appendChild(pop);
@@ -2161,7 +2171,7 @@
             addBtn.title = 'Agregar un video a tu lista';
             addBtn.style.cssText = 'width:34px;height:32px;font-size:1.1rem;flex-shrink:0;';
             addBtn.onclick = (e) => { e.stopPropagation(); toggleYoutubeAddPopover(addBtn); };
-            toolbar.append(bar, buildPlaylistFilterButton(), addBtn);
+            toolbar.append(bar, buildPlaylistFilterButton(store.youtube), addBtn);
             return;
         }
         const search = document.createElement('input');
@@ -2173,7 +2183,7 @@
         // Cambio 189: en Composiciones ya no se usa el filtro de "listas"
         // (playlists) — el álbum es el concepto de agrupación aquí, y ya
         // tiene sus propios chips debajo. Se evita el control redundante.
-        if(activeTab !== 'compositions') toolbar.appendChild(buildPlaylistFilterButton());
+        if(activeTab !== 'compositions') toolbar.appendChild(buildPlaylistFilterButton(activeTab === 'audios' ? store.audios : null));
 
         if(activeTab === 'compositions'){
             // Cambio 194: dos botones separados — la flecha filtra rápido
@@ -2186,7 +2196,8 @@
             configBtn.onclick = (e) => { e.stopPropagation(); openAlbumConfig(); };
             toolbar.append(buildAlbumFilterButton(), configBtn);
         } else if(activeTab === 'audios'){
-            const btn = el('button', 's936lib-actionbtn', '⬆ Importar MP3/MP4');
+            const btn = el('button', 's936lib-actionbtn', '+ Importar MP3/MP4');
+            btn.title = 'Importar MP3/MP4';
             const fileInput = document.createElement('input');
             fileInput.type = 'file'; fileInput.accept = 'audio/*,video/mp4'; fileInput.multiple = true; fileInput.style.display = 'none';
             fileInput.onchange = (e) => importAudioFiles(e.target.files, btn);
