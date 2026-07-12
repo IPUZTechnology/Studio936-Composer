@@ -1221,7 +1221,20 @@
         radial-gradient(circle at 50% 45%, rgba(0,255,204,.10), transparent 46%),
         linear-gradient(180deg,#071512,#020706);
 }
+/* Cambio 224: la portada 936 queda SIEMPRE como fondo de Radio.
+   Si la emisora trae un logo válido, se superpone sin borrar el fallback.
+   Así un favicon vacío, transparente, roto o demasiado pequeño nunca deja
+   el Mini Player negro. */
+#${PANEL_ID} .s936lib-radio-visual > .s936sc-svg {
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    z-index:0;
+}
 #${PANEL_ID} .s936lib-radio-cover-image {
+    position:relative;
+    z-index:2;
     display:block;
     width:auto;
     height:auto;
@@ -1230,12 +1243,29 @@
     object-fit:contain;
     object-position:center;
     border-radius:10px;
-    filter:drop-shadow(0 12px 24px rgba(0,0,0,.4));
+    padding:8px;
+    background:rgba(3,12,10,.62);
+    border:1px solid rgba(83,214,192,.18);
+    box-shadow:0 12px 34px rgba(0,0,0,.48), inset 0 0 18px rgba(0,230,195,.035);
+    filter:drop-shadow(0 0 12px rgba(0,230,195,.08));
+}
+#${PANEL_ID} .s936lib-radio-cover-image.is-small-logo {
+    max-width:42%;
+    max-height:48%;
+    padding:12px;
+    border-radius:14px;
 }
 #${PANEL_ID}.s936lib-state-mini .s936lib-radio-cover-image {
     max-width:84%;
     max-height:78%;
     border-radius:8px;
+    padding:6px;
+}
+#${PANEL_ID}.s936lib-state-mini .s936lib-radio-cover-image.is-small-logo {
+    max-width:44%;
+    max-height:52%;
+    padding:9px;
+    border-radius:12px;
 }
 #${PANEL_ID} .s936lib-compvisual-hint { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#9fb0ae; font-size:.8rem; background:rgba(0,0,0,.35); text-align:center; padding:0 20px; }
 `;
@@ -2936,27 +2966,50 @@
     }
 
     function buildRadioVisual(){
-        const wrap = el('div', 's936lib-compvisual s936lib-mini-keep s936lib-radio-visual');
+        const wrap = el('div', 's936lib-compvisual s936lib-mini-keep s936lib-radio-visual s936sc-wrap');
         const playingStation = currentPlayingRadioId ? store.radio.find(x => x.id === currentPlayingRadioId) : null;
-        const renderFallback = () => {
-            wrap.innerHTML = '';
-            wrap.classList.add('s936sc-wrap');
-            if(playingStation && radioEl && !radioEl.paused && radioStatus === 'playing') wrap.classList.add('is-active');
-            wrap.innerHTML = buildSonicCoverSvg(playingStation || { id:'s936-empty-radio', title:'' }, 'radio');
-        };
+
+        // Cambio 224: el Sonic Cover 936 se pinta primero y nunca se elimina.
+        // La imagen de la emisora es una capa opcional. Si el servidor entrega
+        // un favicon roto, vacío o diminuto, se retira esa capa y queda visible
+        // automáticamente nuestra portada animada.
+        if(playingStation && radioEl && !radioEl.paused && radioStatus === 'playing'){
+            wrap.classList.add('is-active');
+        }
+        wrap.innerHTML = buildSonicCoverSvg(
+            playingStation || { id:'s936-empty-radio', title:'Radio 936' },
+            'radio'
+        );
+
         if(playingStation && playingStation.favicon){
             const image = document.createElement('img');
             image.className = 's936lib-radio-cover-image';
             image.alt = playingStation.name || 'Carátula de la emisora';
             image.loading = 'eager';
             image.decoding = 'async';
-            image.onerror = renderFallback;
+
+            const discardImage = () => {
+                if(image.parentNode) image.remove();
+            };
+            image.onerror = discardImage;
+            image.onload = () => {
+                const w = Number(image.naturalWidth || 0);
+                const h = Number(image.naturalHeight || 0);
+                // 1x1, 16x16 y otros favicons de seguimiento no sirven como
+                // carátula. Logos modestos sí se conservan como medallón.
+                if(w < 24 || h < 24 || (w * h) < 1024){
+                    discardImage();
+                    return;
+                }
+                if(w < 160 || h < 90) image.classList.add('is-small-logo');
+            };
             image.src = playingStation.favicon;
             wrap.appendChild(image);
-        } else {
-            renderFallback();
         }
-        if(!playingStation) wrap.appendChild(el('div', 's936lib-compvisual-hint', 'Elige "▶ Play" en una radio para verla aquí'));
+
+        if(!playingStation){
+            wrap.appendChild(el('div', 's936lib-compvisual-hint', 'Elige "▶ Play" en una radio para verla aquí'));
+        }
         return wrap;
     }
 
