@@ -1,4 +1,4 @@
-// Studio 936 Composer — Librería / "936 Player" (Cambio 167)
+// Studio 936 Composer — Librería / "936 Player" (Cambio 215)
 //
 // QUÉ ES: el mismo módulo unificado del Cambio 165/166 (Composiciones,
 // Audios, YouTube, Géneros, Recientes — con migración de los dos
@@ -173,21 +173,64 @@
         document.head.appendChild(tag);
     }
     let isYoutubePlaying = false;
+    // Cambio 215: estado REAL del motor YouTube. El LCD y el transporte
+    // dejan de depender de la pestaña visible o del último botón pulsado.
+    let youtubeStatus = 'idle'; // idle | loading | playing | paused | ended | error
+    let ytClockTimer = null;
+    let playerVolume = 80;
     // Cambio 212: cuál fue la última fuente que arrancó de verdad — sin
     // esto, si dejas un MP3 pausado (con audioEl.src aún puesto) y luego
     // reproduces YouTube, el LCD seguía pensando que el MP3 era lo activo.
     let lastActiveSource = null; // 'local' | 'youtube'
+    function startYoutubeClock(){
+        stopYoutubeClock();
+        ytClockTimer = setInterval(updateLcd, 500);
+    }
+    function stopYoutubeClock(){
+        if(ytClockTimer){ clearInterval(ytClockTimer); ytClockTimer = null; }
+    }
     function handleYtStateChange(event){
-        if(window.YT && event.data === window.YT.PlayerState.PLAYING){
+        if(!window.YT) return;
+        const state = event.data;
+        if(state === window.YT.PlayerState.PLAYING){
             isYoutubePlaying = true;
+            youtubeStatus = 'playing';
             lastActiveSource = 'youtube';
-            // Cambio 212: el sonido debe ser único — si había un MP3/
-            // composición sonando, se pausa al arrancar YouTube.
+            // Sonido exclusivo: YouTube toma el control y pausa el motor local.
             if(audioEl && !audioEl.paused) audioEl.pause();
             startEqAnimation();
-            updateLcd();
+            startYoutubeClock();
+        } else if(state === window.YT.PlayerState.BUFFERING){
+            isYoutubePlaying = false;
+            youtubeStatus = 'loading';
+            stopEqAnimation();
+            stopYoutubeClock();
+        } else if(state === window.YT.PlayerState.PAUSED){
+            isYoutubePlaying = false;
+            youtubeStatus = 'paused';
+            stopEqAnimation();
+            stopYoutubeClock();
+        } else if(state === window.YT.PlayerState.ENDED){
+            isYoutubePlaying = false;
+            youtubeStatus = 'ended';
+            stopEqAnimation();
+            stopYoutubeClock();
+        } else if(state === window.YT.PlayerState.CUED || state === window.YT.PlayerState.UNSTARTED){
+            isYoutubePlaying = false;
+            youtubeStatus = currentYoutubeId ? 'paused' : 'idle';
+            stopEqAnimation();
+            stopYoutubeClock();
         }
-        else { isYoutubePlaying = false; stopEqAnimation(); updateLcd(); }
+        updateLcd();
+        renderTransportState();
+    }
+    function handleYtError(){
+        isYoutubePlaying = false;
+        youtubeStatus = 'error';
+        stopEqAnimation();
+        stopYoutubeClock();
+        updateLcd();
+        renderTransportState();
     }
     // Cambio 172: cada barra del ecualizador se colorea interpolando entre
     // azul y verde según su posición — el lado izquierdo va de azul
@@ -710,7 +753,7 @@
    vez de dejar franjas oscuras a los lados solo para verlo completo sin
    tener que maximizar. */
 #${PANEL_ID} #s936lib-yt-embed-slot { margin:-14px -18px 0; }
-#${PANEL_ID} #s936lib-yt-embed-slot.s936-yt-hidden { position:absolute; visibility:hidden; width:1px; height:1px; overflow:hidden; margin:0; pointer-events:none; top:0; left:0; }
+#${PANEL_ID} #s936lib-yt-embed-slot.s936-yt-hidden { position:absolute; width:640px; height:360px; overflow:hidden; margin:0; pointer-events:none; top:0; left:-10000px; opacity:.001; }
 #${PANEL_ID} #s936lib-yt-embed-slot .s936lib-ytembed { border-radius:0; border-left:none; border-right:none; }
 #${PANEL_ID} .s936lib-ytembed iframe { width:100%; height:100%; border:none; border-radius:10px; }
 #${PANEL_ID} .s936lib-ytplaceholder { width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; border:1px solid #333; margin-bottom:14px; display:flex; align-items:center; justify-content:center; color:#9fb0ae; font-size:.8rem; text-align:center; padding:20px; }
@@ -825,12 +868,21 @@
     // ---------------------------------------------------------------
     // Búsqueda genérica
     // ---------------------------------------------------------------
+    function normalizeSearchText(value){
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/[_-]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
     function matchesSearch(item, extraFields){
         if(activePlaylistFilter && !(item.playlists || []).includes(activePlaylistFilter)) return false;
         if(!searchQuery) return true;
-        const q = searchQuery.toLowerCase();
-        const fields = [item.title, item.author, item.genre].concat(extraFields||[]);
-        return fields.some(f => (f||'').toLowerCase().includes(q));
+        const q = normalizeSearchText(searchQuery);
+        const fields = [item.title, item.author, item.genre, ...(item.playlists || [])].concat(extraFields || []);
+        return fields.some((field) => normalizeSearchText(field).includes(q));
     }
 
     function buildPlaylistFilterButton(scopeList){
@@ -1934,17 +1986,41 @@
         lcdLoading = true;
         if(!audioEl){
             audioEl = new Audio();
-            audioEl.addEventListener('ended', playNextInQueue);
+            audioEl.volume = playerVolume / 100;
+            audioEl.addEventListener('ended', () => {
+                stopEqAnimation();
+                playNextInQueue();
+            });
             audioEl.addEventListener('timeupdate', updateLcd);
             audioEl.addEventListener('loadedmetadata', updateLcd);
             audioEl.addEventListener('loadstart', () => { lcdLoading = true; updateLcd(); });
             audioEl.addEventListener('canplay', () => { lcdLoading = false; updateLcd(); });
-            audioEl.addEventListener('playing', () => { lcdLoading = false; lcdError = false; updateLcd(); });
-            audioEl.addEventListener('error', () => { lcdLoading = false; lcdError = true; updateLcd(); });
+            audioEl.addEventListener('playing', () => {
+                lastActiveSource = 'local';
+                lcdLoading = false;
+                lcdError = false;
+                startEqAnimation();
+                updateLcd();
+                renderTransportState();
+            });
+            audioEl.addEventListener('pause', () => {
+                if(lastActiveSource === 'local') stopEqAnimation();
+                updateLcd();
+                renderTransportState();
+            });
+            audioEl.addEventListener('error', () => {
+                lcdLoading = false;
+                lcdError = true;
+                stopEqAnimation();
+                updateLcd();
+                renderTransportState();
+            });
         }
         audioEl.src = objectURL;
-        audioEl.play().catch(()=>{});
-        startEqAnimation();
+        audioEl.play().catch(() => {
+            lcdLoading = false;
+            updateLcd();
+        });
         // Cambio 212: subtítulo real (artista, o álbum de la composición
         // vinculada si la tiene) — nunca el texto genérico "Audio". Si no
         // hay ningún dato útil, se oculta en vez de mostrar un relleno.
@@ -1971,11 +2047,16 @@
     }
 
     function togglePlayPause(){
+        if(lastActiveSource === 'youtube' && ytPlayer){
+            try {
+                if(isYoutubePlaying) ytPlayer.pauseVideo();
+                else ytPlayer.playVideo();
+            } catch(_) {}
+            return;
+        }
         if(!audioEl || !audioEl.src) return;
-        if(audioEl.paused){ audioEl.play().catch(()=>{}); startEqAnimation(); }
-        else { audioEl.pause(); stopEqAnimation(); }
-        updateLcd();
-        render();
+        if(audioEl.paused) audioEl.play().catch(()=>{});
+        else audioEl.pause();
     }
 
     function toggleQueue(id){
@@ -2005,6 +2086,7 @@
         if(!item) return;
         if(!await s936Confirm('¿Quitar "' + item.title + '" de tus audios?')) return;
         store.audios = store.audios.filter(x => x.id !== id);
+        if(audioObjectURLs[id]){ try { URL.revokeObjectURL(audioObjectURLs[id]); } catch(_) {} }
         delete audioObjectURLs[id];
         saveStore();
         render();
@@ -2081,8 +2163,10 @@
     }
 
     function renderAudios(body){
-        body.appendChild(buildAudioVisual());
-        const list = store.audios.filter(x => matchesSearch(x) && (!activeGenreFilter || x.genre === activeGenreFilter));
+        // En búsqueda/filtro se priorizan resultados: el visual grande no
+        // debe empujar la lista fuera de la pantalla.
+        if(!searchQuery && !activePlaylistFilter && !activeGenreFilter) body.appendChild(buildAudioVisual());
+        const list = store.audios.filter(x => matchesSearch(x, [x.fileName]) && (!activeGenreFilter || x.genre === activeGenreFilter));
         if(!list.length){
             if(viewMode === 'grid' && !store.audios.length){
                 const grid = el('div', 's936lib-ytgrid');
@@ -2171,7 +2255,14 @@
         return null;
     }
     function lcdStatusLabel(type){
-        if(type === 'youtube') return '● EN VIVO · YOUTUBE';
+        if(type === 'youtube') {
+            if(youtubeStatus === 'loading') return '◌ MINI ROCKOLA · CARGANDO';
+            if(youtubeStatus === 'playing') return '▶ MINI ROCKOLA · REPRODUCIENDO';
+            if(youtubeStatus === 'paused') return 'Ⅱ MINI ROCKOLA · PAUSADO';
+            if(youtubeStatus === 'ended') return 'MINI ROCKOLA · FINALIZADO';
+            if(youtubeStatus === 'error') return 'MINI ROCKOLA · ERROR';
+            return 'MINI ROCKOLA';
+        }
         if(!type) return '';
         const typeLabel = type === 'compositions' ? 'COMPOSICIÓN' : 'AUDIO MP3';
         const icon = type === 'compositions' ? '◆' : '〜';
@@ -2239,22 +2330,34 @@
         if(statusEl) statusEl.textContent = lcdStatusLabel(type);
         if(lcdEl) lcdEl.classList.toggle('is-idle', !type);
 
-        if(audioEl && timeEl && audioEl.src) timeEl.textContent = fmtTime(audioEl.currentTime) + ' / ' + fmtTime(audioEl.duration);
-        if(audioEl && progressBar && audioEl.duration) progressBar.style.width = ((audioEl.currentTime/audioEl.duration)*100) + '%';
-        if(playBtn) playBtn.textContent = (audioEl && audioEl.src && !audioEl.paused) ? '⏸' : '⏵';
+        if(lastActiveSource === 'youtube' && ytPlayer){
+            let current = 0, duration = 0;
+            try { current = Number(ytPlayer.getCurrentTime?.() || 0); duration = Number(ytPlayer.getDuration?.() || 0); } catch(_) {}
+            if(timeEl) timeEl.textContent = duration > 0 ? (fmtTime(current) + ' / ' + fmtTime(duration)) : '';
+            if(progressBar) progressBar.style.width = duration > 0 ? ((current / duration) * 100) + '%' : '0%';
+            if(playBtn) playBtn.textContent = isYoutubePlaying ? '⏸' : '⏵';
+        } else {
+            if(audioEl && timeEl && audioEl.src) timeEl.textContent = fmtTime(audioEl.currentTime) + ' / ' + fmtTime(audioEl.duration);
+            if(progressBar) progressBar.style.width = (audioEl && audioEl.duration) ? ((audioEl.currentTime/audioEl.duration)*100) + '%' : '0%';
+            if(playBtn) playBtn.textContent = (audioEl && audioEl.src && !audioEl.paused) ? '⏸' : '⏵';
+        }
 
         // Cambio 209: estados visuales del ecualizador — cargando, error,
         // pausado — sin agregar temporizadores nuevos, solo clases CSS.
         if(lcdEl){
-            lcdEl.classList.toggle('is-loading', lcdLoading);
-            lcdEl.classList.toggle('is-error', lcdError);
-            const localIsActiveSource = lastActiveSource === 'local' || (!lastActiveSource && audioEl && audioEl.src);
-            lcdEl.classList.toggle('is-paused', !!(localIsActiveSource && audioEl && audioEl.src && audioEl.paused && !lcdLoading && !lcdError));
+            const activeLoading = lastActiveSource === 'youtube' ? youtubeStatus === 'loading' : lcdLoading;
+            const activeError = lastActiveSource === 'youtube' ? youtubeStatus === 'error' : lcdError;
+            const activePaused = lastActiveSource === 'youtube'
+                ? (youtubeStatus === 'paused' || youtubeStatus === 'ended')
+                : !!(audioEl && audioEl.src && audioEl.paused && !lcdLoading && !lcdError);
+            lcdEl.classList.toggle('is-loading', activeLoading);
+            lcdEl.classList.toggle('is-error', activeError);
+            lcdEl.classList.toggle('is-paused', activePaused);
         }
-        if(lcdError){
+        if((lastActiveSource === 'local' && lcdError) || (lastActiveSource === 'youtube' && youtubeStatus === 'error')){
             titleEl.title = '';
             titleEl.textContent = 'NO SE PUDO REPRODUCIR';
-            if(subEl) subEl.textContent = 'Intenta nuevamente';
+            if(subEl){ subEl.textContent = 'Intenta nuevamente'; subEl.style.display = ''; }
         }
 
         // Cambio 208: anillo de progreso de la "936 Sonic Cover" activa —
@@ -2274,9 +2377,17 @@
     // <audio> real con duración conocida (no YouTube — no tocamos ese
     // reproductor, tal como se pidió).
     function seekToPointerEvent(e, progressEl){
-        if(!audioEl || !audioEl.duration) return;
         const rect = progressEl.getBoundingClientRect();
         const pct = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+        if(lastActiveSource === 'youtube' && ytPlayer){
+            try {
+                const duration = Number(ytPlayer.getDuration?.() || 0);
+                if(duration > 0) ytPlayer.seekTo(pct * duration, true);
+            } catch(_) {}
+            updateLcd();
+            return;
+        }
+        if(!audioEl || !audioEl.duration) return;
         audioEl.currentTime = pct * audioEl.duration;
         updateLcd();
     }
@@ -2303,10 +2414,12 @@
         lcdYoutubeTitle = item.title;
         ytAutoplayNext = true;
         lastActiveSource = 'youtube';
-        // Cambio 212: el sonido debe ser único — pausar el audio local de
-        // inmediato, sin esperar al evento de estado de YouTube.
+        youtubeStatus = 'loading';
+        isYoutubePlaying = false;
+        // Sonido exclusivo: la selección de Rockola pausa el motor local.
         if(audioEl && !audioEl.paused) audioEl.pause();
-        startEqAnimation();
+        stopEqAnimation();
+        stopYoutubeClock();
         render();
     }
 
@@ -2335,7 +2448,14 @@
         if(!item) return;
         if(!await s936Confirm('¿Borrar el favorito "' + item.title + '"?')) return;
         store.youtube = store.youtube.filter(x => x.id !== id);
-        if(currentYoutubeId === id) currentYoutubeId = null;
+        if(currentYoutubeId === id){
+            currentYoutubeId = null;
+            lcdYoutubeTitle = null;
+            youtubeStatus = 'idle';
+            isYoutubePlaying = false;
+            stopEqAnimation();
+            stopYoutubeClock();
+        }
         saveStore();
         render();
     }
@@ -2435,7 +2555,13 @@
         embedSlot.appendChild(wrap);
         ensureYoutubeApi(() => {
             if(!document.getElementById(iframeId)) return;
-            ytPlayer = new window.YT.Player(iframeId, { events: { onStateChange: handleYtStateChange } });
+            ytPlayer = new window.YT.Player(iframeId, {
+                events: {
+                    onReady: (event) => { try { event.target.setVolume(playerVolume); } catch(_) {} },
+                    onStateChange: handleYtStateChange,
+                    onError: handleYtError
+                }
+            });
         });
     }
 
@@ -2496,6 +2622,12 @@
             ytEmbedSlotEl.id = 's936lib-yt-embed-slot';
         }
         if(ytEmbedSlotEl.parentNode !== body) body.insertBefore(ytEmbedSlotEl, body.firstChild || null);
+        // Al volver desde Audio/Composiciones/Recientes, retirar el DOM de
+        // esa pestaña. Antes quedaba debajo de Rockola y parecía que sus
+        // MP3 pertenecían a la lista de YouTube. El iframe nunca se toca.
+        Array.from(body.children).forEach((child) => {
+            if(child !== ytEmbedSlotEl && child.id !== 's936lib-yt-list-slot') child.remove();
+        });
         ytEmbedSlotEl.classList.remove('s936-yt-hidden');
         let listSlot = body.querySelector('#s936lib-yt-list-slot');
         if(!listSlot){
@@ -2688,6 +2820,21 @@
         else if(activeTab === 'genres') renderGenres(body);
     }
 
+    function renderTransportState(){
+        const panel = document.getElementById(PANEL_ID);
+        if(!panel) return;
+        const playBtn = panel.querySelector('.s936lib-playbtn');
+        const vol = panel.querySelector('.s936lib-vol');
+        if(playBtn){
+            playBtn.style.display = '';
+            playBtn.disabled = lastActiveSource === 'youtube' ? !ytPlayer : !(audioEl && audioEl.src);
+            playBtn.textContent = lastActiveSource === 'youtube'
+                ? (isYoutubePlaying ? '⏸' : '⏵')
+                : ((audioEl && audioEl.src && !audioEl.paused) ? '⏸' : '⏵');
+        }
+        if(vol) vol.style.display = '';
+    }
+
     function render(){
         const panel = document.getElementById(PANEL_ID);
         if(!panel) return;
@@ -2695,15 +2842,8 @@
         closeYoutubeAddPopover();
         panel.querySelectorAll('.s936lib-tab').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === activeTab));
         panel.querySelectorAll('.s936lib-viewbtn').forEach((btn) => btn.classList.toggle('active', btn.dataset.view === viewMode));
-        // Cambio 176: en YouTube, Play y Volumen no controlan nada real
-        // (el video vive en un iframe aparte, y YouTube ya trae su propio
-        // play/pausa y volumen encima del video) — se ocultan para no
-        // confundir con botones que no hacen nada.
-        const playBtn = panel.querySelector('.s936lib-playbtn');
-        const vol = panel.querySelector('.s936lib-vol');
+        renderTransportState();
         const isYoutube = activeTab === 'youtube';
-        if(playBtn) playBtn.style.display = isYoutube ? 'none' : '';
-        if(vol) vol.style.display = isYoutube ? 'none' : '';
         // Cambio 177: el toggle cuadrícula/lista no aplica en YouTube — esa
         // pestaña siempre usa su propio mosaico, no hay elección real ahí.
         const gridBtnEl = panel.querySelector('.s936lib-viewbtn[data-view="grid"]');
@@ -2804,19 +2944,23 @@
         const controlRow = el('div', 's936lib-controlrow');
         const prevBtn = el('button', '', '⏮');
         prevBtn.title = 'Antes en la cola';
-        prevBtn.onclick = () => { activeTab === 'youtube' ? youtubeListNav(-1) : (queue.length && playNextInQueue()); };
+        prevBtn.onclick = () => { lastActiveSource === 'youtube' ? youtubeListNav(-1) : (queue.length && playNextInQueue()); };
         const playBtn = el('button', 's936lib-playbtn', '⏵');
         playBtn.onclick = togglePlayPause;
         const nextBtn = el('button', '', '⏭');
         nextBtn.title = 'Siguiente en la cola';
-        nextBtn.onclick = () => { activeTab === 'youtube' ? youtubeListNav(1) : playNextInQueue(); };
+        nextBtn.onclick = () => { lastActiveSource === 'youtube' ? youtubeListNav(1) : playNextInQueue(); };
         const toolbar = el('div', 's936lib-toolbar');
         const vol = el('div', 's936lib-vol');
         const volIcon = el('span', 's936lib-volicon', '🔊');
         volIcon.title = 'Volumen';
         const volSlider = document.createElement('input');
-        volSlider.type = 'range'; volSlider.min = '0'; volSlider.max = '100'; volSlider.value = '80';
-        volSlider.oninput = () => { if(audioEl) audioEl.volume = volSlider.value/100; };
+        volSlider.type = 'range'; volSlider.min = '0'; volSlider.max = '100'; volSlider.value = String(playerVolume);
+        volSlider.oninput = () => {
+            playerVolume = Number(volSlider.value);
+            if(audioEl) audioEl.volume = playerVolume / 100;
+            if(ytPlayer && typeof ytPlayer.setVolume === 'function'){ try { ytPlayer.setVolume(playerVolume); } catch(_) {} }
+        };
         volIcon.onclick = (e) => { e.stopPropagation(); vol.classList.toggle('open'); };
         vol.append(volIcon, volSlider);
         controlRow.append(prevBtn, playBtn, nextBtn, toolbar, vol);
