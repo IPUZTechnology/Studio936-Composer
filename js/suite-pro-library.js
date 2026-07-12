@@ -1040,6 +1040,10 @@
         const ok = window.Studio936AppBridge?.loadProject?.(item.project);
         if(ok === false){ alert('No se pudo abrir esta composición — el proyecto guardado parece dañado o incompleto.'); return; }
         close();
+        // Cambio 199: sin esto, los datos se actualizaban por detrás pero
+        // nunca se veía nada — falta llamar a openArea('compose') para que
+        // el panel de Suite Pro se vuelva a dibujar con la canción nueva.
+        window.Studio936SuitePro?.openArea?.('compose');
     }
 
     function renameComposition(id){
