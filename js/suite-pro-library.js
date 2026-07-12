@@ -2477,17 +2477,34 @@
         }
     }
 
+    // Cambio 213: contenedor oculto persistente para el embed de YouTube
+    // cuando NO estás en la pestaña Mini Rockola — antes, cambiar de
+    // pestaña hacía `body.innerHTML = ''`, lo que DESTRUÍA el iframe (y
+    // con él, el sonido). Ahora el mismo nodo se mueve, nunca se recrea.
+    let ytEmbedSlotEl = null;
+    let ytHiddenHostEl = null;
+    function ensureYtHiddenHost(){
+        if(ytHiddenHostEl && document.body.contains(ytHiddenHostEl)) return ytHiddenHostEl;
+        ytHiddenHostEl = document.createElement('div');
+        ytHiddenHostEl.id = 's936lib-yt-hidden-host';
+        ytHiddenHostEl.style.cssText = 'position:fixed; width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none; left:-9999px; top:-9999px;';
+        document.body.appendChild(ytHiddenHostEl);
+        return ytHiddenHostEl;
+    }
+
     function renderYoutube(body){
-        let embedSlot = body.querySelector('#s936lib-yt-embed-slot');
+        if(!ytEmbedSlotEl){
+            ytEmbedSlotEl = el('div', 's936lib-mini-keep');
+            ytEmbedSlotEl.id = 's936lib-yt-embed-slot';
+        }
+        if(ytEmbedSlotEl.parentNode !== body) body.insertBefore(ytEmbedSlotEl, body.firstChild || null);
         let listSlot = body.querySelector('#s936lib-yt-list-slot');
-        if(!embedSlot || !listSlot){
-            body.innerHTML = '';
-            embedSlot = el('div', 's936lib-mini-keep'); embedSlot.id = 's936lib-yt-embed-slot';
+        if(!listSlot){
             listSlot = el('div', ''); listSlot.id = 's936lib-yt-list-slot';
-            body.append(embedSlot, listSlot);
+            body.appendChild(listSlot);
         }
         const current = store.youtube.find(x => x.id === currentYoutubeId) || store.youtube[0];
-        renderYoutubeEmbed(embedSlot, current);
+        renderYoutubeEmbed(ytEmbedSlotEl, current);
         renderYoutubeList(listSlot);
     }
 
@@ -2655,6 +2672,12 @@
             // cuando de verdad hace falta.
             renderYoutube(body);
             return;
+        }
+        // Cambio 213: si el embed de YouTube existe y sigue sonando, no lo
+        // destruyas al salir de la pestaña — muévelo a un contenedor
+        // oculto para que el sonido siga aunque ya no se vea.
+        if(ytEmbedSlotEl && ytEmbedSlotEl.parentNode === body){
+            ensureYtHiddenHost().appendChild(ytEmbedSlotEl);
         }
         body.innerHTML = '';
         if(activeTab === 'recent') renderRecent(body);
