@@ -666,19 +666,30 @@
 #${PANEL_ID} .s936lib-ytcardnotes { font-size:.68rem; color:#9fb0ae; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 #${PANEL_ID} .s936lib-ytcardactions { display:flex; align-items:center; gap:8px; margin-top:auto; padding-top:6px; }
 
-/* Cambio 188: carátula animada para composiciones sin álbum/portada —
-   ondas que respiran suavemente, para que no se vea como un ícono muerto
-   mientras la canción sigue en construcción. */
-#${PANEL_ID} .s936lib-comp-noart { background:radial-gradient(circle at 30% 20%,#1c5a4f,#0a1614 75%); display:flex; align-items:center; justify-content:center; }
-#${PANEL_ID} .s936lib-comp-wave { width:70%; height:50%; opacity:.85; }
-#${PANEL_ID} .s936lib-comp-wave path { fill:none; stroke:#5be8c9; stroke-width:2.4; stroke-linecap:round; animation:s936CompWave 2.6s ease-in-out infinite; }
-@keyframes s936CompWave {
-  0%, 100% { d: path("M0 20 Q 12 4 25 20 T 50 20 T 75 20 T 100 20"); }
-  50% { d: path("M0 20 Q 12 34 25 20 T 50 20 T 75 20 T 100 20"); }
+/* Cambio 208: "936 Sonic Cover" — carátula generada para canciones sin
+   foto/video. Estática por defecto (sin costo de CPU); solo la que está
+   sonando de verdad (.is-active) anima su espectro/anillos/núcleo y
+   muestra el anillo de progreso. El hover es puramente CSS. Respeta
+   prefers-reduced-motion. */
+#${PANEL_ID} .s936sc-wrap { background:#071512; display:flex; align-items:center; justify-content:center; }
+#${PANEL_ID} .s936sc-svg { width:100%; height:100%; display:block; }
+#${PANEL_ID} .s936sc-core { transition:filter .4s ease; }
+#${PANEL_ID} .s936sc-wrap:hover .s936sc-core { filter:drop-shadow(0 0 4px rgba(0,230,195,.55)); }
+#${PANEL_ID} .s936sc-bar { opacity:.35; transform-box:fill-box; transform-origin:center; }
+#${PANEL_ID} .s936sc-progressring { opacity:0; transition:opacity .3s ease; }
+#${PANEL_ID} .s936sc-wrap.is-active .s936sc-progressring { opacity:1; }
+#${PANEL_ID} .s936sc-wrap.is-active .s936sc-bar { opacity:.85; animation:s936ScBars 1.1s ease-in-out infinite; }
+#${PANEL_ID} .s936sc-wrap.is-active .s936sc-ring { animation:s936ScRingPulse 2.4s ease-in-out infinite; }
+#${PANEL_ID} .s936sc-wrap.is-active .s936sc-core { animation:s936ScCorePulse 2.4s ease-in-out infinite; transform-box:fill-box; transform-origin:center; }
+@keyframes s936ScBars { 0%, 100% { transform:scaleY(.7); } 50% { transform:scaleY(1.25); } }
+@keyframes s936ScRingPulse { 0%, 100% { opacity:.4; } 50% { opacity:.8; } }
+@keyframes s936ScCorePulse { 0%, 100% { transform:scale(1); } 50% { transform:scale(1.04); } }
+@media (prefers-reduced-motion: reduce) {
+  #${PANEL_ID} .s936sc-wrap.is-active .s936sc-bar,
+  #${PANEL_ID} .s936sc-wrap.is-active .s936sc-ring,
+  #${PANEL_ID} .s936sc-wrap.is-active .s936sc-core { animation:none; }
 }
 #${PANEL_ID} .s936lib-list-thumb { width:38px; height:38px; border-radius:7px; flex-shrink:0; background-position:center; background-size:cover; background-color:#0a1614; }
-#${PANEL_ID} .s936lib-list-thumb.s936lib-comp-noart { display:flex; }
-#${PANEL_ID} .s936lib-list-thumb .s936lib-comp-wave { width:80%; height:60%; }
 
 /* Cambio 193: espacio grande de "video/carátula" al reproducir, mismo
    espíritu que el embed de Mini Rockola. */
@@ -687,7 +698,6 @@
 #${PANEL_ID} .s936lib-compvisual-media { width:100%; height:100%; object-fit:contain; }
 #${PANEL_ID} .s936lib-compvisual-zoom { background-size:contain; background-repeat:no-repeat; background-position:center; }
 #${PANEL_ID} .s936lib-compvisual-hint { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#9fb0ae; font-size:.8rem; background:rgba(0,0,0,.35); text-align:center; padding:0 20px; }
-#${PANEL_ID} .s936lib-compvisual.s936lib-comp-noart .s936lib-comp-wave { width:60%; height:50%; }
 `;
         document.head.appendChild(style);
     }
@@ -1493,7 +1503,104 @@
     // al que pertenece si tiene una; si no, un ícono animado (ondas SVG)
     // que se ve "vivo" en vez de un emoji estático, ya que son canciones
     // que todavía no tienen su forma final.
-    function buildCompositionThumb(item, className){
+    // ---------------------------------------------------------------
+    // "936 Sonic Cover" (Cambio 208) — carátula generada para canciones sin
+    // foto/video propia. Determinística: la MISMA canción siempre recibe
+    // el mismo diseño (círculos, ángulo de degradado, partículas), pero
+    // canciones distintas no se ven idénticas entre sí. Reemplaza el
+    // ícono de ondas simple de antes.
+    //
+    // Simplificaciones honestas respecto al pedido original:
+    // - No reacciona a datos reales de análisis de frecuencia (Web Audio
+    //   AnalyserNode) — el motor de audio de hoy no expone eso todavía.
+    //   En su lugar, el espectro radial "respira" con una animación CSS
+    //   mientras suena, que es lo más cercano que se puede dar hoy.
+    // - No usa IntersectionObserver para pausar tarjetas fuera de vista —
+    //   como la animación es 100% CSS (no timers de JS por tarjeta), el
+    //   navegador ya la pausa solo cuando la pestaña no está visible, así
+    //   que el costo real de CPU es bajo sin necesidad de esa pieza extra.
+    // - Respeta prefers-reduced-motion (ver CSS).
+    function s936Hash(str){
+        let h = 2166136261;
+        for(let i=0; i<str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+        return h >>> 0;
+    }
+    function s936SeededRandom(str){
+        let seed = s936Hash(str) || 1;
+        return function(){
+            seed = (seed * 1664525 + 1013904223) >>> 0;
+            return seed / 4294967296;
+        };
+    }
+    const SONIC_TYPE_ICON = { compositions:'♫', audios:'〜', youtube:'▶', recording:'🎙' };
+
+    function buildSonicCoverSvg(item, typeKey){
+        const seedStr = String(item.id || '') + '|' + String(item.title || '');
+        const rand = s936SeededRandom(seedStr);
+        const uid = 'sc' + s936Hash(seedStr);
+        const ringCount = 3 + Math.floor(rand() * 3);
+        const gradAngle = Math.floor(rand() * 360);
+        const baseAlpha = 0.45 + rand() * 0.3;
+        const monoRotate = Math.floor(rand() * 16) - 8;
+        const monoX = 10 + rand() * 25;
+
+        let particles = '';
+        const particleCount = 6 + Math.floor(rand() * 6);
+        for(let i = 0; i < particleCount; i++){
+            const px = (rand() * 180 + 10).toFixed(1);
+            const py = (rand() * 180 + 10).toFixed(1);
+            const pr = (0.6 + rand() * 1.3).toFixed(1);
+            const po = (0.12 + rand() * 0.22).toFixed(2);
+            particles += `<circle cx="${px}" cy="${py}" r="${pr}" fill="#53D6C0" opacity="${po}" />`;
+        }
+
+        let rings = '';
+        for(let i = 0; i < ringCount; i++){
+            const r = 28 + i * 13;
+            const o = Math.max(0.12, baseAlpha - i * 0.11).toFixed(2);
+            rings += `<circle class="s936sc-ring" cx="100" cy="100" r="${r}" fill="none" stroke="#00E6C3" stroke-width="1.1" opacity="${o}" />`;
+        }
+
+        let bars = '';
+        const barCount = 28;
+        for(let i = 0; i < barCount; i++){
+            const angle = (i / barCount) * 360;
+            const barH = (5 + rand() * 12).toFixed(1);
+            bars += `<g transform="rotate(${angle.toFixed(1)} 100 100) translate(100 100)"><rect class="s936sc-bar" x="-1" y="-${(36 + parseFloat(barH)).toFixed(1)}" width="2" height="${barH}" fill="#00E6C3" /></g>`;
+        }
+
+        const circumference = 2 * Math.PI * 42;
+        const icon = SONIC_TYPE_ICON[typeKey] || '♫';
+
+        return `<svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice" class="s936sc-svg">
+            <defs>
+                <linearGradient id="${uid}" gradientTransform="rotate(${gradAngle} 0.5 0.5)">
+                    <stop offset="0%" stop-color="#071512" />
+                    <stop offset="100%" stop-color="#123B34" />
+                </linearGradient>
+            </defs>
+            <rect x="0" y="0" width="200" height="200" fill="url(#${uid})" />
+            <text x="${monoX.toFixed(0)}" y="150" transform="rotate(${monoRotate} ${monoX.toFixed(0)} 150)" font-size="120" font-weight="900" fill="#0f2a25" opacity="0.55" font-family="inherit">936</text>
+            ${particles}
+            <g class="s936sc-bars">${bars}</g>
+            ${rings}
+            <circle class="s936sc-progressring" cx="100" cy="100" r="42" fill="none" stroke="#00E6C3" stroke-width="2" stroke-dasharray="${circumference.toFixed(1)}" stroke-dashoffset="${circumference.toFixed(1)}" data-circumference="${circumference.toFixed(1)}" transform="rotate(-90 100 100)" />
+            <circle class="s936sc-core" cx="100" cy="100" r="24" fill="#0d1f1c" stroke="#53D6C0" stroke-width="1.3" />
+            <text x="100" y="104" text-anchor="middle" font-size="12" font-weight="800" fill="#eef7f5" font-family="inherit">936</text>
+            <text x="12" y="186" font-size="15" fill="#cfeee7" opacity="0.85">${icon}</text>
+        </svg>`;
+    }
+
+    // isActive: si esta es la que está sonando ahora mismo — activa el
+    // anillo de progreso y la animación del espectro; las demás quedan
+    // completamente estáticas (sin costo de CPU).
+    function buildSonicCover(item, typeKey, className, isActive){
+        const thumb = el('div', className + ' s936sc-wrap' + (isActive ? ' is-active' : ''));
+        thumb.innerHTML = buildSonicCoverSvg(item, typeKey);
+        return thumb;
+    }
+
+    function buildCompositionThumb(item, className, isActive){
         const thumb = el('div', className);
         const videoUrl = albumVideoUrl(item.albumId);
         const coverUrl = compositionCoverUrl(item);
@@ -1505,10 +1612,9 @@
         } else if(coverUrl){
             thumb.style.backgroundImage = `url('${coverUrl}')`;
         } else {
-            thumb.classList.add('s936lib-comp-noart');
-            thumb.innerHTML = `<svg viewBox="0 0 100 40" preserveAspectRatio="none" class="s936lib-comp-wave">
-                <path d="M0 20 Q 12 4 25 20 T 50 20 T 75 20 T 100 20" />
-            </svg>`;
+            thumb.classList.add('s936sc-wrap');
+            if(isActive) thumb.classList.add('is-active');
+            thumb.innerHTML = buildSonicCoverSvg(item, 'compositions');
         }
         return thumb;
     }
@@ -1545,6 +1651,7 @@
     function buildCompositionsVisual(){
         const wrap = el('div', 's936lib-compvisual s936lib-mini-keep');
         const playingItem = currentPlayingComp ? store.compositions.find(x => x.id === currentPlayingComp) : null;
+        const isActuallyPlaying = !!(playingItem && audioEl && !audioEl.paused);
         const videoUrl = playingItem ? albumVideoUrl(playingItem.albumId) : null;
         const coverUrl = playingItem ? compositionCoverUrl(playingItem) : null;
         if(videoUrl){
@@ -1556,11 +1663,13 @@
             const bg = el('div', 's936lib-compvisual-media s936lib-compvisual-zoom');
             bg.style.backgroundImage = `url('${coverUrl}')`;
             wrap.appendChild(bg);
+        } else if(playingItem){
+            wrap.classList.add('s936sc-wrap');
+            if(isActuallyPlaying) wrap.classList.add('is-active');
+            wrap.innerHTML = buildSonicCoverSvg(playingItem, 'compositions');
         } else {
-            wrap.classList.add('s936lib-comp-noart');
-            wrap.innerHTML = `<svg viewBox="0 0 100 40" preserveAspectRatio="none" class="s936lib-comp-wave">
-                <path d="M0 20 Q 12 4 25 20 T 50 20 T 75 20 T 100 20" />
-            </svg>`;
+            wrap.classList.add('s936sc-wrap');
+            wrap.innerHTML = buildSonicCoverSvg({ id:'s936-empty-comp', title:'' }, 'compositions');
         }
         if(!playingItem) wrap.appendChild(el('div', 's936lib-compvisual-hint', 'Elige "▶ Play" en una composición para verla aquí'));
         return wrap;
@@ -1585,7 +1694,7 @@
             list.forEach((item) => {
                 const isPlaying = currentPlayingComp === item.id && !!audioEl && !audioEl.paused;
                 const card = el('div', 's936lib-ytcard' + (isPlaying ? ' active' : ''));
-                const thumb = buildCompositionThumb(item, 's936lib-ytthumb');
+                const thumb = buildCompositionThumb(item, 's936lib-ytthumb', isPlaying);
                 thumb.appendChild(el('div', 'playicon', isPlaying ? '⏸' : '▶'));
                 const cardBody = el('div', 's936lib-ytcardbody');
                 cardBody.appendChild(el('div', 's936lib-ytcardtitle', item.title));
@@ -1615,7 +1724,7 @@
             list.forEach((item) => {
                 const isPlaying = currentPlayingComp === item.id && !!audioEl && !audioEl.paused;
                 const row = el('div', 's936lib-list-row' + (isPlaying ? ' playing' : ''));
-                const thumb = buildCompositionThumb(item, 's936lib-list-thumb');
+                const thumb = buildCompositionThumb(item, 's936lib-list-thumb', isPlaying);
                 const title = el('div', 's936lib-list-title', item.title);
                 const album = getAlbum(item.albumId);
                 const meta = el('div', 's936lib-list-meta', (album ? album.name + ' · ' : '') + (item.author || 'Sin autor') + ' · ' + fmtDate(item.updated));
@@ -1758,7 +1867,7 @@
         return store.compositions.find(c => c.previewAudioId === audioId) || null;
     }
 
-    function buildAudioThumb(song, className){
+    function buildAudioThumb(song, className, isActive){
         const thumb = el('div', className);
         const linkedComp = audioLinkedComposition(song.id);
         const videoUrl = linkedComp ? albumVideoUrl(linkedComp.albumId) : null;
@@ -1771,10 +1880,9 @@
         } else if(coverUrl){
             thumb.style.backgroundImage = `url('${coverUrl}')`;
         } else {
-            thumb.classList.add('s936lib-comp-noart');
-            thumb.innerHTML = `<svg viewBox="0 0 100 40" preserveAspectRatio="none" class="s936lib-comp-wave">
-                <path d="M0 20 Q 12 4 25 20 T 50 20 T 75 20 T 100 20" />
-            </svg>`;
+            thumb.classList.add('s936sc-wrap');
+            if(isActive) thumb.classList.add('is-active');
+            thumb.innerHTML = buildSonicCoverSvg(song, 'audios');
         }
         return thumb;
     }
@@ -1785,6 +1893,7 @@
     function buildAudioVisual(){
         const wrap = el('div', 's936lib-compvisual s936lib-mini-keep');
         const playingSong = (currentPlayingId && !currentPlayingComp) ? store.audios.find(x => x.id === currentPlayingId) : null;
+        const isActuallyPlaying = !!(playingSong && audioEl && !audioEl.paused);
         const linkedComp = playingSong ? audioLinkedComposition(playingSong.id) : null;
         const videoUrl = linkedComp ? albumVideoUrl(linkedComp.albumId) : null;
         const coverUrl = linkedComp ? compositionCoverUrl(linkedComp) : null;
@@ -1797,11 +1906,13 @@
             const bg = el('div', 's936lib-compvisual-media s936lib-compvisual-zoom');
             bg.style.backgroundImage = `url('${coverUrl}')`;
             wrap.appendChild(bg);
+        } else if(playingSong){
+            wrap.classList.add('s936sc-wrap');
+            if(isActuallyPlaying) wrap.classList.add('is-active');
+            wrap.innerHTML = buildSonicCoverSvg(playingSong, 'audios');
         } else {
-            wrap.classList.add('s936lib-comp-noart');
-            wrap.innerHTML = `<svg viewBox="0 0 100 40" preserveAspectRatio="none" class="s936lib-comp-wave">
-                <path d="M0 20 Q 12 4 25 20 T 50 20 T 75 20 T 100 20" />
-            </svg>`;
+            wrap.classList.add('s936sc-wrap');
+            wrap.innerHTML = buildSonicCoverSvg({ id:'s936-empty-audio', title:'' }, 'audios');
         }
         if(!playingSong) wrap.appendChild(el('div', 's936lib-compvisual-hint', 'Elige "▶ Play" en un audio para verlo aquí'));
         return wrap;
@@ -1827,7 +1938,7 @@
                 const isPlaying = currentPlayingId === song.id && !currentPlayingComp;
                 const linkedComp = audioLinkedComposition(song.id);
                 const card = el('div', 's936lib-ytcard' + (isPlaying ? ' active' : ''));
-                const thumb = buildAudioThumb(song, 's936lib-ytthumb');
+                const thumb = buildAudioThumb(song, 's936lib-ytthumb', isPlaying);
                 thumb.appendChild(el('div', 'playicon', isPlaying ? '⏸' : '▶'));
                 const cardBody = el('div', 's936lib-ytcardbody');
                 cardBody.appendChild(el('div', 's936lib-ytcardtitle', song.title));
@@ -1857,7 +1968,7 @@
                 const isPlaying = currentPlayingId === song.id && !currentPlayingComp;
                 const linkedComp = audioLinkedComposition(song.id);
                 const row = el('div', 's936lib-list-row' + (isPlaying ? ' playing' : ''));
-                const thumb = buildAudioThumb(song, 's936lib-list-thumb');
+                const thumb = buildAudioThumb(song, 's936lib-list-thumb', isPlaying);
                 const title = el('div', 's936lib-list-title', song.title);
                 const meta = el('div', 's936lib-list-meta', (linkedComp ? '🎼 ' + linkedComp.title + ' · ' : '') + ((linkedComp && linkedComp.author) || song.author || 'Sin autor'));
                 const actions = el('div', 's936lib-list-actions');
@@ -1919,6 +2030,16 @@
         if(audioEl && timeEl) timeEl.textContent = fmtTime(audioEl.currentTime) + ' / ' + fmtTime(audioEl.duration);
         if(audioEl && progressBar && audioEl.duration) progressBar.style.width = ((audioEl.currentTime/audioEl.duration)*100) + '%';
         if(playBtn) playBtn.textContent = (audioEl && !audioEl.paused) ? '⏸' : '⏵';
+        // Cambio 208: anillo de progreso de la "936 Sonic Cover" activa —
+        // solo se actualiza la que está sonando (tarjeta/fila activa o el
+        // visual grande), nunca las demás carátulas del listado.
+        if(audioEl && audioEl.duration){
+            const pct = audioEl.currentTime / audioEl.duration;
+            panel.querySelectorAll('.s936lib-ytcard.active .s936sc-progressring, .s936lib-list-row.playing .s936sc-progressring, .s936lib-compvisual .s936sc-progressring').forEach((ring) => {
+                const c = parseFloat(ring.dataset.circumference || '289');
+                ring.style.strokeDashoffset = String(c * (1 - pct));
+            });
+        }
     }
 
     function youtubeFilteredList(){
