@@ -616,11 +616,13 @@
     border-radius:0;
     box-shadow:none;
 }
-/* En maximizado se conservan pestañas, búsqueda, filtros y acciones.
-   Maximizar no convierte el player en una pantalla de solo video. */
+/* Cambio 218: maximizado = Modo Práctica.
+   La ventana completa deja de comportarse como biblioteca ampliada:
+   quedan únicamente encabezado, LCD, transporte/buscador y el contenido
+   multimedia. Las pestañas, vistas y listas permanentes desaparecen. */
 #${PANEL_ID}.s936lib-state-maximized .s936lib-header { padding:6px 14px; flex:0 0 auto; }
-#${PANEL_ID}.s936lib-state-maximized .s936lib-tabs { display:flex !important; padding:4px 12px 0; flex:0 0 auto; }
-#${PANEL_ID}.s936lib-state-maximized .s936lib-tab { padding:5px 11px; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-viewbtn,
+#${PANEL_ID}.s936lib-state-maximized .s936lib-tabs { display:none !important; }
 #${PANEL_ID}.s936lib-state-maximized .s936lib-lcdwrap { padding:4px 12px 0; flex:0 0 auto; }
 #${PANEL_ID}.s936lib-state-maximized .s936lib-lcd { padding:4px 11px; }
 #${PANEL_ID}.s936lib-state-maximized .s936lib-nowtitle { font-size:.78rem; }
@@ -634,21 +636,24 @@
     flex:1 1 auto;
     min-height:0;
     max-height:none;
-    overflow-y:auto;
-}
-/* Mini Rockola maximizada: video ocupa todo el espacio restante y la
-   lista sigue disponible como bandeja horizontal para buscar/elegir sin
-   salir del modo maximizado. */
-#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube .s936lib-body {
-    display:flex;
-    flex-direction:column;
-    padding:0;
     overflow:hidden;
 }
+
+/* Mini Rockola maximizada: el iframe llena TODO el espacio disponible.
+   La lista de videos no ocupa una franja permanente. */
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube .s936lib-body {
+    position:relative;
+    display:block;
+    padding:0;
+    overflow:hidden;
+    background:#000;
+}
 #${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube #s936lib-yt-embed-slot {
-    flex:1 1 auto;
-    min-height:0;
+    position:absolute;
+    inset:0;
     width:100%;
+    height:100%;
+    min-height:0;
     margin:0;
 }
 #${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube .s936lib-ytembed {
@@ -659,6 +664,7 @@
     margin:0;
     border:0;
     border-radius:0;
+    background:#000;
 }
 #${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube .s936lib-ytembed iframe {
     width:100%;
@@ -666,35 +672,45 @@
     border-radius:0;
 }
 #${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube #s936lib-yt-list-slot {
-    flex:0 0 auto;
-    max-height:112px;
-    overflow-x:auto;
-    overflow-y:hidden;
-    padding:8px 12px 10px;
-    border-top:1px solid rgba(255,255,255,.07);
-    background:#0b0f10;
+    display:none;
 }
-#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube #s936lib-yt-list-slot .s936lib-ytgrid {
-    display:flex;
-    gap:10px;
-    min-width:max-content;
+
+/* En Modo Práctica solo queda visible el buscador de la toolbar.
+   Filtro de listas y botón + siguen disponibles al restaurar la ventana
+   mediana, pero no ocupan espacio sobre el video maximizado. */
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube .s936lib-toolbar > .s936lib-iconbtn {
+    display:none !important;
 }
-#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube #s936lib-yt-list-slot .s936lib-ytcard {
-    flex:0 0 220px;
-    width:220px;
-    min-height:72px;
+
+/* Mientras el usuario escribe, los resultados aparecen como una bandeja
+   TEMPORAL superpuesta al video. No reducen su tamaño y desaparecen al
+   seleccionar un resultado o limpiar la búsqueda. */
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube.s936lib-max-search-open #s936lib-yt-list-slot {
+    display:block;
+    position:absolute;
+    z-index:8;
+    top:12px;
+    left:50%;
+    transform:translateX(-50%);
+    width:min(1100px, calc(100% - 32px));
+    max-height:min(48vh, 520px);
+    overflow:auto;
+    padding:12px;
+    border:1px solid rgba(91,232,201,.28);
+    border-radius:14px;
+    background:rgba(10,15,16,.94);
+    box-shadow:0 18px 55px rgba(0,0,0,.58), 0 0 30px rgba(0,255,204,.06);
+    backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);
+}
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube.s936lib-max-search-open #s936lib-yt-list-slot .s936lib-ytgrid {
     display:grid;
-    grid-template-columns:104px minmax(0,1fr);
+    grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+    gap:10px;
 }
-#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube #s936lib-yt-list-slot .s936lib-ytthumb {
-    width:104px;
-    height:72px;
-    aspect-ratio:auto;
-    border-radius:8px 0 0 8px;
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube.s936lib-max-search-open #s936lib-yt-list-slot .s936lib-ytcard {
+    min-width:0;
 }
-#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube #s936lib-yt-list-slot .s936lib-ytcardbody { padding:6px 8px; }
-#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube #s936lib-yt-list-slot .s936lib-ytcardnotes,
-#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube #s936lib-yt-list-slot .s936lib-ytcardactions { display:none; }
 #${PANEL_ID}.s936lib-state-mini { position:fixed; width:300px; height:auto; max-height:none; pointer-events:auto; box-shadow:0 20px 50px rgba(0,0,0,.6), 0 0 30px rgba(0,255,204,.15); }
 #${PANEL_ID}.s936lib-state-mini .s936lib-tabs,
 #${PANEL_ID}.s936lib-state-mini .s936lib-toolbar,
@@ -2614,6 +2630,7 @@
     }
 
     function selectYoutubeVideo(item){
+        if(windowState === 'maximized') searchQuery = '';
         currentYoutubeId = item.id;
         lcdYoutubeTitle = item.title;
         ytAutoplayNext = true;
@@ -2952,7 +2969,18 @@
             const input = document.createElement('input');
             input.placeholder = 'Buscar en tu lista de YouTube...';
             input.value = searchQuery;
-            input.oninput = () => { searchQuery = input.value; renderBodyOnly(); };
+            input.oninput = () => {
+                searchQuery = input.value;
+                syncMaximizedSearchOverlay();
+                renderBodyOnly();
+            };
+            input.onkeydown = (e) => {
+                if(e.key !== 'Escape') return;
+                searchQuery = '';
+                input.value = '';
+                syncMaximizedSearchOverlay();
+                renderBodyOnly();
+            };
             bar.appendChild(input);
             const addBtn = el('button', 's936lib-iconbtn' + (ytFormOpen ? ' active' : ''), '+');
             addBtn.title = 'Agregar un video a tu lista';
@@ -2997,6 +3025,17 @@
     // ---------------------------------------------------------------
     // Render principal
     // ---------------------------------------------------------------
+    // Cambio 218: la lista de YouTube en maximizado solo aparece como
+    // resultados temporales cuando existe texto de búsqueda.
+    function syncMaximizedSearchOverlay(){
+        const panel = document.getElementById(PANEL_ID);
+        if(!panel) return;
+        panel.classList.toggle(
+            's936lib-max-search-open',
+            windowState === 'maximized' && activeTab === 'youtube' && Boolean(searchQuery.trim())
+        );
+    }
+
     function renderBodyOnly(){
         const panel = document.getElementById(PANEL_ID);
         if(!panel) return;
@@ -3050,6 +3089,7 @@
         renderTransportState();
         const isYoutube = activeTab === 'youtube';
         panel.classList.toggle('s936lib-active-youtube', isYoutube);
+        syncMaximizedSearchOverlay();
         // Cambio 177: el toggle cuadrícula/lista no aplica en YouTube — esa
         // pestaña siempre usa su propio mosaico, no hay elección real ahí.
         const gridBtnEl = panel.querySelector('.s936lib-viewbtn[data-view="grid"]');
@@ -3215,6 +3255,7 @@
             panel.style.left = ''; panel.style.top = '';
             if(document.fullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
         }
+        syncMaximizedSearchOverlay();
     }
 
     function enableDrag(panel, headerEl){
