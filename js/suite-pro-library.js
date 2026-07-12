@@ -2131,44 +2131,26 @@
     const TYPE_ICON = { compositions:'🎼', audios:'🎧', youtube:'📺' };
     const TYPE_LABEL = { compositions:'Composición', audios:'Audio', youtube:'YouTube' };
 
+    // Cambio 205: Géneros se retiró (confirmado que no aportaba nada útil)
+    // — este es el espacio reservado para "Comunidad", la idea de que los
+    // compositores puedan publicar sus canciones públicamente, tipo mini
+    // red social. Todavía no hace nada real: necesita cuentas de usuario y
+    // storage real (el mismo backend que sigue pausado aparte) antes de
+    // que esto pueda funcionar de verdad. El key interno sigue siendo
+    // 'genres' para no romper nada de lo guardado.
     function renderGenres(body){
-        const genres = allGenres();
-        if(activeGenreFilter){
-            const back = el('button', 's936lib-back', '← Todas las etiquetas');
-            back.onclick = () => { activeGenreFilter = null; render(); };
-            body.appendChild(back);
-            const items = [
-                ...store.compositions.filter(x=>itemGenreLabel('compositions',x)===activeGenreFilter).map(x=>({type:'compositions',item:x})),
-                ...store.audios.filter(x=>x.genre===activeGenreFilter).map(x=>({type:'audios',item:x})),
-                ...store.youtube.filter(x=>x.genre===activeGenreFilter).map(x=>({type:'youtube',item:x}))
-            ];
-            if(!items.length){ body.appendChild(el('div', 's936lib-empty', 'Nada con esta etiqueta todavía.')); return; }
-            items.forEach(({type,item}) => {
-                const row = el('div', 's936lib-list-row');
-                row.append(
-                    el('div', 's936lib-list-icon', TYPE_ICON[type]),
-                    el('div', 's936lib-list-title', item.title + ' — ' + TYPE_LABEL[type]),
-                    el('div', 's936lib-list-meta', item.author || '')
-                );
-                if(type === 'compositions') row.onclick = () => previewComposition(item.id, row);
-                if(type === 'audios') row.onclick = () => playAudio(item.id);
-                if(type === 'youtube') row.onclick = () => { activeTab = 'youtube'; selectYoutubeVideo(item); };
-                body.appendChild(row);
-            });
-            return;
-        }
-        if(!genres.length){
-            body.appendChild(el('div', 's936lib-empty', 'Todavía no le has puesto etiqueta a ningún Audio o favorito de YouTube — o no has guardado ninguna Composición (su género sale solo del estilo elegido).'));
-            return;
-        }
-        const chips = el('div', 's936lib-genrechips');
-        genres.forEach((g) => {
-            const count = [...store.compositions.filter(x=>itemGenreLabel('compositions',x)===g), ...store.audios.filter(x=>x.genre===g), ...store.youtube.filter(x=>x.genre===g)].length;
-            const chip = el('button', 's936lib-chip', g + ' (' + count + ')');
-            chip.onclick = () => { activeGenreFilter = g; render(); };
-            chips.appendChild(chip);
-        });
-        body.appendChild(chips);
+        const wrap = el('div', '');
+        wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 24px;gap:14px;color:#9fb0ae;';
+        const icon = el('div', '', '🌐');
+        icon.style.cssText = 'font-size:2.4rem;opacity:.7;';
+        const title = el('div', '', 'Comunidad — Próximamente');
+        title.style.cssText = 'color:#5be8c9;font-size:1rem;font-weight:800;';
+        const desc = el('div', '', 'Un espacio para que compositores y músicos publiquen sus canciones y las compartan con otros — como una mini red social de Studio 936.');
+        desc.style.cssText = 'font-size:.8rem;max-width:420px;line-height:1.6;';
+        const note = el('div', '', 'Todavía no funciona: necesita cuentas de usuario y almacenamiento real en la nube, que sigue pendiente aparte.');
+        note.style.cssText = 'font-size:.68rem;font-style:italic;color:#7a8785;max-width:380px;line-height:1.5;';
+        wrap.append(icon, title, desc, note);
+        body.appendChild(wrap);
     }
 
     // ---------------------------------------------------------------
@@ -2200,6 +2182,13 @@
     function renderToolbar(toolbar){
         toolbar.innerHTML = '';
         toolbar.style.display = '';
+        if(activeTab === 'genres'){
+            // Cambio 205: "Comunidad" es un espacio reservado por ahora —
+            // sin barra de búsqueda/filtros hasta que haya algo real que
+            // buscar ahí.
+            toolbar.style.display = 'none';
+            return;
+        }
         if(activeTab === 'youtube'){
             // Cambio 175: el buscador de YouTube ahora vive en la misma
             // fila fusionada (transporte + búsqueda + volumen), en vez de
@@ -2244,8 +2233,9 @@
             configBtn.onclick = (e) => { e.stopPropagation(); openAlbumConfig(); };
             toolbar.append(buildAlbumFilterButton(), configBtn);
         } else if(activeTab === 'audios'){
-            const btn = el('button', 's936lib-actionbtn', '+ Importar MP3/MP4');
-            btn.title = 'Importar MP3/MP4';
+            const btn = el('button', 's936lib-iconbtn', '⬆');
+            btn.title = 'Subir MP3/MP4';
+            btn.style.cssText = 'width:32px;height:32px;font-size:.85rem;flex-shrink:0;';
             const fileInput = document.createElement('input');
             fileInput.type = 'file'; fileInput.accept = 'audio/*,video/mp4'; fileInput.multiple = true; fileInput.style.display = 'none';
             fileInput.onchange = (e) => importAudioFiles(e.target.files, btn);
@@ -2311,7 +2301,7 @@
         ['compositions', 'Composiciones'],
         ['audios', 'Audio MP3'],
         ['youtube', 'Mini Rockola'],
-        ['genres', 'Géneros']
+        ['genres', 'Comunidad']
     ];
 
     function buildPanel(){
