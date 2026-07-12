@@ -897,9 +897,9 @@
     gap:6px;
 }
 #${PANEL_ID}.s936lib-state-mini .s936lib-header:active { cursor:grabbing; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-headertext { gap:5px; align-items:center; min-width:0; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-eyebrow { font-size:.48rem; letter-spacing:1.1px; }
-#${PANEL_ID}.s936lib-state-mini .s936lib-header h2 { font-size:.72rem; letter-spacing:1px; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-headertext { gap:6px; align-items:center; min-width:0; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-eyebrow { font-size:.47rem; letter-spacing:1.15px; opacity:.82; }
+#${PANEL_ID}.s936lib-state-mini .s936lib-header h2 { font-size:.74rem; letter-spacing:1.05px; }
 #${PANEL_ID}.s936lib-state-mini .s936lib-winbtn,
 #${PANEL_ID}.s936lib-state-mini .s936lib-closebtn { padding:3px 6px; }
 
@@ -932,11 +932,11 @@
     content:'STUDIO 936';
     margin-top:2px;
     font-size:.36rem;
-    font-weight:700;
-    letter-spacing:.55px;
-    color:#9fb0ae;
-    text-shadow:none;
-    opacity:.8;
+    font-weight:800;
+    letter-spacing:.62px;
+    color:#c98a4a;
+    text-shadow:0 0 5px rgba(201,138,74,.32), 0 1px 0 rgba(255,216,166,.12);
+    opacity:.96;
 }
 #${PANEL_ID}.s936lib-state-mini .s936lib-eqside { height:13px; gap:1px; }
 #${PANEL_ID}.s936lib-state-mini .s936lib-eqside i { width:3px; }
@@ -1000,8 +1000,8 @@
 
 #${PANEL_ID} .s936lib-header { display:flex; align-items:center; gap:12px; padding:8px 16px; border-bottom:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.02); }
 #${PANEL_ID} .s936lib-headertext { display:flex; align-items:baseline; gap:8px; }
-#${PANEL_ID} .s936lib-eyebrow { font-size:.58rem; letter-spacing:1.5px; color:#9fb0ae; text-transform:uppercase; }
-#${PANEL_ID} .s936lib-header h2 { margin:0; font-size:.95rem; color:#00ffcc; font-weight:900; letter-spacing:1.2px; text-shadow:0 0 12px rgba(0,255,204,.4); }
+#${PANEL_ID} .s936lib-eyebrow { font-size:.56rem; letter-spacing:1.65px; color:#879895; text-transform:uppercase; opacity:.9; }
+#${PANEL_ID} .s936lib-header h2 { margin:0; font-size:.98rem; color:#00ffcc; font-weight:900; letter-spacing:1.25px; text-shadow:0 0 12px rgba(0,255,204,.38); }
 #${PANEL_ID} .s936lib-headertext { flex:1; }
 #${PANEL_ID} .s936lib-viewbtn { background:#1c2224; border:1px solid #333; color:#9fb0ae; border-radius:8px; padding:6px 10px; font-size:.7rem; cursor:pointer; font-weight:700; }
 #${PANEL_ID} .s936lib-viewbtn.active { background:#00ffcc; color:#04342c; border-color:#00ffcc; }
