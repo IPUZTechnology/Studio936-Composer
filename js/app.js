@@ -3103,7 +3103,14 @@ function installStudio936AppBridge(){
         // "Abrir") sin reinventar nada — reutiliza getProjectJson/setProject
         // que ya existen y ya están probados.
         getProjectSnapshot: () => { try { return JSON.parse(getProjectJson()); } catch(_) { return null; } },
-        loadProject: (projectObj) => { setProject(projectObj); return true; },
+        loadProject: (projectObj) => {
+            try {
+                project = modelNormalizeProject(projectObj, styles, instruments);
+                renderAll();
+                saveProject(false);
+                return true;
+            } catch(e) { console.warn('loadProject error:', e); return false; }
+        },
         getEditorState,
         setInstrument,
         setKey,

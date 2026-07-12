@@ -1036,8 +1036,10 @@
     function openComposition(id){
         const item = store.compositions.find(x => x.id === id);
         if(!item) return;
-        if(!confirm('Se abrirá "' + item.title + '" y se recargará la página (así funciona hoy el motor de carga de proyectos). ¿Continuar?')) return;
-        if(window.Studio936AppBridge?.loadProject) window.Studio936AppBridge.loadProject(item.project);
+        if(!confirm('¿Abrir "' + item.title + '" en el editor? Se reemplaza lo que tengas ahí ahora mismo sin guardar (si no lo has guardado, se pierde).')) return;
+        const ok = window.Studio936AppBridge?.loadProject?.(item.project);
+        if(ok === false){ alert('No se pudo abrir esta composición — el proyecto guardado parece dañado o incompleto.'); return; }
+        close();
     }
 
     function renameComposition(id){
