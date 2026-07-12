@@ -869,6 +869,17 @@
 }
 #${PANEL_ID}.s936lib-state-mini .s936lib-ytembed iframe { border-radius:0 0 13px 13px; }
 #${PANEL_ID}.s936lib-state-mini .s936lib-compvisual-media { object-fit:contain; background:#000; }
+/* Cambio 220: en el mini de Composiciones la carátula siempre entra
+   completa en el marco 16:9. Nunca se usa cover ni zoom. */
+#${PANEL_ID}.s936lib-state-mini .s936lib-compvisual-cover {
+    width:100% !important;
+    height:100% !important;
+    object-fit:contain !important;
+    object-position:center center !important;
+    transform:none !important;
+    animation:none !important;
+    background:#07110f;
+}
 #${PANEL_ID}.s936lib-state-mini .s936lib-compvisual-hint { font-size:.66rem; }
 #${PANEL_ID} .s936lib-winbtn { background:transparent; border:none; color:#9fb0ae; font-size:1rem; cursor:pointer; line-height:1; padding:4px 8px; border-radius:6px; }
 #${PANEL_ID} .s936lib-winbtn:hover { background:rgba(255,255,255,.08); color:#e8f4f2; }
@@ -1087,6 +1098,7 @@
 #${PANEL_ID} .s936lib-compvisual { width:100%; aspect-ratio:16/9; max-height:min(62vh,540px); border-radius:10px; overflow:hidden; margin-bottom:14px; position:relative; background:#000; display:flex; align-items:center; justify-content:center; }
 #${PANEL_ID}.s936lib-state-maximized .s936lib-compvisual { max-height:72vh; }
 #${PANEL_ID} .s936lib-compvisual-media { width:100%; height:100%; object-fit:contain; }
+#${PANEL_ID} .s936lib-compvisual-cover { display:block; width:100%; height:100%; object-fit:contain; object-position:center; background:#07110f; }
 #${PANEL_ID} .s936lib-compvisual-zoom { background-size:contain; background-repeat:no-repeat; background-position:center; }
 #${PANEL_ID} .s936lib-compvisual-hint { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#9fb0ae; font-size:.8rem; background:rgba(0,0,0,.35); text-align:center; padding:0 20px; }
 `;
@@ -2147,9 +2159,14 @@
             video.className = 's936lib-compvisual-media';
             wrap.appendChild(video);
         } else if(coverUrl){
-            const bg = el('div', 's936lib-compvisual-media s936lib-compvisual-zoom');
-            bg.style.backgroundImage = `url('${coverUrl}')`;
-            wrap.appendChild(bg);
+            // Cambio 220: la carátula de Composiciones se renderiza como
+            // <img> real para que object-fit:contain muestre la imagen
+            // completa dentro del mini, sin recortar la parte inferior.
+            const img = document.createElement('img');
+            img.src = coverUrl;
+            img.alt = playingItem?.title ? `Carátula de ${playingItem.title}` : 'Carátula de la composición';
+            img.className = 's936lib-compvisual-media s936lib-compvisual-cover';
+            wrap.appendChild(img);
         } else if(playingItem){
             wrap.classList.add('s936sc-wrap');
             if(isActuallyPlaying) wrap.classList.add('is-active');
