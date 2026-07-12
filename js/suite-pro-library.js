@@ -710,6 +710,7 @@
    vez de dejar franjas oscuras a los lados solo para verlo completo sin
    tener que maximizar. */
 #${PANEL_ID} #s936lib-yt-embed-slot { margin:-14px -18px 0; }
+#${PANEL_ID} #s936lib-yt-embed-slot.s936-yt-hidden { position:absolute; visibility:hidden; width:1px; height:1px; overflow:hidden; margin:0; pointer-events:none; top:0; left:0; }
 #${PANEL_ID} #s936lib-yt-embed-slot .s936lib-ytembed { border-radius:0; border-left:none; border-right:none; }
 #${PANEL_ID} .s936lib-ytembed iframe { width:100%; height:100%; border:none; border-radius:10px; }
 #${PANEL_ID} .s936lib-ytplaceholder { width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; border:1px solid #333; margin-bottom:14px; display:flex; align-items:center; justify-content:center; color:#9fb0ae; font-size:.8rem; text-align:center; padding:20px; }
@@ -1011,9 +1012,12 @@
         wrap.appendChild(el('label', 's936lib-gplabel', 'Listas'));
         const chipsWrap = el('div', 's936lib-gpchips');
         const selected = new Set(opts.playlists || []);
+        // Cambio 214: sugerencias de listas limitadas al mismo tipo — antes
+        // mezclaba listas de MP3, Composiciones y YouTube todas juntas.
+        const suggestedPlaylists = opts.scopeType ? playlistsUsedBy(store[opts.scopeType]) : allPlaylists();
         function renderChips(){
             chipsWrap.innerHTML = '';
-            allPlaylists().forEach((name) => {
+            suggestedPlaylists.forEach((name) => {
                 const chip = el('button', 's936lib-gpchip' + (selected.has(name) ? ' active' : ''), name);
                 chip.type = 'button';
                 chip.onclick = (e) => {
@@ -1023,7 +1027,7 @@
                 };
                 chipsWrap.appendChild(chip);
             });
-            if(!allPlaylists().length){
+            if(!suggestedPlaylists.length){
                 chipsWrap.appendChild(el('div', 's936lib-gpempty', 'Todavía no tienes listas — crea la primera abajo.'));
             }
         }
@@ -1084,7 +1088,7 @@
         if(genrePlaylistPopoverEl) closeGenrePlaylistPopover();
         const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover');
         pop.appendChild(el('div', 's936lib-gptitle', 'Listas de "' + item.title + '"'));
-        const gp = buildGenrePlaylistFields({ playlists: item.playlists || [] });
+        const gp = buildGenrePlaylistFields({ playlists: item.playlists || [], scopeType: type });
         const saveBtn = el('button', 's936lib-actionbtn', 'Guardar cambios');
         saveBtn.style.alignSelf = 'flex-start';
         saveBtn.onclick = (e) => {
@@ -1104,7 +1108,7 @@
         if(genrePlaylistPopoverEl) closeGenrePlaylistPopover();
         const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover');
         pop.appendChild(el('div', 's936lib-gptitle', 'Editar "' + item.title + '"'));
-        const gp = buildGenrePlaylistFields({ genre: item.genre || '', genreEditable: type !== 'compositions', playlists: item.playlists || [] });
+        const gp = buildGenrePlaylistFields({ genre: item.genre || '', genreEditable: type !== 'compositions', playlists: item.playlists || [], scopeType: type });
         const saveBtn = el('button', 's936lib-actionbtn', 'Guardar cambios');
         saveBtn.style.alignSelf = 'flex-start';
         saveBtn.onclick = (e) => {
@@ -1594,7 +1598,7 @@
         // Cambio 186: el género NO se pregunta aquí — ya viene automático
         // del estilo elegido en la barra principal (decisión ya tomada
         // antes, sigue vigente). Solo se piden las listas.
-        const gp = buildGenrePlaylistFields({ genre: snapshot.style || '', genreEditable:false, playlists:[] });
+        const gp = buildGenrePlaylistFields({ genre: snapshot.style || '', genreEditable:false, playlists:[], scopeType:'compositions' });
         const saveBtn = el('button', 's936lib-actionbtn', '💾 Guardar composición');
         saveBtn.style.alignSelf = 'flex-start';
         saveBtn.onclick = (e) => {
@@ -1891,7 +1895,7 @@
         if(genrePlaylistPopoverEl) closeGenrePlaylistPopover();
         const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover');
         pop.appendChild(el('div', 's936lib-gptitle', staged.length > 1 ? ('Importar ' + staged.length + ' archivos') : ('Importar "' + staged[0].title + '"')));
-        const gp = buildGenrePlaylistFields({ genre:'', genreEditable:true, playlists:[] });
+        const gp = buildGenrePlaylistFields({ genre:'', genreEditable:true, playlists:[], scopeType:'audios' });
         const importBtn = el('button', 's936lib-actionbtn', '⬆ Importar');
         importBtn.style.alignSelf = 'flex-start';
         importBtn.onclick = (e) => {
@@ -2367,7 +2371,7 @@
         titleInput.placeholder = 'Título (recomendado)';
         // Cambio 186: el campo de "notas" se convierte en género + listas
         // — se elige/crea sobre la marcha, en el mismo paso de agregar.
-        const gp = buildGenrePlaylistFields({ genre:'', genreEditable:true, playlists:[] });
+        const gp = buildGenrePlaylistFields({ genre:'', genreEditable:true, playlists:[], scopeType:'youtube' });
         const addBtn = el('button', 's936lib-actionbtn', '+ Agregar a mi lista');
         addBtn.style.alignSelf = 'flex-start';
         addBtn.onclick = (e) => {
@@ -2477,20 +2481,14 @@
         }
     }
 
-    // Cambio 213: contenedor oculto persistente para el embed de YouTube
-    // cuando NO estás en la pestaña Mini Rockola — antes, cambiar de
-    // pestaña hacía `body.innerHTML = ''`, lo que DESTRUÍA el iframe (y
-    // con él, el sonido). Ahora el mismo nodo se mueve, nunca se recrea.
+    // Cambio 214: el arreglo anterior (mover el embed a un contenedor
+    // oculto) SÍ cortaba el sonido — reubicar un iframe entre distintos
+    // padres en el DOM hace que el navegador lo trate como si se
+    // recargara. Ahora el embed se inserta en el cuerpo UNA sola vez y ya
+    // nunca se mueve de ahí — solo se oculta con visibility (nunca
+    // display:none, que también puede suspender el iframe), quedándose
+    // exactamente en el mismo lugar del árbol del DOM para siempre.
     let ytEmbedSlotEl = null;
-    let ytHiddenHostEl = null;
-    function ensureYtHiddenHost(){
-        if(ytHiddenHostEl && document.body.contains(ytHiddenHostEl)) return ytHiddenHostEl;
-        ytHiddenHostEl = document.createElement('div');
-        ytHiddenHostEl.id = 's936lib-yt-hidden-host';
-        ytHiddenHostEl.style.cssText = 'position:fixed; width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none; left:-9999px; top:-9999px;';
-        document.body.appendChild(ytHiddenHostEl);
-        return ytHiddenHostEl;
-    }
 
     function renderYoutube(body){
         if(!ytEmbedSlotEl){
@@ -2498,6 +2496,7 @@
             ytEmbedSlotEl.id = 's936lib-yt-embed-slot';
         }
         if(ytEmbedSlotEl.parentNode !== body) body.insertBefore(ytEmbedSlotEl, body.firstChild || null);
+        ytEmbedSlotEl.classList.remove('s936-yt-hidden');
         let listSlot = body.querySelector('#s936lib-yt-list-slot');
         if(!listSlot){
             listSlot = el('div', ''); listSlot.id = 's936lib-yt-list-slot';
@@ -2673,13 +2672,16 @@
             renderYoutube(body);
             return;
         }
-        // Cambio 213: si el embed de YouTube existe y sigue sonando, no lo
-        // destruyas al salir de la pestaña — muévelo a un contenedor
-        // oculto para que el sonido siga aunque ya no se vea.
+        // Cambio 214: si el embed de YouTube ya existe y sigue sonando, NO
+        // se destruye ni se mueve de sitio — solo se oculta con una clase
+        // (visibility), y se limpia todo lo demás del cuerpo a su
+        // alrededor sin tocarlo.
         if(ytEmbedSlotEl && ytEmbedSlotEl.parentNode === body){
-            ensureYtHiddenHost().appendChild(ytEmbedSlotEl);
+            ytEmbedSlotEl.classList.add('s936-yt-hidden');
+            Array.from(body.children).forEach((child) => { if(child !== ytEmbedSlotEl) child.remove(); });
+        } else {
+            body.innerHTML = '';
         }
-        body.innerHTML = '';
         if(activeTab === 'recent') renderRecent(body);
         else if(activeTab === 'compositions') renderCompositions(body);
         else if(activeTab === 'audios') renderAudios(body);
