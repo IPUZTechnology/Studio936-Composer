@@ -78,6 +78,13 @@
         return String(str==null?'':str).replace(/[&<>"']/g, (c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
 
+    // Cambio 212: solo para PRESENTACIÓN — nunca modifica song.title en el
+    // store ni el archivo. Quita prefijos de número de pista comunes
+    // ("02 ", "02. ", "02 - ", "02) ") del principio del título mostrado.
+    function displayAudioTitle(title){
+        return String(title || '').replace(/^\s*\d{1,3}\s*[.\-\)]?\s+/, '') || title || '';
+    }
+
     // Cambio 200: reemplaza confirm()/alert() nativos del navegador (se
     // veían pegados arriba, con el nombre del sitio, fuera del look de la
     // app) por un modal propio, con el mismo estilo suave del resto del
@@ -166,9 +173,21 @@
         document.head.appendChild(tag);
     }
     let isYoutubePlaying = false;
+    // Cambio 212: cuál fue la última fuente que arrancó de verdad — sin
+    // esto, si dejas un MP3 pausado (con audioEl.src aún puesto) y luego
+    // reproduces YouTube, el LCD seguía pensando que el MP3 era lo activo.
+    let lastActiveSource = null; // 'local' | 'youtube'
     function handleYtStateChange(event){
-        if(window.YT && event.data === window.YT.PlayerState.PLAYING){ isYoutubePlaying = true; startEqAnimation(); }
-        else { isYoutubePlaying = false; stopEqAnimation(); }
+        if(window.YT && event.data === window.YT.PlayerState.PLAYING){
+            isYoutubePlaying = true;
+            lastActiveSource = 'youtube';
+            // Cambio 212: el sonido debe ser único — si había un MP3/
+            // composición sonando, se pausa al arrancar YouTube.
+            if(audioEl && !audioEl.paused) audioEl.pause();
+            startEqAnimation();
+            updateLcd();
+        }
+        else { isYoutubePlaying = false; stopEqAnimation(); updateLcd(); }
     }
     // Cambio 172: cada barra del ecualizador se colorea interpolando entre
     // azul y verde según su posición — el lado izquierdo va de azul
@@ -571,9 +590,9 @@
    arriba y abajo), como pide la especificación. */
 #${PANEL_ID} .s936lib-progress { position:relative; height:16px; margin-top:10px; cursor:pointer; }
 #${PANEL_ID} .s936lib-progress::before { content:''; position:absolute; left:0; right:0; top:50%; height:5px; transform:translateY(-50%); background:#111; border-radius:3px; }
-#${PANEL_ID} .s936lib-progress b { position:absolute; left:0; top:50%; transform:translateY(-50%); display:block; height:5px; width:0%; background:#00ffcc; box-shadow:0 0 8px #00ffcc; border-radius:3px; transition:width .2s linear; pointer-events:none; }
+#${PANEL_ID} .s936lib-progress b { position:absolute; left:0; top:50%; transform:translateY(-50%); display:block; height:5px; width:0%; background:#00ffcc; box-shadow:0 0 4px rgba(0,255,204,.65); border-radius:3px; transition:width .2s linear; pointer-events:none; }
 #${PANEL_ID} .s936lib-progress b::after { content:''; position:absolute; right:-4px; top:50%; width:9px; height:9px; border-radius:50%; background:#00ffcc; transform:translateY(-50%); box-shadow:0 0 6px rgba(0,255,204,.7); opacity:0; transition:opacity .15s ease; }
-#${PANEL_ID} .s936lib-progress:hover b::after { opacity:1; }
+#${PANEL_ID} .s936lib-progress:hover b::after, #${PANEL_ID} .s936lib-progress.is-dragging b::after { opacity:1; }
 
 /* Estados del LCD (Cambio 209) — idle: respiración lenta; cargando: pulso
    horizontal; pausado: ecualizador congelado; error: sin animación. */
@@ -1902,6 +1921,10 @@
             return;
         }
         currentPlayingId = id;
+        lastActiveSource = 'local';
+        // Cambio 212: el sonido debe ser único — si YouTube estaba
+        // sonando, se pausa al arrancar un MP3/composición.
+        if(ytPlayer && typeof ytPlayer.pauseVideo === 'function'){ try { ytPlayer.pauseVideo(); } catch(_) {} }
         if(!titleOverride) currentPlayingComp = null;
         lcdError = false;
         lcdLoading = true;
@@ -1918,7 +1941,12 @@
         audioEl.src = objectURL;
         audioEl.play().catch(()=>{});
         startEqAnimation();
-        updateLcd(null, titleOverride || song.title, subOverride || (song.author || 'Audio'));
+        // Cambio 212: subtítulo real (artista, o álbum de la composición
+        // vinculada si la tiene) — nunca el texto genérico "Audio". Si no
+        // hay ningún dato útil, se oculta en vez de mostrar un relleno.
+        const linkedCompForSub = audioLinkedComposition(id);
+        const resolvedSub = subOverride || song.author || (linkedCompForSub && linkedCompForSub.author) || (linkedCompForSub && getAlbum(linkedCompForSub.albumId)?.name) || '';
+        updateLcd(null, titleOverride || displayAudioTitle(song.title), resolvedSub);
         render();
         // Cambio 210: si hay algo en cola, lo muestra unos segundos y luego
         // vuelve al subtítulo normal — información contextual, temporal,
@@ -2071,7 +2099,7 @@
                 const thumb = buildAudioThumb(song, 's936lib-ytthumb', isPlaying);
                 thumb.appendChild(el('div', 'playicon', isPlaying ? '⏸' : '▶'));
                 const cardBody = el('div', 's936lib-ytcardbody');
-                cardBody.appendChild(el('div', 's936lib-ytcardtitle', song.title));
+                cardBody.appendChild(el('div', 's936lib-ytcardtitle', displayAudioTitle(song.title)));
                 cardBody.appendChild(el('div', 's936lib-ytcardnotes', (linkedComp ? '🎼 ' + linkedComp.title + ' · ' : '') + ((linkedComp && linkedComp.author) || song.author || 'Sin autor')));
                 const actions = el('div', 's936lib-ytcardactions');
                 const playBtn = el('button', 's936lib-mini play', isPlaying ? '⏸ Sonando' : '▶ Play');
@@ -2099,7 +2127,7 @@
                 const linkedComp = audioLinkedComposition(song.id);
                 const row = el('div', 's936lib-list-row' + (isPlaying ? ' playing' : ''));
                 const thumb = buildAudioThumb(song, 's936lib-list-thumb', isPlaying);
-                const title = el('div', 's936lib-list-title', song.title);
+                const title = el('div', 's936lib-list-title', displayAudioTitle(song.title));
                 const meta = el('div', 's936lib-list-meta', (linkedComp ? '🎼 ' + linkedComp.title + ' · ' : '') + ((linkedComp && linkedComp.author) || song.author || 'Sin autor'));
                 const actions = el('div', 's936lib-list-actions');
                 const playBtn = el('button', 's936lib-mini play', isPlaying ? '⏸' : '▶');
@@ -2130,6 +2158,10 @@
     // fuente, es composición o audio MP3 según currentPlayingComp; si no,
     // puede ser YouTube (lcdYoutubeTitle); si nada de eso, está inactivo.
     function lcdContentType(){
+        if(lastActiveSource === 'youtube' && lcdYoutubeTitle) return 'youtube';
+        if(lastActiveSource === 'local' && audioEl && audioEl.src) return currentPlayingComp ? 'compositions' : 'audios';
+        // Compatibilidad si por alguna razón el rastreador no se llegó a
+        // fijar (ej. sesión ya abierta antes de este cambio).
         if(audioEl && audioEl.src) return currentPlayingComp ? 'compositions' : 'audios';
         if(lcdYoutubeTitle) return 'youtube';
         return null;
@@ -2161,8 +2193,19 @@
         if(titleOverride){
             titleEl.title = titleOverride;
             titleEl.textContent = titleOverride;
-            if(subEl) subEl.textContent = subOverride || 'Sonando ahora';
+            if(subEl){
+                if(subOverride){ subEl.textContent = subOverride; subEl.style.display = ''; }
+                else { subEl.textContent = ''; subEl.style.display = 'none'; }
+            }
             lcdYoutubeTitle = null;
+        } else if(lastActiveSource === 'youtube' && lcdYoutubeTitle){
+            // Cambio 212: YouTube es la última fuente activa — su título
+            // manda aunque quede un audio local pausado de fondo (con
+            // audioEl.src todavía puesto).
+            titleEl.title = lcdYoutubeTitle;
+            titleEl.textContent = lcdYoutubeTitle;
+            if(subEl){ subEl.textContent = ''; subEl.style.display = 'none'; }
+            if(timeEl) timeEl.textContent = '';
         } else if(!audioEl || !audioEl.src){
             // Cambio 172: si no hay audio sonando pero sí un video de
             // YouTube seleccionado, el LCD muestra su título — antes se
@@ -2171,7 +2214,7 @@
             if(lcdYoutubeTitle){
                 titleEl.title = lcdYoutubeTitle;
                 titleEl.textContent = lcdYoutubeTitle;
-                if(subEl) subEl.textContent = '';
+                if(subEl){ subEl.textContent = ''; subEl.style.display = 'none'; }
                 // Cambio 175: no hay forma de leer el tiempo real de un
                 // iframe de YouTube — mostrar "--:-- / --:--" ahí se veía
                 // como un reloj roto. Se deja en blanco en vez de un
@@ -2183,7 +2226,7 @@
                 // algo, el protagonista es el título, no la marca.
                 titleEl.title = '';
                 titleEl.textContent = '936 PLAYER';
-                if(subEl) subEl.textContent = queue.length ? queue.length + ' en cola' : 'Selecciona música para comenzar';
+                if(subEl){ subEl.textContent = queue.length ? queue.length + ' en cola' : 'Selecciona música para comenzar'; subEl.style.display = ''; }
                 if(timeEl) timeEl.textContent = '';
             }
         }
@@ -2201,7 +2244,8 @@
         if(lcdEl){
             lcdEl.classList.toggle('is-loading', lcdLoading);
             lcdEl.classList.toggle('is-error', lcdError);
-            lcdEl.classList.toggle('is-paused', !!(audioEl && audioEl.src && audioEl.paused && !lcdLoading && !lcdError));
+            const localIsActiveSource = lastActiveSource === 'local' || (!lastActiveSource && audioEl && audioEl.src);
+            lcdEl.classList.toggle('is-paused', !!(localIsActiveSource && audioEl && audioEl.src && audioEl.paused && !lcdLoading && !lcdError));
         }
         if(lcdError){
             titleEl.title = '';
@@ -2234,9 +2278,9 @@
     }
     function wireProgressSeek(progressEl){
         let dragging = false;
-        progressEl.addEventListener('mousedown', (e) => { dragging = true; seekToPointerEvent(e, progressEl); });
+        progressEl.addEventListener('mousedown', (e) => { dragging = true; progressEl.classList.add('is-dragging'); seekToPointerEvent(e, progressEl); });
         document.addEventListener('mousemove', (e) => { if(dragging) seekToPointerEvent(e, progressEl); });
-        document.addEventListener('mouseup', () => { dragging = false; });
+        document.addEventListener('mouseup', () => { dragging = false; progressEl.classList.remove('is-dragging'); });
     }
 
     function youtubeFilteredList(){
@@ -2254,6 +2298,10 @@
         currentYoutubeId = item.id;
         lcdYoutubeTitle = item.title;
         ytAutoplayNext = true;
+        lastActiveSource = 'youtube';
+        // Cambio 212: el sonido debe ser único — pausar el audio local de
+        // inmediato, sin esperar al evento de estado de YouTube.
+        if(audioEl && !audioEl.paused) audioEl.pause();
         startEqAnimation();
         render();
     }
