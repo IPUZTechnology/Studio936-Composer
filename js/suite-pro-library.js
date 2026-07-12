@@ -1702,6 +1702,114 @@
 @media (prefers-reduced-motion: reduce) {
   #${PANEL_ID} .s936recent-continue-card { transition:none; }
 }
+
+/* Cambio 230: barra de acciones de Escenario integrada con el transporte.
+   Filtros es una acción secundaria técnica; Publicar obra es la única
+   acción primaria. Todos los elementos comparten altura, radio y ritmo. */
+#${PANEL_ID} .s936stage-controlrow {
+    gap:8px;
+}
+#${PANEL_ID} .s936stage-toolbar {
+    flex-wrap:nowrap;
+    gap:8px;
+    align-items:center;
+}
+#${PANEL_ID} .s936stage-search {
+    height:34px;
+    padding:0 12px;
+    border-radius:9px;
+    border-color:#343d3f;
+    background:linear-gradient(180deg,#1b2123,#181e20);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+}
+#${PANEL_ID} .s936stage-search:focus {
+    outline:none;
+    border-color:rgba(91,232,201,.52);
+    box-shadow:0 0 0 2px rgba(0,255,204,.055),inset 0 1px 0 rgba(255,255,255,.03);
+}
+#${PANEL_ID} .s936stage-toolbtn,
+#${PANEL_ID} .s936stage-publishbtn {
+    height:34px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    flex:0 0 auto;
+    border-radius:9px;
+    padding:0 11px;
+    font:inherit;
+    font-size:.68rem;
+    font-weight:850;
+    white-space:nowrap;
+    cursor:pointer;
+    transition:border-color .15s ease,background .15s ease,color .15s ease,box-shadow .15s ease,transform .15s ease;
+}
+#${PANEL_ID} .s936stage-toolbtn {
+    border:1px solid #384143;
+    background:linear-gradient(180deg,#1b2123,#151b1d);
+    color:#b1bfbc;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+}
+#${PANEL_ID} .s936stage-toolbtn:hover {
+    border-color:rgba(197,138,74,.48);
+    background:linear-gradient(180deg,#211f1c,#181b1b);
+    color:#e2ece9;
+}
+#${PANEL_ID} .s936stage-toolicon {
+    color:#c58a4a;
+    font-size:.78rem;
+    line-height:1;
+    text-shadow:0 0 6px rgba(197,138,74,.2);
+}
+#${PANEL_ID} .s936stage-filterbtn.active {
+    border-color:rgba(197,138,74,.56);
+    background:linear-gradient(180deg,rgba(197,138,74,.12),rgba(197,138,74,.055));
+    color:#e0c09d;
+}
+#${PANEL_ID} .s936stage-filtercount {
+    min-width:16px;
+    height:16px;
+    margin-left:0;
+    padding:0 4px;
+    border:1px solid rgba(255,255,255,.12);
+    background:#c58a4a;
+    color:#17110b;
+    box-shadow:0 0 8px rgba(197,138,74,.18);
+}
+#${PANEL_ID} .s936stage-publishbtn {
+    min-width:112px;
+    border:1px solid #00e4b8;
+    background:linear-gradient(180deg,#00e5b7,#00cfa6);
+    color:#042f28;
+    box-shadow:0 0 12px rgba(0,255,204,.14),inset 0 1px 0 rgba(255,255,255,.22);
+}
+#${PANEL_ID} .s936stage-publishbtn:hover {
+    background:linear-gradient(180deg,#1aefc4,#00d9ae);
+    box-shadow:0 0 17px rgba(0,255,204,.23),inset 0 1px 0 rgba(255,255,255,.25);
+    transform:translateY(-1px);
+}
+#${PANEL_ID} .s936stage-publishicon {
+    font-size:.8rem;
+    line-height:1;
+    font-weight:950;
+}
+#${PANEL_ID} .s936stage-controlrow .s936lib-vol {
+    margin-left:2px;
+    padding-left:10px;
+    border-left:1px solid rgba(255,255,255,.09);
+}
+@media (max-width:720px) {
+  #${PANEL_ID} .s936stage-toolbar { flex-wrap:wrap; }
+  #${PANEL_ID} .s936stage-search { flex-basis:100%; order:1; }
+  #${PANEL_ID} .s936stage-toolbtn { order:2; margin-left:auto; }
+  #${PANEL_ID} .s936stage-publishbtn { order:3; }
+}
+@media (max-width:480px) {
+  #${PANEL_ID} .s936stage-tooltext,
+  #${PANEL_ID} .s936stage-publishtext { display:none; }
+  #${PANEL_ID} .s936stage-toolbtn,
+  #${PANEL_ID} .s936stage-publishbtn { min-width:34px; width:34px; padding:0; }
+}
 `;
         document.head.appendChild(style);
     }
@@ -4935,18 +5043,32 @@
     function renderToolbar(toolbar){
         toolbar.innerHTML = '';
         toolbar.style.display = '';
-        if(activeTab === 'genres'){
+        const isStageToolbar = activeTab === 'genres';
+        toolbar.classList.toggle('s936stage-toolbar', isStageToolbar);
+        toolbar.closest('.s936lib-controlrow')?.classList.toggle('s936stage-controlrow', isStageToolbar);
+        if(isStageToolbar){
             const search = document.createElement('input');
-            search.className = 's936lib-search';
+            search.className = 's936lib-search s936stage-search';
             search.placeholder = 'Buscar en Escenario...';
             search.value = searchQuery;
             search.oninput = () => { searchQuery = search.value; renderBodyOnly(); };
             search.onkeydown = (e) => { if(e.key === 'Escape'){ searchQuery=''; search.value=''; renderBodyOnly(); } };
-            const filterBtn = el('button','s936lib-actionbtn s936stage-filterbtn'+(stageActiveFilterCount()?' active':''),'☷ Filtros');
-            const filterCount=stageActiveFilterCount();
+
+            const filterCount = stageActiveFilterCount();
+            const filterBtn = el('button','s936stage-toolbtn s936stage-filterbtn'+(filterCount?' active':''));
+            filterBtn.append(
+                el('span','s936stage-toolicon','☷'),
+                el('span','s936stage-tooltext','Filtros')
+            );
             if(filterCount) filterBtn.appendChild(el('span','s936stage-filtercount',String(filterCount)));
+            filterBtn.title = filterCount ? `${filterCount} filtros activos` : 'Filtrar obras del Escenario';
             filterBtn.onclick = () => openStageFilterPopover(filterBtn);
-            const publishBtn = el('button','s936lib-actionbtn','＋ Publicar obra');
+
+            const publishBtn = el('button','s936stage-publishbtn');
+            publishBtn.append(
+                el('span','s936stage-publishicon','＋'),
+                el('span','s936stage-publishtext','Publicar obra')
+            );
             publishBtn.onclick = () => openStagePublishModal();
             toolbar.append(search,filterBtn,publishBtn);
             return;
