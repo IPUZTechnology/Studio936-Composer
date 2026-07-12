@@ -815,6 +815,61 @@
 #${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube.s936lib-max-search-open #s936lib-yt-list-slot .s936lib-ytcard {
     min-width:0;
 }
+
+/* Cambio 223: Radio maximizada usa el mismo patrón de Modo Práctica de
+   Mini Rockola. La carátula ocupa el área central y la lista de emisoras
+   solo aparece como bandeja flotante mientras el usuario escribe. */
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-radio .s936lib-body {
+    position:relative;
+    display:block;
+    padding:0;
+    overflow:hidden;
+    background:#050b0a;
+}
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-radio .s936lib-toolbar > .s936lib-iconbtn {
+    display:none !important;
+}
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-radio .s936lib-radio-visual {
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    max-height:none;
+    aspect-ratio:auto;
+    margin:0;
+    border:0;
+    border-radius:0;
+}
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-radio .s936lib-radio-list-slot {
+    display:none;
+}
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-radio.s936lib-max-search-open .s936lib-radio-list-slot {
+    display:block;
+    position:absolute;
+    z-index:8;
+    top:12px;
+    left:50%;
+    transform:translateX(-50%);
+    width:min(1100px, calc(100% - 32px));
+    max-height:min(48vh, 520px);
+    overflow:auto;
+    padding:12px;
+    border:1px solid rgba(91,232,201,.28);
+    border-radius:14px;
+    background:rgba(10,15,16,.94);
+    box-shadow:0 18px 55px rgba(0,0,0,.58), 0 0 30px rgba(0,255,204,.06);
+    backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);
+}
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-radio.s936lib-max-search-open .s936lib-radio-list-slot .s936lib-ytgrid {
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+    gap:10px;
+}
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-radio.s936lib-max-search-open .s936lib-radio-list-slot .s936lib-ytcard {
+    min-width:0;
+}
+
 /* Cambio 219: Mini Player común para Rockola, MP3 y Composiciones.
    Importante: estas reglas NO modifican el Modo Práctica maximizado. */
 #${PANEL_ID}Overlay.s936lib-state-mini { z-index:2147483000; }
@@ -1159,6 +1214,29 @@
 #${PANEL_ID}.s936lib-state-maximized .s936lib-compvisual { max-height:72vh; }
 #${PANEL_ID} .s936lib-compvisual-media { width:100%; height:100%; object-fit:contain; }
 #${PANEL_ID} .s936lib-compvisual-zoom { background-size:contain; background-repeat:no-repeat; background-position:center; }
+/* Radio: la imagen de la emisora se presenta como carátula real, centrada
+   y contenida. No se estira un favicon pequeño para llenar todo el mini. */
+#${PANEL_ID} .s936lib-radio-visual {
+    background:
+        radial-gradient(circle at 50% 45%, rgba(0,255,204,.10), transparent 46%),
+        linear-gradient(180deg,#071512,#020706);
+}
+#${PANEL_ID} .s936lib-radio-cover-image {
+    display:block;
+    width:auto;
+    height:auto;
+    max-width:82%;
+    max-height:78%;
+    object-fit:contain;
+    object-position:center;
+    border-radius:10px;
+    filter:drop-shadow(0 12px 24px rgba(0,0,0,.4));
+}
+#${PANEL_ID}.s936lib-state-mini .s936lib-radio-cover-image {
+    max-width:84%;
+    max-height:78%;
+    border-radius:8px;
+}
 #${PANEL_ID} .s936lib-compvisual-hint { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#9fb0ae; font-size:.8rem; background:rgba(0,0,0,.35); text-align:center; padding:0 20px; }
 `;
         document.head.appendChild(style);
@@ -2748,6 +2826,14 @@
     }
 
     async function playRadioStation(id, forcePlay){
+        // Igual que Mini Rockola: al elegir una emisora desde la bandeja
+        // flotante del maximizado, se limpia la búsqueda y se cierra.
+        if(windowState === 'maximized' && searchQuery){
+            searchQuery = '';
+            syncMaximizedSearchOverlay();
+            const visibleSearch = document.querySelector(`#${PANEL_ID} .s936lib-toolbar .s936lib-search`);
+            if(visibleSearch) visibleSearch.value = '';
+        }
         const station = store.radio.find(x => x.id === id);
         if(!station || !station.streamUrl) return;
         const player = ensureRadioElement();
@@ -2850,19 +2936,25 @@
     }
 
     function buildRadioVisual(){
-        const wrap = el('div', 's936lib-compvisual s936lib-mini-keep');
+        const wrap = el('div', 's936lib-compvisual s936lib-mini-keep s936lib-radio-visual');
         const playingStation = currentPlayingRadioId ? store.radio.find(x => x.id === currentPlayingRadioId) : null;
+        const renderFallback = () => {
+            wrap.innerHTML = '';
+            wrap.classList.add('s936sc-wrap');
+            if(playingStation && radioEl && !radioEl.paused && radioStatus === 'playing') wrap.classList.add('is-active');
+            wrap.innerHTML = buildSonicCoverSvg(playingStation || { id:'s936-empty-radio', title:'' }, 'radio');
+        };
         if(playingStation && playingStation.favicon){
-            const bg = el('div', 's936lib-compvisual-media s936lib-compvisual-zoom');
-            bg.style.backgroundImage = `url('${playingStation.favicon}')`;
-            wrap.appendChild(bg);
-        } else if(playingStation){
-            wrap.classList.add('s936sc-wrap');
-            if(radioEl && !radioEl.paused && radioStatus === 'playing') wrap.classList.add('is-active');
-            wrap.innerHTML = buildSonicCoverSvg(playingStation, 'radio');
+            const image = document.createElement('img');
+            image.className = 's936lib-radio-cover-image';
+            image.alt = playingStation.name || 'Carátula de la emisora';
+            image.loading = 'eager';
+            image.decoding = 'async';
+            image.onerror = renderFallback;
+            image.src = playingStation.favicon;
+            wrap.appendChild(image);
         } else {
-            wrap.classList.add('s936sc-wrap');
-            wrap.innerHTML = buildSonicCoverSvg({ id:'s936-empty-radio', title:'' }, 'radio');
+            renderFallback();
         }
         if(!playingStation) wrap.appendChild(el('div', 's936lib-compvisual-hint', 'Elige "▶ Play" en una radio para verla aquí'));
         return wrap;
@@ -2881,9 +2973,11 @@
 
     function renderRadio(body){
         if(shouldShowMediaSurface('radio')) body.appendChild(buildRadioVisual());
+        const listSlot = el('div', 's936lib-radio-list-slot');
+        body.appendChild(listSlot);
         const list = radioFilteredList();
         if(!list.length){
-            body.appendChild(el('div', 's936lib-empty', store.radio.length ? 'Sin resultados.' : 'Todavía no tienes radios agregadas. Usa el botón "+ Agregar radio" arriba.'));
+            listSlot.appendChild(el('div', 's936lib-empty', store.radio.length ? 'Sin resultados.' : 'Todavía no tienes radios agregadas. Usa el botón "+ Agregar radio" arriba.'));
             return;
         }
         if(viewMode === 'grid'){
@@ -2913,7 +3007,7 @@
                 card.onclick = () => playRadioStation(station.id);
                 grid.appendChild(card);
             });
-            body.appendChild(grid);
+            listSlot.appendChild(grid);
         } else {
             const listWrap = el('div', 's936lib-listwrap');
             list.forEach((station) => {
@@ -2938,7 +3032,7 @@
                 row.onclick = () => playRadioStation(station.id);
                 listWrap.appendChild(row);
             });
-            body.appendChild(listWrap);
+            listSlot.appendChild(listWrap);
         }
     }
 
@@ -3729,9 +3823,20 @@
         }
         const search = document.createElement('input');
         search.className = 's936lib-search';
-        search.placeholder = 'Buscar...';
+        search.placeholder = activeTab === 'radio' ? 'Buscar emisoras guardadas...' : 'Buscar...';
         search.value = searchQuery;
-        search.oninput = () => { searchQuery = search.value; renderBodyOnly(); };
+        search.oninput = () => {
+            searchQuery = search.value;
+            syncMaximizedSearchOverlay();
+            renderBodyOnly();
+        };
+        search.onkeydown = (e) => {
+            if(e.key !== 'Escape') return;
+            searchQuery = '';
+            search.value = '';
+            syncMaximizedSearchOverlay();
+            renderBodyOnly();
+        };
         toolbar.appendChild(search);
         // Cambio 189: en Composiciones ya no se usa el filtro de "listas"
         // (playlists) — el álbum es el concepto de agrupación aquí, y ya
@@ -3777,7 +3882,7 @@
         if(!panel) return;
         panel.classList.toggle(
             's936lib-max-search-open',
-            windowState === 'maximized' && activeTab === 'youtube' && Boolean(searchQuery.trim())
+            windowState === 'maximized' && ['youtube','radio'].includes(activeTab) && Boolean(searchQuery.trim())
         );
     }
 
@@ -3840,7 +3945,9 @@
         panel.querySelectorAll('.s936lib-viewbtn').forEach((btn) => btn.classList.toggle('active', btn.dataset.view === viewMode));
         renderTransportState();
         const isYoutube = activeTab === 'youtube';
+        const isRadio = activeTab === 'radio';
         panel.classList.toggle('s936lib-active-youtube', isYoutube);
+        panel.classList.toggle('s936lib-active-radio', isRadio);
         syncMaximizedSearchOverlay();
         // Cambio 177: el toggle cuadrícula/lista no aplica en YouTube — esa
         // pestaña siempre usa su propio mosaico, no hay elección real ahí.
