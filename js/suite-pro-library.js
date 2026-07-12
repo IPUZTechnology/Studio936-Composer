@@ -1693,11 +1693,68 @@
         return tile;
     }
 
+    // Cambio 202: si este MP3 ya está vinculado como audio de referencia de
+    // alguna composición, se considera "de Studio 936" — hereda su
+    // carátula/autor en vez de mostrar el ícono genérico.
+    function audioLinkedComposition(audioId){
+        return store.compositions.find(c => c.previewAudioId === audioId) || null;
+    }
+
+    function buildAudioThumb(song, className){
+        const thumb = el('div', className);
+        const linkedComp = audioLinkedComposition(song.id);
+        const videoUrl = linkedComp ? albumVideoUrl(linkedComp.albumId) : null;
+        const coverUrl = linkedComp ? compositionCoverUrl(linkedComp) : null;
+        if(videoUrl){
+            const video = document.createElement('video');
+            video.src = videoUrl; video.autoplay = true; video.loop = true; video.muted = true; video.playsInline = true;
+            video.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+            thumb.appendChild(video);
+        } else if(coverUrl){
+            thumb.style.backgroundImage = `url('${coverUrl}')`;
+        } else {
+            thumb.classList.add('s936lib-comp-noart');
+            thumb.innerHTML = `<svg viewBox="0 0 100 40" preserveAspectRatio="none" class="s936lib-comp-wave">
+                <path d="M0 20 Q 12 4 25 20 T 50 20 T 75 20 T 100 20" />
+            </svg>`;
+        }
+        return thumb;
+    }
+
+    // Cambio 202: pantalla grande de "ahora suena" para Audio MP3, mismo
+    // espíritu que la de Composiciones — carátula/video de la composición
+    // vinculada, o el ícono de ondas si no hay ninguna.
+    function buildAudioVisual(){
+        const wrap = el('div', 's936lib-compvisual s936lib-mini-keep');
+        const playingSong = (currentPlayingId && !currentPlayingComp) ? store.audios.find(x => x.id === currentPlayingId) : null;
+        const linkedComp = playingSong ? audioLinkedComposition(playingSong.id) : null;
+        const videoUrl = linkedComp ? albumVideoUrl(linkedComp.albumId) : null;
+        const coverUrl = linkedComp ? compositionCoverUrl(linkedComp) : null;
+        if(videoUrl){
+            const video = document.createElement('video');
+            video.src = videoUrl; video.autoplay = true; video.loop = true; video.muted = true; video.playsInline = true;
+            video.className = 's936lib-compvisual-media';
+            wrap.appendChild(video);
+        } else if(coverUrl){
+            const bg = el('div', 's936lib-compvisual-media s936lib-compvisual-zoom');
+            bg.style.backgroundImage = `url('${coverUrl}')`;
+            wrap.appendChild(bg);
+        } else {
+            wrap.classList.add('s936lib-comp-noart');
+            wrap.innerHTML = `<svg viewBox="0 0 100 40" preserveAspectRatio="none" class="s936lib-comp-wave">
+                <path d="M0 20 Q 12 4 25 20 T 50 20 T 75 20 T 100 20" />
+            </svg>`;
+        }
+        if(!playingSong) wrap.appendChild(el('div', 's936lib-compvisual-hint', 'Elige "▶ Play" en un audio para verlo aquí'));
+        return wrap;
+    }
+
     function renderAudios(body){
+        body.appendChild(buildAudioVisual());
         const list = store.audios.filter(x => matchesSearch(x) && (!activeGenreFilter || x.genre === activeGenreFilter));
         if(!list.length){
             if(viewMode === 'grid' && !store.audios.length){
-                const grid = el('div', 's936lib-grid');
+                const grid = el('div', 's936lib-ytgrid');
                 grid.appendChild(buildImportTile());
                 body.appendChild(grid);
                 return;
@@ -1706,29 +1763,32 @@
             return;
         }
         if(viewMode === 'grid'){
-            const grid = el('div', 's936lib-grid');
+            const grid = el('div', 's936lib-ytgrid');
             grid.appendChild(buildImportTile());
             list.forEach((song) => {
                 const isPlaying = currentPlayingId === song.id && !currentPlayingComp;
-                const card = el('div', 's936lib-card' + (isPlaying ? ' playing' : ''));
-                const bubble = el('div', 's936lib-bubble');
-                bubble.appendChild(el('span', '', isPlaying ? '▶' : '🎧'));
-                const title = el('div', 's936lib-cardtitle', song.title);
-                const meta = el('div', 's936lib-cardmeta', song.author || 'Sin autor');
-                const actions = el('div', 's936lib-cardactions');
+                const linkedComp = audioLinkedComposition(song.id);
+                const card = el('div', 's936lib-ytcard' + (isPlaying ? ' active' : ''));
+                const thumb = buildAudioThumb(song, 's936lib-ytthumb');
+                thumb.appendChild(el('div', 'playicon', isPlaying ? '⏸' : '▶'));
+                const cardBody = el('div', 's936lib-ytcardbody');
+                cardBody.appendChild(el('div', 's936lib-ytcardtitle', song.title));
+                cardBody.appendChild(el('div', 's936lib-ytcardnotes', (linkedComp ? '🎼 ' + linkedComp.title + ' · ' : '') + ((linkedComp && linkedComp.author) || song.author || 'Sin autor')));
+                const actions = el('div', 's936lib-ytcardactions');
                 const playBtn = el('button', 's936lib-mini play', isPlaying ? '⏸ Sonando' : '▶ Play');
                 playBtn.onclick = (e) => { e.stopPropagation(); playAudio(song.id); };
-                const editBtn = el('button', 's936lib-iconbtn', '✎');
-                editBtn.title = 'Editar nombre';
-                editBtn.onclick = (e) => { e.stopPropagation(); renameAudio(song.id); };
                 const qBtn = el('button', 's936lib-iconbtn' + (queue.includes(song.id) ? ' active' : ''), '➕');
                 qBtn.title = queue.includes(song.id) ? 'En cola — quitar' : 'Agregar a la cola';
                 qBtn.onclick = (e) => { e.stopPropagation(); toggleQueue(song.id); };
-                const delBtn = el('button', 's936lib-iconbtn danger', '✕');
-                delBtn.title = 'Quitar';
-                delBtn.onclick = (e) => { e.stopPropagation(); deleteAudio(song.id); };
-                actions.append(playBtn, editBtn, qBtn, delBtn);
-                card.append(bubble, title, meta, genreTag('audios', song), actions);
+                actions.append(playBtn, qBtn, genreTag('audios', song));
+                const kebab = buildKebabMenu([
+                    { icon:'✎', label:'Cambiar nombre', onClick: () => renameAudio(song.id) },
+                    { icon:'🏷', label:'Agregar a lista', onClick: () => openEditGenrePlaylistPopover('audios', song) },
+                    { icon:'✕', label:'Quitar', danger:true, onClick: () => deleteAudio(song.id) }
+                ]);
+                actions.appendChild(kebab);
+                cardBody.appendChild(actions);
+                card.append(thumb, cardBody);
                 card.onclick = () => playAudio(song.id);
                 grid.appendChild(card);
             });
@@ -1737,20 +1797,25 @@
             const listWrap = el('div', 's936lib-listwrap');
             list.forEach((song) => {
                 const isPlaying = currentPlayingId === song.id && !currentPlayingComp;
+                const linkedComp = audioLinkedComposition(song.id);
                 const row = el('div', 's936lib-list-row' + (isPlaying ? ' playing' : ''));
-                const icon = el('div', 's936lib-list-icon', isPlaying ? '▶' : '🎧');
+                const thumb = buildAudioThumb(song, 's936lib-list-thumb');
                 const title = el('div', 's936lib-list-title', song.title);
-                const meta = el('div', 's936lib-list-meta', song.author || 'Sin autor');
+                const meta = el('div', 's936lib-list-meta', (linkedComp ? '🎼 ' + linkedComp.title + ' · ' : '') + ((linkedComp && linkedComp.author) || song.author || 'Sin autor'));
                 const actions = el('div', 's936lib-list-actions');
-                const editBtn = el('button', 's936lib-iconbtn', '✎');
-                editBtn.title = 'Editar nombre';
-                editBtn.onclick = (e) => { e.stopPropagation(); renameAudio(song.id); };
-                const qBtn = el('button', 's936lib-mini', queue.includes(song.id) ? 'En cola ✓' : '+ Cola');
+                const playBtn = el('button', 's936lib-mini play', isPlaying ? '⏸' : '▶');
+                playBtn.onclick = (e) => { e.stopPropagation(); playAudio(song.id); };
+                const qBtn = el('button', 's936lib-iconbtn' + (queue.includes(song.id) ? ' active' : ''), '➕');
+                qBtn.title = queue.includes(song.id) ? 'En cola — quitar' : 'Agregar a la cola';
                 qBtn.onclick = (e) => { e.stopPropagation(); toggleQueue(song.id); };
-                const delBtn = el('button', 's936lib-mini danger', 'Quitar');
-                delBtn.onclick = (e) => { e.stopPropagation(); deleteAudio(song.id); };
-                actions.append(genreTag('audios', song), editBtn, qBtn, delBtn);
-                row.append(icon, title, meta, actions);
+                actions.append(playBtn, qBtn, genreTag('audios', song));
+                const kebab = buildKebabMenu([
+                    { icon:'✎', label:'Cambiar nombre', onClick: () => renameAudio(song.id) },
+                    { icon:'🏷', label:'Agregar a lista', onClick: () => openEditGenrePlaylistPopover('audios', song) },
+                    { icon:'✕', label:'Quitar', danger:true, onClick: () => deleteAudio(song.id) }
+                ]);
+                actions.appendChild(kebab);
+                row.append(thumb, title, meta, actions);
                 row.onclick = () => playAudio(song.id);
                 listWrap.appendChild(row);
             });
