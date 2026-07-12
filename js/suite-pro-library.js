@@ -1,4 +1,4 @@
-// Studio 936 Composer — Librería / "936 Player" (Cambio 222)
+// Studio 936 Composer — Librería / "936 Player" (Cambio 226)
 //
 // QUÉ ES: el mismo módulo unificado del Cambio 165/166 (Composiciones,
 // Audios, YouTube, Géneros, Recientes — con migración de los dos
@@ -26,6 +26,8 @@
     const STORE_KEY = 's936_library_v2';
     const MIGRATION_FLAG = 's936_library_v2_migrated';
     const VIEW_MODE_KEY = 's936_library_view_mode';
+    const RECENT_TYPE_FILTER_KEY = 's936_library_recent_type';
+    const RECENT_SORT_KEY = 's936_library_recent_sort';
     const OLD_COMPOSITIONS_KEY = 'studio936ComposerLibraryV18';
     const OLD_AUDIO_META_KEY = 's936_library_meta_v1';
     const PANEL_ID = 's936LibraryPanel';
@@ -41,6 +43,11 @@
     let activePlaylistFilter = null;
     let activeAlbumFilter = null; // Cambio 188: solo aplica en la pestaña Composiciones
     let searchQuery = '';
+    // Cambio 226: Recientes deja de ser una cuadrícula genérica y pasa a
+    // ser la puerta de continuidad del 936 Player. Filtro y orden quedan
+    // recordados entre aperturas, sin alterar las demás pestañas.
+    let recentTypeFilter = localStorage.getItem(RECENT_TYPE_FILTER_KEY) || 'all';
+    let recentSortMode = localStorage.getItem(RECENT_SORT_KEY) || 'recent';
     let audioObjectURLs = {};
     let currentPlayingId = null;   // id de audio sonando (de store.audios)
     let currentPlayingComp = null; // id de composición cuyo preview está sonando (mismo audio, distinta procedencia)
@@ -1268,6 +1275,111 @@
     border-radius:12px;
 }
 #${PANEL_ID} .s936lib-compvisual-hint { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#9fb0ae; font-size:.8rem; background:rgba(0,0,0,.35); text-align:center; padding:0 20px; }
+
+/* Cambio 226: Recientes = continuidad de trabajo, no copia de la
+   biblioteca. La jerarquía es Continuar → filtros → grupos cronológicos. */
+#${PANEL_ID} .s936recent-shell { display:flex; flex-direction:column; gap:16px; }
+#${PANEL_ID} .s936recent-hero {
+    position:relative;
+    overflow:hidden;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:18px;
+    min-height:86px;
+    padding:17px 20px;
+    border:1px solid rgba(91,232,201,.18);
+    border-radius:14px;
+    background:
+      radial-gradient(circle at 88% 20%, rgba(0,255,204,.14), transparent 32%),
+      linear-gradient(135deg, rgba(15,46,40,.88), rgba(9,18,17,.96) 58%, rgba(21,16,11,.92));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.035), 0 12px 28px rgba(0,0,0,.18);
+}
+#${PANEL_ID} .s936recent-hero::after {
+    content:'936'; position:absolute; right:24px; top:50%; transform:translateY(-52%);
+    font-size:4rem; line-height:1; font-weight:950; letter-spacing:5px;
+    color:rgba(0,255,204,.035); pointer-events:none;
+}
+#${PANEL_ID} .s936recent-hero-copy { position:relative; z-index:1; min-width:0; }
+#${PANEL_ID} .s936recent-kicker { color:#c58a4a; font-size:.58rem; font-weight:900; letter-spacing:1.6px; text-transform:uppercase; }
+#${PANEL_ID} .s936recent-title { margin-top:4px; color:#eaf8f5; font-size:1.05rem; font-weight:900; letter-spacing:.1px; }
+#${PANEL_ID} .s936recent-summary { margin-top:5px; color:#91a6a2; font-size:.68rem; line-height:1.45; }
+#${PANEL_ID} .s936recent-livepill {
+    position:relative; z-index:1; display:flex; align-items:center; gap:7px; flex-shrink:0;
+    padding:7px 11px; border-radius:999px; border:1px solid rgba(0,255,204,.25);
+    background:rgba(0,255,204,.07); color:#5be8c9; font-size:.64rem; font-weight:850;
+}
+#${PANEL_ID} .s936recent-livepill::before { content:''; width:6px; height:6px; border-radius:50%; background:#00ffcc; box-shadow:0 0 9px rgba(0,255,204,.85); }
+#${PANEL_ID} .s936recent-section { display:flex; flex-direction:column; gap:9px; }
+#${PANEL_ID} .s936recent-sectionhead { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:24px; }
+#${PANEL_ID} .s936recent-sectiontitle { color:#dce9e7; font-size:.72rem; font-weight:900; letter-spacing:.85px; text-transform:uppercase; }
+#${PANEL_ID} .s936recent-sectionnote { color:#72817f; font-size:.62rem; }
+#${PANEL_ID} .s936recent-continue-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+#${PANEL_ID} .s936recent-continue-card {
+    position:relative; overflow:hidden; display:grid; grid-template-columns:86px minmax(0,1fr) auto;
+    align-items:center; gap:10px; min-height:72px; padding:8px;
+    border:1px solid rgba(255,255,255,.07); border-radius:12px;
+    background:linear-gradient(135deg, rgba(255,255,255,.035), rgba(0,255,204,.018));
+    cursor:pointer; transition:transform .15s ease, border-color .15s ease, background .15s ease;
+}
+#${PANEL_ID} .s936recent-continue-card:hover { transform:translateY(-1px); border-color:rgba(0,255,204,.38); background:rgba(0,255,204,.045); }
+#${PANEL_ID} .s936recent-continue-card.is-current { border-color:rgba(0,255,204,.55); box-shadow:inset 0 0 22px rgba(0,255,204,.035); }
+#${PANEL_ID} .s936recent-continue-thumb { width:86px; aspect-ratio:16/10; border-radius:8px; overflow:hidden; background:#06110f center/cover no-repeat; }
+#${PANEL_ID} .s936recent-continue-copy { min-width:0; }
+#${PANEL_ID} .s936recent-continue-title { color:#f0f7f6; font-size:.73rem; font-weight:850; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#${PANEL_ID} .s936recent-continue-meta { margin-top:4px; color:#849491; font-size:.61rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#${PANEL_ID} .s936recent-continue-play { width:29px; height:29px; border-radius:50%; border:1px solid rgba(0,255,204,.45); background:rgba(0,255,204,.1); color:#00ffcc; cursor:pointer; font-size:.68rem; }
+#${PANEL_ID} .s936recent-filterbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:2px 0 1px; }
+#${PANEL_ID} .s936recent-chips { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+#${PANEL_ID} .s936recent-filterchip {
+    border:1px solid #2b3435; background:#171d1f; color:#93a29f; border-radius:999px;
+    padding:6px 11px; font-size:.65rem; font-weight:800; cursor:pointer;
+}
+#${PANEL_ID} .s936recent-filterchip:hover { border-color:rgba(91,232,201,.45); color:#cce9e3; }
+#${PANEL_ID} .s936recent-filterchip.active { background:rgba(0,255,204,.11); border-color:#00dcb1; color:#5be8c9; }
+#${PANEL_ID} .s936recent-count { margin-left:4px; opacity:.58; font-size:.56rem; }
+#${PANEL_ID} .s936recent-sort { background:#171d1f; border:1px solid #2b3435; color:#a9b7b4; border-radius:8px; padding:6px 9px; font:inherit; font-size:.65rem; cursor:pointer; }
+#${PANEL_ID} .s936recent-group { display:flex; flex-direction:column; gap:9px; }
+#${PANEL_ID} .s936recent-grouphead { display:flex; align-items:center; gap:9px; color:#83928f; font-size:.62rem; font-weight:900; letter-spacing:1px; text-transform:uppercase; }
+#${PANEL_ID} .s936recent-grouphead::after { content:''; height:1px; flex:1; background:linear-gradient(90deg, rgba(91,232,201,.16), transparent); }
+#${PANEL_ID} .s936recent-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:14px; }
+#${PANEL_ID} .s936recent-card { position:relative; overflow:visible; border-radius:11px; }
+#${PANEL_ID} .s936recent-card .s936lib-ytthumb { border-radius:10px; box-shadow:0 8px 22px rgba(0,0,0,.2); }
+#${PANEL_ID} .s936recent-card.is-current { border-color:rgba(0,255,204,.72); background:rgba(0,255,204,.055); }
+#${PANEL_ID} .s936recent-typebadge {
+    position:absolute; z-index:5; left:7px; top:7px; display:inline-flex; align-items:center; gap:4px;
+    padding:4px 7px; border-radius:999px; background:rgba(5,13,12,.78);
+    border:1px solid rgba(255,255,255,.11); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    color:#dff8f2; font-size:.52rem; font-weight:900; letter-spacing:.55px; text-transform:uppercase;
+}
+#${PANEL_ID} .s936recent-statebadge {
+    position:absolute; z-index:5; right:7px; top:7px; padding:4px 7px; border-radius:999px;
+    background:rgba(0,255,204,.13); border:1px solid rgba(0,255,204,.42);
+    color:#66f4d7; font-size:.52rem; font-weight:900; letter-spacing:.45px;
+}
+#${PANEL_ID} .s936recent-cardauthor { margin-top:4px; color:#a8b6b3; font-size:.66rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#${PANEL_ID} .s936recent-cardfooter { display:flex; align-items:center; gap:7px; min-height:25px; margin-top:5px; }
+#${PANEL_ID} .s936recent-activity { min-width:0; flex:1; color:#73827f; font-size:.61rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#${PANEL_ID} .s936recent-goto { width:24px; height:24px; border-radius:7px; border:1px solid #2d3637; background:#151b1c; color:#8da09c; cursor:pointer; }
+#${PANEL_ID} .s936recent-goto:hover { border-color:#00dcb1; color:#5be8c9; }
+#${PANEL_ID} .s936recent-progress { position:absolute; z-index:6; left:7px; right:7px; bottom:7px; height:3px; border-radius:4px; background:rgba(0,0,0,.42); overflow:hidden; }
+#${PANEL_ID} .s936recent-progress b { display:block; width:0; height:100%; border-radius:inherit; background:#00ffcc; box-shadow:0 0 7px rgba(0,255,204,.6); }
+#${PANEL_ID} .s936recent-list { display:flex; flex-direction:column; gap:3px; }
+#${PANEL_ID} .s936recent-listrow { position:relative; border:1px solid transparent; }
+#${PANEL_ID} .s936recent-listrow.is-current { border-color:rgba(0,255,204,.42); background:rgba(0,255,204,.07); }
+#${PANEL_ID} .s936recent-listbadge { min-width:84px; color:#6fdcc5; font-size:.58rem; font-weight:850; text-transform:uppercase; }
+#${PANEL_ID} .s936recent-empty {
+    padding:44px 22px; border:1px dashed rgba(91,232,201,.2); border-radius:14px;
+    text-align:center; background:rgba(0,255,204,.018); color:#8fa09d; font-size:.78rem; line-height:1.6;
+}
+@media (max-width:760px) {
+  #${PANEL_ID} .s936recent-continue-grid { grid-template-columns:1fr; }
+  #${PANEL_ID} .s936recent-hero { padding:15px; }
+  #${PANEL_ID} .s936recent-livepill { display:none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #${PANEL_ID} .s936recent-continue-card { transition:none; }
+}
 `;
         document.head.appendChild(style);
     }
@@ -3343,6 +3455,7 @@
         const subEl = panel.querySelector('.s936lib-nowsub');
         const progressBar = panel.querySelector('.s936lib-progress b');
         const playBtn = panel.querySelector('.s936lib-playbtn');
+        let recentProgressPct = null;
         if(!titleEl) return;
 
         if(titleOverride){
@@ -3406,7 +3519,8 @@
             let current = 0, duration = 0;
             try { current = Number(ytPlayer.getCurrentTime?.() || 0); duration = Number(ytPlayer.getDuration?.() || 0); } catch(_) {}
             if(timeEl) timeEl.textContent = duration > 0 ? (fmtTime(current) + ' / ' + fmtTime(duration)) : '';
-            if(progressBar) progressBar.style.width = duration > 0 ? ((current / duration) * 100) + '%' : '0%';
+            recentProgressPct = duration > 0 ? (current / duration) * 100 : null;
+            if(progressBar) progressBar.style.width = duration > 0 ? recentProgressPct + '%' : '0%';
             if(playBtn) playBtn.textContent = isYoutubePlaying ? '⏸' : '⏵';
         } else if(lastActiveSource === 'local' && currentPlayingRadioId && radioEl && radioEl.src){
             if(timeEl) timeEl.textContent = radioStatus === 'playing' ? 'EN VIVO' : '';
@@ -3414,9 +3528,13 @@
             if(playBtn) playBtn.textContent = !radioEl.paused && radioStatus === 'playing' ? '⏸' : '⏵';
         } else {
             if(audioEl && timeEl && audioEl.src) timeEl.textContent = fmtTime(audioEl.currentTime) + ' / ' + fmtTime(audioEl.duration);
-            if(progressBar) progressBar.style.width = (audioEl && audioEl.duration) ? ((audioEl.currentTime/audioEl.duration)*100) + '%' : '0%';
+            recentProgressPct = (audioEl && audioEl.duration) ? ((audioEl.currentTime/audioEl.duration)*100) : null;
+            if(progressBar) progressBar.style.width = recentProgressPct != null ? recentProgressPct + '%' : '0%';
             if(playBtn) playBtn.textContent = (audioEl && audioEl.src && !audioEl.paused) ? '⏸' : '⏵';
         }
+        panel.querySelectorAll('.s936recent-card.is-current .s936recent-progress b, .s936recent-continue-card.is-current .s936recent-progress b').forEach((bar) => {
+            bar.style.width = recentProgressPct != null ? Math.max(0,Math.min(100,recentProgressPct)) + '%' : '0%';
+        });
 
         // Cambio 209: estados visuales del ecualizador — cargando, error,
         // pausado — sin agregar temporizadores nuevos, solo clases CSS.
@@ -3777,55 +3895,295 @@
     }
 
     // ---------------------------------------------------------------
-    // Recientes
+    // Recientes — Cambio 226
     // ---------------------------------------------------------------
+    function recentEntryDate(entry){
+        const item = entry.item || {};
+        return Number(item.updated || item.addedAt || item.createdAt || 0);
+    }
+    function recentEntryTitle(type, item){
+        return type === 'audios' ? displayAudioTitle(item.title || item.fileName || 'Audio') : (item.title || item.name || 'Sin título');
+    }
+    function recentEntrySubtitle(type, item){
+        if(type === 'compositions'){
+            const album = getAlbum(item.albumId);
+            return item.author || album?.name || 'Composición de Studio 936';
+        }
+        if(type === 'audios'){
+            const linked = audioLinkedComposition(item.id);
+            return item.author || linked?.author || linked?.title || 'Audio MP3';
+        }
+        if(type === 'youtube') return item.notes || 'Mini Rockola';
+        if(type === 'radio') return item.country || String(item.tags || '').split(',').filter(Boolean)[0] || 'Radio online';
+        return '';
+    }
+    function recentEntryIsCurrent(type, item){
+        if(type === 'compositions') return lastActiveSource === 'local' && currentPlayingComp === item.id && ['loading','playing','paused'].includes(lcdLoading ? 'loading' : (audioEl?.paused ? 'paused' : 'playing'));
+        if(type === 'audios') return lastActiveSource === 'local' && !currentPlayingComp && !currentPlayingRadioId && currentPlayingId === item.id && !!audioEl?.src && !lcdError && !audioEl.ended;
+        if(type === 'youtube') return lastActiveSource === 'youtube' && currentYoutubeId === item.id && ['loading','playing','paused'].includes(youtubeStatus);
+        if(type === 'radio') return lastActiveSource === 'local' && currentPlayingRadioId === item.id && ['loading','playing','paused'].includes(radioStatus);
+        return false;
+    }
+    function recentEntryIsPlaying(type, item){
+        if(type === 'compositions') return recentEntryIsCurrent(type,item) && !!audioEl && !audioEl.paused;
+        if(type === 'audios') return isLocalAudioActuallyPlaying(item.id);
+        if(type === 'youtube') return recentEntryIsCurrent(type,item) && isYoutubePlaying;
+        if(type === 'radio') return isRadioActuallyPlaying(item.id);
+        return false;
+    }
+    function recentEntryState(type, item){
+        if(!recentEntryIsCurrent(type,item)) return '';
+        if(recentEntryIsPlaying(type,item)) return type === 'radio' ? 'EN VIVO' : 'SONANDO';
+        if(type === 'youtube' && youtubeStatus === 'loading') return 'CARGANDO';
+        if(type === 'radio' && radioStatus === 'loading') return 'CARGANDO';
+        if((type === 'audios' || type === 'compositions') && lcdLoading) return 'CARGANDO';
+        return 'PAUSADO';
+    }
+    function recentPlayEntry(type, item){
+        if(type === 'compositions') previewComposition(item.id);
+        else if(type === 'audios') toggleAudioFromLibrary(item.id);
+        else if(type === 'youtube') { activeTab = 'youtube'; selectYoutubeVideo(item); }
+        else if(type === 'radio') { activeTab = 'radio'; playRadioStation(item.id); }
+    }
+    function recentOpenSection(type, item){
+        if(type === 'compositions') { openComposition(item.id); return; }
+        activeTab = type === 'audios' ? 'audios' : type;
+        searchQuery = '';
+        activePlaylistFilter = null;
+        render();
+    }
+    function recentBuildThumb(type, item, className, isCurrent){
+        let thumb;
+        if(type === 'compositions') thumb = buildCompositionThumb(item, className, isCurrent);
+        else if(type === 'audios') thumb = buildAudioThumb(item, className, isCurrent);
+        else if(type === 'radio') thumb = buildRadioThumb(item, className);
+        else {
+            thumb = el('div', className);
+            const thumbUrl = youtubeThumbUrl(item.url);
+            if(thumbUrl) thumb.style.backgroundImage = `url('${thumbUrl}')`;
+            else thumb.appendChild(el('div', 'ph', 'Sin miniatura'));
+        }
+        return thumb;
+    }
+    function recentRelativeTime(ts){
+        if(!ts) return 'Sin fecha';
+        const now = Date.now();
+        const diff = Math.max(0, now - ts);
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+        if(minutes < 1) return 'Ahora';
+        if(minutes < 60) return `Hace ${minutes} min`;
+        if(hours < 24) return `Hace ${hours} h`;
+        if(days === 1) return 'Ayer';
+        if(days < 7) return `Hace ${days} días`;
+        return fmtDate(ts);
+    }
+    function recentGroupKey(ts){
+        if(!ts) return 'older';
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const day = new Date(ts);
+        const start = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
+        const delta = Math.round((today - start) / 86400000);
+        if(delta <= 0) return 'today';
+        if(delta === 1) return 'yesterday';
+        if(delta <= 7) return 'week';
+        return 'older';
+    }
+    function recentGroupLabel(key){
+        return ({today:'Hoy', yesterday:'Ayer', week:'Esta semana', older:'Anteriores'})[key] || 'Anteriores';
+    }
+    function recentFilteredEntries(){
+        let entries = recentItems(120).filter(({item}) => matchesSearch(item, [item.notes, item.url, item.fileName, item.country, item.tags]));
+        if(recentTypeFilter !== 'all') entries = entries.filter(entry => entry.type === recentTypeFilter);
+        const byName = (a,b) => recentEntryTitle(a.type,a.item).localeCompare(recentEntryTitle(b.type,b.item), undefined, {sensitivity:'base'});
+        if(recentSortMode === 'name') entries.sort(byName);
+        else if(recentSortMode === 'type') entries.sort((a,b) => TYPE_LABEL[a.type].localeCompare(TYPE_LABEL[b.type]) || byName(a,b));
+        else entries.sort((a,b) => recentEntryDate(b) - recentEntryDate(a));
+        return entries;
+    }
+    function recentContinueEntries(entries){
+        const picked = [];
+        const add = (entry) => {
+            if(entry && !picked.some(x => x.type === entry.type && x.item.id === entry.item.id)) picked.push(entry);
+        };
+        add(entries.find(({type,item}) => recentEntryIsCurrent(type,item)));
+        add(entries.find(entry => entry.type === 'compositions'));
+        for(const entry of entries){
+            if(picked.length >= 3) break;
+            if(!picked.some(x => x.type === entry.type)) add(entry);
+        }
+        for(const entry of entries){ if(picked.length >= 3) break; add(entry); }
+        return picked.slice(0,3);
+    }
+    function recentTypeBadge(type){
+        return `${TYPE_ICON[type] || '♪'} ${TYPE_LABEL[type] || 'Música'}`;
+    }
+    function recentBuildContinueCard(entry){
+        const {type,item} = entry;
+        const isCurrent = recentEntryIsCurrent(type,item);
+        const card = el('div', 's936recent-continue-card' + (isCurrent ? ' is-current' : ''));
+        const thumb = recentBuildThumb(type,item,'s936recent-continue-thumb',isCurrent);
+        const copy = el('div','s936recent-continue-copy');
+        copy.append(
+            el('div','s936recent-continue-title',recentEntryTitle(type,item)),
+            el('div','s936recent-continue-meta',(recentEntryState(type,item) || recentTypeBadge(type)) + ' · ' + recentEntrySubtitle(type,item))
+        );
+        const play = el('button','s936recent-continue-play',recentEntryIsPlaying(type,item) ? 'Ⅱ' : '▶');
+        play.title = recentEntryIsPlaying(type,item) ? 'Pausar' : 'Continuar';
+        play.onclick = (e) => { e.stopPropagation(); recentPlayEntry(type,item); };
+        card.append(thumb,copy,play);
+        if(isCurrent && type !== 'radio'){
+            const progress = el('div','s936recent-progress'); progress.appendChild(el('b',''));
+            card.appendChild(progress);
+        }
+        card.onclick = () => recentPlayEntry(type,item);
+        return card;
+    }
+    function recentBuildCard(entry){
+        const {type,item} = entry;
+        const isCurrent = recentEntryIsCurrent(type,item);
+        const card = el('div','s936lib-ytcard s936recent-card' + (isCurrent ? ' active is-current' : ''));
+        card.dataset.recentType = type;
+        card.dataset.recentId = item.id;
+        const thumb = recentBuildThumb(type,item,'s936lib-ytthumb',isCurrent);
+        thumb.appendChild(el('div','s936recent-typebadge',recentTypeBadge(type)));
+        const state = recentEntryState(type,item);
+        if(state) thumb.appendChild(el('div','s936recent-statebadge',state));
+        thumb.appendChild(el('div','playicon',recentEntryIsPlaying(type,item) ? 'Ⅱ' : '▶'));
+        if(isCurrent && type !== 'radio'){
+            const progress = el('div','s936recent-progress'); progress.appendChild(el('b',''));
+            thumb.appendChild(progress);
+        }
+        const body = el('div','s936lib-ytcardbody');
+        body.appendChild(el('div','s936lib-ytcardtitle',recentEntryTitle(type,item)));
+        body.appendChild(el('div','s936recent-cardauthor',recentEntrySubtitle(type,item)));
+        const footer = el('div','s936recent-cardfooter');
+        const activityPrefix = type === 'compositions' ? 'Editada' : (type === 'radio' ? 'Guardada' : 'Agregado');
+        footer.appendChild(el('div','s936recent-activity',`${activityPrefix} · ${recentRelativeTime(recentEntryDate(entry))}`));
+        const goto = el('button','s936recent-goto','↗');
+        goto.title = type === 'compositions' ? 'Abrir composición' : `Mostrar en ${TYPE_LABEL[type]}`;
+        goto.onclick = (e) => { e.stopPropagation(); recentOpenSection(type,item); };
+        footer.appendChild(goto);
+        body.appendChild(footer);
+        card.append(thumb,body);
+        card.onclick = () => recentPlayEntry(type,item);
+        return card;
+    }
+    function recentBuildListRow(entry){
+        const {type,item} = entry;
+        const isCurrent = recentEntryIsCurrent(type,item);
+        const row = el('div','s936lib-list-row s936recent-listrow' + (isCurrent ? ' playing is-current' : ''));
+        const thumb = recentBuildThumb(type,item,'s936lib-list-thumb',isCurrent);
+        const title = el('div','s936lib-list-title',recentEntryTitle(type,item));
+        const badge = el('div','s936recent-listbadge',recentTypeBadge(type));
+        const meta = el('div','s936lib-list-meta',`${recentEntrySubtitle(type,item)} · ${recentRelativeTime(recentEntryDate(entry))}`);
+        const actions = el('div','s936lib-list-actions');
+        const play = el('button','s936lib-mini play',recentEntryIsPlaying(type,item) ? 'Ⅱ' : '▶');
+        play.onclick = (e) => { e.stopPropagation(); recentPlayEntry(type,item); };
+        const goto = el('button','s936recent-goto','↗');
+        goto.onclick = (e) => { e.stopPropagation(); recentOpenSection(type,item); };
+        actions.append(play,goto);
+        row.append(thumb,title,badge,meta,actions);
+        row.onclick = () => recentPlayEntry(type,item);
+        return row;
+    }
     function renderRecent(body){
-        const items = recentItems(30).filter(({item}) => matchesSearch(item, [item.notes, item.url]));
-        if(!items.length){
-            body.appendChild(el('div', 's936lib-empty', 'Todavía no hay nada guardado. Empieza por Composiciones, Audios o YouTube.'));
+        const allEntries = recentItems(120).filter(({item}) => matchesSearch(item, [item.notes, item.url, item.fileName, item.country, item.tags]));
+        const entries = recentFilteredEntries();
+        const shell = el('div','s936recent-shell');
+
+        const counts = {
+            compositions: store.compositions.length,
+            audios: store.audios.length,
+            youtube: store.youtube.length,
+            radio: store.radio.length
+        };
+        const hero = el('div','s936recent-hero');
+        const heroCopy = el('div','s936recent-hero-copy');
+        heroCopy.append(
+            el('div','s936recent-kicker','TU ACTIVIDAD MUSICAL'),
+            el('div','s936recent-title','Continúa exactamente donde dejaste tu música'),
+            el('div','s936recent-summary',`${allEntries.length} elementos recientes · ${counts.compositions} composiciones · ${counts.audios} audios · ${counts.youtube} videos · ${counts.radio} radios`)
+        );
+        hero.appendChild(heroCopy);
+        const activeEntry = allEntries.find(({type,item}) => recentEntryIsCurrent(type,item));
+        if(activeEntry) hero.appendChild(el('div','s936recent-livepill',recentEntryState(activeEntry.type,activeEntry.item) || 'ACTIVO'));
+        shell.appendChild(hero);
+
+        const continueEntries = recentContinueEntries(entries);
+        if(continueEntries.length){
+            const section = el('section','s936recent-section');
+            const head = el('div','s936recent-sectionhead');
+            head.append(el('div','s936recent-sectiontitle','Continuar'),el('div','s936recent-sectionnote','Lo más probable es que quieras retomar esto'));
+            const grid = el('div','s936recent-continue-grid');
+            continueEntries.forEach(entry => grid.appendChild(recentBuildContinueCard(entry)));
+            section.append(head,grid);
+            shell.appendChild(section);
+        }
+
+        const filterbar = el('div','s936recent-filterbar');
+        const chips = el('div','s936recent-chips');
+        const filterDefs = [
+            ['all','Todos',allEntries.length],
+            ['compositions','Composiciones',allEntries.filter(x=>x.type==='compositions').length],
+            ['audios','Audio',allEntries.filter(x=>x.type==='audios').length],
+            ['youtube','Rockola',allEntries.filter(x=>x.type==='youtube').length],
+            ['radio','Radio',allEntries.filter(x=>x.type==='radio').length]
+        ];
+        filterDefs.forEach(([key,label,count]) => {
+            const chip = el('button','s936recent-filterchip' + (recentTypeFilter === key ? ' active' : ''));
+            chip.append(document.createTextNode(label),el('span','s936recent-count',String(count)));
+            chip.onclick = () => {
+                recentTypeFilter = key;
+                localStorage.setItem(RECENT_TYPE_FILTER_KEY,key);
+                renderBodyOnly();
+            };
+            chips.appendChild(chip);
+        });
+        const sort = document.createElement('select');
+        sort.className = 's936recent-sort';
+        [['recent','Más recientes'],['name','Nombre A–Z'],['type','Agrupar por tipo']].forEach(([value,label]) => {
+            const opt = document.createElement('option'); opt.value=value; opt.textContent=label; sort.appendChild(opt);
+        });
+        sort.value = recentSortMode;
+        sort.onchange = () => { recentSortMode=sort.value; localStorage.setItem(RECENT_SORT_KEY,recentSortMode); renderBodyOnly(); };
+        filterbar.append(chips,sort);
+        shell.appendChild(filterbar);
+
+        if(!entries.length){
+            const msg = searchQuery || recentTypeFilter !== 'all'
+                ? 'No hay elementos que coincidan con esta búsqueda o filtro. Limpia el filtro para volver a ver tu actividad.'
+                : 'Todavía no hay actividad reciente. Reproduce una canción, abre una composición, una radio o un video y aparecerá aquí.';
+            shell.appendChild(el('div','s936recent-empty',msg));
+            body.appendChild(shell);
             return;
         }
-        if(viewMode === 'grid'){
-            const grid = el('div', 's936lib-ytgrid');
-            items.forEach(({type, item}) => {
-                const card = el('div', 's936lib-ytcard');
-                let thumb;
-                if(type === 'compositions') thumb = buildCompositionThumb(item, 's936lib-ytthumb');
-                else if(type === 'audios') thumb = buildAudioThumb(item, 's936lib-ytthumb');
-                else if(type === 'radio') thumb = buildRadioThumb(item, 's936lib-ytthumb');
-                else {
-                    thumb = el('div', 's936lib-ytthumb');
-                    const thumbUrl = youtubeThumbUrl(item.url);
-                    if(thumbUrl) thumb.style.backgroundImage = `url('${thumbUrl}')`;
-                    else thumb.appendChild(el('div', 'ph', 'Sin miniatura'));
-                }
-                thumb.appendChild(el('div', 'playicon', '▶'));
-                const cardBody = el('div', 's936lib-ytcardbody');
-                cardBody.appendChild(el('div', 's936lib-ytcardtitle', item.title || item.name));
-                cardBody.appendChild(el('div', 's936lib-ytcardnotes', TYPE_LABEL[type] + ' · ' + fmtDate(item.updated || item.addedAt)));
-                card.append(thumb, cardBody);
-                if(type === 'compositions') card.onclick = () => previewComposition(item.id, card);
-                if(type === 'audios') card.onclick = () => playAudio(item.id);
-                if(type === 'youtube') card.onclick = () => { activeTab = 'youtube'; selectYoutubeVideo(item); };
-                if(type === 'radio') card.onclick = () => { activeTab = 'radio'; playRadioStation(item.id); };
-                grid.appendChild(card);
-            });
-            body.appendChild(grid);
-        } else {
-            items.forEach(({type, item}) => {
-                const row = el('div', 's936lib-list-row');
-                row.append(
-                    el('div', 's936lib-list-icon', TYPE_ICON[type]),
-                    el('div', 's936lib-list-title', item.title || item.name),
-                    el('div', 's936lib-list-meta', TYPE_LABEL[type] + ' · ' + fmtDate(item.updated || item.addedAt))
-                );
-                if(type === 'compositions') row.onclick = () => previewComposition(item.id, row);
-                if(type === 'audios') row.onclick = () => playAudio(item.id);
-                if(type === 'youtube') row.onclick = () => { activeTab = 'youtube'; selectYoutubeVideo(item); };
-                if(type === 'radio') row.onclick = () => { activeTab = 'radio'; playRadioStation(item.id); };
-                body.appendChild(row);
-            });
-        }
+
+        const groupOrder = ['today','yesterday','week','older'];
+        const groups = new Map(groupOrder.map(key => [key,[]]));
+        entries.forEach(entry => groups.get(recentGroupKey(recentEntryDate(entry))).push(entry));
+        groupOrder.forEach(key => {
+            const groupEntries = groups.get(key);
+            if(!groupEntries.length) return;
+            const group = el('section','s936recent-group');
+            group.appendChild(el('div','s936recent-grouphead',recentGroupLabel(key)));
+            if(viewMode === 'grid'){
+                const grid = el('div','s936recent-grid');
+                groupEntries.forEach(entry => grid.appendChild(recentBuildCard(entry)));
+                group.appendChild(grid);
+            } else {
+                const list = el('div','s936recent-list');
+                groupEntries.forEach(entry => list.appendChild(recentBuildListRow(entry)));
+                group.appendChild(list);
+            }
+            shell.appendChild(group);
+        });
+        body.appendChild(shell);
+        // Sincroniza inmediatamente la barra de la tarjeta activa; los
+        // siguientes frames llegan desde updateLcd/timeupdate.
+        updateLcd();
     }
 
     // ---------------------------------------------------------------
@@ -3876,7 +4234,7 @@
         }
         const search = document.createElement('input');
         search.className = 's936lib-search';
-        search.placeholder = activeTab === 'radio' ? 'Buscar emisoras guardadas...' : 'Buscar...';
+        search.placeholder = activeTab === 'radio' ? 'Buscar emisoras guardadas...' : (activeTab === 'recent' ? 'Buscar en recientes...' : 'Buscar...');
         search.value = searchQuery;
         search.oninput = () => {
             searchQuery = search.value;
@@ -3894,7 +4252,7 @@
         // Cambio 189: en Composiciones ya no se usa el filtro de "listas"
         // (playlists) — el álbum es el concepto de agrupación aquí, y ya
         // tiene sus propios chips debajo. Se evita el control redundante.
-        if(activeTab !== 'compositions') toolbar.appendChild(buildPlaylistFilterButton(activeTab === 'audios' ? store.audios : activeTab === 'radio' ? store.radio : null));
+        if(activeTab !== 'compositions' && activeTab !== 'recent') toolbar.appendChild(buildPlaylistFilterButton(activeTab === 'audios' ? store.audios : activeTab === 'radio' ? store.radio : null));
 
         if(activeTab === 'compositions'){
             // Cambio 194: dos botones separados — la flecha filtra rápido
