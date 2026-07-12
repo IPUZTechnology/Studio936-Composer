@@ -1144,6 +1144,7 @@
             closeLinkAudioPopover();
             currentPlayingComp = item.id;
             playAudio(audioId, item.title, item.author || 'Artista sin definir');
+            showCompositionContextHint(item);
         };
 
         if(store.audios.length){
@@ -1204,12 +1205,37 @@
         } catch(_) { return false; }
     }
 
+    // Cambio 211: BPM/tonalidad reales de la composición — aparecen unos
+    // segundos al empezar a sonar y luego vuelven al autor, igual que el
+    // aviso de "Siguiente" en la cola. bpm viene de project.bpm (fiable);
+    // la tonalidad viene de project.soloKey (la herramienta "Solo") — si
+    // esa herramienta nunca se usó en esta canción, puede no reflejar la
+    // tonalidad real, por eso solo se agrega si existe y no se inventa.
+    function showCompositionContextHint(item){
+        const bpm = item.project?.bpm;
+        const key = item.project?.soloKey;
+        if(!bpm) return;
+        const parts = [bpm + ' BPM'];
+        if(key) parts.push(key);
+        const text = parts.join(' · ');
+        setTimeout(() => {
+            const panel = document.getElementById(PANEL_ID);
+            const subEl = panel?.querySelector('.s936lib-nowsub');
+            if(subEl) subEl.textContent = text;
+            clearTimeout(s936NextHintTimer);
+            s936NextHintTimer = setTimeout(() => {
+                if(subEl) subEl.textContent = item.author || 'Artista sin definir';
+            }, 3500);
+        }, 300);
+    }
+
     async function previewComposition(id, anchorEl){
         const item = store.compositions.find(x => x.id === id);
         if(!item) return;
         if(item.previewAudioId && audioObjectURLs[item.previewAudioId]){
             currentPlayingComp = id;
             playAudio(item.previewAudioId, item.title, item.author || 'Artista sin definir');
+            showCompositionContextHint(item);
             return;
         }
         if(item.previewAudioId){
@@ -1217,6 +1243,7 @@
             if(restored){
                 currentPlayingComp = id;
                 playAudio(item.previewAudioId, item.title, item.author || 'Artista sin definir');
+                showCompositionContextHint(item);
                 return;
             }
         }
