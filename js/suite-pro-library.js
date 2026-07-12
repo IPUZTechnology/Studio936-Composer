@@ -1,4 +1,4 @@
-// Studio 936 Composer — Librería / "936 Player" (Cambio 215)
+// Studio 936 Composer — Librería / "936 Player" (Cambio 222)
 //
 // QUÉ ES: el mismo módulo unificado del Cambio 165/166 (Composiciones,
 // Audios, YouTube, Géneros, Recientes — con migración de los dos
@@ -52,6 +52,13 @@
     let ytFormOpen = false;        // si el mini-formulario de "+ agregar" está abierto
     let queue = [];
     let audioEl = null;
+    // Cambio 222: Radio usa un elemento separado. Muchos streams permiten
+    // reproducción HTML5 pero NO autorizan inspección CORS con Web Audio;
+    // si se conectan al AnalyserNode el navegador puede entregar silencio.
+    // El motor separado conserva el sonido y usa mixer visual procedural.
+    let radioEl = null;
+    let radioStatus = 'idle'; // idle | loading | playing | paused | ended | error
+    let radioErrorMessage = '';
     let eqTimer = null;
     // Cambio 210 (Fase 2): análisis real de audio — un solo AudioContext y
     // un solo AnalyserNode para TODO el reproductor, conectados una única
@@ -228,6 +235,15 @@
     }
 
     function currentLocalLcdMeta(){
+        if(currentPlayingRadioId){
+            const station = store?.radio?.find(x => x.id === currentPlayingRadioId);
+            if(station){
+                return {
+                    title: station.name || 'Radio online',
+                    sub: [station.country, station.tags].filter(Boolean).join(' · ')
+                };
+            }
+        }
         if(currentPlayingComp){
             const comp = store?.compositions?.find(x => x.id === currentPlayingComp);
             if(comp){
@@ -243,6 +259,54 @@
             title: displayAudioTitle(song.title),
             sub: song.author || linkedComp?.author || albumName || ''
         };
+    }
+
+    function isRadioActuallyPlaying(id){
+        return !!(
+            lastActiveSource === 'local' &&
+            currentPlayingRadioId === id &&
+            radioEl && radioEl.src &&
+            !radioEl.paused && !radioEl.ended &&
+            radioStatus === 'playing'
+        );
+    }
+
+    // Cambio 222: la pantalla multimedia de la ventana normal solo existe
+    // cuando esa fuente está cargando, reproduciendo o pausada. En Mini y
+    // Maximizado se preserva el comportamiento aprobado anteriormente.
+    function shouldShowMediaSurface(type){
+        if(windowState !== 'normal'){
+            if(type === 'youtube') return !!currentYoutubeId;
+            if(type === 'radio') return !!currentPlayingRadioId;
+            if(type === 'compositions') return !!currentPlayingComp;
+            if(type === 'audios') return !!(currentPlayingId && !currentPlayingComp);
+            return false;
+        }
+        if(type === 'youtube'){
+            return lastActiveSource === 'youtube' && !!currentYoutubeId &&
+                ['loading','playing','paused'].includes(youtubeStatus);
+        }
+        if(type === 'radio'){
+            return lastActiveSource === 'local' && !!currentPlayingRadioId &&
+                ['loading','playing','paused'].includes(radioStatus);
+        }
+        if(type === 'compositions'){
+            return lastActiveSource === 'local' && !!currentPlayingComp &&
+                !!(audioEl && audioEl.src) && !lcdError &&
+                (lcdLoading || !audioEl.ended);
+        }
+        if(type === 'audios'){
+            return lastActiveSource === 'local' && !!currentPlayingId && !currentPlayingComp && !currentPlayingRadioId &&
+                !!(audioEl && audioEl.src) && !lcdError &&
+                (lcdLoading || !audioEl.ended);
+        }
+        return false;
+    }
+
+    function refreshActiveMediaSurface(){
+        const panel = document.getElementById(PANEL_ID);
+        if(!panel || !panel.querySelector('.s936lib-body')) return;
+        if(['youtube','compositions','audios','radio'].includes(activeTab)) renderBodyOnly();
     }
     function startYoutubeClock(){
         stopYoutubeClock();
@@ -283,8 +347,9 @@
             isYoutubePlaying = true;
             youtubeStatus = 'playing';
             lastActiveSource = 'youtube';
-            // Sonido exclusivo: YouTube toma el control y pausa el motor local.
+            // Sonido exclusivo: YouTube toma el control y pausa motores locales.
             if(audioEl && !audioEl.paused) audioEl.pause();
+            if(radioEl && !radioEl.paused) radioEl.pause();
             startEqAnimation();
             startYoutubeClock();
         } else if(state === window.YT.PlayerState.BUFFERING){
@@ -311,6 +376,7 @@
         syncVisibleAudioPlaybackState();
         updateLcd();
         renderTransportState();
+        refreshActiveMediaSurface();
     }
     function handleYtError(){
         isYoutubePlaying = false;
@@ -320,6 +386,7 @@
         syncVisibleAudioPlaybackState();
         updateLcd();
         renderTransportState();
+        refreshActiveMediaSurface();
     }
     // Cambio 172: cada barra del ecualizador se colorea interpolando entre
     // azul y verde según su posición — el lado izquierdo va de azul
@@ -1038,6 +1105,7 @@
    vez de dejar franjas oscuras a los lados solo para verlo completo sin
    tener que maximizar. */
 #${PANEL_ID} #s936lib-yt-embed-slot { margin:-14px -18px 0; }
+#${PANEL_ID} .s936-media-collapsed { display:none !important; }
 #${PANEL_ID} #s936lib-yt-embed-slot.s936-yt-hidden { position:absolute; width:640px; height:360px; overflow:hidden; margin:0; pointer-events:none; top:0; left:-10000px; opacity:.001; }
 #${PANEL_ID} #s936lib-yt-embed-slot .s936lib-ytembed { border-radius:0; border-left:none; border-right:none; }
 #${PANEL_ID} .s936lib-ytembed iframe { width:100%; height:100%; border:none; border-radius:10px; }
@@ -1119,8 +1187,9 @@
     // ---------------------------------------------------------------
     function startEqAnimation(){
         stopEqAnimation();
+        const radioIsActive = !!(lastActiveSource === 'local' && currentPlayingRadioId && radioEl && !radioEl.paused);
         if(s936AudioCtx && s936AudioCtx.state === 'suspended') s936AudioCtx.resume().catch(()=>{});
-        ensureAudioAnalyser();
+        if(!radioIsActive) ensureAudioAnalyser();
         eqTimer = setInterval(() => {
             const panel = document.getElementById(PANEL_ID);
             if(!panel) return;
@@ -1144,7 +1213,7 @@
 
             // Cambio 210: si hay audio LOCAL sonando (composición/MP3) y el
             // analizador está conectado, usa datos REALES del espectro.
-            if(s936Analyser && audioEl && audioEl.src && !audioEl.paused){
+            if(!radioIsActive && s936Analyser && audioEl && audioEl.src && !audioEl.paused){
                 s936Analyser.getByteFrequencyData(s936FreqData);
                 const n = s936FreqData.length;
                 bars.forEach((bar) => {
@@ -2166,7 +2235,7 @@
     }
 
     function renderCompositions(body){
-        body.appendChild(buildCompositionsVisual());
+        if(shouldShowMediaSurface('compositions')) body.appendChild(buildCompositionsVisual());
 
         const list = store.compositions.filter(x => {
             if(!matchesSearch(x)) return false;
@@ -2315,9 +2384,11 @@
             return;
         }
         currentPlayingId = id;
+        currentPlayingRadioId = null;
+        radioStatus = radioEl && !radioEl.paused ? 'paused' : radioStatus;
+        if(radioEl && !radioEl.paused) radioEl.pause();
         lastActiveSource = 'local';
-        // Cambio 212: el sonido debe ser único — si YouTube estaba
-        // sonando, se pausa al arrancar un MP3/composición.
+        // Sonido único: pausa YouTube y Radio al arrancar MP3/composición.
         if(ytPlayer && typeof ytPlayer.pauseVideo === 'function'){ try { ytPlayer.pauseVideo(); } catch(_) {} }
         if(!titleOverride) currentPlayingComp = null;
         lcdError = false;
@@ -2328,12 +2399,13 @@
             audioEl.addEventListener('ended', () => {
                 stopEqAnimation();
                 syncVisibleAudioPlaybackState();
+                refreshActiveMediaSurface();
                 playNextInQueue();
             });
             audioEl.addEventListener('timeupdate', updateLcd);
             audioEl.addEventListener('loadedmetadata', updateLcd);
-            audioEl.addEventListener('loadstart', () => { lcdLoading = true; updateLcd(); });
-            audioEl.addEventListener('canplay', () => { lcdLoading = false; updateLcd(); });
+            audioEl.addEventListener('loadstart', () => { lcdLoading = true; updateLcd(); refreshActiveMediaSurface(); });
+            audioEl.addEventListener('canplay', () => { lcdLoading = false; updateLcd(); refreshActiveMediaSurface(); });
             audioEl.addEventListener('playing', () => {
                 lastActiveSource = 'local';
                 lcdLoading = false;
@@ -2342,12 +2414,14 @@
                 syncVisibleAudioPlaybackState();
                 updateLcd();
                 renderTransportState();
+                refreshActiveMediaSurface();
             });
             audioEl.addEventListener('pause', () => {
                 if(lastActiveSource === 'local') stopEqAnimation();
                 syncVisibleAudioPlaybackState();
                 updateLcd();
                 renderTransportState();
+                refreshActiveMediaSurface();
             });
             audioEl.addEventListener('error', () => {
                 lcdLoading = false;
@@ -2356,6 +2430,7 @@
                 syncVisibleAudioPlaybackState();
                 updateLcd();
                 renderTransportState();
+                refreshActiveMediaSurface();
             });
         }
         audioEl.src = objectURL;
@@ -2404,6 +2479,9 @@
             favicon: station.favicon || '',
             country: station.country || '',
             tags: station.tags || '',
+            codec: station.codec || '',
+            bitrate: Number(station.bitrate || 0),
+            hls: Number(station.hls || 0),
             genre: '',
             playlists: [],
             addedAt: Date.now()
@@ -2427,7 +2505,7 @@
         if(!item) return;
         if(!await s936Confirm('¿Borrar la radio "' + item.name + '" de tu lista?')) return;
         store.radio = store.radio.filter(x => x.id !== id);
-        if(currentPlayingRadioId === id){ currentPlayingRadioId = null; if(audioEl) audioEl.pause(); }
+        if(currentPlayingRadioId === id){ currentPlayingRadioId = null; radioStatus = 'idle'; if(radioEl) radioEl.pause(); }
         saveStore();
         render();
     }
@@ -2439,23 +2517,41 @@
     async function searchRadioStations(query){
         if(!query || !query.trim()) return [];
         try {
-            // Cambio 221: pedir solo streams https — tu sitio corre en
-            // https:// (GitHub Pages), y el navegador bloquea en SILENCIO
-            // cualquier audio http:// desde una página https:// (esto es
-            // "contenido mixto" — la causa más común de "dice reproduciendo
-            // pero no suena" con radios online).
-            const url = 'https://de1.api.radio-browser.info/json/stations/search?name=' + encodeURIComponent(query.trim()) + '&limit=25&hidebroken=true&order=clickcount&reverse=true';
-            const resp = await fetch(url);
-            if(!resp.ok) return [];
-            const data = await resp.json();
-            return (Array.isArray(data) ? data : []).map((s) => ({
-                name: s.name,
-                streamUrl: s.url_resolved || s.url,
-                homepage: s.homepage,
-                favicon: s.favicon,
-                country: s.country,
-                tags: s.tags
-            })).filter((s) => s.streamUrl && s.streamUrl.toLowerCase().startsWith('https://'));
+            const term = encodeURIComponent(query.trim());
+            const base = 'https://de1.api.radio-browser.info/json/stations/search?';
+            const common = '&limit=20&hidebroken=true&order=clickcount&reverse=true';
+            // La caja promete nombre, país o género: se consultan los tres
+            // campos y luego se eliminan duplicados por stationuuid/URL.
+            const requests = ['name','country','tag'].map((field) =>
+                fetch(base + field + '=' + term + common, { headers:{ 'Accept':'application/json' } })
+                    .then((resp) => resp.ok ? resp.json() : [])
+                    .catch(() => [])
+            );
+            const groups = await Promise.all(requests);
+            const nativeHls = !!document.createElement('audio').canPlayType('application/vnd.apple.mpegurl');
+            const seen = new Set();
+            return groups.flat().map((station) => ({
+                id: station.stationuuid || '',
+                name: station.name,
+                streamUrl: station.url_resolved || station.url,
+                homepage: station.homepage,
+                favicon: station.favicon,
+                country: station.country,
+                tags: station.tags,
+                codec: station.codec || '',
+                bitrate: Number(station.bitrate || 0),
+                hls: Number(station.hls || 0),
+                lastcheckok: Number(station.lastcheckok || 0),
+                clickcount: Number(station.clickcount || 0)
+            })).filter((station) => {
+                if(!station.streamUrl || !station.streamUrl.toLowerCase().startsWith('https://')) return false;
+                if(station.lastcheckok === 0) return false;
+                if(station.hls === 1 && !nativeHls) return false;
+                const key = station.id || station.streamUrl;
+                if(seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            }).sort((a,b) => b.clickcount - a.clickcount).slice(0, 25);
         } catch(_) { return []; }
     }
 
@@ -2560,74 +2656,197 @@
         if(radioAddPopoverEl && !e.target.closest('.s936lib-gppopover') && !e.target.closest('[data-radio-add-btn]')) closeRadioAddPopover();
     });
 
-    // Radio reutiliza el MISMO <audio> que Composiciones/MP3 — una
-    // transmisión de radio es audio continuo, no necesita un motor aparte.
-    // Por eso hereda gratis: ecualizador reactivo real, modo mini, volumen.
-    async function playRadioStation(id){
+    // Cambio 222: Radio usa un <audio> independiente y NO se conecta al
+    // AnalyserNode. Los streams de emisoras suelen ser cross-origin y muchos
+    // no entregan CORS; Web Audio puede silenciarlos aunque HTMLAudio sí sea
+    // capaz de reproducirlos. El LCD/controles siguen siendo compartidos.
+    function ensureRadioElement(){
+        if(radioEl) return radioEl;
+        radioEl = new Audio();
+        radioEl.preload = 'none';
+        radioEl.volume = playerVolume / 100;
+
+        radioEl.addEventListener('loadstart', () => {
+            if(!currentPlayingRadioId) return;
+            radioStatus = 'loading';
+            radioErrorMessage = '';
+            lcdLoading = true;
+            lcdError = false;
+            updateLcd();
+            refreshActiveMediaSurface();
+        });
+        radioEl.addEventListener('waiting', () => {
+            if(!currentPlayingRadioId || radioEl.paused) return;
+            radioStatus = 'loading';
+            lcdLoading = true;
+            updateLcd();
+        });
+        radioEl.addEventListener('stalled', () => {
+            if(!currentPlayingRadioId || radioEl.paused) return;
+            radioStatus = 'loading';
+            lcdLoading = true;
+            updateLcd();
+        });
+        radioEl.addEventListener('playing', () => {
+            if(!currentPlayingRadioId) return;
+            radioStatus = 'playing';
+            radioErrorMessage = '';
+            lastActiveSource = 'local';
+            lcdLoading = false;
+            lcdError = false;
+            if(audioEl && !audioEl.paused) audioEl.pause();
+            startEqAnimation();
+            updateLcd();
+            renderTransportState();
+            refreshActiveMediaSurface();
+        });
+        radioEl.addEventListener('pause', () => {
+            if(!currentPlayingRadioId) return;
+            if(radioStatus !== 'error' && radioStatus !== 'ended') radioStatus = 'paused';
+            lcdLoading = false;
+            if(lastActiveSource === 'local') stopEqAnimation();
+            updateLcd();
+            renderTransportState();
+            refreshActiveMediaSurface();
+        });
+        radioEl.addEventListener('ended', () => {
+            if(!currentPlayingRadioId) return;
+            radioStatus = 'ended';
+            lcdLoading = false;
+            stopEqAnimation();
+            updateLcd();
+            renderTransportState();
+            refreshActiveMediaSurface();
+        });
+        radioEl.addEventListener('error', () => {
+            if(!currentPlayingRadioId) return;
+            const code = radioEl.error?.code;
+            radioStatus = 'error';
+            lcdLoading = false;
+            lcdError = true;
+            radioErrorMessage = code === 4
+                ? 'Formato o enlace no compatible con este navegador'
+                : 'La emisora no respondió o bloqueó la reproducción web';
+            stopEqAnimation();
+            updateLcd();
+            renderTransportState();
+            refreshActiveMediaSurface();
+        });
+        return radioEl;
+    }
+
+    function radioFilteredList(){
+        return store.radio.filter(x => matchesSearch(x, [x.country, x.tags, x.codec]));
+    }
+
+    function radioListNav(step){
+        const list = radioFilteredList();
+        if(!list.length) return;
+        const idx = list.findIndex(x => x.id === currentPlayingRadioId);
+        const nextIdx = idx === -1 ? 0 : (idx + step + list.length) % list.length;
+        playRadioStation(list[nextIdx].id, true);
+    }
+
+    async function playRadioStation(id, forcePlay){
         const station = store.radio.find(x => x.id === id);
         if(!station || !station.streamUrl) return;
+        const player = ensureRadioElement();
+
+        // La misma estación funciona como Play/Pausa sin volver a cargarla.
+        if(currentPlayingRadioId === id && player.src && !forcePlay){
+            if(!player.paused){ player.pause(); return; }
+            if(radioStatus !== 'error'){
+                lastActiveSource = 'local';
+                if(audioEl && !audioEl.paused) audioEl.pause();
+                if(ytPlayer && typeof ytPlayer.pauseVideo === 'function'){ try { ytPlayer.pauseVideo(); } catch(_) {} }
+                radioStatus = 'loading';
+                lcdLoading = true;
+                lcdError = false;
+                player.play().catch(() => {
+                    radioStatus = 'error'; lcdLoading = false; lcdError = true;
+                    radioErrorMessage = 'El navegador no pudo iniciar esta emisora';
+                    updateLcd(); refreshActiveMediaSurface();
+                });
+                updateLcd();
+                refreshActiveMediaSurface();
+                return;
+            }
+        }
+
         currentPlayingRadioId = id;
         currentPlayingComp = null;
         currentPlayingId = null;
         lastActiveSource = 'local';
+        radioStatus = 'loading';
+        radioErrorMessage = '';
         lcdError = false;
         lcdLoading = true;
+
+        if(audioEl && !audioEl.paused) audioEl.pause();
         if(ytPlayer && typeof ytPlayer.pauseVideo === 'function'){ try { ytPlayer.pauseVideo(); } catch(_) {} }
-        if(!audioEl){
-            audioEl = new Audio();
-            audioEl.volume = playerVolume / 100;
-            audioEl.addEventListener('ended', () => { stopEqAnimation(); syncVisibleAudioPlaybackState?.(); playNextInQueue(); });
-            audioEl.addEventListener('timeupdate', updateLcd);
-            audioEl.addEventListener('loadedmetadata', updateLcd);
-            audioEl.addEventListener('loadstart', () => { lcdLoading = true; updateLcd(); });
-            audioEl.addEventListener('canplay', () => { lcdLoading = false; updateLcd(); });
-            audioEl.addEventListener('playing', () => {
-                lastActiveSource = 'local';
-                lcdLoading = false; lcdError = false;
-                startEqAnimation();
-                syncVisibleAudioPlaybackState?.();
-                updateLcd();
-                renderTransportState?.();
-            });
-            audioEl.addEventListener('pause', () => {
-                if(lastActiveSource === 'local') stopEqAnimation();
-                syncVisibleAudioPlaybackState?.();
-                updateLcd();
-                renderTransportState?.();
-            });
-            audioEl.addEventListener('error', () => {
-                lcdLoading = false; lcdError = true;
-                stopEqAnimation();
-                syncVisibleAudioPlaybackState?.();
-                updateLcd();
-                renderTransportState?.();
-            });
-        }
-        // Cambio 221: si el enlace es una LISTA de reproducción (.pls/.m3u),
-        // se resuelve a la URL de audio real antes de asignarla — un
-        // <audio> no puede reproducir el archivo de lista directamente.
-        // El "token" evita que, si cambias de emisora rápido, una
-        // resolución vieja termine sonando encima de la nueva.
+
         const myToken = ++radioPlayToken;
         const resolvedUrl = await resolveRadioStreamUrl(station.streamUrl);
-        if(myToken !== radioPlayToken) return; // elegiste otra radio mientras tanto
-        audioEl.src = resolvedUrl;
-        audioEl.play().catch(() => { lcdLoading = false; updateLcd(); });
-        updateLcd(null, station.name, station.country || station.tags || '');
+        if(myToken !== radioPlayToken) return;
+
+        let parsed;
+        try { parsed = new URL(resolvedUrl, location.href); }
+        catch(_) {
+            radioStatus = 'error'; lcdLoading = false; lcdError = true;
+            radioErrorMessage = 'El enlace de la emisora no es válido';
+            updateLcd(); refreshActiveMediaSurface(); return;
+        }
+        if(location.protocol === 'https:' && parsed.protocol !== 'https:'){
+            radioStatus = 'error'; lcdLoading = false; lcdError = true;
+            radioErrorMessage = 'La emisora usa HTTP y el navegador la bloquea por seguridad';
+            updateLcd(); refreshActiveMediaSurface(); return;
+        }
+        const pathLower = parsed.pathname.toLowerCase();
+        if(pathLower.endsWith('.m3u8') && !player.canPlayType('application/vnd.apple.mpegurl')){
+            radioStatus = 'error'; lcdLoading = false; lcdError = true;
+            radioErrorMessage = 'La emisora usa HLS, no compatible directamente con este navegador';
+            updateLcd(); refreshActiveMediaSurface(); return;
+        }
+
+        player.pause();
+        player.removeAttribute('src');
+        player.load();
+        player.src = parsed.href;
+        player.volume = playerVolume / 100;
+        player.load();
+
+        updateLcd(null, station.name, [station.country, station.tags].filter(Boolean).join(' · '));
         render();
-        // Cambio 221: si a los 8 segundos NO empezó a sonar de verdad
-        // (evento 'playing' real), se marca como error en vez de dejar el
-        // LCD diciendo "reproduciendo" para siempre sin sonido — causa
-        // típica: la emisora bloquea reproducción externa o el stream
-        // quedó caído.
-        setTimeout(() => {
+
+        try {
+            await player.play();
+        } catch(_) {
             if(myToken !== radioPlayToken) return;
-            if(currentPlayingRadioId === id && audioEl && audioEl.paused){
+            radioStatus = 'error';
+            lcdLoading = false;
+            lcdError = true;
+            radioErrorMessage = 'El navegador rechazó o no pudo abrir el stream';
+            updateLcd();
+            renderTransportState();
+            refreshActiveMediaSurface();
+            return;
+        }
+
+        // Si el promise resolvió pero no llegó el evento real "playing",
+        // evita dejar el LCD eternamente en CARGANDO.
+        setTimeout(() => {
+            if(myToken !== radioPlayToken || currentPlayingRadioId !== id) return;
+            if(radioStatus === 'loading' && !player.paused){
+                radioStatus = 'error';
                 lcdLoading = false;
                 lcdError = true;
+                radioErrorMessage = 'La emisora no entregó audio reproducible';
+                try { player.pause(); } catch(_) {}
                 updateLcd();
+                renderTransportState();
+                refreshActiveMediaSurface();
             }
-        }, 8000);
+        }, 12000);
     }
 
     function buildRadioVisual(){
@@ -2639,7 +2858,7 @@
             wrap.appendChild(bg);
         } else if(playingStation){
             wrap.classList.add('s936sc-wrap');
-            if(audioEl && !audioEl.paused) wrap.classList.add('is-active');
+            if(radioEl && !radioEl.paused && radioStatus === 'playing') wrap.classList.add('is-active');
             wrap.innerHTML = buildSonicCoverSvg(playingStation, 'radio');
         } else {
             wrap.classList.add('s936sc-wrap');
@@ -2661,8 +2880,8 @@
     }
 
     function renderRadio(body){
-        if(!searchQuery) body.appendChild(buildRadioVisual());
-        const list = store.radio.filter(x => matchesSearch(x, [x.country, x.tags]));
+        if(shouldShowMediaSurface('radio')) body.appendChild(buildRadioVisual());
+        const list = radioFilteredList();
         if(!list.length){
             body.appendChild(el('div', 's936lib-empty', store.radio.length ? 'Sin resultados.' : 'Todavía no tienes radios agregadas. Usa el botón "+ Agregar radio" arriba.'));
             return;
@@ -2670,7 +2889,7 @@
         if(viewMode === 'grid'){
             const grid = el('div', 's936lib-ytgrid');
             list.forEach((station) => {
-                const isPlaying = currentPlayingRadioId === station.id && !!audioEl && !audioEl.paused;
+                const isPlaying = isRadioActuallyPlaying(station.id);
                 const card = el('div', 's936lib-ytcard' + (isPlaying ? ' active' : ''));
                 const thumb = buildRadioThumb(station, 's936lib-ytthumb');
                 thumb.appendChild(el('div', 'playicon', isPlaying ? '⏸' : '▶'));
@@ -2698,7 +2917,7 @@
         } else {
             const listWrap = el('div', 's936lib-listwrap');
             list.forEach((station) => {
-                const isPlaying = currentPlayingRadioId === station.id && !!audioEl && !audioEl.paused;
+                const isPlaying = isRadioActuallyPlaying(station.id);
                 const row = el('div', 's936lib-list-row' + (isPlaying ? ' playing' : ''));
                 const thumb = buildRadioThumb(station, 's936lib-list-thumb');
                 const title = el('div', 's936lib-list-title', station.name);
@@ -2729,6 +2948,11 @@
                 if(isYoutubePlaying) ytPlayer.pauseVideo();
                 else ytPlayer.playVideo();
             } catch(_) {}
+            return;
+        }
+        if(lastActiveSource === 'local' && currentPlayingRadioId && radioEl && radioEl.src){
+            if(radioEl.paused) playRadioStation(currentPlayingRadioId);
+            else radioEl.pause();
             return;
         }
         if(!audioEl || !audioEl.src) return;
@@ -2840,10 +3064,10 @@
     }
 
     function renderAudios(body){
-        // En la ventana normal, una búsqueda prioriza los resultados. En
-        // Mini Player la carátula/fallback es obligatoria aunque hubiera
-        // quedado una búsqueda activa antes de minimizar.
-        if(windowState === 'mini' || (!searchQuery && !activePlaylistFilter && !activeGenreFilter)) body.appendChild(buildAudioVisual());
+        // Cambio 222: en ventana normal solo aparece cuando el MP3 está
+        // cargando/reproduciendo/pausado. Mini y Maximizado conservan su
+        // presentación multimedia aprobada.
+        if(shouldShowMediaSurface('audios')) body.appendChild(buildAudioVisual());
         const list = store.audios.filter(x => matchesSearch(x, [x.fileName]) && (!activeGenreFilter || x.genre === activeGenreFilter));
         if(!list.length){
             if(viewMode === 'grid' && !store.audios.length){
@@ -2927,11 +3151,11 @@
     // puede ser YouTube (lcdYoutubeTitle); si nada de eso, está inactivo.
     function lcdContentType(){
         if(lastActiveSource === 'youtube' && lcdYoutubeTitle) return 'youtube';
-        if(lastActiveSource === 'local' && audioEl && audioEl.src && currentPlayingRadioId) return 'radio';
+        if(lastActiveSource === 'local' && radioEl && radioEl.src && currentPlayingRadioId) return 'radio';
         if(lastActiveSource === 'local' && audioEl && audioEl.src && currentPlayingId) return currentPlayingComp ? 'compositions' : 'audios';
         // Compatibilidad si por alguna razón el rastreador no se llegó a
         // fijar (ej. sesión ya abierta antes de este cambio).
-        if(audioEl && audioEl.src && currentPlayingRadioId) return 'radio';
+        if(radioEl && radioEl.src && currentPlayingRadioId) return 'radio';
         if(audioEl && audioEl.src && currentPlayingId) return currentPlayingComp ? 'compositions' : 'audios';
         if(lcdYoutubeTitle) return 'youtube';
         return null;
@@ -2946,8 +3170,15 @@
             return 'MINI ROCKOLA';
         }
         if(!type) return '';
-        const typeLabel = type === 'compositions' ? 'COMPOSICIÓN' : type === 'radio' ? 'RADIO' : 'AUDIO MP3';
-        const icon = type === 'compositions' ? '◆' : type === 'radio' ? '📻' : '〜';
+        if(type === 'radio'){
+            const stateMap = {
+                loading:'CARGANDO', playing:'EN VIVO', paused:'PAUSADO',
+                ended:'FINALIZADO', error:'ERROR', idle:'LISTA'
+            };
+            return '📻 RADIO · ' + (stateMap[radioStatus] || 'LISTA');
+        }
+        const typeLabel = type === 'compositions' ? 'COMPOSICIÓN' : 'AUDIO MP3';
+        const icon = type === 'compositions' ? '◆' : '〜';
         let state = 'REPRODUCIENDO';
         if(lcdError) state = 'ERROR';
         else if(lcdLoading) state = 'CARGANDO';
@@ -2982,7 +3213,7 @@
             titleEl.textContent = lcdYoutubeTitle;
             if(subEl){ subEl.textContent = ''; subEl.style.display = 'none'; }
             if(timeEl) timeEl.textContent = '';
-        } else if(lastActiveSource === 'local' && audioEl && audioEl.src){
+        } else if(lastActiveSource === 'local' && ((currentPlayingRadioId && radioEl && radioEl.src) || (audioEl && audioEl.src))){
             // Cambio 216: el LCD vuelve a derivar título y subtítulo del
             // motor local real. Evita combinaciones incorrectas como estado
             // AUDIO MP3 con el título anterior de YouTube al reanudar.
@@ -2995,7 +3226,7 @@
                     subEl.style.display = meta.sub ? '' : 'none';
                 }
             }
-        } else if(!audioEl || !audioEl.src || !currentPlayingId){
+        } else if((!audioEl || !audioEl.src || !currentPlayingId) && (!radioEl || !radioEl.src || !currentPlayingRadioId)){
             // Cambio 172: si no hay audio sonando pero sí un video de
             // YouTube seleccionado, el LCD muestra su título — antes se
             // quedaba fijo en "Nada sonando" sin importar qué estuvieras
@@ -3030,6 +3261,10 @@
             if(timeEl) timeEl.textContent = duration > 0 ? (fmtTime(current) + ' / ' + fmtTime(duration)) : '';
             if(progressBar) progressBar.style.width = duration > 0 ? ((current / duration) * 100) + '%' : '0%';
             if(playBtn) playBtn.textContent = isYoutubePlaying ? '⏸' : '⏵';
+        } else if(lastActiveSource === 'local' && currentPlayingRadioId && radioEl && radioEl.src){
+            if(timeEl) timeEl.textContent = radioStatus === 'playing' ? 'EN VIVO' : '';
+            if(progressBar) progressBar.style.width = '0%';
+            if(playBtn) playBtn.textContent = !radioEl.paused && radioStatus === 'playing' ? '⏸' : '⏵';
         } else {
             if(audioEl && timeEl && audioEl.src) timeEl.textContent = fmtTime(audioEl.currentTime) + ' / ' + fmtTime(audioEl.duration);
             if(progressBar) progressBar.style.width = (audioEl && audioEl.duration) ? ((audioEl.currentTime/audioEl.duration)*100) + '%' : '0%';
@@ -3039,19 +3274,25 @@
         // Cambio 209: estados visuales del ecualizador — cargando, error,
         // pausado — sin agregar temporizadores nuevos, solo clases CSS.
         if(lcdEl){
-            const activeLoading = lastActiveSource === 'youtube' ? youtubeStatus === 'loading' : lcdLoading;
-            const activeError = lastActiveSource === 'youtube' ? youtubeStatus === 'error' : lcdError;
+            const activeLoading = lastActiveSource === 'youtube'
+                ? youtubeStatus === 'loading'
+                : (currentPlayingRadioId ? radioStatus === 'loading' : lcdLoading);
+            const activeError = lastActiveSource === 'youtube'
+                ? youtubeStatus === 'error'
+                : (currentPlayingRadioId ? radioStatus === 'error' : lcdError);
             const activePaused = lastActiveSource === 'youtube'
                 ? (youtubeStatus === 'paused' || youtubeStatus === 'ended')
-                : !!(audioEl && audioEl.src && audioEl.paused && !lcdLoading && !lcdError);
+                : (currentPlayingRadioId
+                    ? radioStatus === 'paused'
+                    : !!(audioEl && audioEl.src && audioEl.paused && !lcdLoading && !lcdError));
             lcdEl.classList.toggle('is-loading', activeLoading);
             lcdEl.classList.toggle('is-error', activeError);
             lcdEl.classList.toggle('is-paused', activePaused);
         }
-        if((lastActiveSource === 'local' && lcdError) || (lastActiveSource === 'youtube' && youtubeStatus === 'error')){
+        if((lastActiveSource === 'local' && (currentPlayingRadioId ? radioStatus === 'error' : lcdError)) || (lastActiveSource === 'youtube' && youtubeStatus === 'error')){
             titleEl.title = '';
             titleEl.textContent = 'NO SE PUDO REPRODUCIR';
-            if(subEl){ subEl.textContent = 'Intenta nuevamente'; subEl.style.display = ''; }
+            if(subEl){ subEl.textContent = currentPlayingRadioId && radioErrorMessage ? radioErrorMessage : 'Intenta nuevamente'; subEl.style.display = ''; }
         }
 
         // Cambio 208: anillo de progreso de la "936 Sonic Cover" activa —
@@ -3081,6 +3322,7 @@
             updateLcd();
             return;
         }
+        if(lastActiveSource === 'local' && currentPlayingRadioId) return;
         if(!audioEl || !audioEl.duration) return;
         audioEl.currentTime = pct * audioEl.duration;
         updateLcd();
@@ -3105,17 +3347,28 @@
 
     function selectYoutubeVideo(item){
         if(windowState === 'maximized') searchQuery = '';
+        const sameVideo = currentYoutubeId === item.id && ytPlayer;
         currentYoutubeId = item.id;
         lcdYoutubeTitle = item.title;
-        ytAutoplayNext = true;
         lastActiveSource = 'youtube';
         youtubeStatus = 'loading';
         isYoutubePlaying = false;
-        // Sonido exclusivo: la selección de Rockola pausa el motor local.
+        // Sonido exclusivo: Rockola pausa MP3/composición y Radio.
         if(audioEl && !audioEl.paused) audioEl.pause();
+        if(radioEl && !radioEl.paused) radioEl.pause();
         syncVisibleAudioPlaybackState();
         stopEqAnimation();
         stopYoutubeClock();
+        if(sameVideo){
+            try {
+                const state = ytPlayer.getPlayerState?.();
+                if(window.YT && state === window.YT.PlayerState.ENDED) ytPlayer.seekTo(0, true);
+                ytPlayer.playVideo();
+            } catch(_) {}
+            render();
+            return;
+        }
+        ytAutoplayNext = true;
         render();
     }
 
@@ -3337,8 +3590,9 @@
             listSlot = el('div', ''); listSlot.id = 's936lib-yt-list-slot';
             body.appendChild(listSlot);
         }
-        const current = store.youtube.find(x => x.id === currentYoutubeId) || store.youtube[0];
+        const current = currentYoutubeId ? (store.youtube.find(x => x.id === currentYoutubeId) || null) : null;
         renderYoutubeEmbed(ytEmbedSlotEl, current);
+        ytEmbedSlotEl.classList.toggle('s936-media-collapsed', !shouldShowMediaSurface('youtube'));
         renderYoutubeList(listSlot);
     }
 
@@ -3563,10 +3817,15 @@
         const vol = panel.querySelector('.s936lib-vol');
         if(playBtn){
             playBtn.style.display = '';
-            playBtn.disabled = lastActiveSource === 'youtube' ? !ytPlayer : !(audioEl && audioEl.src);
+            const radioActive = lastActiveSource === 'local' && currentPlayingRadioId && radioEl && radioEl.src;
+            playBtn.disabled = lastActiveSource === 'youtube'
+                ? !ytPlayer
+                : (radioActive ? false : !(audioEl && audioEl.src));
             playBtn.textContent = lastActiveSource === 'youtube'
                 ? (isYoutubePlaying ? '⏸' : '⏵')
-                : ((audioEl && audioEl.src && !audioEl.paused) ? '⏸' : '⏵');
+                : (radioActive
+                    ? (!radioEl.paused && radioStatus === 'playing' ? '⏸' : '⏵')
+                    : ((audioEl && audioEl.src && !audioEl.paused) ? '⏸' : '⏵'));
         }
         if(vol) vol.style.display = '';
     }
@@ -3684,12 +3943,12 @@
         const controlRow = el('div', 's936lib-controlrow');
         const prevBtn = el('button', '', '⏮');
         prevBtn.title = 'Antes en la cola';
-        prevBtn.onclick = () => { lastActiveSource === 'youtube' ? youtubeListNav(-1) : (queue.length && playNextInQueue()); };
+        prevBtn.onclick = () => { lastActiveSource === 'youtube' ? youtubeListNav(-1) : (currentPlayingRadioId ? radioListNav(-1) : (queue.length && playNextInQueue())); };
         const playBtn = el('button', 's936lib-playbtn', '⏵');
         playBtn.onclick = togglePlayPause;
         const nextBtn = el('button', '', '⏭');
         nextBtn.title = 'Siguiente en la cola';
-        nextBtn.onclick = () => { lastActiveSource === 'youtube' ? youtubeListNav(1) : playNextInQueue(); };
+        nextBtn.onclick = () => { lastActiveSource === 'youtube' ? youtubeListNav(1) : (currentPlayingRadioId ? radioListNav(1) : playNextInQueue()); };
         const toolbar = el('div', 's936lib-toolbar');
         const vol = el('div', 's936lib-vol');
         const volIcon = el('span', 's936lib-volicon', '🔊');
@@ -3699,6 +3958,7 @@
         volSlider.oninput = () => {
             playerVolume = Number(volSlider.value);
             if(audioEl) audioEl.volume = playerVolume / 100;
+            if(radioEl) radioEl.volume = playerVolume / 100;
             if(ytPlayer && typeof ytPlayer.setVolume === 'function'){ try { ytPlayer.setVolume(playerVolume); } catch(_) {} }
         };
         volIcon.onclick = (e) => { e.stopPropagation(); vol.classList.toggle('open'); };
@@ -3723,6 +3983,7 @@
     // interrumpe.
     function miniSourceTab(){
         if(lastActiveSource === 'youtube' && lcdYoutubeTitle) return 'youtube';
+        if(lastActiveSource === 'local' && currentPlayingRadioId) return 'radio';
         if(lastActiveSource === 'local' && currentPlayingComp) return 'compositions';
         if(lastActiveSource === 'local' && currentPlayingId) return 'audios';
         return activeTab;
@@ -3814,7 +4075,7 @@
         // Cambio 181: si algo sigue sonando (audio propio o YouTube), la X
         // ya no cierra del todo — pasa a modo mini para que sigas teniendo
         // un control a mano. Solo cierra de verdad cuando no suena nada.
-        const somethingPlaying = (audioEl && !audioEl.paused) || isYoutubePlaying;
+        const somethingPlaying = (audioEl && !audioEl.paused) || (radioEl && !radioEl.paused) || isYoutubePlaying;
         if(somethingPlaying && windowState !== 'mini'){
             setWindowState('mini');
             return;
