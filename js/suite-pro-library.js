@@ -2139,15 +2139,20 @@
     // que esto pueda funcionar de verdad. El key interno sigue siendo
     // 'genres' para no romper nada de lo guardado.
     function renderGenres(body){
+        const isEn = stageTabLabel() === 'Stage';
         const wrap = el('div', '');
         wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 24px;gap:14px;color:#9fb0ae;';
-        const icon = el('div', '', '🌐');
+        const icon = el('div', '', '🎤');
         icon.style.cssText = 'font-size:2.4rem;opacity:.7;';
-        const title = el('div', '', 'Comunidad — Próximamente');
+        const title = el('div', '', isEn ? 'Stage — Coming soon' : 'Escenario — Próximamente');
         title.style.cssText = 'color:#5be8c9;font-size:1rem;font-weight:800;';
-        const desc = el('div', '', 'Un espacio para que compositores y músicos publiquen sus canciones y las compartan con otros — como una mini red social de Studio 936.');
+        const desc = el('div', '', isEn
+            ? 'A place for composers and musicians to publish their songs and share them with others — like a mini social network for Studio 936.'
+            : 'Un espacio para que compositores y músicos publiquen sus canciones y las compartan con otros — como una mini red social de Studio 936.');
         desc.style.cssText = 'font-size:.8rem;max-width:420px;line-height:1.6;';
-        const note = el('div', '', 'Todavía no funciona: necesita cuentas de usuario y almacenamiento real en la nube, que sigue pendiente aparte.');
+        const note = el('div', '', isEn
+            ? "Doesn't work yet: needs real user accounts and cloud storage, still pending separately."
+            : 'Todavía no funciona: necesita cuentas de usuario y almacenamiento real en la nube, que sigue pendiente aparte.');
         note.style.cssText = 'font-size:.68rem;font-style:italic;color:#7a8785;max-width:380px;line-height:1.5;';
         wrap.append(icon, title, desc, note);
         body.appendChild(wrap);
@@ -2162,18 +2167,44 @@
             body.appendChild(el('div', 's936lib-empty', 'Todavía no hay nada guardado. Empieza por Composiciones, Audios o YouTube.'));
             return;
         }
-        items.forEach(({type, item}) => {
-            const row = el('div', 's936lib-list-row');
-            row.append(
-                el('div', 's936lib-list-icon', TYPE_ICON[type]),
-                el('div', 's936lib-list-title', item.title),
-                el('div', 's936lib-list-meta', TYPE_LABEL[type] + ' · ' + fmtDate(item.updated || item.addedAt))
-            );
-            if(type === 'compositions') row.onclick = () => previewComposition(item.id, row);
-            if(type === 'audios') row.onclick = () => playAudio(item.id);
-            if(type === 'youtube') row.onclick = () => { activeTab = 'youtube'; selectYoutubeVideo(item); };
-            body.appendChild(row);
-        });
+        if(viewMode === 'grid'){
+            const grid = el('div', 's936lib-ytgrid');
+            items.forEach(({type, item}) => {
+                const card = el('div', 's936lib-ytcard');
+                let thumb;
+                if(type === 'compositions') thumb = buildCompositionThumb(item, 's936lib-ytthumb');
+                else if(type === 'audios') thumb = buildAudioThumb(item, 's936lib-ytthumb');
+                else {
+                    thumb = el('div', 's936lib-ytthumb');
+                    const thumbUrl = youtubeThumbUrl(item.url);
+                    if(thumbUrl) thumb.style.backgroundImage = `url('${thumbUrl}')`;
+                    else thumb.appendChild(el('div', 'ph', 'Sin miniatura'));
+                }
+                thumb.appendChild(el('div', 'playicon', '▶'));
+                const cardBody = el('div', 's936lib-ytcardbody');
+                cardBody.appendChild(el('div', 's936lib-ytcardtitle', item.title));
+                cardBody.appendChild(el('div', 's936lib-ytcardnotes', TYPE_LABEL[type] + ' · ' + fmtDate(item.updated || item.addedAt)));
+                card.append(thumb, cardBody);
+                if(type === 'compositions') card.onclick = () => previewComposition(item.id, card);
+                if(type === 'audios') card.onclick = () => playAudio(item.id);
+                if(type === 'youtube') card.onclick = () => { activeTab = 'youtube'; selectYoutubeVideo(item); };
+                grid.appendChild(card);
+            });
+            body.appendChild(grid);
+        } else {
+            items.forEach(({type, item}) => {
+                const row = el('div', 's936lib-list-row');
+                row.append(
+                    el('div', 's936lib-list-icon', TYPE_ICON[type]),
+                    el('div', 's936lib-list-title', item.title),
+                    el('div', 's936lib-list-meta', TYPE_LABEL[type] + ' · ' + fmtDate(item.updated || item.addedAt))
+                );
+                if(type === 'compositions') row.onclick = () => previewComposition(item.id, row);
+                if(type === 'audios') row.onclick = () => playAudio(item.id);
+                if(type === 'youtube') row.onclick = () => { activeTab = 'youtube'; selectYoutubeVideo(item); };
+                body.appendChild(row);
+            });
+        }
     }
 
     // ---------------------------------------------------------------
@@ -2296,12 +2327,20 @@
     // ---------------------------------------------------------------
     // Construcción del panel
     // ---------------------------------------------------------------
+    // Cambio 206: "Escenario" en español, "Stage" en inglés — mismo sistema
+    // de idioma (i18n-core) que ya usa la app para el género, por ejemplo.
+    function stageTabLabel(){
+        const core = window.Studio936I18nCore;
+        const lang = core?.getLang?.() || 'es';
+        return lang === 'en' ? 'Stage' : 'Escenario';
+    }
+
     const TABS = [
         ['recent', 'Recientes'],
         ['compositions', 'Composiciones'],
         ['audios', 'Audio MP3'],
         ['youtube', 'Mini Rockola'],
-        ['genres', 'Comunidad']
+        ['genres', stageTabLabel]
     ];
 
     function buildPanel(){
@@ -2334,7 +2373,7 @@
 
         const tabs = el('div', 's936lib-tabs');
         TABS.forEach(([key, label]) => {
-            const btn = el('button', 's936lib-tab', label);
+            const btn = el('button', 's936lib-tab', typeof label === 'function' ? label() : label);
             btn.dataset.tab = key;
             btn.onclick = () => { activeTab = key; activeGenreFilter = null; activePlaylistFilter = null; activeAlbumFilter = null; searchQuery = ''; render(); };
             tabs.appendChild(btn);
