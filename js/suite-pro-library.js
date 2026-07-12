@@ -348,7 +348,7 @@
     // trabajo"), cada álbum tiene su propia carátula diseñada por él.
     // Es DISTINTO de .playlists (muchos-a-muchos, libre): una composición
     // pertenece a UN álbum a la vez (o a ninguno), como un lanzamiento real.
-    function emptyStore(){ return { compositions:[], audios:[], youtube:[], albums:[], activeAlbumId:null }; }
+    function emptyStore(){ return { compositions:[], audios:[], youtube:[], radio:[], albums:[], activeAlbumId:null }; }
 
     // Cambio 186: cada ítem ahora también tiene .playlists (array de
     // nombres) — muchos-a-muchos, distinto de .genre (un solo valor,
@@ -373,11 +373,13 @@
             s.compositions = Array.isArray(s.compositions) ? s.compositions : [];
             s.audios = Array.isArray(s.audios) ? s.audios : [];
             s.youtube = Array.isArray(s.youtube) ? s.youtube : [];
+            s.radio = Array.isArray(s.radio) ? s.radio : [];
             s.albums = Array.isArray(s.albums) ? s.albums : [];
             s.activeAlbumId = s.activeAlbumId || null;
             ensurePlaylistsField(s.compositions);
             ensurePlaylistsField(s.audios);
             ensurePlaylistsField(s.youtube);
+            ensurePlaylistsField(s.radio);
             ensureAlbumIdField(s.compositions);
             return s;
         } catch(_) { return emptyStore(); }
@@ -389,7 +391,7 @@
 
     function allPlaylists(){
         const set = new Set();
-        [...store.compositions, ...store.audios, ...store.youtube].forEach((item) => {
+        [...store.compositions, ...store.audios, ...store.youtube, ...store.radio].forEach((item) => {
             (item.playlists || []).forEach((p) => { if(p) set.add(p); });
         });
         return Array.from(set).sort((a,b)=>a.localeCompare(b));
@@ -601,7 +603,8 @@
         const all = [
             ...store.compositions.map(x => ({ type:'compositions', sortDate:x.updated||0, item:x })),
             ...store.audios.map(x => ({ type:'audios', sortDate:x.addedAt||0, item:x })),
-            ...store.youtube.map(x => ({ type:'youtube', sortDate:x.addedAt||0, item:x }))
+            ...store.youtube.map(x => ({ type:'youtube', sortDate:x.addedAt||0, item:x })),
+            ...store.radio.map(x => ({ type:'radio', sortDate:x.addedAt||0, item:x }))
         ];
         all.sort((a,b)=>b.sortDate - a.sortDate);
         return all.slice(0, limit||20);
@@ -869,17 +872,6 @@
 }
 #${PANEL_ID}.s936lib-state-mini .s936lib-ytembed iframe { border-radius:0 0 13px 13px; }
 #${PANEL_ID}.s936lib-state-mini .s936lib-compvisual-media { object-fit:contain; background:#000; }
-/* Cambio 220: en el mini de Composiciones la carátula siempre entra
-   completa en el marco 16:9. Nunca se usa cover ni zoom. */
-#${PANEL_ID}.s936lib-state-mini .s936lib-compvisual-cover {
-    width:100% !important;
-    height:100% !important;
-    object-fit:contain !important;
-    object-position:center center !important;
-    transform:none !important;
-    animation:none !important;
-    background:#07110f;
-}
 #${PANEL_ID}.s936lib-state-mini .s936lib-compvisual-hint { font-size:.66rem; }
 #${PANEL_ID} .s936lib-winbtn { background:transparent; border:none; color:#9fb0ae; font-size:1rem; cursor:pointer; line-height:1; padding:4px 8px; border-radius:6px; }
 #${PANEL_ID} .s936lib-winbtn:hover { background:rgba(255,255,255,.08); color:#e8f4f2; }
@@ -1098,7 +1090,6 @@
 #${PANEL_ID} .s936lib-compvisual { width:100%; aspect-ratio:16/9; max-height:min(62vh,540px); border-radius:10px; overflow:hidden; margin-bottom:14px; position:relative; background:#000; display:flex; align-items:center; justify-content:center; }
 #${PANEL_ID}.s936lib-state-maximized .s936lib-compvisual { max-height:72vh; }
 #${PANEL_ID} .s936lib-compvisual-media { width:100%; height:100%; object-fit:contain; }
-#${PANEL_ID} .s936lib-compvisual-cover { display:block; width:100%; height:100%; object-fit:contain; object-position:center; background:#07110f; }
 #${PANEL_ID} .s936lib-compvisual-zoom { background-size:contain; background-repeat:no-repeat; background-position:center; }
 #${PANEL_ID} .s936lib-compvisual-hint { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#9fb0ae; font-size:.8rem; background:rgba(0,0,0,.35); text-align:center; padding:0 20px; }
 `;
@@ -1197,7 +1188,7 @@
         if(activePlaylistFilter && !(item.playlists || []).includes(activePlaylistFilter)) return false;
         if(!searchQuery) return true;
         const q = normalizeSearchText(searchQuery);
-        const fields = [item.title, item.author, item.genre, ...(item.playlists || [])].concat(extraFields || []);
+        const fields = [item.title, item.name, item.author, item.genre, ...(item.playlists || [])].concat(extraFields || []);
         return fields.some((field) => normalizeSearchText(field).includes(q));
     }
 
@@ -1432,7 +1423,7 @@
     function openEditGenreOnlyPopover(type, item){
         if(genrePlaylistPopoverEl) closeGenrePlaylistPopover();
         const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover');
-        pop.appendChild(el('div', 's936lib-gptitle', 'Género de "' + item.title + '"'));
+        pop.appendChild(el('div', 's936lib-gptitle', 'Género de "' + (item.title || item.name) + '"'));
         const input = document.createElement('input');
         input.value = item.genre || '';
         input.placeholder = 'Género / estilo (ej. Rock, Bolero...)';
@@ -1455,7 +1446,7 @@
     function openEditPlaylistsOnlyPopover(type, item){
         if(genrePlaylistPopoverEl) closeGenrePlaylistPopover();
         const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover');
-        pop.appendChild(el('div', 's936lib-gptitle', 'Listas de "' + item.title + '"'));
+        pop.appendChild(el('div', 's936lib-gptitle', 'Listas de "' + (item.title || item.name) + '"'));
         const gp = buildGenrePlaylistFields({ playlists: item.playlists || [], scopeType: type });
         const saveBtn = el('button', 's936lib-actionbtn', 'Guardar cambios');
         saveBtn.style.alignSelf = 'flex-start';
@@ -1475,7 +1466,7 @@
     function openEditGenrePlaylistPopover(type, item){
         if(genrePlaylistPopoverEl) closeGenrePlaylistPopover();
         const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover');
-        pop.appendChild(el('div', 's936lib-gptitle', 'Editar "' + item.title + '"'));
+        pop.appendChild(el('div', 's936lib-gptitle', 'Editar "' + (item.title || item.name) + '"'));
         const gp = buildGenrePlaylistFields({ genre: item.genre || '', genreEditable: type !== 'compositions', playlists: item.playlists || [], scopeType: type });
         const saveBtn = el('button', 's936lib-actionbtn', 'Guardar cambios');
         saveBtn.style.alignSelf = 'flex-start';
@@ -2031,7 +2022,7 @@
             return seed / 4294967296;
         };
     }
-    const SONIC_TYPE_ICON = { compositions:'♫', audios:'〜', youtube:'▶', recording:'🎙' };
+    const SONIC_TYPE_ICON = { compositions:'♫', audios:'〜', youtube:'▶', recording:'🎙', radio:'📻' };
 
     function buildSonicCoverSvg(item, typeKey){
         const seedStr = String(item.id || '') + '|' + String(item.title || '');
@@ -2159,14 +2150,9 @@
             video.className = 's936lib-compvisual-media';
             wrap.appendChild(video);
         } else if(coverUrl){
-            // Cambio 220: la carátula de Composiciones se renderiza como
-            // <img> real para que object-fit:contain muestre la imagen
-            // completa dentro del mini, sin recortar la parte inferior.
-            const img = document.createElement('img');
-            img.src = coverUrl;
-            img.alt = playingItem?.title ? `Carátula de ${playingItem.title}` : 'Carátula de la composición';
-            img.className = 's936lib-compvisual-media s936lib-compvisual-cover';
-            wrap.appendChild(img);
+            const bg = el('div', 's936lib-compvisual-media s936lib-compvisual-zoom');
+            bg.style.backgroundImage = `url('${coverUrl}')`;
+            wrap.appendChild(bg);
         } else if(playingItem){
             wrap.classList.add('s936sc-wrap');
             if(isActuallyPlaying) wrap.classList.add('is-active');
@@ -2402,6 +2388,292 @@
         }
     }
 
+    // ---------------------------------------------------------------
+    // Radio — estaciones online, reutilizan el mismo <audio> que MP3
+    // ---------------------------------------------------------------
+    let currentPlayingRadioId = null; // id de la estación de radio sonando (mismo audio, distinta procedencia)
+
+    function addRadioStation(station){
+        if(!station || !station.streamUrl) return;
+        store.radio.unshift({
+            id: uid('r'),
+            name: (station.name || 'Estación de radio').trim(),
+            streamUrl: station.streamUrl.trim(),
+            homepage: station.homepage || '',
+            favicon: station.favicon || '',
+            country: station.country || '',
+            tags: station.tags || '',
+            genre: '',
+            playlists: [],
+            addedAt: Date.now()
+        });
+        saveStore();
+        render();
+    }
+
+    function renameRadio(id){
+        const item = store.radio.find(x => x.id === id);
+        if(!item) return;
+        const value = prompt('Nuevo nombre para esta radio:', item.name);
+        if(value === null || !value.trim()) return;
+        item.name = value.trim();
+        saveStore();
+        render();
+    }
+
+    async function deleteRadio(id){
+        const item = store.radio.find(x => x.id === id);
+        if(!item) return;
+        if(!await s936Confirm('¿Borrar la radio "' + item.name + '" de tu lista?')) return;
+        store.radio = store.radio.filter(x => x.id !== id);
+        if(currentPlayingRadioId === id){ currentPlayingRadioId = null; if(audioEl) audioEl.pause(); }
+        saveStore();
+        render();
+    }
+
+    // Radio Browser (radio-browser.info) — base de datos pública, gratis,
+    // sin llave, dominio público, con más de 60,000 emisoras reales. Si el
+    // servicio falla o no hay internet, devuelve una lista vacía en vez de
+    // romper nada.
+    async function searchRadioStations(query){
+        if(!query || !query.trim()) return [];
+        try {
+            const url = 'https://de1.api.radio-browser.info/json/stations/search?name=' + encodeURIComponent(query.trim()) + '&limit=20&hidebroken=true&order=clickcount&reverse=true';
+            const resp = await fetch(url);
+            if(!resp.ok) return [];
+            const data = await resp.json();
+            return (Array.isArray(data) ? data : []).map((s) => ({
+                name: s.name,
+                streamUrl: s.url_resolved || s.url,
+                homepage: s.homepage,
+                favicon: s.favicon,
+                country: s.country,
+                tags: s.tags
+            })).filter((s) => s.streamUrl);
+        } catch(_) { return []; }
+    }
+
+    let radioAddPopoverEl = null;
+    function closeRadioAddPopover(){
+        if(radioAddPopoverEl){ radioAddPopoverEl.remove(); radioAddPopoverEl = null; }
+    }
+    function openAddRadioPopover(anchorEl){
+        if(radioAddPopoverEl){ closeRadioAddPopover(); return; }
+        const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover');
+        pop.style.width = '340px';
+        pop.appendChild(el('div', 's936lib-gptitle', 'Agregar radio'));
+
+        pop.appendChild(el('div', 's936lib-gplabel', 'Buscar estaciones (ej. "jazz", "Colombia", "rock")'));
+        const searchRow = el('div', '');
+        searchRow.style.cssText = 'display:flex;gap:6px;';
+        const searchInput = document.createElement('input');
+        searchInput.placeholder = 'Nombre, país o género...';
+        searchInput.style.cssText = 'flex:1;background:#1c2224;border:1px solid #333;border-radius:8px;padding:7px 9px;color:#e8f4f2;font-size:.78rem;font-family:inherit;';
+        const searchBtn = el('button', 's936lib-actionbtn', 'Buscar');
+        searchRow.append(searchInput, searchBtn);
+        pop.appendChild(searchRow);
+        const resultsWrap = el('div', '');
+        resultsWrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;margin-top:6px;';
+        pop.appendChild(resultsWrap);
+
+        const doSearch = async () => {
+            resultsWrap.innerHTML = '';
+            resultsWrap.appendChild(el('div', 's936lib-gpempty', 'Buscando...'));
+            const results = await searchRadioStations(searchInput.value);
+            resultsWrap.innerHTML = '';
+            if(!results.length){
+                resultsWrap.appendChild(el('div', 's936lib-gpempty', 'Sin resultados — prueba con otro nombre, país o género.'));
+                return;
+            }
+            results.forEach((s) => {
+                const row = el('div', '');
+                row.style.cssText = 'display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:6px 8px;';
+                const info = el('div', '');
+                info.style.cssText = 'flex:1;min-width:0;';
+                const nameEl = el('div', '', s.name);
+                nameEl.style.cssText = 'font-size:.76rem;font-weight:700;color:#e8f4f2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+                const metaEl = el('div', '', [s.country, s.tags].filter(Boolean).join(' · '));
+                metaEl.style.cssText = 'font-size:.62rem;color:#9fb0ae;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+                info.append(nameEl, metaEl);
+                const addBtn = el('button', 's936lib-gpaddbtn', '+ Agregar');
+                addBtn.onclick = () => { addRadioStation(s); addBtn.textContent = '✓'; addBtn.disabled = true; };
+                row.append(info, addBtn);
+                resultsWrap.appendChild(row);
+            });
+        };
+        searchBtn.onclick = doSearch;
+        searchInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') doSearch(); });
+
+        const sep = el('div', '');
+        sep.style.cssText = 'border-top:1px solid rgba(255,255,255,.08);margin-top:10px;padding-top:10px;display:flex;flex-direction:column;gap:6px;';
+        sep.appendChild(el('div', 's936lib-gplabel', 'O pega tu propio enlace de transmisión'));
+        const nameInput = document.createElement('input');
+        nameInput.placeholder = 'Nombre de la emisora';
+        nameInput.style.cssText = 'background:#1c2224;border:1px solid #333;border-radius:8px;padding:7px 9px;color:#e8f4f2;font-size:.78rem;font-family:inherit;';
+        const urlInput = document.createElement('input');
+        urlInput.placeholder = 'https://... (enlace directo del stream)';
+        urlInput.style.cssText = 'background:#1c2224;border:1px solid #333;border-radius:8px;padding:7px 9px;color:#e8f4f2;font-size:.78rem;font-family:inherit;';
+        const addManualBtn = el('button', 's936lib-actionbtn', '+ Agregar enlace');
+        addManualBtn.style.alignSelf = 'flex-start';
+        addManualBtn.onclick = () => {
+            if(!urlInput.value.trim()) return;
+            addRadioStation({ name: nameInput.value, streamUrl: urlInput.value });
+            closeRadioAddPopover();
+        };
+        sep.append(nameInput, urlInput, addManualBtn);
+        pop.appendChild(sep);
+
+        pop.addEventListener('click', (e) => e.stopPropagation());
+        document.body.appendChild(pop);
+        positionFloatingPopover(pop, anchorEl);
+        radioAddPopoverEl = pop;
+    }
+    document.addEventListener('click', (e) => {
+        if(radioAddPopoverEl && !e.target.closest('.s936lib-gppopover') && !e.target.closest('[data-radio-add-btn]')) closeRadioAddPopover();
+    });
+
+    // Radio reutiliza el MISMO <audio> que Composiciones/MP3 — una
+    // transmisión de radio es audio continuo, no necesita un motor aparte.
+    // Por eso hereda gratis: ecualizador reactivo real, modo mini, volumen.
+    async function playRadioStation(id){
+        const station = store.radio.find(x => x.id === id);
+        if(!station || !station.streamUrl) return;
+        currentPlayingRadioId = id;
+        currentPlayingComp = null;
+        currentPlayingId = null;
+        lastActiveSource = 'local';
+        lcdError = false;
+        lcdLoading = true;
+        if(ytPlayer && typeof ytPlayer.pauseVideo === 'function'){ try { ytPlayer.pauseVideo(); } catch(_) {} }
+        if(!audioEl){
+            audioEl = new Audio();
+            audioEl.volume = playerVolume / 100;
+            audioEl.addEventListener('ended', () => { stopEqAnimation(); syncVisibleAudioPlaybackState?.(); playNextInQueue(); });
+            audioEl.addEventListener('timeupdate', updateLcd);
+            audioEl.addEventListener('loadedmetadata', updateLcd);
+            audioEl.addEventListener('loadstart', () => { lcdLoading = true; updateLcd(); });
+            audioEl.addEventListener('canplay', () => { lcdLoading = false; updateLcd(); });
+            audioEl.addEventListener('playing', () => {
+                lastActiveSource = 'local';
+                lcdLoading = false; lcdError = false;
+                startEqAnimation();
+                syncVisibleAudioPlaybackState?.();
+                updateLcd();
+                renderTransportState?.();
+            });
+            audioEl.addEventListener('pause', () => {
+                if(lastActiveSource === 'local') stopEqAnimation();
+                syncVisibleAudioPlaybackState?.();
+                updateLcd();
+                renderTransportState?.();
+            });
+            audioEl.addEventListener('error', () => {
+                lcdLoading = false; lcdError = true;
+                stopEqAnimation();
+                syncVisibleAudioPlaybackState?.();
+                updateLcd();
+                renderTransportState?.();
+            });
+        }
+        audioEl.src = station.streamUrl;
+        audioEl.play().catch(() => { lcdLoading = false; updateLcd(); });
+        updateLcd(null, station.name, station.country || station.tags || '');
+        render();
+    }
+
+    function buildRadioVisual(){
+        const wrap = el('div', 's936lib-compvisual s936lib-mini-keep');
+        const playingStation = currentPlayingRadioId ? store.radio.find(x => x.id === currentPlayingRadioId) : null;
+        if(playingStation && playingStation.favicon){
+            const bg = el('div', 's936lib-compvisual-media s936lib-compvisual-zoom');
+            bg.style.backgroundImage = `url('${playingStation.favicon}')`;
+            wrap.appendChild(bg);
+        } else if(playingStation){
+            wrap.classList.add('s936sc-wrap');
+            if(audioEl && !audioEl.paused) wrap.classList.add('is-active');
+            wrap.innerHTML = buildSonicCoverSvg(playingStation, 'radio');
+        } else {
+            wrap.classList.add('s936sc-wrap');
+            wrap.innerHTML = buildSonicCoverSvg({ id:'s936-empty-radio', title:'' }, 'radio');
+        }
+        if(!playingStation) wrap.appendChild(el('div', 's936lib-compvisual-hint', 'Elige "▶ Play" en una radio para verla aquí'));
+        return wrap;
+    }
+
+    function buildRadioThumb(station, className){
+        const thumb = el('div', className);
+        if(station.favicon){
+            thumb.style.backgroundImage = `url('${station.favicon}')`;
+        } else {
+            thumb.classList.add('s936sc-wrap');
+            thumb.innerHTML = buildSonicCoverSvg(station, 'radio');
+        }
+        return thumb;
+    }
+
+    function renderRadio(body){
+        if(!searchQuery) body.appendChild(buildRadioVisual());
+        const list = store.radio.filter(x => matchesSearch(x, [x.country, x.tags]));
+        if(!list.length){
+            body.appendChild(el('div', 's936lib-empty', store.radio.length ? 'Sin resultados.' : 'Todavía no tienes radios agregadas. Usa el botón "+ Agregar radio" arriba.'));
+            return;
+        }
+        if(viewMode === 'grid'){
+            const grid = el('div', 's936lib-ytgrid');
+            list.forEach((station) => {
+                const isPlaying = currentPlayingRadioId === station.id && !!audioEl && !audioEl.paused;
+                const card = el('div', 's936lib-ytcard' + (isPlaying ? ' active' : ''));
+                const thumb = buildRadioThumb(station, 's936lib-ytthumb');
+                thumb.appendChild(el('div', 'playicon', isPlaying ? '⏸' : '▶'));
+                const cardBody = el('div', 's936lib-ytcardbody');
+                cardBody.appendChild(el('div', 's936lib-ytcardtitle', station.name));
+                cardBody.appendChild(el('div', 's936lib-ytcardnotes', [station.country, station.tags].filter(Boolean).join(' · ') || 'Radio online'));
+                const actions = el('div', 's936lib-ytcardactions');
+                const playBtn = el('button', 's936lib-mini play', isPlaying ? '⏸ Sonando' : '▶ Play');
+                playBtn.onclick = (e) => { e.stopPropagation(); playRadioStation(station.id); };
+                actions.append(playBtn, genreTag('radio', station));
+                const kebabItems = [
+                    { icon:'✎', label:'Cambiar nombre', onClick: () => renameRadio(station.id) },
+                    { icon:'🏷', label:'Agregar a lista', onClick: () => openEditPlaylistsOnlyPopover('radio', station) }
+                ];
+                if(station.homepage) kebabItems.push({ icon:'↗', label:'Abrir página de la emisora', onClick: () => window.open(station.homepage, '_blank', 'noopener') });
+                kebabItems.push({ icon:'⧉', label:'Copiar enlace', onClick: () => { navigator.clipboard?.writeText(station.streamUrl); } });
+                kebabItems.push({ icon:'✕', label:'Borrar', danger:true, onClick: () => deleteRadio(station.id) });
+                actions.appendChild(buildKebabMenu(kebabItems));
+                cardBody.appendChild(actions);
+                card.append(thumb, cardBody);
+                card.onclick = () => playRadioStation(station.id);
+                grid.appendChild(card);
+            });
+            body.appendChild(grid);
+        } else {
+            const listWrap = el('div', 's936lib-listwrap');
+            list.forEach((station) => {
+                const isPlaying = currentPlayingRadioId === station.id && !!audioEl && !audioEl.paused;
+                const row = el('div', 's936lib-list-row' + (isPlaying ? ' playing' : ''));
+                const thumb = buildRadioThumb(station, 's936lib-list-thumb');
+                const title = el('div', 's936lib-list-title', station.name);
+                const meta = el('div', 's936lib-list-meta', [station.country, station.tags].filter(Boolean).join(' · ') || 'Radio online');
+                const actions = el('div', 's936lib-list-actions');
+                const playBtn = el('button', 's936lib-mini play', isPlaying ? '⏸' : '▶');
+                playBtn.onclick = (e) => { e.stopPropagation(); playRadioStation(station.id); };
+                actions.append(playBtn, genreTag('radio', station));
+                const kebabItems = [
+                    { icon:'✎', label:'Cambiar nombre', onClick: () => renameRadio(station.id) },
+                    { icon:'🏷', label:'Agregar a lista', onClick: () => openEditPlaylistsOnlyPopover('radio', station) }
+                ];
+                if(station.homepage) kebabItems.push({ icon:'↗', label:'Abrir página de la emisora', onClick: () => window.open(station.homepage, '_blank', 'noopener') });
+                kebabItems.push({ icon:'⧉', label:'Copiar enlace', onClick: () => { navigator.clipboard?.writeText(station.streamUrl); } });
+                kebabItems.push({ icon:'✕', label:'Borrar', danger:true, onClick: () => deleteRadio(station.id) });
+                actions.appendChild(buildKebabMenu(kebabItems));
+                row.append(thumb, title, meta, actions);
+                row.onclick = () => playRadioStation(station.id);
+                listWrap.appendChild(row);
+            });
+            body.appendChild(listWrap);
+        }
+    }
+
     function togglePlayPause(){
         if(lastActiveSource === 'youtube' && ytPlayer){
             try {
@@ -2606,9 +2878,11 @@
     // puede ser YouTube (lcdYoutubeTitle); si nada de eso, está inactivo.
     function lcdContentType(){
         if(lastActiveSource === 'youtube' && lcdYoutubeTitle) return 'youtube';
+        if(lastActiveSource === 'local' && audioEl && audioEl.src && currentPlayingRadioId) return 'radio';
         if(lastActiveSource === 'local' && audioEl && audioEl.src && currentPlayingId) return currentPlayingComp ? 'compositions' : 'audios';
         // Compatibilidad si por alguna razón el rastreador no se llegó a
         // fijar (ej. sesión ya abierta antes de este cambio).
+        if(audioEl && audioEl.src && currentPlayingRadioId) return 'radio';
         if(audioEl && audioEl.src && currentPlayingId) return currentPlayingComp ? 'compositions' : 'audios';
         if(lcdYoutubeTitle) return 'youtube';
         return null;
@@ -2623,8 +2897,8 @@
             return 'MINI ROCKOLA';
         }
         if(!type) return '';
-        const typeLabel = type === 'compositions' ? 'COMPOSICIÓN' : 'AUDIO MP3';
-        const icon = type === 'compositions' ? '◆' : '〜';
+        const typeLabel = type === 'compositions' ? 'COMPOSICIÓN' : type === 'radio' ? 'RADIO' : 'AUDIO MP3';
+        const icon = type === 'compositions' ? '◆' : type === 'radio' ? '📻' : '〜';
         let state = 'REPRODUCIENDO';
         if(lcdError) state = 'ERROR';
         else if(lcdLoading) state = 'CARGANDO';
@@ -3022,8 +3296,8 @@
     // ---------------------------------------------------------------
     // Géneros
     // ---------------------------------------------------------------
-    const TYPE_ICON = { compositions:'🎼', audios:'🎧', youtube:'📺' };
-    const TYPE_LABEL = { compositions:'Composición', audios:'Audio', youtube:'YouTube' };
+    const TYPE_ICON = { compositions:'🎼', audios:'🎧', youtube:'📺', radio:'📻' };
+    const TYPE_LABEL = { compositions:'Composición', audios:'Audio', youtube:'YouTube', radio:'Radio' };
 
     // Cambio 205: Géneros se retiró (confirmado que no aportaba nada útil)
     // — este es el espacio reservado para "Comunidad", la idea de que los
@@ -3068,6 +3342,7 @@
                 let thumb;
                 if(type === 'compositions') thumb = buildCompositionThumb(item, 's936lib-ytthumb');
                 else if(type === 'audios') thumb = buildAudioThumb(item, 's936lib-ytthumb');
+                else if(type === 'radio') thumb = buildRadioThumb(item, 's936lib-ytthumb');
                 else {
                     thumb = el('div', 's936lib-ytthumb');
                     const thumbUrl = youtubeThumbUrl(item.url);
@@ -3076,12 +3351,13 @@
                 }
                 thumb.appendChild(el('div', 'playicon', '▶'));
                 const cardBody = el('div', 's936lib-ytcardbody');
-                cardBody.appendChild(el('div', 's936lib-ytcardtitle', item.title));
+                cardBody.appendChild(el('div', 's936lib-ytcardtitle', item.title || item.name));
                 cardBody.appendChild(el('div', 's936lib-ytcardnotes', TYPE_LABEL[type] + ' · ' + fmtDate(item.updated || item.addedAt)));
                 card.append(thumb, cardBody);
                 if(type === 'compositions') card.onclick = () => previewComposition(item.id, card);
                 if(type === 'audios') card.onclick = () => playAudio(item.id);
                 if(type === 'youtube') card.onclick = () => { activeTab = 'youtube'; selectYoutubeVideo(item); };
+                if(type === 'radio') card.onclick = () => { activeTab = 'radio'; playRadioStation(item.id); };
                 grid.appendChild(card);
             });
             body.appendChild(grid);
@@ -3090,12 +3366,13 @@
                 const row = el('div', 's936lib-list-row');
                 row.append(
                     el('div', 's936lib-list-icon', TYPE_ICON[type]),
-                    el('div', 's936lib-list-title', item.title),
+                    el('div', 's936lib-list-title', item.title || item.name),
                     el('div', 's936lib-list-meta', TYPE_LABEL[type] + ' · ' + fmtDate(item.updated || item.addedAt))
                 );
                 if(type === 'compositions') row.onclick = () => previewComposition(item.id, row);
                 if(type === 'audios') row.onclick = () => playAudio(item.id);
                 if(type === 'youtube') row.onclick = () => { activeTab = 'youtube'; selectYoutubeVideo(item); };
+                if(type === 'radio') row.onclick = () => { activeTab = 'radio'; playRadioStation(item.id); };
                 body.appendChild(row);
             });
         }
@@ -3156,7 +3433,7 @@
         // Cambio 189: en Composiciones ya no se usa el filtro de "listas"
         // (playlists) — el álbum es el concepto de agrupación aquí, y ya
         // tiene sus propios chips debajo. Se evita el control redundante.
-        if(activeTab !== 'compositions') toolbar.appendChild(buildPlaylistFilterButton(activeTab === 'audios' ? store.audios : null));
+        if(activeTab !== 'compositions') toolbar.appendChild(buildPlaylistFilterButton(activeTab === 'audios' ? store.audios : activeTab === 'radio' ? store.radio : null));
 
         if(activeTab === 'compositions'){
             // Cambio 194: dos botones separados — la flecha filtra rápido
@@ -3177,6 +3454,13 @@
             fileInput.onchange = (e) => importAudioFiles(e.target.files, btn);
             btn.onclick = () => fileInput.click();
             toolbar.append(btn, fileInput);
+        } else if(activeTab === 'radio'){
+            const btn = el('button', 's936lib-iconbtn', '+');
+            btn.title = 'Agregar radio';
+            btn.setAttribute('data-radio-add-btn', '1');
+            btn.style.cssText = 'width:32px;height:32px;font-size:1rem;flex-shrink:0;';
+            btn.onclick = (e) => { e.stopPropagation(); openAddRadioPopover(btn); };
+            toolbar.appendChild(btn);
         }
     }
 
@@ -3219,6 +3503,7 @@
         if(activeTab === 'recent') renderRecent(body);
         else if(activeTab === 'compositions') renderCompositions(body);
         else if(activeTab === 'audios') renderAudios(body);
+        else if(activeTab === 'radio') renderRadio(body);
         else if(activeTab === 'genres') renderGenres(body);
     }
 
@@ -3242,6 +3527,7 @@
         if(!panel) return;
         closeAnyOpenMenu();
         closeYoutubeAddPopover();
+        closeRadioAddPopover();
         panel.querySelectorAll('.s936lib-tab').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === activeTab));
         panel.querySelectorAll('.s936lib-viewbtn').forEach((btn) => btn.classList.toggle('active', btn.dataset.view === viewMode));
         renderTransportState();
@@ -3275,6 +3561,7 @@
         ['compositions', 'Composiciones'],
         ['audios', 'Audio MP3'],
         ['youtube', 'Mini Rockola'],
+        ['radio', 'Radio'],
         ['genres', stageTabLabel]
     ];
 
