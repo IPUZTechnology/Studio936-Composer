@@ -943,6 +943,53 @@
         };
     }
 
+    // Cambio 204: separados de verdad — clic en la etiqueta de género abre
+    // SOLO el género (nada de listas); "Agregar/Editar listas" en el menú
+    // ⋮ abre SOLO las listas (nada de género). Antes ambos abrían la misma
+    // ventana combinada, lo cual confundía.
+    function openEditGenreOnlyPopover(type, item){
+        if(genrePlaylistPopoverEl) closeGenrePlaylistPopover();
+        const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover');
+        pop.appendChild(el('div', 's936lib-gptitle', 'Género de "' + item.title + '"'));
+        const input = document.createElement('input');
+        input.value = item.genre || '';
+        input.placeholder = 'Género / estilo (ej. Rock, Bolero...)';
+        input.style.cssText = 'background:#1c2224; border:1px solid #333; border-radius:8px; padding:7px 9px; color:#e8f4f2; font-size:.78rem; font-family:inherit;';
+        const saveBtn = el('button', 's936lib-actionbtn', 'Guardar');
+        saveBtn.style.alignSelf = 'flex-start';
+        saveBtn.onclick = (e) => {
+            e.stopPropagation();
+            setGenre(type, item.id, input.value.trim());
+            closeGenrePlaylistPopover();
+            render();
+        };
+        pop.append(input, saveBtn);
+        pop.addEventListener('click', (e) => e.stopPropagation());
+        document.body.appendChild(pop);
+        positionFloatingPopover(pop, null);
+        genrePlaylistPopoverEl = pop;
+    }
+
+    function openEditPlaylistsOnlyPopover(type, item){
+        if(genrePlaylistPopoverEl) closeGenrePlaylistPopover();
+        const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover');
+        pop.appendChild(el('div', 's936lib-gptitle', 'Listas de "' + item.title + '"'));
+        const gp = buildGenrePlaylistFields({ playlists: item.playlists || [] });
+        const saveBtn = el('button', 's936lib-actionbtn', 'Guardar cambios');
+        saveBtn.style.alignSelf = 'flex-start';
+        saveBtn.onclick = (e) => {
+            e.stopPropagation();
+            setItemPlaylists(type, item.id, gp.getPlaylists());
+            closeGenrePlaylistPopover();
+            render();
+        };
+        pop.append(gp.wrap, saveBtn);
+        pop.addEventListener('click', (e) => e.stopPropagation());
+        document.body.appendChild(pop);
+        positionFloatingPopover(pop, null);
+        genrePlaylistPopoverEl = pop;
+    }
+
     function openEditGenrePlaylistPopover(type, item){
         if(genrePlaylistPopoverEl) closeGenrePlaylistPopover();
         const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover');
@@ -977,7 +1024,8 @@
         }
         const tag = el('span', 's936lib-genretag', item.genre || '+ género');
         tag.style.cursor = 'pointer';
-        tag.onclick = (e) => { e.stopPropagation(); openEditGenrePlaylistPopover(type, item); };
+        tag.title = 'Clic para editar el género';
+        tag.onclick = (e) => { e.stopPropagation(); openEditGenreOnlyPopover(type, item); };
         return tag;
     }
 
@@ -1550,7 +1598,7 @@
                 const kebab = buildKebabMenu([
                     { icon:'⏏', label:'Abrir', onClick: () => openComposition(item.id) },
                     { icon:'✎', label:'Cambiar nombre', onClick: () => renameComposition(item.id) },
-                    { icon:'🏷', label:'Editar listas', onClick: () => openEditGenrePlaylistPopover('compositions', item) },
+                    { icon:'🏷', label:'Editar listas', onClick: () => openEditPlaylistsOnlyPopover('compositions', item) },
                     { icon:'⧉', label:'Duplicar', onClick: () => duplicateComposition(item.id) },
                     { icon:'💿', label:'Mover a álbum', onClick: () => openMoveToAlbumPopover(item, kebab.querySelector('.s936lib-kebab')) },
                     { icon:'✕', label:'Borrar', danger:true, onClick: () => deleteComposition(item.id) }
@@ -1578,7 +1626,7 @@
                 const kebab = buildKebabMenu([
                     { icon:'⏏', label:'Abrir', onClick: () => openComposition(item.id) },
                     { icon:'✎', label:'Cambiar nombre', onClick: () => renameComposition(item.id) },
-                    { icon:'🏷', label:'Editar listas', onClick: () => openEditGenrePlaylistPopover('compositions', item) },
+                    { icon:'🏷', label:'Editar listas', onClick: () => openEditPlaylistsOnlyPopover('compositions', item) },
                     { icon:'⧉', label:'Duplicar', onClick: () => duplicateComposition(item.id) },
                     { icon:'💿', label:'Mover a álbum', onClick: () => openMoveToAlbumPopover(item, kebab.querySelector('.s936lib-kebab')) },
                     { icon:'✕', label:'Borrar', danger:true, onClick: () => deleteComposition(item.id) }
@@ -1793,7 +1841,7 @@
                 actions.append(playBtn, qBtn, genreTag('audios', song));
                 const kebab = buildKebabMenu([
                     { icon:'✎', label:'Cambiar nombre', onClick: () => renameAudio(song.id) },
-                    { icon:'🏷', label:'Agregar a lista', onClick: () => openEditGenrePlaylistPopover('audios', song) },
+                    { icon:'🏷', label:'Agregar a lista', onClick: () => openEditPlaylistsOnlyPopover('audios', song) },
                     { icon:'✕', label:'Quitar', danger:true, onClick: () => deleteAudio(song.id) }
                 ]);
                 actions.appendChild(kebab);
@@ -1821,7 +1869,7 @@
                 actions.append(playBtn, qBtn, genreTag('audios', song));
                 const kebab = buildKebabMenu([
                     { icon:'✎', label:'Cambiar nombre', onClick: () => renameAudio(song.id) },
-                    { icon:'🏷', label:'Agregar a lista', onClick: () => openEditGenrePlaylistPopover('audios', song) },
+                    { icon:'🏷', label:'Agregar a lista', onClick: () => openEditPlaylistsOnlyPopover('audios', song) },
                     { icon:'✕', label:'Quitar', danger:true, onClick: () => deleteAudio(song.id) }
                 ]);
                 actions.appendChild(kebab);
@@ -2047,7 +2095,7 @@
                 { icon:'↗', label:'Abrir en YouTube', onClick: () => window.open(item.url, '_blank', 'noopener') },
                 { icon:'⧉', label:'Copiar link', onClick: () => { navigator.clipboard?.writeText(item.url); } },
                 { icon:'✎', label:'Editar nombre', onClick: () => renameYoutube(item.id) },
-                { icon:'🏷', label:'Editar género y listas', onClick: () => openEditGenrePlaylistPopover('youtube', item) },
+                { icon:'🏷', label:'Editar listas', onClick: () => openEditPlaylistsOnlyPopover('youtube', item) },
                 { icon:'✕', label:'Borrar de mi lista', danger:true, onClick: () => deleteYoutube(item.id) }
             ]);
             actions.appendChild(kebab);
