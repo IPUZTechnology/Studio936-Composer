@@ -594,29 +594,107 @@
    hace scroll interno. min-height evita que se vea demasiado angosta
    con listas muy cortas o vacías. */
 #${PANEL_ID} { width:min(1000px,96vw); height:auto; min-height:420px; max-height:min(720px,93vh); background:linear-gradient(180deg,#14181a,#0a0d0e); border:1px solid rgba(91,232,201,.3); border-radius:18px; box-shadow:0 30px 90px rgba(0,0,0,.7), 0 0 40px rgba(0,255,204,.05); display:flex; flex-direction:column; overflow:hidden; font-family:inherit; color:#e8f4f2; }
-#${PANEL_ID}.s936lib-state-maximized { width:100vw; height:100vh; border-radius:0; }
-/* Cambio 182: en maximizado el video debe ser el protagonista — se
-   achica todo el "cromado" alrededor (pestañas ocultas, LCD delgado sin
-   ecualizador, controles compactos en una sola línea angosta) para que
-   quede la mayor parte de la pantalla real para el video. */
-#${PANEL_ID}.s936lib-state-maximized .s936lib-tabs { display:none !important; }
-/* Cambio 184: mismo concepto de "mini mixer" del modo mini, aplicado
-   también a maximizado — barras chiquitas junto al título, sin repetir
-   el texto "936 PLAYER" (ya está en el header). */
+/* Cambio 217: maximizado REAL dentro de la ventana de la app.
+   Antes el panel seguía limitado por max-height:720px y el overlay lo
+   centraba, por eso quedaban grandes franjas negras arriba y abajo. */
+#${PANEL_ID}Overlay.s936lib-state-maximized {
+    background:#0a0d0e;
+    align-items:stretch;
+    justify-content:stretch;
+}
+#${PANEL_ID}.s936lib-state-maximized {
+    position:fixed;
+    inset:0;
+    width:100vw;
+    height:100vh;
+    height:100dvh;
+    min-height:0;
+    max-height:none;
+    max-width:none;
+    margin:0;
+    border:0;
+    border-radius:0;
+    box-shadow:none;
+}
+/* En maximizado se conservan pestañas, búsqueda, filtros y acciones.
+   Maximizar no convierte el player en una pantalla de solo video. */
+#${PANEL_ID}.s936lib-state-maximized .s936lib-header { padding:6px 14px; flex:0 0 auto; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-tabs { display:flex !important; padding:4px 12px 0; flex:0 0 auto; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-tab { padding:5px 11px; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-lcdwrap { padding:4px 12px 0; flex:0 0 auto; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-lcd { padding:4px 11px; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-nowtitle { font-size:.78rem; }
 #${PANEL_ID}.s936lib-state-maximized .s936lib-eqrow { margin-top:3px; padding-bottom:3px; gap:8px; }
-#${PANEL_ID}.s936lib-state-maximized .s936lib-eqbrand { display:none; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-eqbrand { display:block; font-size:.66rem; letter-spacing:2.4px; }
 #${PANEL_ID}.s936lib-state-maximized .s936lib-eqside { height:12px; gap:1px; }
 #${PANEL_ID}.s936lib-state-maximized .s936lib-eqside i { width:3px; }
-#${PANEL_ID}.s936lib-state-maximized .s936lib-header { padding:5px 14px; }
-#${PANEL_ID}.s936lib-state-maximized .s936lib-lcdwrap { padding:4px 14px 0; }
-#${PANEL_ID}.s936lib-state-maximized .s936lib-lcd { padding:4px 12px; }
-#${PANEL_ID}.s936lib-state-maximized .s936lib-nowtitle { font-size:.78rem; }
-#${PANEL_ID}.s936lib-state-maximized .s936lib-progress { margin-top:4px; }
-#${PANEL_ID}.s936lib-state-maximized .s936lib-controlrow { padding:5px 14px; }
-#${PANEL_ID}.s936lib-state-maximized #s936lib-yt-list-slot { max-height:120px; }
-#${PANEL_ID}.s936lib-state-maximized .s936lib-body { flex:1; min-height:0; }
-#${PANEL_ID}.s936lib-state-maximized .s936lib-ytembed { height:calc(100vh - 180px); max-height:none; }
-#${PANEL_ID}.s936lib-state-maximized .s936lib-ytembed iframe { height:100%; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-progress { margin-top:3px; height:12px; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-controlrow { padding:5px 12px; flex:0 0 auto; }
+#${PANEL_ID}.s936lib-state-maximized .s936lib-body {
+    flex:1 1 auto;
+    min-height:0;
+    max-height:none;
+    overflow-y:auto;
+}
+/* Mini Rockola maximizada: video ocupa todo el espacio restante y la
+   lista sigue disponible como bandeja horizontal para buscar/elegir sin
+   salir del modo maximizado. */
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube .s936lib-body {
+    display:flex;
+    flex-direction:column;
+    padding:0;
+    overflow:hidden;
+}
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube #s936lib-yt-embed-slot {
+    flex:1 1 auto;
+    min-height:0;
+    width:100%;
+    margin:0;
+}
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube .s936lib-ytembed {
+    width:100%;
+    height:100%;
+    max-height:none;
+    aspect-ratio:auto;
+    margin:0;
+    border:0;
+    border-radius:0;
+}
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube .s936lib-ytembed iframe {
+    width:100%;
+    height:100%;
+    border-radius:0;
+}
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube #s936lib-yt-list-slot {
+    flex:0 0 auto;
+    max-height:112px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    padding:8px 12px 10px;
+    border-top:1px solid rgba(255,255,255,.07);
+    background:#0b0f10;
+}
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube #s936lib-yt-list-slot .s936lib-ytgrid {
+    display:flex;
+    gap:10px;
+    min-width:max-content;
+}
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube #s936lib-yt-list-slot .s936lib-ytcard {
+    flex:0 0 220px;
+    width:220px;
+    min-height:72px;
+    display:grid;
+    grid-template-columns:104px minmax(0,1fr);
+}
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube #s936lib-yt-list-slot .s936lib-ytthumb {
+    width:104px;
+    height:72px;
+    aspect-ratio:auto;
+    border-radius:8px 0 0 8px;
+}
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube #s936lib-yt-list-slot .s936lib-ytcardbody { padding:6px 8px; }
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube #s936lib-yt-list-slot .s936lib-ytcardnotes,
+#${PANEL_ID}.s936lib-state-maximized.s936lib-active-youtube #s936lib-yt-list-slot .s936lib-ytcardactions { display:none; }
 #${PANEL_ID}.s936lib-state-mini { position:fixed; width:300px; height:auto; max-height:none; pointer-events:auto; box-shadow:0 20px 50px rgba(0,0,0,.6), 0 0 30px rgba(0,255,204,.15); }
 #${PANEL_ID}.s936lib-state-mini .s936lib-tabs,
 #${PANEL_ID}.s936lib-state-mini .s936lib-toolbar,
@@ -2971,6 +3049,7 @@
         panel.querySelectorAll('.s936lib-viewbtn').forEach((btn) => btn.classList.toggle('active', btn.dataset.view === viewMode));
         renderTransportState();
         const isYoutube = activeTab === 'youtube';
+        panel.classList.toggle('s936lib-active-youtube', isYoutube);
         // Cambio 177: el toggle cuadrícula/lista no aplica en YouTube — esa
         // pestaña siempre usa su propio mosaico, no hay elección real ahí.
         const gridBtnEl = panel.querySelector('.s936lib-viewbtn[data-view="grid"]');
@@ -3011,7 +3090,7 @@
         const header = el('div', 's936lib-header');
         const headerText = el('div', 's936lib-headertext');
         const eyebrow = el('div', 's936lib-eyebrow', 'Librería');
-        const title = el('h2', '', '936 PLAYER');
+        const title = el('h2', '', 'MÚSICA');
         headerText.append(eyebrow, title);
         const gridBtn = el('button', 's936lib-viewbtn', '⊞');
         gridBtn.dataset.view = 'grid'; gridBtn.title = 'Vista cuadrícula';
@@ -3113,17 +3192,18 @@
         const overlay = document.getElementById(PANEL_ID + 'Overlay');
         if(!panel || !overlay) return;
         panel.classList.remove('s936lib-state-maximized', 's936lib-state-mini');
-        overlay.classList.remove('s936lib-state-mini');
+        overlay.classList.remove('s936lib-state-mini', 's936lib-state-maximized');
         windowState = newState;
         if(newState === 'maximized'){
             panel.classList.add('s936lib-state-maximized');
+            overlay.classList.add('s936lib-state-maximized');
             panel.style.left = ''; panel.style.top = '';
-            // Cambio 182: pantalla completa real del navegador (sin barra
-            // de pestañas ni nada) cuando el navegador lo permita — si no,
-            // se queda con el "maximizado" normal (100vw/100vh), que
-            // sigue funcionando bien de todos modos.
-            const request = overlay.requestFullscreen || overlay.webkitRequestFullscreen;
-            if(request) request.call(overlay).catch?.(() => {});
+            // Cambio 217: no usar Fullscreen API del navegador. Los menús,
+            // filtros y formularios flotantes se insertan en <body>; al
+            // entrar en fullscreen nativo quedaban fuera del árbol visible
+            // y parecían "no funcionar". El overlay fijo ya ocupa toda la
+            // ventana y conserva todas las acciones operativas.
+            if(document.fullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
         } else if(newState === 'mini'){
             panel.classList.add('s936lib-state-mini');
             overlay.classList.add('s936lib-state-mini');
@@ -3136,13 +3216,6 @@
             if(document.fullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
         }
     }
-
-    document.addEventListener('fullscreenchange', () => {
-        if(!document.fullscreenElement && windowState === 'maximized'){
-            const panel = document.getElementById(PANEL_ID);
-            if(panel){ windowState = 'normal'; panel.classList.remove('s936lib-state-maximized'); }
-        }
-    });
 
     function enableDrag(panel, headerEl){
         let dragging = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
