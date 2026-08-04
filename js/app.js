@@ -3159,19 +3159,23 @@ function installStudio936AppBridge(){
         openHelp: () => { els.helpBtn?.click(); return true; },
         saveLocal: () => { saveProject(true); return true; },
         newSong: () => {
-            // Usa loadProject (ya en el Bridge) con un proyecto base limpio.
-            // baseProject/SONG_ORDER/setProject están fuera del scope del
-            // Bridge — no se pueden llamar directo desde aquí.
+            // loadProject ya está en el Bridge y llama a modelNormalizeProject
+            // internamente — que completa cualquier campo faltante con los
+            // valores por defecto. Pasamos solo título vacío y secciones
+            // vacías; el normalizador hace el resto.
             try {
-                const p = baseProject();
-                p.title = 'Nueva canción';
-                p.author = '';
-                SONG_ORDER.forEach(k => { p.lyrics[k] = ''; if(k !== 'intro') p.sections[k] = []; });
-                project = modelNormalizeProject(p, styles, instruments);
-                renderAll();
-                saveProject(false);
-                flashStatus('Nueva canción creada.');
-                return true;
+                const blank = {
+                    title: 'Nueva canción',
+                    author: '',
+                    bpm: 95,
+                    style: 'pop',
+                    instrument: 'piano',
+                    sections: { intro:[], verse:[], verse1:[], verse2:[], verse3:[], prechorus:[], chorus:[], interlude:[], solo:[] },
+                    lyrics: { intro:'', verse:'', verse1:'', verse2:'', verse3:'', prechorus:'', chorus:'', interlude:'', solo:'' }
+                };
+                const ok = window.Studio936AppBridge.loadProject(blank);
+                if(ok) flashStatus('Nueva canción creada.');
+                return ok;
             } catch(e) { console.warn('newSong error:', e); return false; }
         },
         exportTxt: () => { exportTxt(); return true; },
