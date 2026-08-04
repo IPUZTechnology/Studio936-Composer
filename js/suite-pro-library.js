@@ -64,6 +64,161 @@
     let currentYoutubeId = null;   // favorito mostrado en el embed
     let ytAutoplayNext = false;    // si el próximo embed debe iniciar sonando (solo tras elegir a mano)
     let windowState = 'normal';    // normal | maximized | mini
+
+    // ---------------------------------------------------------------
+    // Fase A: cuentas de usuario (Escenario) — conecta con el backend
+    // real (Cloudflare Worker + D1 + better-auth) construido aparte.
+    // ---------------------------------------------------------------
+    const S936_API_BASE = 'https://studio936-escenario-api.ripuz.workers.dev';
+    let currentUser = null; // { id, name, email } cuando hay sesión activa
+
+    async function s936CheckSession(){
+        try {
+            const resp = await fetch(S936_API_BASE + '/api/me', { credentials: 'include' });
+            currentUser = resp.ok ? (await resp.json()).user : null;
+        } catch(_) {
+            currentUser = null;
+        }
+        updateAccountButton();
+    }
+
+    async function s936Login(email, password){
+        const resp = await fetch(S936_API_BASE + '/api/auth/sign-in/email', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if(!resp.ok) throw new Error(data.message || 'Correo o contraseña incorrectos.');
+        currentUser = data.user;
+        updateAccountButton();
+        return data;
+    }
+
+    async function s936Register(name, email, password){
+        const resp = await fetch(S936_API_BASE + '/api/auth/sign-up/email', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, password })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if(!resp.ok) throw new Error(data.message || 'No se pudo crear la cuenta.');
+        currentUser = data.user;
+        updateAccountButton();
+        return data;
+    }
+
+    async function s936Logout(){
+        try {
+            await fetch(S936_API_BASE + '/api/auth/sign-out', { method: 'POST', credentials: 'include' });
+        } catch(_) { /* si falla la petición, igual cerramos sesión localmente */ }
+        currentUser = null;
+        updateAccountButton();
+    }
+
+    function updateAccountButton(){
+        const btn = document.getElementById(PANEL_ID + 'AccountBtn');
+        if(!btn) return;
+        btn.textContent = currentUser ? (currentUser.name || currentUser.email) : 'Iniciar sesión';
+        btn.classList.toggle('is-logged-in', !!currentUser);
+    }
+
+    let accountPopoverEl = null;
+    function closeAccountPopover(){
+        if(accountPopoverEl){ accountPopoverEl.remove(); accountPopoverEl = null; }
+    }
+    function openAccountPopover(anchorEl){
+        if(accountPopoverEl){ closeAccountPopover(); return; }
+        const pop = el('div', 's936lib-ytform s936lib-ytform-floating s936lib-gppopover');
+        pop.style.width = '280px';
+
+        if(currentUser){
+            // Ya hay sesión — mostrar quién eres y el botón de cerrar sesión.
+            pop.appendChild(el('div', 's936lib-gptitle', 'Mi cuenta'));
+            const info = el('div', '', currentUser.name || '');
+            info.style.cssText = 'font-size:.8rem;font-weight:700;color:#e8f4f2;';
+            const emailEl = el('div', '', currentUser.email || '');
+            emailEl.style.cssText = 'font-size:.7rem;color:#9fb0ae;margin-bottom:10px;';
+            const logoutBtn = el('button', 's936lib-actionbtn', 'Cerrar sesión');
+            logoutBtn.onclick = async () => { await s936Logout(); closeAccountPopover(); };
+            pop.append(info, emailEl, logoutBtn);
+        } else {
+            // Sin sesión — formulario con dos pestañas: Entrar / Crear cuenta.
+            let mode = 'login'; // 'login' | 'register'
+            const tabsRow = el('div', '');
+            tabsRow.style.cssText = 'display:flex;gap:6px;margin-bottom:10px;';
+            const loginTabBtn = el('button', 's936lib-actionbtn s936lib-authtab', 'Entrar');
+            const registerTabBtn = el('button', 's936lib-actionbtn s936lib-authtab', 'Crear cuenta');
+            tabsRow.append(loginTabBtn, registerTabBtn);
+            pop.appendChild(tabsRow);
+
+            const nameInput = document.createElement('input');
+            nameInput.placeholder = 'Tu nombre';
+            nameInput.style.cssText = 'background:#1c2224;border:1px solid #333;border-radius:8px;padding:7px 9px;color:#e8f4f2;font-size:.78rem;font-family:inherit;width:100%;margin-bottom:6px;box-sizing:border-box;display:none;';
+            const emailInput = document.createElement('input');
+            emailInput.placeholder = 'Correo';
+            emailInput.type = 'email';
+            emailInput.style.cssText = nameInput.style.cssText.replace('display:none;', '');
+            const passInput = document.createElement('input');
+            passInput.placeholder = 'Contraseña';
+            passInput.type = 'password';
+            passInput.style.cssText = emailInput.style.cssText;
+            pop.append(nameInput, emailInput, passInput);
+
+            const errorEl = el('div', '', '');
+            errorEl.style.cssText = 'font-size:.68rem;color:#ff9a9a;margin-bottom:6px;min-height:1em;';
+            pop.appendChild(errorEl);
+
+            const submitBtn = el('button', 's936lib-actionbtn', 'Entrar');
+            submitBtn.style.width = '100%';
+            pop.appendChild(submitBtn);
+
+            function setMode(newMode){
+                mode = newMode;
+                nameInput.style.display = mode === 'register' ? '' : 'none';
+                submitBtn.textContent = mode === 'register' ? 'Crear cuenta' : 'Entrar';
+                loginTabBtn.classList.toggle('active', mode === 'login');
+                registerTabBtn.classList.toggle('active', mode === 'register');
+                errorEl.textContent = '';
+            }
+            loginTabBtn.onclick = () => setMode('login');
+            registerTabBtn.onclick = () => setMode('register');
+            setMode('login');
+
+            submitBtn.onclick = async () => {
+                errorEl.textContent = '';
+                if(!emailInput.value.trim() || !passInput.value.trim()){
+                    errorEl.textContent = 'Completa correo y contraseña.';
+                    return;
+                }
+                if(mode === 'register' && !nameInput.value.trim()){
+                    errorEl.textContent = 'Completa tu nombre.';
+                    return;
+                }
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Un momento...';
+                try {
+                    if(mode === 'register') await s936Register(nameInput.value.trim(), emailInput.value.trim(), passInput.value);
+                    else await s936Login(emailInput.value.trim(), passInput.value);
+                    closeAccountPopover();
+                } catch(err) {
+                    errorEl.textContent = err.message || 'Algo falló, intenta de nuevo.';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = mode === 'register' ? 'Crear cuenta' : 'Entrar';
+                }
+            };
+        }
+
+        pop.addEventListener('click', (e) => e.stopPropagation());
+        document.body.appendChild(pop);
+        positionFloatingPopover(pop, anchorEl);
+        accountPopoverEl = pop;
+    }
+    document.addEventListener('click', (e) => {
+        if(accountPopoverEl && !e.target.closest('.s936lib-gppopover') && !e.target.closest('#' + PANEL_ID + 'AccountBtn')) closeAccountPopover();
+    });
     let miniPos = null;            // {left, top} recordada mientras está en modo mini
     let lcdYoutubeTitle = null;    // título a mostrar en el LCD mientras no suene audio
     let ytFormOpen = false;        // si el mini-formulario de "+ agregar" está abierto
@@ -1024,6 +1179,9 @@
 #${PANEL_ID} .s936lib-viewbtn { background:#1c2224; border:1px solid #333; color:#9fb0ae; border-radius:8px; padding:6px 10px; font-size:.7rem; cursor:pointer; font-weight:700; }
 #${PANEL_ID} .s936lib-viewbtn.active { background:#00ffcc; color:#04342c; border-color:#00ffcc; }
 #${PANEL_ID} .s936lib-closebtn { background:transparent; border:none; color:#9fb0ae; font-size:1.3rem; cursor:pointer; line-height:1; padding:4px 8px; }
+#${PANEL_ID} .s936lib-accountbtn { background:transparent; border:1px solid rgba(255,255,255,.15); color:#9fb0ae; font-size:.7rem; border-radius:14px; padding:4px 12px; cursor:pointer; margin-right:6px; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#${PANEL_ID} .s936lib-accountbtn.is-logged-in { border-color:#00ffcc; color:#5be8c9; }
+.s936lib-gppopover .s936lib-authtab:not(.active) { opacity:.45; }
 
 #${PANEL_ID} .s936lib-tabs { display:flex; gap:4px; padding:5px 14px 0; border-bottom:1px solid rgba(255,255,255,.06); flex-wrap:wrap; }
 #${PANEL_ID} .s936lib-tab { background:transparent; border:none; color:#9fb0ae; padding:6px 12px; font-size:.74rem; font-weight:800; cursor:pointer; border-radius:10px 10px 0 0; border-bottom:2px solid transparent; }
@@ -5294,7 +5452,10 @@
         maximizeBtn.onclick = () => setWindowState(windowState === 'maximized' ? 'normal' : 'maximized');
         const closeBtn = el('button', 's936lib-closebtn', '✕');
         closeBtn.onclick = close;
-        header.append(headerText, gridBtn, listBtn, minimizeBtn, maximizeBtn, closeBtn);
+        const accountBtn = el('button', 's936lib-accountbtn', 'Iniciar sesión');
+        accountBtn.id = PANEL_ID + 'AccountBtn';
+        accountBtn.onclick = (e) => { e.stopPropagation(); openAccountPopover(accountBtn); };
+        header.append(headerText, accountBtn, gridBtn, listBtn, minimizeBtn, maximizeBtn, closeBtn);
 
         const tabs = el('div', 's936lib-tabs');
         TABS.forEach(([key, label]) => {
@@ -5465,6 +5626,7 @@
         if(!overlay) overlay = buildPanel();
         overlay.classList.add('is-open');
         render();
+        s936CheckSession();
     }
     function close(){
         // Cambio 181: si algo sigue sonando (audio propio o YouTube), la X
