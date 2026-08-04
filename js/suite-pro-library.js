@@ -80,6 +80,7 @@
             currentUser = null;
         }
         updateAccountButton();
+        if(currentUser) s936SyncCompositionsOnLogin();
     }
 
     async function s936Login(email, password){
@@ -93,6 +94,7 @@
         if(!resp.ok) throw new Error(data.message || 'Correo o contraseña incorrectos.');
         currentUser = data.user;
         updateAccountButton();
+        s936SyncCompositionsOnLogin();
         return data;
     }
 
@@ -107,6 +109,7 @@
         if(!resp.ok) throw new Error(data.message || 'No se pudo crear la cuenta.');
         currentUser = data.user;
         updateAccountButton();
+        s936SyncCompositionsOnLogin();
         return data;
     }
 
@@ -116,6 +119,77 @@
         } catch(_) { /* si falla la petición, igual cerramos sesión localmente */ }
         currentUser = null;
         updateAccountButton();
+    }
+
+    // ---------------------------------------------------------------
+    // Fase B: sincronizar Composiciones con la nube. Todo esto es
+    // "silencioso" — si no hay sesión o si falla la red, la app sigue
+    // funcionando igual que siempre con localStorage, nunca se bloquea
+    // por un problema de conexión.
+    // ---------------------------------------------------------------
+    async function s936FetchCloudCompositions(){
+        if(!currentUser) return [];
+        try {
+            const resp = await fetch(S936_API_BASE + '/api/compositions', { credentials: 'include' });
+            if(!resp.ok) return [];
+            const data = await resp.json();
+            return data.compositions || [];
+        } catch(_) { return []; }
+    }
+
+    async function s936PushComposition(item){
+        if(!currentUser) return;
+        try {
+            await fetch(S936_API_BASE + '/api/compositions', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(item)
+            });
+        } catch(_) { /* falla en silencio — se queda igual guardado localmente */ }
+    }
+
+    async function s936UpdateCloudComposition(item){
+        if(!currentUser) return;
+        try {
+            await fetch(S936_API_BASE + '/api/compositions/' + encodeURIComponent(item.id), {
+                method: 'PUT',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(item)
+            });
+        } catch(_) {}
+    }
+
+    async function s936DeleteCloudComposition(id){
+        if(!currentUser) return;
+        try {
+            await fetch(S936_API_BASE + '/api/compositions/' + encodeURIComponent(id), {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+        } catch(_) {}
+    }
+
+    // Cambio 232 (Fase B): al confirmar sesión, trae tus composiciones de
+    // la nube y las mezcla con las que ya tienes localmente — nunca borra
+    // nada local, solo agrega lo que falte o actualiza lo que sea más
+    // reciente (por fecha), para no perder trabajo de ningún lado.
+    async function s936SyncCompositionsOnLogin(){
+        const cloudItems = await s936FetchCloudCompositions();
+        if(!cloudItems.length) return;
+        let changed = false;
+        cloudItems.forEach((cloudItem) => {
+            const localItem = store.compositions.find(x => x.id === cloudItem.id);
+            if(!localItem){
+                store.compositions.push(cloudItem);
+                changed = true;
+            } else if((cloudItem.updated || 0) > (localItem.updated || 0)){
+                Object.assign(localItem, cloudItem);
+                changed = true;
+            }
+        });
+        if(changed){ saveStore(); render(); }
     }
 
     function updateAccountButton(){
@@ -2539,6 +2613,7 @@
             existing.updated = Date.now();
             saveStore();
             tryWriteCompositionJsonToConfiguredFolder(existing);
+            s936UpdateCloudComposition(existing);
             render();
             return existing.id;
         }
@@ -2556,6 +2631,7 @@
         store.compositions.unshift(entry);
         saveStore();
         tryWriteCompositionJsonToConfiguredFolder(entry);
+        s936PushComposition(entry);
         setCurrentOpenCompositionId(entry.id);
         render();
         return entry.id;
@@ -2604,6 +2680,7 @@
         store.compositions = store.compositions.filter(x => x.id !== id);
         if(getCurrentOpenCompositionId() === id) setCurrentOpenCompositionId(null);
         saveStore();
+        s936DeleteCloudComposition(id);
         render();
     }
 
@@ -2856,6 +2933,7 @@
             store.compositions.unshift(entry);
             saveStore();
             tryWriteCompositionJsonToConfiguredFolder(entry);
+            s936PushComposition(entry);
             setCurrentOpenCompositionId(entry.id);
             closeGenrePlaylistPopover();
             render();
