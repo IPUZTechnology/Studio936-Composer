@@ -3158,6 +3158,20 @@ function installStudio936AppBridge(){
         openLyrics: () => { openLyrics(); return true; },
         openHelp: () => { els.helpBtn?.click(); return true; },
         saveLocal: () => { saveProject(true); return true; },
+        newSong: () => {
+            // Mismo patrón que los modales internos — proyecto base limpio,
+            // título vacío, sin secciones previas.
+            try {
+                const p = baseProject();
+                p.title = 'Nueva canción';
+                p.author = '';
+                SONG_ORDER.forEach(k => { p.lyrics[k] = ''; if(k !== 'intro') p.sections[k] = []; });
+                setProject(p);
+                saveProject(false);
+                flashStatus('Nueva canción creada.');
+                return true;
+            } catch(e) { console.warn('newSong error:', e); return false; }
+        },
         exportTxt: () => { exportTxt(); return true; },
         exportJson: () => { exportJson(); return true; },
         exportMidi: () => { exportMidi(); return true; },
