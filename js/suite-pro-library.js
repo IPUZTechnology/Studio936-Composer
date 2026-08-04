@@ -156,15 +156,16 @@
 
             const nameInput = document.createElement('input');
             nameInput.placeholder = 'Tu nombre';
-            nameInput.style.cssText = 'background:#1c2224;border:1px solid #333;border-radius:8px;padding:7px 9px;color:#e8f4f2;font-size:.78rem;font-family:inherit;width:100%;margin-bottom:6px;box-sizing:border-box;display:none;';
+            const s936AuthInputStyle = 'background:#1c2224;border:1px solid #333;border-radius:8px;padding:7px 9px;color:#e8f4f2;font-size:.78rem;font-family:inherit;width:100%;margin-bottom:6px;box-sizing:border-box;';
+            nameInput.style.cssText = s936AuthInputStyle + 'display:none;';
             const emailInput = document.createElement('input');
             emailInput.placeholder = 'Correo';
             emailInput.type = 'email';
-            emailInput.style.cssText = nameInput.style.cssText.replace('display:none;', '');
+            emailInput.style.cssText = s936AuthInputStyle;
             const passInput = document.createElement('input');
             passInput.placeholder = 'Contraseña';
             passInput.type = 'password';
-            passInput.style.cssText = emailInput.style.cssText;
+            passInput.style.cssText = s936AuthInputStyle;
             pop.append(nameInput, emailInput, passInput);
 
             const errorEl = el('div', '', '');
