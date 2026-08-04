@@ -3159,14 +3159,16 @@ function installStudio936AppBridge(){
         openHelp: () => { els.helpBtn?.click(); return true; },
         saveLocal: () => { saveProject(true); return true; },
         newSong: () => {
-            // Mismo patrón que los modales internos — proyecto base limpio,
-            // título vacío, sin secciones previas.
+            // Usa loadProject (ya en el Bridge) con un proyecto base limpio.
+            // baseProject/SONG_ORDER/setProject están fuera del scope del
+            // Bridge — no se pueden llamar directo desde aquí.
             try {
                 const p = baseProject();
                 p.title = 'Nueva canción';
                 p.author = '';
                 SONG_ORDER.forEach(k => { p.lyrics[k] = ''; if(k !== 'intro') p.sections[k] = []; });
-                setProject(p);
+                project = modelNormalizeProject(p, styles, instruments);
+                renderAll();
                 saveProject(false);
                 flashStatus('Nueva canción creada.');
                 return true;
