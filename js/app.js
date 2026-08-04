@@ -3094,7 +3094,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.3.19-cambio146-midi-live',
+        version: 'suite-pro-bridge-v0.7.3.20-cambio234-newsong',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
