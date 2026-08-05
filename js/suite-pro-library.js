@@ -679,6 +679,13 @@
         (list || []).forEach((item) => { if(item.albumId === undefined) item.albumId = null; });
     }
 
+    // Cambio 235: composiciones viejas sin campo status quedan como
+    // 'published' — ya estaban en la Librería, se consideran publicadas.
+    // Las nuevas que vengan del Composer llegan como 'draft'.
+    function ensureStatusField(list){
+        (list || []).forEach((item) => { if(!item.status) item.status = 'published'; });
+    }
+
     function loadStore(){
         try {
             const raw = localStorage.getItem(STORE_KEY);
@@ -696,6 +703,7 @@
             ensurePlaylistsField(s.youtube);
             ensurePlaylistsField(s.radio);
             ensureAlbumIdField(s.compositions);
+            ensureStatusField(s.compositions);
             return s;
         } catch(_) { return emptyStore(); }
     }
@@ -3121,79 +3129,125 @@
         return wrap;
     }
 
+    function publishComposition(id){
+        const item = store.compositions.find(x => x.id === id);
+        if(!item) return;
+        item.status = 'published';
+        item.updated = Date.now();
+        saveStore();
+        s936UpdateCloudComposition(item);
+        render();
+    }
+
     function renderCompositions(body){
         if(shouldShowMediaSurface('compositions')) body.appendChild(buildCompositionsVisual());
 
-        const list = store.compositions.filter(x => {
+        const allFiltered = store.compositions.filter(x => {
             if(!matchesSearch(x)) return false;
             if(activeGenreFilter && itemGenreLabel('compositions',x) !== activeGenreFilter) return false;
             if(activeAlbumFilter === 'none' && x.albumId) return false;
             if(activeAlbumFilter && activeAlbumFilter !== 'none' && x.albumId !== activeAlbumFilter) return false;
             return true;
         });
-        if(!list.length){
-            body.appendChild(el('div', 's936lib-empty', store.compositions.length ? 'Sin resultados.' : 'Todavía no has guardado ninguna composición. Se guardan desde donde estás componiendo.'));
+
+        const drafts = allFiltered.filter(x => x.status === 'draft');
+        const published = allFiltered.filter(x => x.status !== 'draft');
+
+        if(!allFiltered.length){
+            body.appendChild(el('div', 's936lib-empty', store.compositions.length ? 'Sin resultados.' : 'Todavía no has guardado ninguna composición. Usa "Guardar en librería" desde el editor.'));
             return;
         }
-        if(viewMode === 'grid'){
-            const grid = el('div', 's936lib-ytgrid');
-            list.forEach((item) => {
-                const isPlaying = currentPlayingComp === item.id && !!audioEl && !audioEl.paused;
-                const card = el('div', 's936lib-ytcard' + (isPlaying ? ' active' : ''));
-                const thumb = buildCompositionThumb(item, 's936lib-ytthumb', isPlaying);
-                thumb.appendChild(el('div', 'playicon', isPlaying ? '⏸' : '▶'));
-                const cardBody = el('div', 's936lib-ytcardbody');
-                cardBody.appendChild(el('div', 's936lib-ytcardtitle', item.title));
-                const album = getAlbum(item.albumId);
-                cardBody.appendChild(el('div', 's936lib-ytcardnotes', (album ? album.name + ' · ' : '') + (item.author || 'Sin autor') + ' · ' + fmtDate(item.updated)));
-                const actions = el('div', 's936lib-ytcardactions');
-                const playBtn = el('button', 's936lib-mini play', isPlaying ? '⏸ Sonando' : '▶ Play');
-                playBtn.onclick = (e) => { e.stopPropagation(); previewComposition(item.id, playBtn); };
-                actions.append(playBtn, genreTag('compositions', item));
-                const kebab = buildKebabMenu([
-                    { icon:'⏏', label:'Abrir', onClick: () => openComposition(item.id) },
-                    { icon:'✎', label:'Cambiar nombre', onClick: () => renameComposition(item.id) },
-                    { icon:'🏷', label:'Editar listas', onClick: () => openEditPlaylistsOnlyPopover('compositions', item) },
-                    { icon:'⧉', label:'Duplicar', onClick: () => duplicateComposition(item.id) },
-                    { icon:'💿', label:'Mover a álbum', onClick: () => openMoveToAlbumPopover(item, kebab.querySelector('.s936lib-kebab')) },
-                    { icon:'🎤', label:'Publicar en Escenario', onClick: () => openStagePublishModal('compositions', item.id, stagePosts().find(p => p.sourceType === 'compositions' && p.sourceId === item.id)) },
-                    { icon:'✕', label:'Borrar', danger:true, onClick: () => deleteComposition(item.id) }
-                ]);
-                actions.appendChild(kebab);
-                cardBody.appendChild(actions);
-                card.append(thumb, cardBody);
-                card.onclick = () => previewComposition(item.id, card);
-                grid.appendChild(card);
-            });
-            body.appendChild(grid);
-        } else {
-            const listWrap = el('div', 's936lib-listwrap');
-            list.forEach((item) => {
-                const isPlaying = currentPlayingComp === item.id && !!audioEl && !audioEl.paused;
-                const row = el('div', 's936lib-list-row' + (isPlaying ? ' playing' : ''));
-                const thumb = buildCompositionThumb(item, 's936lib-list-thumb', isPlaying);
-                const title = el('div', 's936lib-list-title', item.title);
-                const album = getAlbum(item.albumId);
-                const meta = el('div', 's936lib-list-meta', (album ? album.name + ' · ' : '') + (item.author || 'Sin autor') + ' · ' + fmtDate(item.updated));
-                const actions = el('div', 's936lib-list-actions');
-                const playBtn = el('button', 's936lib-mini play', isPlaying ? '⏸' : '▶');
-                playBtn.onclick = (e) => { e.stopPropagation(); previewComposition(item.id, playBtn); };
-                actions.append(playBtn, genreTag('compositions', item));
-                const kebab = buildKebabMenu([
-                    { icon:'⏏', label:'Abrir', onClick: () => openComposition(item.id) },
-                    { icon:'✎', label:'Cambiar nombre', onClick: () => renameComposition(item.id) },
-                    { icon:'🏷', label:'Editar listas', onClick: () => openEditPlaylistsOnlyPopover('compositions', item) },
-                    { icon:'⧉', label:'Duplicar', onClick: () => duplicateComposition(item.id) },
-                    { icon:'💿', label:'Mover a álbum', onClick: () => openMoveToAlbumPopover(item, kebab.querySelector('.s936lib-kebab')) },
-                    { icon:'🎤', label:'Publicar en Escenario', onClick: () => openStagePublishModal('compositions', item.id, stagePosts().find(p => p.sourceType === 'compositions' && p.sourceId === item.id)) },
-                    { icon:'✕', label:'Borrar', danger:true, onClick: () => deleteComposition(item.id) }
-                ]);
-                actions.appendChild(kebab);
-                row.append(thumb, title, meta, actions);
-                row.onclick = () => previewComposition(item.id, row);
-                listWrap.appendChild(row);
-            });
-            body.appendChild(listWrap);
+
+        function buildCompositionCards(list, isDraft){
+            if(!list.length) return null;
+            if(viewMode === 'grid'){
+                const grid = el('div', 's936lib-ytgrid');
+                list.forEach((item) => {
+                    const isPlaying = currentPlayingComp === item.id && !!audioEl && !audioEl.paused;
+                    const card = el('div', 's936lib-ytcard' + (isPlaying ? ' active' : '') + (isDraft ? ' s936-draft-card' : ''));
+                    const thumb = buildCompositionThumb(item, 's936lib-ytthumb', isPlaying);
+                    thumb.appendChild(el('div', 'playicon', isPlaying ? '⏸' : '▶'));
+                    const cardBody = el('div', 's936lib-ytcardbody');
+                    const titleRow = el('div', '');
+                    titleRow.style.cssText = 'display:flex;align-items:center;gap:6px;';
+                    if(isDraft){
+                        const badge = el('span', '', 'BORRADOR');
+                        badge.style.cssText = 'font-size:.55rem;font-weight:800;background:rgba(255,200,0,.15);color:#ffcf5c;border:1px solid rgba(255,200,0,.3);border-radius:4px;padding:1px 5px;flex-shrink:0;';
+                        titleRow.appendChild(badge);
+                    }
+                    titleRow.appendChild(el('div', 's936lib-ytcardtitle', item.title));
+                    const album = getAlbum(item.albumId);
+                    cardBody.append(titleRow, el('div', 's936lib-ytcardnotes', (album ? album.name + ' · ' : '') + (item.author || 'Sin autor') + ' · ' + fmtDate(item.updated)));
+                    const actions = el('div', 's936lib-ytcardactions');
+                    const playBtn = el('button', 's936lib-mini play', isPlaying ? '⏸ Sonando' : '▶ Play');
+                    playBtn.onclick = (e) => { e.stopPropagation(); previewComposition(item.id, playBtn); };
+                    actions.append(playBtn, genreTag('compositions', item));
+                    const kebabItems = [
+                        { icon:'⏏', label:'Abrir en editor', onClick: () => openComposition(item.id) },
+                        { icon:'✎', label:'Cambiar nombre', onClick: () => renameComposition(item.id) },
+                        { icon:'🏷', label:'Editar listas', onClick: () => openEditPlaylistsOnlyPopover('compositions', item) },
+                        { icon:'⧉', label:'Duplicar', onClick: () => duplicateComposition(item.id) },
+                        { icon:'💿', label:'Mover a álbum', onClick: () => openMoveToAlbumPopover(item, actions.querySelector('.s936lib-kebab')) },
+                    ];
+                    if(isDraft) kebabItems.push({ icon:'🚀', label:'Publicar en Librería', onClick: () => publishComposition(item.id) });
+                    else kebabItems.push({ icon:'🎤', label:'Publicar en Escenario', onClick: () => openStagePublishModal('compositions', item.id, stagePosts().find(p => p.sourceType === 'compositions' && p.sourceId === item.id)) });
+                    kebabItems.push({ icon:'✕', label:'Borrar', danger:true, onClick: () => deleteComposition(item.id) });
+                    actions.appendChild(buildKebabMenu(kebabItems));
+                    cardBody.appendChild(actions);
+                    card.append(thumb, cardBody);
+                    card.onclick = () => previewComposition(item.id, card);
+                    grid.appendChild(card);
+                });
+                return grid;
+            } else {
+                const listWrap = el('div', 's936lib-listwrap');
+                list.forEach((item) => {
+                    const isPlaying = currentPlayingComp === item.id && !!audioEl && !audioEl.paused;
+                    const row = el('div', 's936lib-list-row' + (isPlaying ? ' playing' : '') + (isDraft ? ' s936-draft-row' : ''));
+                    const thumb = buildCompositionThumb(item, 's936lib-list-thumb', isPlaying);
+                    const titleEl = el('div', 's936lib-list-title', item.title);
+                    if(isDraft){
+                        const badge = el('span', '', ' [Borrador]');
+                        badge.style.cssText = 'font-size:.65rem;color:#ffcf5c;';
+                        titleEl.appendChild(badge);
+                    }
+                    const metaEl = el('div', 's936lib-list-meta', (item.author || 'Sin autor') + ' · ' + fmtDate(item.updated));
+                    const actions = el('div', 's936lib-list-actions');
+                    const playBtn = el('button', 's936lib-mini play', isPlaying ? '⏸' : '▶');
+                    playBtn.onclick = (e) => { e.stopPropagation(); previewComposition(item.id, playBtn); };
+                    actions.append(playBtn, genreTag('compositions', item));
+                    const kebabItems = [
+                        { icon:'⏏', label:'Abrir en editor', onClick: () => openComposition(item.id) },
+                        { icon:'✎', label:'Cambiar nombre', onClick: () => renameComposition(item.id) },
+                        { icon:'🏷', label:'Editar listas', onClick: () => openEditPlaylistsOnlyPopover('compositions', item) },
+                        { icon:'⧉', label:'Duplicar', onClick: () => duplicateComposition(item.id) },
+                    ];
+                    if(isDraft) kebabItems.push({ icon:'🚀', label:'Publicar en Librería', onClick: () => publishComposition(item.id) });
+                    else kebabItems.push({ icon:'🎤', label:'Publicar en Escenario', onClick: () => openStagePublishModal('compositions', item.id, stagePosts().find(p => p.sourceType === 'compositions' && p.sourceId === item.id)) });
+                    kebabItems.push({ icon:'✕', label:'Borrar', danger:true, onClick: () => deleteComposition(item.id) });
+                    actions.appendChild(buildKebabMenu(kebabItems));
+                    row.append(thumb, titleEl, metaEl, actions);
+                    row.onclick = () => previewComposition(item.id, row);
+                    listWrap.appendChild(row);
+                });
+                return listWrap;
+            }
+        }
+
+        // Mostrar borradores primero, luego publicadas
+        if(drafts.length){
+            const draftHeader = el('div', 's936lib-section-header', '✏ Borradores');
+            draftHeader.style.cssText = 'font-size:.7rem;font-weight:800;color:#ffcf5c;padding:8px 0 4px;text-transform:uppercase;letter-spacing:.08em;';
+            body.appendChild(draftHeader);
+            body.appendChild(buildCompositionCards(drafts, true));
+        }
+        if(published.length){
+            if(drafts.length){
+                const pubHeader = el('div', 's936lib-section-header', '✓ Librería');
+                pubHeader.style.cssText = 'font-size:.7rem;font-weight:800;color:#5be8c9;padding:12px 0 4px;text-transform:uppercase;letter-spacing:.08em;';
+                body.appendChild(pubHeader);
+            }
+            body.appendChild(buildCompositionCards(published, false));
         }
     }
 

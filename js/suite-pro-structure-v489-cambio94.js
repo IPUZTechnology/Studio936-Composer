@@ -5962,6 +5962,8 @@ ${measures}  </part>
         await writable.close();
         // Guardar también en localStorage como backup
         saveToLocalLib(payload);
+        // Cambio 235: también enviar a la Librería nueva como borrador
+        syncToStudio936Library(payload);
         toast(ctx, `Guardado en carpeta: ${filename}`);
         return;
       } catch(e) { console.warn("FileSystem write error:", e); }
@@ -5969,6 +5971,8 @@ ${measures}  </part>
 
     // 2. Fallback: localStorage + descarga
     saveToLocalLib(payload);
+    // Cambio 235: también enviar a la Librería nueva como borrador
+    syncToStudio936Library(payload);
     // Descarga automática
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -5976,6 +5980,25 @@ ${measures}  </part>
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
     toast(ctx, "Guardado en librería local.");
+  }
+
+  // Cambio 235: después de guardar (carpeta o fallback), también enviar
+  // a la Librería nueva (Studio936Library) como borrador. Si no hay sesión
+  // activa, falla en silencio — la canción ya quedó guardada localmente.
+  async function syncToStudio936Library(payload) {
+    const lib = window.Studio936Library;
+    if(!lib || typeof lib.saveOrUpdateCurrent !== 'function') return;
+    const snapshot = {
+      title: payload.meta?.title || 'Sin título',
+      author: payload.meta?.author || '',
+      style: payload.meta?.style || '',
+      bpm: payload.meta?.bpm || 95,
+      instrument: payload.meta?.instrument || 'piano',
+      sections: payload.sections || {},
+      lyrics: payload.lyrics || {},
+      status: 'draft'
+    };
+    try { lib.saveOrUpdateCurrent(snapshot); } catch(_) {}
   }
 
   function saveToLocalLib(payload) {
