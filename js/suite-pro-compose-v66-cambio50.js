@@ -876,6 +876,19 @@ html, body{
     dd.appendChild(item("Configuración", () => openTool("settings")));
     dd.appendChild(item("Nueva canción", () => window.Studio936AppBridge?.newSong?.()));
     dd.appendChild(item("Guardar local", () => window.Studio936AppBridge?.saveLocal?.() || window.Studio936AppBridge?.save?.()));
+    dd.appendChild(item("Guardar en Librería", () => {
+      // Cambio 235: guarda la canción actual como borrador en la Librería
+      // nueva (Studio936Library) — aparece en Composiciones bajo "Borradores"
+      // y se sincroniza con la nube si hay sesión activa.
+      const snap = window.Studio936AppBridge?.getProjectSnapshot?.();
+      if(snap && window.Studio936Library?.saveOrUpdateCurrent) {
+        snap.status = 'draft';
+        window.Studio936Library.saveOrUpdateCurrent(snap);
+      } else {
+        // Fallback: si no hay snapshot disponible, guardar local
+        window.Studio936AppBridge?.saveLocal?.();
+      }
+    }, "warn"));
     dd.appendChild(item("Exportar / imprimir", () => window.Studio936ExportEngine?.open?.() || window.print?.(), "warn"));
     dd.appendChild(header("Studio"));
     dd.appendChild(item("Abrir Studio", () => {
