@@ -718,6 +718,121 @@ html, body{
   }
 
   function safe(fn, fallback = null) {
+
+  // ---------------------------------------------------------------
+  // Cambio 236: Modal "Nueva canción" — título, autor, álbum y plantilla
+  // ---------------------------------------------------------------
+  function openNewSongModal() {
+    // Limpiar modal previo si existe
+    document.getElementById('s936-newsong-modal')?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 's936-newsong-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99999;display:flex;align-items:center;justify-content:center;';
+
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:#0d1a17;border:1px solid #1e3530;border-radius:16px;padding:28px 24px;width:360px;max-width:95vw;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 40px rgba(0,0,0,.6);';
+
+    // Título del modal
+    const title = document.createElement('div');
+    title.style.cssText = 'font-size:1rem;font-weight:800;color:#00ffcc;letter-spacing:.04em;margin-bottom:4px;';
+    title.textContent = '✦ Nueva canción';
+    modal.appendChild(title);
+
+    function field(placeholder, value = '') {
+      const inp = document.createElement('input');
+      inp.placeholder = placeholder;
+      inp.value = value;
+      inp.style.cssText = 'background:#1c2224;border:1px solid #2a3a37;border-radius:10px;padding:9px 12px;color:#e8f4f2;font-size:.82rem;font-family:inherit;width:100%;box-sizing:border-box;outline:none;';
+      return inp;
+    }
+    function label(text) {
+      const l = document.createElement('div');
+      l.style.cssText = 'font-size:.68rem;color:#9fb0ae;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:-6px;';
+      l.textContent = text;
+      return l;
+    }
+    function select(options, defaultVal = '') {
+      const s = document.createElement('select');
+      s.style.cssText = 'background:#1c2224;border:1px solid #2a3a37;border-radius:10px;padding:9px 12px;color:#e8f4f2;font-size:.82rem;font-family:inherit;width:100%;box-sizing:border-box;';
+      options.forEach(([val, txt]) => {
+        const o = document.createElement('option');
+        o.value = val; o.textContent = txt;
+        if(val === defaultVal) o.selected = true;
+        s.appendChild(o);
+      });
+      return s;
+    }
+
+    // Nombre de la canción
+    const snap = window.Studio936AppBridge?.getProjectSnapshot?.();
+    modal.appendChild(label('Título'));
+    const titleInp = field('Nombre de la canción', snap?.title || '');
+    modal.appendChild(titleInp);
+
+    // Autor — sugiere el nombre del usuario logeado
+    const user = window.Studio936Library?.getCurrentUser?.();
+    modal.appendChild(label('Autor'));
+    const authorInp = field('Autor', snap?.author || user?.name || '');
+    modal.appendChild(authorInp);
+
+    // Álbum — lista los álbumes existentes
+    const albums = window.Studio936Library?.getAlbums?.() || [];
+    modal.appendChild(label('Álbum'));
+    const albumOpts = [['', 'Sin álbum'], ...albums.map(a => [a.id, a.name])];
+    const albumSel = select(albumOpts, store ? store.activeAlbumId || '' : '');
+    modal.appendChild(albumSel);
+
+    // Punto de partida: en blanco o desde plantilla
+    modal.appendChild(label('¿Cómo quieres empezar?'));
+    const startOpts = [['blank', 'En blanco'], ...TEMPLATES.map(t => [t.id, t.name + ' — ' + t.vibe])];
+    const startSel = select(startOpts, 'blank');
+    modal.appendChild(startSel);
+
+    // Botones
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:10px;margin-top:8px;';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancelar';
+    cancelBtn.style.cssText = 'flex:1;background:transparent;border:1px solid #2a3a37;color:#9fb0ae;border-radius:10px;padding:10px;font-size:.82rem;cursor:pointer;';
+    cancelBtn.onclick = () => overlay.remove();
+
+    const createBtn = document.createElement('button');
+    createBtn.textContent = 'Crear canción';
+    createBtn.style.cssText = 'flex:2;background:rgba(0,255,204,.15);border:1px solid #00ffcc;color:#00ffcc;border-radius:10px;padding:10px;font-size:.82rem;font-weight:800;cursor:pointer;';
+    createBtn.onclick = () => {
+      const tpl = TEMPLATES.find(t => t.id === startSel.value);
+      // Construir el proyecto nuevo — en blanco o con la plantilla elegida
+      const newProject = {
+        title: titleInp.value.trim() || 'Nueva canción',
+        author: authorInp.value.trim(),
+        style: tpl?.style || 'pop',
+        bpm: tpl?.bpm || 95,
+        instrument: 'piano',
+        sections: tpl ? JSON.parse(JSON.stringify(tpl.sections || {})) : {},
+        lyrics: {},
+        status: 'draft',
+      };
+      // Cargar en el editor
+      const ok = window.Studio936AppBridge?.loadProject?.(newProject);
+      if(ok !== false){
+        // Guardar en Librería como nuevo borrador
+        if(window.Studio936Library?.saveOrUpdateCurrent){
+          // Forzar que sea entrada nueva (no actualizar la actual)
+          window.Studio936Library.setCurrentOpenCompositionId?.(null);
+          window.Studio936Library.saveOrUpdateCurrent(newProject);
+        }
+      }
+      overlay.remove();
+    };
+    btnRow.append(cancelBtn, createBtn);
+    modal.appendChild(btnRow);
+
+    overlay.appendChild(modal);
+    overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+    setTimeout(() => titleInp.focus(), 50);
+  }
     try { return fn(); } catch (error) { console.warn("Suite Pro Compose:", error); return fallback; }
   }
 
@@ -874,7 +989,7 @@ html, body{
     dd.appendChild(item("Acordes IA", () => openTool("chordAI")));
     dd.appendChild(item("Librería / sonidos", () => openTool("library")));
     dd.appendChild(item("Configuración", () => openTool("settings")));
-    dd.appendChild(item("Nueva canción", () => window.Studio936AppBridge?.newSong?.()));
+    dd.appendChild(item("Nueva canción", () => openNewSongModal()));
     dd.appendChild(item("Guardar local", () => window.Studio936AppBridge?.saveLocal?.() || window.Studio936AppBridge?.save?.()));
     dd.appendChild(item("Guardar en Librería", () => {
       // Cambio 235: guarda la canción actual como borrador en la Librería

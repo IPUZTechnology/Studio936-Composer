@@ -5796,6 +5796,10 @@
         // composición esté marcada como "actual" (la última que se abrió).
         saveOrUpdateCurrent,
         getCurrentOpenCompositionId,
-        setCurrentOpenCompositionId
+        setCurrentOpenCompositionId,
+        // Cambio 236: exponer álbumes y usuario actual para que el Composer
+        // los use en el formulario de "Nueva canción".
+        getAlbums: () => store.albums || [],
+        getCurrentUser: () => currentUser || null,
     };
 })();
