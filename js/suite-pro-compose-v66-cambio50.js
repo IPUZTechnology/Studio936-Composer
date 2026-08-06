@@ -718,6 +718,8 @@ html, body{
   }
 
   function safe(fn, fallback = null) {
+    try { return fn(); } catch (error) { console.warn("Suite Pro Compose:", error); return fallback; }
+  }
 
   // ---------------------------------------------------------------
   // Cambio 236: Modal "Nueva canción" — título, autor, álbum y plantilla
@@ -832,8 +834,6 @@ html, body{
     overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
     document.body.appendChild(overlay);
     setTimeout(() => titleInp.focus(), 50);
-  }
-    try { return fn(); } catch (error) { console.warn("Suite Pro Compose:", error); return fallback; }
   }
 
   function render(ctx) {
