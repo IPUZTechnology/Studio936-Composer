@@ -5472,7 +5472,9 @@ body.s936-chart-stage main{
         || chords.reduce((s, c) => s + (Number(c.bars) || 1), 0)
         || 4;
       if (!Array.isArray(chords) || !chords.length) {
-        chords = defaultSectionChordsForChart(item.section, totalMeasures);
+        // Cambio 239: no generar acordes por defecto en canciones nuevas
+        const _mainProj = JSON.parse(localStorage.getItem("studio936ComposerV25SongStructure") || "{}");
+        if(!_mainProj.isNewSong) chords = defaultSectionChordsForChart(item.section, totalMeasures);
       }
 
       prepopulate(item.section, chords);
