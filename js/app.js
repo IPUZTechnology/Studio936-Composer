@@ -3179,6 +3179,10 @@ function installStudio936AppBridge(){
                     arrangement: []
                 };
                 localStorage.setItem('studio936ComposerV25SongStructure', JSON.stringify(blank));
+                // Limpiar el borrador de Structure — el Chart lo lee desde
+                // 's936_suitepro_structure_v4' independientemente del proyecto
+                // principal, y si no se limpia, sigue mostrando la canción anterior.
+                localStorage.removeItem('s936_suitepro_structure_v4');
                 setTimeout(() => location.reload(), 80);
                 return true;
             } catch(e) { console.warn('newSong error:', e); return false; }
