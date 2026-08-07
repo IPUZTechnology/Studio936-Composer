@@ -843,7 +843,7 @@ html, body{
         // después del reload que hace newSong (location.reload no mantiene
         // el estado en memoria).
         if(tpl){
-          sessionStorage.setItem('s936_open_template', tpl.name);
+          sessionStorage.setItem('s936_open_template', tpl.id);
         }
       }, 200);
     };
@@ -856,7 +856,10 @@ html, body{
     setTimeout(() => titleInp.focus(), 50);
   }
 
+  let _lastCtx = null; // Cambio 242: guardamos el último ctx para poder llamar applyTemplateToSong desde afuera
+
   function render(ctx) {
+    _lastCtx = ctx; // Guardar para uso externo
     installStyles();
     const c = ctx.clearContent();
     // Cambio 37: sin título interno "Composición Pro"; el modo ya vive en la pestaña COMPOSE.
@@ -2011,38 +2014,19 @@ function renderChordAI(ctx, shell) {
       // Actualizar título en la barra superior
       const titleField = document.querySelector('#songTitle,input[name="title"],[data-field="title"],input[placeholder*="ítulo"],input[placeholder*="itle"]');
       if(titleField && pendingTitle){ titleField.value = pendingTitle; titleField.dispatchEvent(new Event('input',{bubbles:true})); titleField.dispatchEvent(new Event('change',{bubbles:true})); }
-      // Abrir Template Cockpit si hay plantilla pendiente
+      // Aplicar plantilla directamente si hay una pendiente
       if(pendingTemplate){
-        // Intentar abrir el panel de Plantillas — con reintentos porque
-        // el panel puede no estar montado todavía al cargar la página.
+        // Dar tiempo a que el módulo se monte y _lastCtx esté disponible
         let attempts = 0;
-        const tryOpenTemplates = () => {
+        const tryApply = () => {
           attempts++;
-          // Método 1: usar openTool interno si está disponible
-          const root = document.getElementById('s936SuitePro') || document;
-          // Buscar el botón de Plantillas en el menú del Dock (visible o no)
-          const allBtns = Array.from(document.querySelectorAll('button,[role="button"]'));
-          const plantBtn = allBtns.find(b => {
-            const t = b.textContent?.trim() || '';
-            return t === 'Plantillas' || t === 'Templates';
-          });
-          if(plantBtn){ plantBtn.click(); return; }
-          // Método 2: abrir el menú primero y luego buscar Plantillas
-          const menuBtn = allBtns.find(b => (b.textContent?.trim() || '').includes('MENÚ') || (b.textContent?.trim() || '').includes('Menú'));
-          if(menuBtn){
-            menuBtn.click();
-            setTimeout(() => {
-              const plantBtn2 = Array.from(document.querySelectorAll('button,[role="button"]')).find(b => {
-                const t = b.textContent?.trim() || '';
-                return t === 'Plantillas' || t === 'Templates';
-              });
-              if(plantBtn2) plantBtn2.click();
-            }, 200);
-            return;
+          if(typeof window.S936ApplyTemplate === 'function'){
+            window.S936ApplyTemplate(pendingTemplate);
+          } else if(attempts < 5) {
+            setTimeout(tryApply, 800);
           }
-          if(attempts < 5) setTimeout(tryOpenTemplates, 800);
         };
-        setTimeout(tryOpenTemplates, 600);
+        setTimeout(tryApply, 800);
       }
     }
   }, 1500);
@@ -2051,6 +2035,14 @@ function renderChordAI(ctx, shell) {
   // de botones puedan llamarlas sin problemas de scope del IIFE.
   window.S936OpenNewSongModal = openNewSongModal;
   window.S936SetTemplate = (name) => { state.selectedTemplate = name; };
+  // Cambio 242: exponer applyTemplate para que el modal de nueva canción
+  // pueda aplicar la plantilla directamente sin necesitar abrir el panel
+  window.S936ApplyTemplate = (templateId) => {
+    const tpl = TEMPLATES.find(t => t.id === templateId || t.name === templateId);
+    if(!tpl || !_lastCtx) return;
+    const key = keyOf(_lastCtx) || 'C';
+    applyTemplateToSong(_lastCtx, tpl, key);
+  };
   window.S936OpenTool = (tool) => {
     // Mapeo de tool a textos posibles en español/inglés
     const labels = {
