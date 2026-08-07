@@ -3094,7 +3094,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.3.20-cambio234-newsong',
+        version: 'suite-pro-bridge-v0.7.3.21-cambio237-newsong-fix',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -3159,10 +3159,11 @@ function installStudio936AppBridge(){
         openHelp: () => { els.helpBtn?.click(); return true; },
         saveLocal: () => { saveProject(true); return true; },
         newSong: () => {
-            // loadProject ya está en el Bridge y llama a modelNormalizeProject
-            // internamente — que completa cualquier campo faltante con los
-            // valores por defecto. Pasamos solo título vacío y secciones
-            // vacías; el normalizador hace el resto.
+            // Usa setProject directamente (no loadProject/modelNormalizeProject)
+            // porque modelNormalizeProject hace {...baseProject(), ...blank}
+            // y los defaults de "Despertar de un Sueño" siempre ganan.
+            // setProject guarda en localStorage y recarga la página — eso sí
+            // garantiza un estado limpio de verdad.
             try {
                 const blank = {
                     title: 'Nueva canción',
@@ -3170,12 +3171,15 @@ function installStudio936AppBridge(){
                     bpm: 95,
                     style: 'pop',
                     instrument: 'piano',
-                    sections: { intro:[], verse:[], verse1:[], verse2:[], verse3:[], prechorus:[], chorus:[], interlude:[], solo:[] },
-                    lyrics: { intro:'', verse:'', verse1:'', verse2:'', verse3:'', prechorus:'', chorus:'', interlude:'', solo:'' }
+                    grooveVol: 7,
+                    viewMode: 'piano',
+                    sections: { intro:[], verse:[], verse1:[], verse2:[], verse3:[], prechorus:[], chorus:[], interlude:[], solo:[], bridge:[], outro:[] },
+                    lyrics: { intro:'', verse:'', verse1:'', verse2:'', verse3:'', prechorus:'', chorus:'', interlude:'', solo:'', bridge:'', outro:'' },
+                    sectionSolos: {},
+                    arrangement: []
                 };
-                const ok = window.Studio936AppBridge.loadProject(blank);
-                if(ok) flashStatus('Nueva canción creada.');
-                return ok;
+                setProject(blank, true);
+                return true;
             } catch(e) { console.warn('newSong error:', e); return false; }
         },
         exportTxt: () => { exportTxt(); return true; },
