@@ -288,6 +288,8 @@ function normalizeSectionSolos(raw, legacy, defaults){
 }
 
 function normalizeArrangement(raw, prj){
+    // Cambio 239: canción nueva sin secciones — arrangement vacío.
+    if(prj && prj.isNewSong) return [];
     const fallback = defaultArrangement();
     const sections = prj && prj.sections ? prj.sections : {};
     let arr = Array.isArray(raw) && raw.length ? raw : fallback;
