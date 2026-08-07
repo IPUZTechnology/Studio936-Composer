@@ -804,15 +804,21 @@ html, body{
     createBtn.style.cssText = 'flex:2;background:rgba(0,255,204,.15);border:1px solid #00ffcc;color:#00ffcc;border-radius:10px;padding:10px;font-size:.82rem;font-weight:800;cursor:pointer;';
     createBtn.onclick = () => {
       const tpl = TEMPLATES.find(t => t.id === startSel.value);
-      // Construir el proyecto nuevo — en blanco o con la plantilla elegida
+      // Proyecto nuevo — secciones VACÍAS para que el editor arranque limpio.
+      // El estilo y BPM de la plantilla sí se aplican. Las secciones de la
+      // plantilla están en formato de grados (["I","V",...]) que el editor
+      // no puede cargar directamente — el usuario las aplica desde el panel
+      // "Plantillas" dentro del editor si las quiere.
       const newProject = {
         title: titleInp.value.trim() || 'Nueva canción',
         author: authorInp.value.trim(),
         style: tpl?.style || 'pop',
         bpm: tpl?.bpm || 95,
         instrument: 'piano',
-        sections: tpl ? JSON.parse(JSON.stringify(tpl.sections || {})) : {},
+        key: 'C',
+        sections: {},
         lyrics: {},
+        arrangement: [],
         status: 'draft',
       };
       // Cargar en el editor
@@ -820,7 +826,6 @@ html, body{
       if(ok !== false){
         // Guardar en Librería como nuevo borrador
         if(window.Studio936Library?.saveOrUpdateCurrent){
-          // Forzar que sea entrada nueva (no actualizar la actual)
           window.Studio936Library.setCurrentOpenCompositionId?.(null);
           window.Studio936Library.saveOrUpdateCurrent(newProject);
         }
