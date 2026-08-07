@@ -3094,7 +3094,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.3.22-cambio238-newsong-direct',
+        version: 'suite-pro-bridge-v0.7.3.23-cambio238-isnewsong',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -3165,6 +3165,7 @@ function installStudio936AppBridge(){
             // para un estado completamente limpio.
             try {
                 const blank = {
+                    isNewSong: true,
                     title: 'Nueva canción',
                     author: '',
                     bpm: 95,

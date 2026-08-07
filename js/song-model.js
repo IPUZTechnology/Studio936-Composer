@@ -312,7 +312,8 @@ function normalizeProject(p, styles={}, instruments={}){
     merged.lyrics = {...d.lyrics, ...(p.lyrics||{})};
     merged.sectionSolos = normalizeSectionSolos(p.sectionSolos || null, p, d.sectionSolos);
     Object.keys(merged.sections).forEach(k=>{
-        if(!Array.isArray(merged.sections[k]) || !merged.sections[k].length) merged.sections[k]=d.sections[k] || [chord('C','C2','C3 E3 G3',1)];
+        if(!Array.isArray(merged.sections[k])) merged.sections[k] = merged.isNewSong ? [] : (d.sections[k] || [chord('C','C2','C3 E3 G3',1)]);
+        else if(!merged.sections[k].length && !merged.isNewSong) merged.sections[k] = d.sections[k] || [chord('C','C2','C3 E3 G3',1)];
         merged.sections[k] = merged.sections[k].map((x,i)=>normalizeChord(x, d.sections[k]?.[i] || null));
     });
     merged.voicingLibrary = normalizeVoicingLibrary(p.voicingLibrary || merged.voicingLibrary);
