@@ -3094,7 +3094,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.3.21-cambio237-newsong-fix',
+        version: 'suite-pro-bridge-v0.7.3.22-cambio238-newsong-direct',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -3159,11 +3159,10 @@ function installStudio936AppBridge(){
         openHelp: () => { els.helpBtn?.click(); return true; },
         saveLocal: () => { saveProject(true); return true; },
         newSong: () => {
-            // Usa setProject directamente (no loadProject/modelNormalizeProject)
-            // porque modelNormalizeProject hace {...baseProject(), ...blank}
-            // y los defaults de "Despertar de un Sueño" siempre ganan.
-            // setProject guarda en localStorage y recarga la página — eso sí
-            // garantiza un estado limpio de verdad.
+            // Guarda directamente en localStorage con la clave del proyecto
+            // SIN pasar por normalizeProject (que mezcla con baseProject y
+            // restaura "Despertar de un Sueño"). Luego recarga la página
+            // para un estado completamente limpio.
             try {
                 const blank = {
                     title: 'Nueva canción',
@@ -3178,7 +3177,8 @@ function installStudio936AppBridge(){
                     sectionSolos: {},
                     arrangement: []
                 };
-                setProject(blank, true);
+                localStorage.setItem('studio936ComposerV25SongStructure', JSON.stringify(blank));
+                setTimeout(() => location.reload(), 80);
                 return true;
             } catch(e) { console.warn('newSong error:', e); return false; }
         },
