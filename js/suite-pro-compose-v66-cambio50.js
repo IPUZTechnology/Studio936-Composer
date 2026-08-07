@@ -804,12 +804,8 @@ html, body{
     createBtn.style.cssText = 'flex:2;background:rgba(0,255,204,.15);border:1px solid #00ffcc;color:#00ffcc;border-radius:10px;padding:10px;font-size:.82rem;font-weight:800;cursor:pointer;';
     createBtn.onclick = () => {
       const tpl = TEMPLATES.find(t => t.id === startSel.value);
-      // Secciones vacías EXPLÍCITAS para todos los keys conocidos —
-      // normalizeProject mezcla con {...d.sections, ...p.sections}, así que
-      // si pasamos {} vacío, llena todo con los defaults. Con arrays vacíos
-      // explícitos, respeta que están vacíos.
-      const emptySections = {};
       const knownKeys = ['intro','verse','verse1','verse2','verse3','prechorus','chorus','interlude','solo','bridge','outro'];
+      const emptySections = {};
       knownKeys.forEach(k => { emptySections[k] = []; });
 
       const newProject = {
@@ -824,16 +820,27 @@ html, body{
         arrangement: [],
         status: 'draft',
       };
-      // Cargar en el editor
-      const ok = window.Studio936AppBridge?.loadProject?.(newProject);
-      if(ok !== false){
-        // Guardar en Librería como nuevo borrador
-        if(window.Studio936Library?.saveOrUpdateCurrent){
-          window.Studio936Library.setCurrentOpenCompositionId?.(null);
-          window.Studio936Library.saveOrUpdateCurrent(newProject);
-        }
+
+      // Cargar el editor limpio con el estilo/BPM de la plantilla
+      window.Studio936AppBridge?.loadProject?.(newProject);
+
+      // Guardar en Librería como nuevo borrador
+      if(window.Studio936Library?.saveOrUpdateCurrent){
+        window.Studio936Library.setCurrentOpenCompositionId?.(null);
+        window.Studio936Library.saveOrUpdateCurrent(newProject);
       }
+
       overlay.remove();
+
+      // Si eligió una plantilla (no "En blanco"), preseleccionarla en el
+      // Template Cockpit y abrirlo — el usuario ve el preview y aplica
+      // con el botón "Aplicar template" que ya existe ahí.
+      if(tpl){
+        setTimeout(() => {
+          state.selectedTemplate = tpl.name;
+          openTool('templates');
+        }, 300);
+      }
     };
     btnRow.append(cancelBtn, createBtn);
     modal.appendChild(btnRow);
