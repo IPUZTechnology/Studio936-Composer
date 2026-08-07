@@ -804,43 +804,41 @@ html, body{
     createBtn.style.cssText = 'flex:2;background:rgba(0,255,204,.15);border:1px solid #00ffcc;color:#00ffcc;border-radius:10px;padding:10px;font-size:.82rem;font-weight:800;cursor:pointer;';
     createBtn.onclick = () => {
       const tpl = TEMPLATES.find(t => t.id === startSel.value);
-      const knownKeys = ['intro','verse','verse1','verse2','verse3','prechorus','chorus','interlude','solo','bridge','outro'];
-      const emptySections = {};
-      knownKeys.forEach(k => { emptySections[k] = []; });
-
-      const newProject = {
-        title: titleInp.value.trim() || 'Nueva canción',
-        author: authorInp.value.trim(),
-        style: tpl?.style || 'pop',
-        bpm: tpl?.bpm || 95,
-        instrument: 'piano',
-        key: 'C',
-        sections: emptySections,
-        lyrics: {},
-        arrangement: [],
-        status: 'draft',
-      };
-
-      // Cargar el editor limpio con el estilo/BPM de la plantilla
-      window.Studio936AppBridge?.loadProject?.(newProject);
-
-      // Guardar en Librería como nuevo borrador
-      if(window.Studio936Library?.saveOrUpdateCurrent){
-        window.Studio936Library.setCurrentOpenCompositionId?.(null);
-        window.Studio936Library.saveOrUpdateCurrent(newProject);
-      }
+      const title = titleInp.value.trim() || 'Nueva canción';
+      const author = authorInp.value.trim();
 
       overlay.remove();
 
-      // Si eligió una plantilla (no "En blanco"), preseleccionarla en el
-      // Template Cockpit y abrirlo — el usuario ve el preview y aplica
-      // con el botón "Aplicar template" que ya existe ahí.
-      if(tpl){
-        setTimeout(() => {
-          state.selectedTemplate = tpl.name;
-          openTool('templates');
-        }, 300);
-      }
+      // 1. Limpiar el editor con newSong (sí funciona correctamente)
+      window.Studio936AppBridge?.newSong?.();
+
+      // 2. Aplicar título, autor, estilo y BPM de la plantilla
+      setTimeout(() => {
+        // Actualizar el título en la barra superior si existe
+        const titleEl = document.querySelector('#songTitle,#song-title,[data-field="title"],input[name="title"]');
+        if(titleEl){ titleEl.value = title; titleEl.dispatchEvent(new Event('input', {bubbles:true})); titleEl.dispatchEvent(new Event('change', {bubbles:true})); }
+        if(tpl){
+          window.Studio936AppBridge?.setBPM?.(tpl.bpm);
+        }
+        // Guardar en Librería como nuevo borrador
+        const snap = window.Studio936AppBridge?.getProjectSnapshot?.();
+        if(snap){
+          snap.title = title;
+          snap.author = author;
+          snap.status = 'draft';
+          if(window.Studio936Library?.saveOrUpdateCurrent){
+            window.Studio936Library.setCurrentOpenCompositionId?.(null);
+            window.Studio936Library.saveOrUpdateCurrent(snap);
+          }
+        }
+        // 3. Si eligió plantilla, abrir Template Cockpit con ella preseleccionada
+        if(tpl){
+          setTimeout(() => {
+            state.selectedTemplate = tpl.name;
+            openTool('templates');
+          }, 200);
+        }
+      }, 400);
     };
     btnRow.append(cancelBtn, createBtn);
     modal.appendChild(btnRow);
