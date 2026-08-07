@@ -989,7 +989,7 @@ html, body{
     dd.appendChild(item("Acordes IA", () => openTool("chordAI")));
     dd.appendChild(item("Librería / sonidos", () => openTool("library")));
     dd.appendChild(item("Configuración", () => openTool("settings")));
-    dd.appendChild(item("Nueva canción", () => openNewSongModal()));
+    dd.appendChild(item("Nueva canción", () => window.S936OpenNewSongModal?.()));
     dd.appendChild(item("Guardar local", () => window.Studio936AppBridge?.saveLocal?.() || window.Studio936AppBridge?.save?.()));
     dd.appendChild(item("Guardar en Librería", () => {
       // Cambio 235: guarda la canción actual como borrador en la Librería
@@ -1977,4 +1977,8 @@ function renderChordAI(ctx, shell) {
   }
 
   register();
+
+  // Cambio 236: exponer el modal de nueva canción globalmente para que
+  // el menú pueda llamarlo correctamente desde cualquier contexto.
+  window.S936OpenNewSongModal = openNewSongModal;
 })();
