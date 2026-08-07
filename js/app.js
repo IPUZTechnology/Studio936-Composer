@@ -3158,16 +3158,12 @@ function installStudio936AppBridge(){
         openLyrics: () => { openLyrics(); return true; },
         openHelp: () => { els.helpBtn?.click(); return true; },
         saveLocal: () => { saveProject(true); return true; },
-        newSong: () => {
-            // Guarda directamente en localStorage con la clave del proyecto
-            // SIN pasar por normalizeProject (que mezcla con baseProject y
-            // restaura "Despertar de un Sueño"). Luego recarga la página
-            // para un estado completamente limpio.
+        newSong: (titleOverride, authorOverride) => {
             try {
                 const blank = {
                     isNewSong: true,
-                    title: 'Nueva canción',
-                    author: '',
+                    title: titleOverride || 'Nueva canción',
+                    author: authorOverride || '',
                     bpm: 95,
                     style: 'pop',
                     instrument: 'piano',
@@ -3178,13 +3174,12 @@ function installStudio936AppBridge(){
                     sectionSolos: {},
                     arrangement: []
                 };
+                // Guardar plantilla en sessionStorage ANTES de limpiar cachés
+                if(titleOverride) sessionStorage.setItem('s936_new_title', titleOverride);
+                if(authorOverride) sessionStorage.setItem('s936_new_author', authorOverride);
                 localStorage.setItem('studio936ComposerV25SongStructure', JSON.stringify(blank));
-                // Limpiar el borrador de Structure y TODO el caché del Chart
-                // para que no queden datos de la canción anterior.
-                localStorage.removeItem('s936_suitepro_structure_v4');
-                localStorage.removeItem('s936_chart_beats_v1');
-                localStorage.removeItem('s936_chart_rhythm_v1');
-                localStorage.removeItem('s936_chart_inst_v1');
+                // Limpiar TODOS los cachés s936_ para que el Chart arranque limpio
+                Object.keys(localStorage).filter(k => k.startsWith('s936_')).forEach(k => localStorage.removeItem(k));
                 setTimeout(() => location.reload(), 80);
                 return true;
             } catch(e) { console.warn('newSong error:', e); return false; }

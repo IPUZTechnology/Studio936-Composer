@@ -809,8 +809,8 @@ html, body{
 
       overlay.remove();
 
-      // 1. Limpiar el editor con newSong (sí funciona correctamente)
-      window.Studio936AppBridge?.newSong?.();
+      // 1. Limpiar el editor con newSong pasando título y autor
+      window.Studio936AppBridge?.newSong?.(title, author);
 
       // 2. Aplicar título, autor, estilo y BPM de la plantilla
       setTimeout(() => {
@@ -831,14 +831,13 @@ html, body{
             window.Studio936Library.saveOrUpdateCurrent(snap);
           }
         }
-        // 3. Si eligió plantilla, abrir Template Cockpit con ella preseleccionada
+        // 3. Si eligió plantilla, guardar en sessionStorage para abrirla
+        // después del reload que hace newSong (location.reload no mantiene
+        // el estado en memoria).
         if(tpl){
-          setTimeout(() => {
-            window.S936SetTemplate?.(tpl.name);
-            window.S936OpenTool?.('templates');
-          }, 200);
+          sessionStorage.setItem('s936_open_template', tpl.name);
         }
-      }, 400);
+      }, 200);
     };
     btnRow.append(cancelBtn, createBtn);
     modal.appendChild(btnRow);
@@ -1990,6 +1989,29 @@ function renderChordAI(ctx, shell) {
   }
 
   register();
+
+  // Cambio 240: al cargar la página, aplicar título/autor/plantilla
+  // pendientes del sessionStorage (guardados antes del reload de newSong).
+  setTimeout(() => {
+    const pendingTitle = sessionStorage.getItem('s936_new_title');
+    const pendingAuthor = sessionStorage.getItem('s936_new_author');
+    const pendingTemplate = sessionStorage.getItem('s936_open_template');
+    if(pendingTitle || pendingAuthor || pendingTemplate){
+      if(pendingTitle) sessionStorage.removeItem('s936_new_title');
+      if(pendingAuthor) sessionStorage.removeItem('s936_new_author');
+      if(pendingTemplate) sessionStorage.removeItem('s936_open_template');
+      // Actualizar título en la barra superior
+      const titleField = document.querySelector('#songTitle,input[name="title"],[data-field="title"],input[placeholder*="ítulo"],input[placeholder*="itle"]');
+      if(titleField && pendingTitle){ titleField.value = pendingTitle; titleField.dispatchEvent(new Event('input',{bubbles:true})); titleField.dispatchEvent(new Event('change',{bubbles:true})); }
+      // Abrir Template Cockpit si hay plantilla pendiente
+      if(pendingTemplate){
+        setTimeout(() => {
+          window.S936SetTemplate?.(pendingTemplate);
+          window.S936OpenTool?.('templates');
+        }, 500);
+      }
+    }
+  }, 1500);
 
   // Cambio 236: exponer funciones globalmente para que los callbacks
   // de botones puedan llamarlas sin problemas de scope del IIFE.
