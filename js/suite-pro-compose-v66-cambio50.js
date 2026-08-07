@@ -782,7 +782,7 @@ html, body{
     const albums = window.Studio936Library?.getAlbums?.() || [];
     modal.appendChild(label('Álbum'));
     const albumOpts = [['', 'Sin álbum'], ...albums.map(a => [a.id, a.name])];
-    const albumSel = select(albumOpts, store ? store.activeAlbumId || '' : '');
+    const albumSel = select(albumOpts, '');
     modal.appendChild(albumSel);
 
     // Punto de partida: en blanco o desde plantilla
