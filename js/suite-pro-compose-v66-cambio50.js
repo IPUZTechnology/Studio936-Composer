@@ -817,35 +817,27 @@ html, body{
 
       overlay.remove();
 
-      // 1. Limpiar el editor con newSong pasando título y autor
-      window.Studio936AppBridge?.newSong?.(title, author);
-
-      // 2. Aplicar título, autor, estilo y BPM de la plantilla
-      setTimeout(() => {
-        // Actualizar el título en la barra superior si existe
-        const titleEl = document.querySelector('#songTitle,#song-title,[data-field="title"],input[name="title"]');
-        if(titleEl){ titleEl.value = title; titleEl.dispatchEvent(new Event('input', {bubbles:true})); titleEl.dispatchEvent(new Event('change', {bubbles:true})); }
-        if(tpl){
-          window.Studio936AppBridge?.setBPM?.(tpl.bpm);
-        }
-        // Guardar en Librería como nuevo borrador
-        const snap = window.Studio936AppBridge?.getProjectSnapshot?.();
-        if(snap){
-          snap.title = title;
-          snap.author = author;
-          snap.status = 'draft';
-          if(window.Studio936Library?.saveOrUpdateCurrent){
-            window.Studio936Library.setCurrentOpenCompositionId?.(null);
-            window.Studio936Library.saveOrUpdateCurrent(snap);
-          }
-        }
-        // 3. Si eligió plantilla, guardar en sessionStorage para abrirla
-        // después del reload que hace newSong (location.reload no mantiene
-        // el estado en memoria).
-        if(tpl){
-          sessionStorage.setItem('s936_open_template', tpl.id);
-        }
-      }, 200);
+      if(tpl && _lastCtx){
+        // Con plantilla: construir el proyecto completo con acordes reales
+        // usando buildTemplateProject (mismo mecanismo que "Aplicar template"
+        // del panel de Plantillas), guardarlo en localStorage y recargar.
+        // NO necesitamos dos pasos ni sessionStorage porque buildTemplateProject
+        // ya tiene todo lo necesario en _lastCtx.
+        const key = keyOf(_lastCtx) || 'C';
+        const project = buildTemplateProject(_lastCtx, tpl, key);
+        project.title = title;
+        project.author = author;
+        project.isNewSong = false; // ya tiene acordes reales, no es "nuevo vacío"
+        localStorage.setItem('studio936ComposerV25SongStructure', JSON.stringify(project));
+        // Limpiar cachés del Chart pero NO la librería
+        Object.keys(localStorage)
+          .filter(k => k.startsWith('s936_') && !k.startsWith('s936_library'))
+          .forEach(k => localStorage.removeItem(k));
+        setTimeout(() => location.reload(), 80);
+      } else {
+        // Sin plantilla (En blanco): usar newSong normal
+        window.Studio936AppBridge?.newSong?.(title, author);
+      }
     };
     btnRow.append(cancelBtn, createBtn);
     modal.appendChild(btnRow);
