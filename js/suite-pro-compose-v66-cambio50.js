@@ -834,8 +834,8 @@ html, body{
         // 3. Si eligió plantilla, abrir Template Cockpit con ella preseleccionada
         if(tpl){
           setTimeout(() => {
-            state.selectedTemplate = tpl.name;
-            openTool('templates');
+            window.S936SetTemplate?.(tpl.name);
+            window.S936OpenTool?.('templates');
           }, 200);
         }
       }, 400);
@@ -1991,7 +1991,21 @@ function renderChordAI(ctx, shell) {
 
   register();
 
-  // Cambio 236: exponer el modal de nueva canción globalmente para que
-  // el menú pueda llamarlo correctamente desde cualquier contexto.
+  // Cambio 236: exponer funciones globalmente para que los callbacks
+  // de botones puedan llamarlas sin problemas de scope del IIFE.
   window.S936OpenNewSongModal = openNewSongModal;
+  window.S936SetTemplate = (name) => { state.selectedTemplate = name; };
+  window.S936OpenTool = (tool) => {
+    const root = document.getElementById("s936SuitePro") || document;
+    const navBtn = Array.from(root.querySelectorAll(".s936-cmp-subtab,button,[role='button']")).find(el => {
+      const t = String(el.dataset?.tool || "");
+      const label = String(el.textContent || "").trim().toLowerCase();
+      return t === tool || label === tool.toLowerCase();
+    });
+    if(navBtn){ navBtn.click(); return; }
+    state.tool = tool;
+    saveState();
+    const composeBtn = Array.from(root.querySelectorAll("button,[role='button']")).find(el => /^compose$/i.test(String(el.textContent || "").trim()));
+    composeBtn?.click?.();
+  };
 })();
