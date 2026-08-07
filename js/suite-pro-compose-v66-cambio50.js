@@ -779,7 +779,15 @@ html, body{
     modal.appendChild(authorInp);
 
     // Álbum — lista los álbumes existentes
-    const albums = window.Studio936Library?.getAlbums?.() || [];
+    // Leer álbumes directo del localStorage — más confiable que
+    // Studio936Library.getAlbums() que puede no estar inicializado aún
+    let albums = window.Studio936Library?.getAlbums?.() || [];
+    if(!albums.length){
+      try {
+        const libStore = JSON.parse(localStorage.getItem('s936_library_v2') || '{}');
+        albums = Array.isArray(libStore.albums) ? libStore.albums : [];
+      } catch(_) {}
+    }
     modal.appendChild(label('Álbum'));
     const albumOpts = [['', 'Sin álbum'], ...albums.map(a => [a.id, a.name])];
     const albumSel = select(albumOpts, '');
@@ -2005,10 +2013,36 @@ function renderChordAI(ctx, shell) {
       if(titleField && pendingTitle){ titleField.value = pendingTitle; titleField.dispatchEvent(new Event('input',{bubbles:true})); titleField.dispatchEvent(new Event('change',{bubbles:true})); }
       // Abrir Template Cockpit si hay plantilla pendiente
       if(pendingTemplate){
-        setTimeout(() => {
-          window.S936SetTemplate?.(pendingTemplate);
-          window.S936OpenTool?.('templates');
-        }, 500);
+        // Intentar abrir el panel de Plantillas — con reintentos porque
+        // el panel puede no estar montado todavía al cargar la página.
+        let attempts = 0;
+        const tryOpenTemplates = () => {
+          attempts++;
+          // Método 1: usar openTool interno si está disponible
+          const root = document.getElementById('s936SuitePro') || document;
+          // Buscar el botón de Plantillas en el menú del Dock (visible o no)
+          const allBtns = Array.from(document.querySelectorAll('button,[role="button"]'));
+          const plantBtn = allBtns.find(b => {
+            const t = b.textContent?.trim() || '';
+            return t === 'Plantillas' || t === 'Templates';
+          });
+          if(plantBtn){ plantBtn.click(); return; }
+          // Método 2: abrir el menú primero y luego buscar Plantillas
+          const menuBtn = allBtns.find(b => (b.textContent?.trim() || '').includes('MENÚ') || (b.textContent?.trim() || '').includes('Menú'));
+          if(menuBtn){
+            menuBtn.click();
+            setTimeout(() => {
+              const plantBtn2 = Array.from(document.querySelectorAll('button,[role="button"]')).find(b => {
+                const t = b.textContent?.trim() || '';
+                return t === 'Plantillas' || t === 'Templates';
+              });
+              if(plantBtn2) plantBtn2.click();
+            }, 200);
+            return;
+          }
+          if(attempts < 5) setTimeout(tryOpenTemplates, 800);
+        };
+        setTimeout(tryOpenTemplates, 600);
       }
     }
   }, 1500);
