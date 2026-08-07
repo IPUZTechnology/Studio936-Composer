@@ -3179,10 +3179,12 @@ function installStudio936AppBridge(){
                     arrangement: []
                 };
                 localStorage.setItem('studio936ComposerV25SongStructure', JSON.stringify(blank));
-                // Limpiar el borrador de Structure — el Chart lo lee desde
-                // 's936_suitepro_structure_v4' independientemente del proyecto
-                // principal, y si no se limpia, sigue mostrando la canción anterior.
+                // Limpiar el borrador de Structure y TODO el caché del Chart
+                // para que no queden datos de la canción anterior.
                 localStorage.removeItem('s936_suitepro_structure_v4');
+                localStorage.removeItem('s936_chart_beats_v1');
+                localStorage.removeItem('s936_chart_rhythm_v1');
+                localStorage.removeItem('s936_chart_inst_v1');
                 setTimeout(() => location.reload(), 80);
                 return true;
             } catch(e) { console.warn('newSong error:', e); return false; }
