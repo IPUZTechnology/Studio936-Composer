@@ -5288,6 +5288,9 @@ body.s936-chart-stage main{
       const parts = Array.isArray(draft.parts) ? draft.parts : [];
       const meta = draft.meta || {};
       if (!parts.length) return null;
+      // Cambio 239: verificar si es canción nueva para no generar acordes por defecto
+      const mainProject = JSON.parse(localStorage.getItem("studio936ComposerV25SongStructure") || "{}");
+      const isNewSong = !!mainProject.isNewSong;
       const arrangement = parts.map((part, idx) => ({
         section: part.section || part.key || ("section" + (idx + 1)),
         label: part.label || part.name || part.section || ("Parte " + (idx + 1)),
@@ -5310,7 +5313,7 @@ body.s936-chart-stage main{
           }));
           return;
         }
-        sections[sectionKey] = defaultSectionChordsForChart(sectionKey, part.bars);
+        sections[sectionKey] = isNewSong ? [] : defaultSectionChordsForChart(sectionKey, part.bars);
       });
       return {
         arrangement,
