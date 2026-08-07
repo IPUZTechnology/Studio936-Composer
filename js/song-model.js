@@ -305,16 +305,17 @@ function normalizeProject(p, styles={}, instruments={}){
     const d = defaultProject();
     p = p || {};
     const merged = {...d, ...p};
-    merged.sections = {...d.sections, ...(p.sections||{})};
-    if(!merged.sections.verse4) merged.sections.verse4 = JSON.parse(JSON.stringify(merged.sections.verse3 || merged.sections.verse || d.sections.verse));
-    if(!merged.sections.bridge) merged.sections.bridge = JSON.parse(JSON.stringify(merged.sections.prechorus || d.sections.prechorus));
-    if(!merged.sections.outro) merged.sections.outro = [chord('C','C2','C3 E3 G3 C4',2)];
+    // Cambio 239: si es canción nueva, NO mezclar con los acordes del demo.
+    merged.sections = p.isNewSong ? (p.sections || {}) : {...d.sections, ...(p.sections||{})};
+    if(!p.isNewSong && !merged.sections.verse4) merged.sections.verse4 = JSON.parse(JSON.stringify(merged.sections.verse3 || merged.sections.verse || d.sections.verse));
+    if(!p.isNewSong && !merged.sections.bridge) merged.sections.bridge = JSON.parse(JSON.stringify(merged.sections.prechorus || d.sections.prechorus));
+    if(!p.isNewSong && !merged.sections.outro) merged.sections.outro = [chord('C','C2','C3 E3 G3 C4',2)];
     merged.lyrics = {...d.lyrics, ...(p.lyrics||{})};
     merged.sectionSolos = normalizeSectionSolos(p.sectionSolos || null, p, d.sectionSolos);
     Object.keys(merged.sections).forEach(k=>{
-        if(!Array.isArray(merged.sections[k])) merged.sections[k] = merged.isNewSong ? [] : (d.sections[k] || [chord('C','C2','C3 E3 G3',1)]);
-        else if(!merged.sections[k].length && !merged.isNewSong) merged.sections[k] = d.sections[k] || [chord('C','C2','C3 E3 G3',1)];
-        merged.sections[k] = merged.sections[k].map((x,i)=>normalizeChord(x, d.sections[k]?.[i] || null));
+        if(!Array.isArray(merged.sections[k])) merged.sections[k] = [];
+        else if(!merged.sections[k].length && !p.isNewSong) merged.sections[k] = d.sections[k] || [chord('C','C2','C3 E3 G3',1)];
+        if(merged.sections[k].length) merged.sections[k] = merged.sections[k].map((x,i)=>normalizeChord(x, d.sections[k]?.[i] || null));
     });
     merged.voicingLibrary = normalizeVoicingLibrary(p.voicingLibrary || merged.voicingLibrary);
     merged.bassLines = normalizeBassLines(p.bassLines || merged.bassLines, merged.sections);
