@@ -3178,8 +3178,11 @@ function installStudio936AppBridge(){
                 if(titleOverride) sessionStorage.setItem('s936_new_title', titleOverride);
                 if(authorOverride) sessionStorage.setItem('s936_new_author', authorOverride);
                 localStorage.setItem('studio936ComposerV25SongStructure', JSON.stringify(blank));
-                // Limpiar TODOS los cachés s936_ para que el Chart arranque limpio
-                Object.keys(localStorage).filter(k => k.startsWith('s936_')).forEach(k => localStorage.removeItem(k));
+                // Limpiar TODOS los cachés s936_ del Chart y Structure,
+                // pero NUNCA la librería del usuario (s936_library_v2)
+                Object.keys(localStorage)
+                    .filter(k => k.startsWith('s936_') && !k.startsWith('s936_library'))
+                    .forEach(k => localStorage.removeItem(k));
                 setTimeout(() => location.reload(), 80);
                 return true;
             } catch(e) { console.warn('newSong error:', e); return false; }

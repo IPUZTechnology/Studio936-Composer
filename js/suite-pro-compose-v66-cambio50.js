@@ -2018,16 +2018,20 @@ function renderChordAI(ctx, shell) {
   window.S936OpenNewSongModal = openNewSongModal;
   window.S936SetTemplate = (name) => { state.selectedTemplate = name; };
   window.S936OpenTool = (tool) => {
+    // Mapeo de tool a textos posibles en español/inglés
+    const labels = {
+      'templates': ['plantillas','templates','plantilla'],
+      'structure': ['estructura','structure'],
+      'editor': ['editor'],
+    };
+    const targets = labels[tool] || [tool.toLowerCase()];
     const root = document.getElementById("s936SuitePro") || document;
-    const navBtn = Array.from(root.querySelectorAll(".s936-cmp-subtab,button,[role='button']")).find(el => {
-      const t = String(el.dataset?.tool || "");
+    const navBtn = Array.from(root.querySelectorAll("button,[role='button']")).find(el => {
       const label = String(el.textContent || "").trim().toLowerCase();
-      return t === tool || label === tool.toLowerCase();
+      return targets.some(t => label === t || label.startsWith(t));
     });
     if(navBtn){ navBtn.click(); return; }
     state.tool = tool;
     saveState();
-    const composeBtn = Array.from(root.querySelectorAll("button,[role='button']")).find(el => /^compose$/i.test(String(el.textContent || "").trim()));
-    composeBtn?.click?.();
   };
 })();
