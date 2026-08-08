@@ -72,6 +72,33 @@
     const S936_API_BASE = 'https://studio936-escenario-api.ripuz.workers.dev';
     let currentUser = null; // { id, name, email } cuando hay sesión activa
 
+    // Cambio 248: aviso visible en pantalla (nunca DevTools) de si algo se
+    // sincronizó con la nube o no, y por qué. Antes s936PushComposition /
+    // s936UpdateCloudComposition fallaban 100% en silencio (catch vacío) —
+    // imposible de diagnosticar sin abrir Network. Este aviso es chiquito,
+    // NO bloqueante (no pide clic, se borra solo a los ~3.5s), abajo a la
+    // derecha, para no interrumpir el trabajo.
+    function s936CloudToast(message, ok){
+        try {
+            const box = document.createElement('div');
+            box.textContent = message;
+            box.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483647;' +
+                'background:linear-gradient(180deg,#161b1d,#0d1112);' +
+                'border:1px solid ' + (ok ? 'rgba(0,255,204,.55)' : 'rgba(255,120,120,.6)') + ';' +
+                'color:' + (ok ? '#8ffce0' : '#ffb5b5') + ';' +
+                'padding:10px 14px;border-radius:10px;font-size:.74rem;font-weight:700;' +
+                'max-width:320px;line-height:1.4;box-shadow:0 12px 30px rgba(0,0,0,.45);' +
+                'opacity:0;transform:translateY(6px);transition:opacity .25s,transform .25s;';
+            document.body.appendChild(box);
+            requestAnimationFrame(() => { box.style.opacity = '1'; box.style.transform = 'translateY(0)'; });
+            setTimeout(() => {
+                box.style.opacity = '0';
+                box.style.transform = 'translateY(6px)';
+                setTimeout(() => box.remove(), 300);
+            }, 3500);
+        } catch(_) { /* nunca romper el flujo por un aviso */ }
+    }
+
     async function s936CheckSession(){
         try {
             const resp = await fetch(S936_API_BASE + '/api/me', { credentials: 'include' });
@@ -131,34 +158,66 @@
         if(!currentUser) return [];
         try {
             const resp = await fetch(S936_API_BASE + '/api/compositions', { credentials: 'include' });
-            if(!resp.ok) return [];
+            if(!resp.ok){
+                s936CloudToast('⚠️ No se pudo traer tu librería de la nube (código ' + resp.status + ').', false);
+                return [];
+            }
             const data = await resp.json();
             return data.compositions || [];
-        } catch(_) { return []; }
+        } catch(e) {
+            s936CloudToast('⚠️ No se pudo conectar con la nube para traer tu librería.', false);
+            return [];
+        }
     }
 
     async function s936PushComposition(item){
-        if(!currentUser) return;
+        if(!currentUser){
+            s936CloudToast('☁️ "' + (item?.title || 'Composición') + '" quedó SOLO local — no hay sesión iniciada.', false);
+            return;
+        }
         try {
-            await fetch(S936_API_BASE + '/api/compositions', {
+            const resp = await fetch(S936_API_BASE + '/api/compositions', {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(item)
             });
-        } catch(_) { /* falla en silencio — se queda igual guardado localmente */ }
+            if(resp.ok){
+                s936CloudToast('☁️ "' + (item.title || 'Composición') + '" guardada en la nube.', true);
+            } else {
+                const text = await resp.text().catch(() => '');
+                console.warn('s936PushComposition · la nube respondió', resp.status, text);
+                s936CloudToast('⚠️ La nube RECHAZÓ "' + (item.title || 'la composición') + '" (código ' + resp.status + '). Se quedó solo local.', false);
+            }
+        } catch(e) {
+            console.warn('s936PushComposition · error de red', e);
+            s936CloudToast('⚠️ Sin conexión con la nube — "' + (item?.title || 'la composición') + '" se quedó solo local.', false);
+        }
     }
 
     async function s936UpdateCloudComposition(item){
-        if(!currentUser) return;
+        if(!currentUser){
+            s936CloudToast('☁️ "' + (item?.title || 'Composición') + '" se actualizó SOLO local — no hay sesión iniciada.', false);
+            return;
+        }
         try {
-            await fetch(S936_API_BASE + '/api/compositions/' + encodeURIComponent(item.id), {
+            const resp = await fetch(S936_API_BASE + '/api/compositions/' + encodeURIComponent(item.id), {
                 method: 'PUT',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(item)
             });
-        } catch(_) {}
+            if(resp.ok){
+                s936CloudToast('☁️ "' + (item.title || 'Composición') + '" actualizada en la nube.', true);
+            } else {
+                const text = await resp.text().catch(() => '');
+                console.warn('s936UpdateCloudComposition · la nube respondió', resp.status, text);
+                s936CloudToast('⚠️ La nube RECHAZÓ el cambio de "' + (item.title || 'la composición') + '" (código ' + resp.status + ').', false);
+            }
+        } catch(e) {
+            console.warn('s936UpdateCloudComposition · error de red', e);
+            s936CloudToast('⚠️ Sin conexión con la nube — el cambio de "' + (item?.title || 'la composición') + '" se quedó solo local.', false);
+        }
     }
 
     async function s936DeleteCloudComposition(id){
@@ -177,7 +236,13 @@
     // reciente (por fecha), para no perder trabajo de ningún lado.
     async function s936SyncCompositionsOnLogin(){
         const cloudItems = await s936FetchCloudCompositions();
-        if(!cloudItems.length) return;
+        if(!cloudItems.length){
+            // Cambio 248: si currentUser existe pero la nube no devolvió NADA,
+            // avisar — así se distingue "no hay nada guardado en tu cuenta
+            // todavía" de "no está trayendo lo que sí hay" sin abrir Network.
+            if(currentUser) s936CloudToast('☁️ Tu cuenta no tiene composiciones guardadas en la nube todavía.', true);
+            return;
+        }
         let changed = false;
         cloudItems.forEach((cloudItem) => {
             const localItem = store.compositions.find(x => x.id === cloudItem.id);
