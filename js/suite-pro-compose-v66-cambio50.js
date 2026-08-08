@@ -737,8 +737,15 @@ html, body{
 
     // Título del modal
     const title = document.createElement('div');
-    title.style.cssText = 'font-size:1rem;font-weight:800;color:#00ffcc;letter-spacing:.04em;margin-bottom:4px;';
-    title.textContent = '✦ Nueva canción';
+    title.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;';
+    const titleText = document.createElement('div');
+    titleText.style.cssText = 'font-size:1rem;font-weight:800;color:#00ffcc;letter-spacing:.04em;';
+    titleText.textContent = '✦ Nueva canción';
+    const closeX = document.createElement('button');
+    closeX.textContent = '✕';
+    closeX.style.cssText = 'background:transparent;border:none;color:#9fb0ae;font-size:1.1rem;cursor:pointer;padding:0 4px;';
+    closeX.onclick = () => overlay.remove();
+    title.append(titleText, closeX);
     modal.appendChild(title);
 
     function field(placeholder, value = '') {
@@ -827,8 +834,14 @@ html, body{
         const project = buildTemplateProject(_lastCtx, tpl, key);
         project.title = title;
         project.author = author;
-        project.isNewSong = false; // ya tiene acordes reales, no es "nuevo vacío"
+        project.isNewSong = false;
+        project.status = 'draft';
         localStorage.setItem('studio936ComposerV25SongStructure', JSON.stringify(project));
+        // Guardar en la Librería como borrador nuevo
+        if(window.Studio936Library?.saveOrUpdateCurrent){
+          window.Studio936Library.setCurrentOpenCompositionId?.(null);
+          window.Studio936Library.saveOrUpdateCurrent({...project, status:'draft'});
+        }
         // Limpiar cachés del Chart pero NO la librería
         Object.keys(localStorage)
           .filter(k => k.startsWith('s936_') && !k.startsWith('s936_library'))
@@ -836,6 +849,11 @@ html, body{
         setTimeout(() => location.reload(), 80);
       } else {
         // Sin plantilla (En blanco): usar newSong normal
+        // Sin plantilla: guardar en Librería antes del reload
+        if(window.Studio936Library?.saveOrUpdateCurrent){
+          window.Studio936Library.setCurrentOpenCompositionId?.(null);
+          window.Studio936Library.saveOrUpdateCurrent({ title, author, status:'draft', sections:{}, arrangement:[] });
+        }
         window.Studio936AppBridge?.newSong?.(title, author);
       }
     };
@@ -843,7 +861,7 @@ html, body{
     modal.appendChild(btnRow);
 
     overlay.appendChild(modal);
-    overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
+    // NO cerrar al hacer clic afuera — el usuario puede perder lo que escribió
     document.body.appendChild(overlay);
     setTimeout(() => titleInp.focus(), 50);
   }
