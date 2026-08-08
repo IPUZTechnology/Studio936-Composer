@@ -3094,7 +3094,7 @@ function installStudio936AppBridge(){
     };
 
     window.Studio936AppBridge = {
-        version: 'suite-pro-bridge-v0.7.3.23-cambio238-isnewsong',
+        version: 'suite-pro-bridge-v0.7.3.24-cambio247-savelocal-library-sync',
         getSongSnapshot,
         getFullSongText,
         getProjectJson,
@@ -3157,7 +3157,22 @@ function installStudio936AppBridge(){
         openExport: () => clickWorkspacePanel('export'),
         openLyrics: () => { openLyrics(); return true; },
         openHelp: () => { els.helpBtn?.click(); return true; },
-        saveLocal: () => { saveProject(true); return true; },
+        // Cambio 247: "Guardar local" ahora también actualiza (o crea) la
+        // composición en la Librería, y de ahí empuja a la nube (D1) si hay
+        // sesión activa — usa saveOrUpdateCurrent(), el gancho que ya se
+        // había dejado listo en Cambio 201 para justo este cable. Se dispara
+        // SOLO en el clic explícito de "Guardar local", nunca en los
+        // autoguardados silenciosos de saveProject(false), para no llamar a
+        // la API en cada tecla. Si la Librería no cargó o falla, el guardado
+        // local sigue funcionando igual (no se rompe nada).
+        saveLocal: () => {
+            saveProject(true);
+            try {
+                const snapshot = JSON.parse(getProjectJson());
+                window.Studio936Library?.saveOrUpdateCurrent?.(snapshot);
+            } catch(e) { console.warn('Cambio 247 · saveOrUpdateCurrent error:', e); }
+            return true;
+        },
         newSong: (titleOverride, authorOverride) => {
             try {
                 const blank = {
