@@ -724,6 +724,74 @@ html, body{
   // ---------------------------------------------------------------
   // Cambio 236: Modal "Nueva canción" — título, autor, álbum y plantilla
   // ---------------------------------------------------------------
+  function openSongPicker() {
+    document.getElementById('s936-songpicker-modal')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 's936-songpicker-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99999;display:flex;align-items:center;justify-content:center;';
+
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:#0d1a17;border:1px solid #1e3530;border-radius:16px;padding:28px 24px;width:400px;max-width:95vw;max-height:80vh;display:flex;flex-direction:column;gap:10px;box-shadow:0 8px 40px rgba(0,0,0,.6);';
+
+    const titleRow = document.createElement('div');
+    titleRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;';
+    const titleEl = document.createElement('div');
+    titleEl.style.cssText = 'font-size:1rem;font-weight:800;color:#00ffcc;';
+    titleEl.textContent = '📂 Abrir canción';
+    const closeX = document.createElement('button');
+    closeX.textContent = '✕';
+    closeX.style.cssText = 'background:transparent;border:none;color:#9fb0ae;font-size:1.1rem;cursor:pointer;';
+    closeX.onclick = () => overlay.remove();
+    titleRow.append(titleEl, closeX);
+    modal.appendChild(titleRow);
+
+    // Buscar directamente del localStorage (más confiable)
+    let compositions = [];
+    try {
+      const libStore = JSON.parse(localStorage.getItem('s936_library_v2') || '{}');
+      compositions = Array.isArray(libStore.compositions) ? libStore.compositions : [];
+    } catch(_) {}
+
+    if(!compositions.length){
+      const empty = document.createElement('div');
+      empty.style.cssText = 'color:#9fb0ae;font-size:.82rem;text-align:center;padding:20px 0;';
+      empty.textContent = 'No tienes composiciones guardadas todavía.';
+      modal.appendChild(empty);
+    } else {
+      const list = document.createElement('div');
+      list.style.cssText = 'display:flex;flex-direction:column;gap:6px;overflow-y:auto;max-height:50vh;';
+      compositions.forEach((comp) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;cursor:pointer;gap:10px;';
+        row.onmouseover = () => row.style.background = 'rgba(0,255,204,.07)';
+        row.onmouseout = () => row.style.background = 'rgba(255,255,255,.03)';
+        const info = document.createElement('div');
+        info.style.cssText = 'flex:1;min-width:0;';
+        const name = document.createElement('div');
+        name.style.cssText = 'font-size:.82rem;font-weight:700;color:#e8f4f2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+        name.textContent = comp.title || 'Sin título';
+        const meta = document.createElement('div');
+        meta.style.cssText = 'font-size:.68rem;color:#9fb0ae;';
+        const status = comp.status === 'draft' ? '✏ Borrador' : '✓ Publicada';
+        meta.textContent = status + (comp.author ? ' · ' + comp.author : '') + (comp.genre ? ' · ' + comp.genre : '');
+        info.append(name, meta);
+        const openBtn = document.createElement('button');
+        openBtn.textContent = 'Abrir';
+        openBtn.style.cssText = 'background:rgba(0,255,204,.12);border:1px solid #00ffcc;color:#00ffcc;border-radius:8px;padding:6px 14px;font-size:.75rem;font-weight:700;cursor:pointer;flex-shrink:0;';
+        openBtn.onclick = () => {
+          overlay.remove();
+          window.Studio936Library?.openComposition?.(comp.id);
+        };
+        row.append(info, openBtn);
+        list.appendChild(row);
+      });
+      modal.appendChild(list);
+    }
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+  }
+
   function openNewSongModal() {
     // Limpiar modal previo si existe
     document.getElementById('s936-newsong-modal')?.remove();
@@ -1023,6 +1091,7 @@ html, body{
     dd.appendChild(item("Librería / sonidos", () => openTool("library")));
     dd.appendChild(item("Configuración", () => openTool("settings")));
     dd.appendChild(item("Nueva canción", () => window.S936OpenNewSongModal?.()));
+    dd.appendChild(item("Abrir canción", () => window.S936OpenSongPicker?.()));
     dd.appendChild(item("Guardar local", () => window.Studio936AppBridge?.saveLocal?.() || window.Studio936AppBridge?.save?.()));
     dd.appendChild(item("Guardar en Librería", () => {
       // Cambio 235: guarda la canción actual como borrador en la Librería
@@ -2044,6 +2113,7 @@ function renderChordAI(ctx, shell) {
   // Cambio 236: exponer funciones globalmente para que los callbacks
   // de botones puedan llamarlas sin problemas de scope del IIFE.
   window.S936OpenNewSongModal = openNewSongModal;
+  window.S936OpenSongPicker = openSongPicker;
   window.S936SetTemplate = (name) => { state.selectedTemplate = name; };
   // Cambio 242: exponer applyTemplate para que el modal de nueva canción
   // pueda aplicar la plantilla directamente sin necesitar abrir el panel

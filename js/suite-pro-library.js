@@ -5801,5 +5801,8 @@
         // los use en el formulario de "Nueva canción".
         getAlbums: () => store.albums || [],
         getCurrentUser: () => currentUser || null,
+        // Cambio 246: exponer composiciones y abrir desde el Composer
+        getCompositions: () => store.compositions || [],
+        openComposition,
     };
 })();
