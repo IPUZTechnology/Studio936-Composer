@@ -209,11 +209,23 @@
             });
             if(resp.ok){
                 s936CloudToast('☁️ "' + (item.title || 'Composición') + '" actualizada en la nube.', true);
-            } else {
-                const text = await resp.text().catch(() => '');
-                console.warn('s936UpdateCloudComposition · la nube respondió', resp.status, text);
-                s936CloudToast('⚠️ La nube RECHAZÓ el cambio de "' + (item.title || 'la composición') + '" (código ' + resp.status + ').', false);
+                return;
             }
+            if(resp.status === 404){
+                // Cambio 250: esta composición existe localmente pero nunca
+                // se llegó a crear en la nube (típico de canciones tocadas
+                // durante el período en que el bug de la cookie cross-origin
+                // hacía fallar todo guardado en silencio, antes del Cambio
+                // 249). En vez de solo avisar del rechazo, la creamos ahora
+                // con POST usando el mismo id — así se autocura sin duplicar
+                // nada ni requerir acción manual.
+                console.warn('s936UpdateCloudComposition · 404, la composición no existía en la nube — creándola ahora');
+                await s936PushComposition(item);
+                return;
+            }
+            const text = await resp.text().catch(() => '');
+            console.warn('s936UpdateCloudComposition · la nube respondió', resp.status, text);
+            s936CloudToast('⚠️ La nube RECHAZÓ el cambio de "' + (item.title || 'la composición') + '" (código ' + resp.status + ').', false);
         } catch(e) {
             console.warn('s936UpdateCloudComposition · error de red', e);
             s936CloudToast('⚠️ Sin conexión con la nube — el cambio de "' + (item?.title || 'la composición') + '" se quedó solo local.', false);
