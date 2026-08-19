@@ -477,5 +477,25 @@
     else openPanel();
   }
 
+  // Cambio 251 (corrección): "REC Voz" y "REC Instrumento" ya existían como
+  // botones en la Consola de Sesión (panel izquierdo del Zoom de sección),
+  // pero disparaban un evento que nadie escuchaba — al hacer clic no pasaba
+  // nada más que un aviso de texto. Aquí se conectan esos dos botones ya
+  // existentes con el panel real de grabación, sin tocar el archivo que
+  // los dibuja (suite-pro-structure-v489-cambio94.js): solo se escucha el
+  // mismo evento que ese botón ya venía disparando desde hace varios
+  // Cambios, y se abre el panel con el instrumento correcto preseleccionado.
+  window.addEventListener('studio936:prepare-section-voice-rec', () => {
+    currentInstrument = 'voz';
+    openPanel();
+  });
+  window.addEventListener('studio936:prepare-section-instrument-rec', () => {
+    // El botón "REC Instrumento" no dice cuál instrumento — se abre el
+    // panel con Guitarra preseleccionada (la opción más común) y el
+    // usuario cambia a Piano/Batería/Otro en el propio selector si hace falta.
+    currentInstrument = 'guitarra';
+    openPanel();
+  });
+
   window.Studio936TrackRecorder = { toggle, openPanel, closePanel };
 })();
