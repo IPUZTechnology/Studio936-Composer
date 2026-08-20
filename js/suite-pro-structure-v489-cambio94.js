@@ -4891,38 +4891,22 @@ body.s936-chart-stage .s936-chart-main-panel{
     const toolsTitle = ctx.el("div", "s936-zoom-session-tools-title", "Dashboard de herramientas");
     card.appendChild(toolsTitle);
 
+    // Cambio 259: se quitaron 🥁 Batería, 🎸 Bajo/Groove, 🎛 Pads,
+    // ✨ Arpegio/Ritmo (nunca tuvieron nada real detrás — solo mostraban
+    // un aviso de texto, sin conectar a ningún motor). También se quitaron
+    // los botones "REC Voz"/"REC Instrumento" de AQUÍ — no porque dejen de
+    // funcionar, sino porque ahora son redundantes: el mismo panel de
+    // grabación se abre directamente desde el "+" en la línea de pistas
+    // del Chart (Cambio 258), justo debajo de cada sección, sin tener que
+    // venir hasta este panel aparte. Se conservan Ly Letra y MIDI/Teclado,
+    // que sí hacen algo real y no tienen todavía un atajo equivalente en
+    // el Chart.
     const grid = ctx.el("div", "s936-zoom-session-grid s936-zoom-tools-grid");
     grid.append(
-      toolButton("primary", "🥁 Batería", "seguir ritmo actual", "studio936:prepare-section-drums", "Batería preparada para seguir el ritmo de esta sección."),
-      toolButton("", "🎸 Bajo / Groove", "raíz y patrón", "studio936:prepare-section-bass-groove", "Bajo/Groove preparado para la armonía de la sección."),
-      toolButton("", "🎛 Pads", "disparar colores", "studio936:prepare-section-pads", "Pads preparados para esta sección."),
-      toolButton("", "✨ Arpegio / Ritmo", "probar patrón", "studio936:prepare-section-arp-rhythm", "Arpegio/Ritmo preparado para la sección."),
       lyricToolButton(),
-      toolButton("", "REC Voz", "toma vocal", "studio936:prepare-section-voice-rec", "REC voz preparado para esta sección."),
-      toolButton("", "REC Instrumento", "guitarra/línea", "studio936:prepare-section-instrument-rec", "REC instrumento preparado para esta sección."),
       midiToolButton()
     );
     card.appendChild(grid);
-
-    const block = ctx.el("div", "s936-zoom-session-block compact");
-    block.appendChild(ctx.el("h5", "", "Conexiones rápidas"));
-    const chips = ctx.el("div", "s936-zoom-session-chips");
-    [
-      ["Micrófono", "studio936:prepare-section-mic"],
-      ["Guitarra / línea", "studio936:prepare-section-line"],
-      ["Interfaz de audio", "studio936:prepare-section-audio-input"],
-      ["Teclado MIDI", "studio936:prepare-section-midi"],
-      ["Monitor", "studio936:prepare-section-monitor"]
-    ].forEach(([text, eventName]) => {
-      const chip = ctx.el("button", "s936-zoom-session-chip", text);
-      chip.onclick = (e) => {
-        e.stopPropagation();
-        emitTool(eventName, text + " preparado para esta sección.");
-      };
-      chips.appendChild(chip);
-    });
-    block.appendChild(chips);
-    card.appendChild(block);
 
     const send = ctx.el("button", "s936-zoom-session-btn primary s936-zoom-session-send", "⇢ Enviar toma al Studio");
     send.onclick = (e) => {
