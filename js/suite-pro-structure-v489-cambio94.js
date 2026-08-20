@@ -5459,13 +5459,27 @@ body.s936-chart-stage .s936-chart-main-panel{
     };
     rowActions.appendChild(lyricBtn);
 
-    // 🎙 REC futuro
+    // 🎙 REC — Cambio 259: ya no es un placeholder. Conecta con el panel
+    // real de grabación construido en Cambio 251-258 — exactamente lo que
+    // este botón decía estar esperando ("después de consolidar el Chart
+    // y lyrics"). Se selecciona esta sección en el desplegable superior
+    // (mismo que usa el resto de la app) antes de abrir el panel, para que
+    // apunte a la sección correcta de esta fila, no a la que estuviera
+    // activa antes.
     const recBtn = ctx.el("button", "s936-ckpt-row-action rec");
     recBtn.innerHTML = "REC";
-    recBtn.title = "REC sección — futuro";
+    recBtn.title = "Grabar voz/instrumento para esta sección";
     recBtn.onclick = (e) => {
       e.stopPropagation();
-      alert("REC por sección vendrá después de consolidar el Chart y lyrics.");
+      try {
+        const sel = document.getElementById("sectionSelect");
+        if (sel) { sel.value = s; }
+      } catch(_) {}
+      if (window.Studio936TrackRecorder?.openPanel) {
+        window.Studio936TrackRecorder.openPanel();
+      } else {
+        alert("El módulo de grabación todavía no cargó — recarga la página e intenta de nuevo.");
+      }
     };
     rowActions.appendChild(recBtn);
 
