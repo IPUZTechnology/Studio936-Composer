@@ -5769,9 +5769,24 @@ body.s936-chart-stage main{
 
       window.addEventListener("studio936:chart-practice-start", onPracticeStart);
       window.addEventListener("studio936:chart-practice-stop", onPracticeStop);
+      // Cambio 261 (arreglo): el botón "Tocar Sección" del header usa un
+      // motor de reproducción distinto (dentro de app.js, sin tocarlo)
+      // que avisa con OTRO evento: studio936:main-transport-state. Se
+      // escucha también aquí, adaptando su forma (active:true/false) a
+      // las mismas funciones de arranque/parada de siempre.
+      function onMainTransportState(ev) {
+        if (ev?.detail?.active) {
+          const scope = ev.detail.playAllMode ? "song" : "section";
+          onPracticeStart({ detail: { section: ev.detail.section, scope } });
+        } else {
+          onPracticeStop();
+        }
+      }
+      window.addEventListener("studio936:main-transport-state", onMainTransportState);
       _contPlayheadCleanup = () => {
         window.removeEventListener("studio936:chart-practice-start", onPracticeStart);
         window.removeEventListener("studio936:chart-practice-stop", onPracticeStop);
+        window.removeEventListener("studio936:main-transport-state", onMainTransportState);
       };
     }
 
