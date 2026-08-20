@@ -1187,7 +1187,7 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-cont-minimap-seg{flex:1;background:rgba(255,255,255,.12)}
 .s936-ch-cont-minimap-seg.on{background:#00ffcc}
 .s936-ch-cont-cell.lyric{color:#9fd8cc}
-.s936-ch-cont-playhead{position:absolute;top:0;left:0;width:2px;height:100%;
+.s936-ch-cont-playhead{position:absolute;top:0;bottom:0;left:0;width:2px;
   background:#00ffcc;box-shadow:0 0 8px rgba(0,255,204,.7);
   transition:transform .12s linear;pointer-events:none;z-index:5}
 .s936-ch-cont-cell.chord.is-playing{background:rgba(0,255,204,.22);outline:1px solid #00ffcc}
