@@ -85,6 +85,11 @@ window.Studio936SuiteProChart = (() => {
   // solo en memoria (no en localStorage todavía), arranca siempre en
   // "Vista: Bloques" (la de siempre) al recargar la página.
   let _chartContinuousViewOn = false;
+  // Cambio 261: estado del péndulo/karaoke de la vista continua — se
+  // reconstruye en cada render() de esa vista; solo un listener activo a
+  // la vez (se limpia el anterior antes de crear uno nuevo).
+  let _contPlayheadRAF = null;
+  let _contPlayheadCleanup = null;
   let _activeBeatEl = null;
   let _activeBarEl = null;
   let _activeLyricWordEl = null; // Cambio 51: palabra de letra resaltada tipo karaoke
@@ -1182,6 +1187,11 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-cont-minimap-seg{flex:1;background:rgba(255,255,255,.12)}
 .s936-ch-cont-minimap-seg.on{background:#00ffcc}
 .s936-ch-cont-cell.lyric{color:#9fd8cc}
+.s936-ch-cont-playhead{position:absolute;top:0;left:0;width:2px;height:100%;
+  background:#00ffcc;box-shadow:0 0 8px rgba(0,255,204,.7);
+  transition:transform .12s linear;pointer-events:none;z-index:5}
+.s936-ch-cont-cell.chord.is-playing{background:rgba(0,255,204,.22);outline:1px solid #00ffcc}
+.s936-ch-cont-cell.lyric.is-playing{background:rgba(0,255,204,.16);color:#e8fffb;font-weight:700}
 #s936-chart-view-panel{font-family:system-ui,sans-serif;color:#fff;isolation:isolate}
 .s936-ch-change-banner{
   position:sticky;top:0;z-index:12;
@@ -5493,6 +5503,11 @@ body.s936-chart-stage main{
     continuousToggle.title = "Alternar entre vista de bloques y vista de línea continua (solo lectura por ahora)";
     continuousToggle.onclick = () => {
       _chartContinuousViewOn = !_chartContinuousViewOn;
+      if (!_chartContinuousViewOn && _contPlayheadCleanup) {
+        try { _contPlayheadCleanup(); } catch(_) {}
+        _contPlayheadCleanup = null;
+        if (_contPlayheadRAF) { try { cancelAnimationFrame(_contPlayheadRAF); } catch(_) {} _contPlayheadRAF = null; }
+      }
       render({ container, instrument, onChordEdit });
     };
     instWrap.appendChild(continuousToggle);
@@ -5515,6 +5530,7 @@ body.s936-chart-stage main{
       bodyEl.innerHTML = "";
       const scroller = document.createElement("div");
       scroller.className = "s936-ch-cont-scroller";
+      scroller.style.position = "relative";
 
       const SECTION_COLORS = {
         intro: "#5DCAA5", verso: "#AFA9EC", verse: "#AFA9EC",
@@ -5524,6 +5540,16 @@ body.s936-chart-stage main{
         outro: "#C99CE0"
       };
       const DEFAULT_COLOR = "#8FA3A0";
+
+      // Cambio 261: reloj plano de toda la canción (concatenando todas
+      // las secciones en orden) — cada compás guarda su inicio/fin en
+      // segundos, calculado con el BPM real, y una referencia a sus
+      // celdas de acorde/letra para poder resaltarlas mientras suena.
+      const bpm = Number(edState.bpm) > 0 ? Number(edState.bpm) : 95;
+      const secondsPerBar = 4 * (60 / bpm); // 4 tiempos por compás
+      const flatTimeline = [];
+      let cursorSec = 0;
+      const sectionAnchors = {}; // sectionKey -> segundo donde empieza esa sección en el reloj plano
 
       arrangement.forEach(item => {
         let chords = sections[item.section] || [];
@@ -5546,6 +5572,7 @@ body.s936-chart-stage main{
 
         const sectionVisualType = String(item.type || item.section || "").toLowerCase();
         const color = SECTION_COLORS[sectionVisualType] || DEFAULT_COLOR;
+        sectionAnchors[item.section] = cursorSec;
 
         const block = document.createElement("div");
         block.className = "s936-ch-cont-block";
@@ -5637,6 +5664,19 @@ body.s936-chart-stage main{
           lyricCell.className = "s936-ch-cont-cell lyric";
           lyricCell.textContent = lyricData?.text || "";
           lyricRow.appendChild(lyricCell);
+
+          // Cambio 261: registrar este compás en el reloj plano de toda
+          // la canción — con esto el péndulo sabe, en cualquier segundo
+          // dado, qué celdas resaltar.
+          flatTimeline.push({
+            sectionKey: item.section,
+            barIndex: idx,
+            startSec: cursorSec,
+            endSec: cursorSec + secondsPerBar,
+            chordCellEl: chordCell,
+            lyricCellEl: lyricCell
+          });
+          cursorSec += secondsPerBar;
         }
 
         block.append(chordRow, lyricRow);
@@ -5644,6 +5684,89 @@ body.s936-chart-stage main{
       });
 
       bodyEl.appendChild(scroller);
+
+      // Cambio 261: péndulo + karaoke (a nivel de compás, no de palabra —
+      // esta vista muestra un cuadro por compás, no por tiempo/palabra
+      // individual como Ly Letra; ese detalle más fino se pierde aquí a
+      // propósito, por el diseño compacto).
+      const playhead = document.createElement("div");
+      playhead.className = "s936-ch-cont-playhead";
+      playhead.style.display = "none";
+      scroller.appendChild(playhead);
+
+      // Limpiar cualquier oyente/animación de una vista continua anterior
+      // antes de crear la nueva — evita que se acumulen oyentes duplicados
+      // cada vez que se vuelve a renderizar.
+      if (_contPlayheadCleanup) { try { _contPlayheadCleanup(); } catch(_) {} }
+      if (_contPlayheadRAF) { try { cancelAnimationFrame(_contPlayheadRAF); } catch(_) {} _contPlayheadRAF = null; }
+
+      let activeChordEl = null;
+      let activeLyricEl = null;
+      function clearHighlight() {
+        if (activeChordEl) { activeChordEl.classList.remove("is-playing"); activeChordEl = null; }
+        if (activeLyricEl) { activeLyricEl.classList.remove("is-playing"); activeLyricEl = null; }
+      }
+
+      function tick(anchorSec, wallStart) {
+        const ctx = window.__studio936AudioCtx;
+        const nowSec = ctx ? ctx.currentTime : (Date.now() / 1000);
+        const elapsed = nowSec - wallStart;
+        const posSec = anchorSec + elapsed;
+        const bar = flatTimeline.find(b => posSec >= b.startSec && posSec < b.endSec);
+        if (bar) {
+          playhead.style.display = "block";
+          const left = bar.chordCellEl.offsetLeft;
+          playhead.style.transform = "translateX(" + left + "px)";
+          if (bar.chordCellEl !== activeChordEl) {
+            clearHighlight();
+            activeChordEl = bar.chordCellEl;
+            activeLyricEl = bar.lyricCellEl;
+            activeChordEl.classList.add("is-playing");
+            activeLyricEl.classList.add("is-playing");
+            // Mantener el péndulo visible dentro del scroll horizontal.
+            const scRect = scroller.getBoundingClientRect();
+            const cellRect = bar.chordCellEl.getBoundingClientRect();
+            if (cellRect.left < scRect.left || cellRect.right > scRect.right) {
+              scroller.scrollTo({ left: left - 40, behavior: "smooth" });
+            }
+          }
+          _contPlayheadRAF = requestAnimationFrame(() => tick(anchorSec, wallStart));
+        } else {
+          // Se acabó el reloj plano (llegó al final de la canción) — se
+          // detiene solo, sin esperar el evento de stop.
+          playhead.style.display = "none";
+          clearHighlight();
+          _contPlayheadRAF = null;
+        }
+      }
+
+      function onPracticeStart(ev) {
+        const ctx = window.__studio936AudioCtx;
+        const wallStart = ctx ? ctx.currentTime : (Date.now() / 1000);
+        const scope = ev?.detail?.scope;
+        const sectionKey = ev?.detail?.section;
+        // Si es Play de una sola sección, el reloj arranca desde el ancla
+        // de esa sección en el reloj plano; si es Play de toda la
+        // canción, arranca desde el principio absoluto.
+        const anchorSec = (scope === "section" && sectionKey && sectionAnchors[sectionKey] != null)
+          ? sectionAnchors[sectionKey]
+          : 0;
+        if (_contPlayheadRAF) cancelAnimationFrame(_contPlayheadRAF);
+        tick(anchorSec, wallStart);
+      }
+
+      function onPracticeStop() {
+        if (_contPlayheadRAF) { cancelAnimationFrame(_contPlayheadRAF); _contPlayheadRAF = null; }
+        playhead.style.display = "none";
+        clearHighlight();
+      }
+
+      window.addEventListener("studio936:chart-practice-start", onPracticeStart);
+      window.addEventListener("studio936:chart-practice-stop", onPracticeStop);
+      _contPlayheadCleanup = () => {
+        window.removeEventListener("studio936:chart-practice-start", onPracticeStart);
+        window.removeEventListener("studio936:chart-practice-stop", onPracticeStop);
+      };
     }
 
     if (_chartContinuousViewOn) {
