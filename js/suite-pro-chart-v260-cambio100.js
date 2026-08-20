@@ -81,6 +81,10 @@ window.Studio936SuiteProChart = (() => {
   }
 
   let _chartInstrument = localStorage.getItem("s936_chart_inst_v1") || "piano";
+  // Cambio 260 (paso 1): estado del interruptor de vista continua — vive
+  // solo en memoria (no en localStorage todavía), arranca siempre en
+  // "Vista: Bloques" (la de siempre) al recargar la página.
+  let _chartContinuousViewOn = false;
   let _activeBeatEl = null;
   let _activeBarEl = null;
   let _activeLyricWordEl = null; // Cambio 51: palabra de letra resaltada tipo karaoke
@@ -1155,6 +1159,24 @@ window.Studio936SuiteProChart = (() => {
     const s = document.createElement("style");
     s.id = STYLE_ID;
     s.textContent = `
+/* Cambio 260 (paso 1) — vista continua, solo lectura */
+.s936-ch-continuous-toggle{
+  margin-left:8px;padding:4px 10px;border-radius:999px;
+  background:rgba(0,255,204,.08);border:1px solid rgba(0,255,204,.3);
+  color:#bfffee;font-size:.55rem;font-weight:800;text-transform:uppercase;
+  letter-spacing:.4px;cursor:pointer;
+}
+.s936-ch-continuous-toggle:hover{background:rgba(0,255,204,.16)}
+.s936-ch-cont-scroller{display:inline-flex;min-width:100%;overflow-x:auto;padding:10px}
+.s936-ch-cont-block{flex-shrink:0;padding:0 10px 0 0;min-width:220px}
+.s936-ch-cont-label{font-size:.55rem;font-weight:800;text-transform:uppercase;
+  letter-spacing:.4px;margin-bottom:4px;white-space:nowrap}
+.s936-ch-cont-row{display:flex;gap:3px;margin-bottom:3px}
+.s936-ch-cont-cell{background:rgba(255,255,255,.05);border-radius:5px;
+  padding:4px 7px;font-size:.62rem;width:60px;text-align:center;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
+.s936-ch-cont-cell.chord{font-weight:700;color:#e8f4f2}
+.s936-ch-cont-cell.lyric{color:#9fd8cc}
 #s936-chart-view-panel{font-family:system-ui,sans-serif;color:#fff;isolation:isolate}
 .s936-ch-change-banner{
   position:sticky;top:0;z-index:12;
@@ -5454,6 +5476,22 @@ body.s936-chart-stage main{
     instHint.className = "s936-ch-inst-main-hint";
     instHint.textContent = "Selector superior";
     instWrap.append(instBtn, instHint);
+
+    // Cambio 260 (paso 1): botón para alternar entre la vista de siempre
+    // (bloques apilados) y la vista nueva (línea continua, solo lectura
+    // por ahora). No reemplaza nada — es una vista alterna, reversible con
+    // un clic, sin tocar el camino de código que ya funciona.
+    const continuousToggle = document.createElement("button");
+    continuousToggle.type = "button";
+    continuousToggle.className = "s936-ch-continuous-toggle";
+    continuousToggle.textContent = _chartContinuousViewOn ? "Vista: Continua" : "Vista: Bloques";
+    continuousToggle.title = "Alternar entre vista de bloques y vista de línea continua (solo lectura por ahora)";
+    continuousToggle.onclick = () => {
+      _chartContinuousViewOn = !_chartContinuousViewOn;
+      render({ container, instrument, onChordEdit });
+    };
+    instWrap.appendChild(continuousToggle);
+
     head.append(info, instWrap);
     container.appendChild(head);
 
@@ -5465,6 +5503,84 @@ body.s936-chart-stage main{
     const sectionBars = getSectionBars();
     const COLS = 4;
 
+    // Cambio 260 (paso 1 — vista continua, solo lectura): interruptor
+    // seguro, no toca la lógica del bucle de siempre. Si la vista continua
+    // NO está activa, todo sigue exactamente igual que antes.
+    function renderContinuousTimelineView(bodyEl) {
+      bodyEl.innerHTML = "";
+      const scroller = document.createElement("div");
+      scroller.className = "s936-ch-cont-scroller";
+
+      const SECTION_COLORS = {
+        intro: "#5DCAA5", verso: "#AFA9EC", verse: "#AFA9EC",
+        prechorus: "#E8C468", "pre-ch": "#E8C468",
+        chorus: "#F0997B", coro: "#F0997B",
+        bridge: "#7BC3E8", intrl: "#7BC3E8", interlude: "#7BC3E8",
+        outro: "#C99CE0"
+      };
+      const DEFAULT_COLOR = "#8FA3A0";
+
+      arrangement.forEach(item => {
+        let chords = sections[item.section] || [];
+        const totalMeasures = sectionBars[item.section]
+          || Number(item.bars)
+          || chords.reduce((s, c) => s + (Number(c.bars) || 1), 0)
+          || 4;
+        if (!Array.isArray(chords) || !chords.length) {
+          const _mainProj = JSON.parse(localStorage.getItem("studio936ComposerV25SongStructure") || "{}");
+          if (!_mainProj.isNewSong) chords = defaultSectionChordsForChart(item.section, totalMeasures);
+        }
+
+        const barMap = {};
+        let bi = 0;
+        chords.forEach(chord => {
+          const bars = Math.max(1, Number(chord.bars) || 1);
+          for (let k = 0; k < bars; k++) barMap[bi + k] = { chord, isFirst: k === 0 };
+          bi += bars;
+        });
+
+        const sectionVisualType = String(item.type || item.section || "").toLowerCase();
+        const color = SECTION_COLORS[sectionVisualType] || DEFAULT_COLOR;
+
+        const block = document.createElement("div");
+        block.className = "s936-ch-cont-block";
+        block.style.borderRight = "2px solid " + color;
+
+        const label = document.createElement("div");
+        label.className = "s936-ch-cont-label";
+        label.style.color = color;
+        label.textContent = "● " + (item.label || item.section || "");
+        block.appendChild(label);
+
+        const chordRow = document.createElement("div");
+        chordRow.className = "s936-ch-cont-row";
+        const lyricRow = document.createElement("div");
+        lyricRow.className = "s936-ch-cont-row";
+
+        for (let idx = 0; idx < totalMeasures; idx++) {
+          const info = barMap[idx];
+          const chordCell = document.createElement("div");
+          chordCell.className = "s936-ch-cont-cell chord";
+          chordCell.textContent = info?.isFirst === false ? "%" : (info?.chord?.name || "—");
+          chordRow.appendChild(chordCell);
+
+          const lyricData = lyricForBar(item.section, idx);
+          const lyricCell = document.createElement("div");
+          lyricCell.className = "s936-ch-cont-cell lyric";
+          lyricCell.textContent = lyricData?.text || "";
+          lyricRow.appendChild(lyricCell);
+        }
+
+        block.append(chordRow, lyricRow);
+        scroller.appendChild(block);
+      });
+
+      bodyEl.appendChild(scroller);
+    }
+
+    if (_chartContinuousViewOn) {
+      renderContinuousTimelineView(body);
+    } else {
     arrangement.forEach(item => {
       let chords = sections[item.section] || [];
       const totalMeasures = sectionBars[item.section]
@@ -5593,6 +5709,7 @@ body.s936-chart-stage main{
       try { window.Studio936TrackRecorder?.renderSectionLanes?.(sec, item.section); } catch(_) {}
       body.appendChild(sec);
     });
+    }
 
     container.appendChild(body);
     container.addEventListener("click", () => closePopups());
