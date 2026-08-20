@@ -525,6 +525,28 @@
       .s936tr-btn.small{padding:5px 8px;font-size:.72rem;flex:none;}
       .s936tr-hint{font-size:.72rem;color:#7fa8a0;margin-top:10px;line-height:1.4;}
       .s936tr-empty{font-size:.78rem;color:#7fa8a0;font-style:italic;}
+      .s936tr-lanewrap{padding:6px 4px 2px;display:flex;flex-direction:column;gap:5px;}
+      .s936tr-lanerow{display:grid;grid-template-columns:92px 1fr;align-items:center;gap:6px;}
+      .s936tr-lanelabel{display:flex;align-items:center;gap:2px;}
+      .s936tr-laneicon{display:flex;align-items:center;justify-content:center;width:18px;height:18px;
+        margin-right:2px;cursor:default;font-size:12px;}
+      .s936tr-lanebtn{width:16px;height:16px;padding:0;border:none;background:none;border-radius:3px;
+        display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;
+        color:rgba(255,255,255,.65);font-size:8px;line-height:1;}
+      .s936tr-lanebtn:hover{background:rgba(255,255,255,.08);}
+      .s936tr-lanebtn.is-active{background:rgba(255,120,120,.22);color:#ff9d9d;}
+      .s936tr-lanetrack{height:7px;border-radius:4px;cursor:default;}
+      .s936tr-laneadd{position:relative;padding-left:0;margin-top:2px;}
+      .s936tr-laneaddbtn{width:20px;height:20px;padding:0;border-radius:50%;
+        border:1px solid rgba(91,232,201,.35);background:rgba(91,232,201,.1);color:#5be8c9;
+        display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;line-height:1;}
+      .s936tr-laneaddbtn:hover{background:rgba(91,232,201,.2);}
+      .s936tr-lanepicker{display:none;position:absolute;left:26px;top:0;background:#0d1a1a;
+        border:1px solid rgba(91,232,201,.3);border-radius:8px;padding:3px;gap:2px;z-index:20;
+        box-shadow:0 8px 24px rgba(0,0,0,.5);}
+      .s936tr-lanepicker button{width:24px;height:24px;padding:0;border:none;background:none;
+        border-radius:5px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;}
+      .s936tr-lanepicker button:hover{background:rgba(255,255,255,.08);}
     `;
     document.head.appendChild(style);
   }
@@ -730,6 +752,165 @@
 
   installStyles();
 
+  // ─── Cambio 258: línea de pistas real, dentro del Chart ─────────────────
+  // Diseño validado con Val en 7 rondas de mockup: columna angosta de solo
+  // iconos (icono → play → mute → solo → borrar), tooltip con el nombre al
+  // pasar el mouse, línea con marcas por compás, botón "+" compacto para
+  // agregar instrumento nuevo. Sin texto visible de nombre — ahorra ancho
+  // junto al Dock, que ya es amplio de por sí.
+  const LANE_INSTRUMENTS = INSTRUMENTS; // Voz/Guitarra/Piano/Batería/Otro, ya definidos arriba
+  // Cambio 258 (corrección): Tabler Icons NO está cargado en index.html —
+  // se usan emojis, mismo criterio que el resto de la app (🎙️, 💾, ☁️...).
+  const LANE_ICONS = {
+    voz: '🎤', guitarra: '🎸', piano: '🎹',
+    bateria: '🥁', otro: '🎵'
+  };
+  const LANE_COLORS = {
+    voz: '#378ADD', guitarra: '#639922', piano: '#7F77DD',
+    bateria: '#D4537E', otro: '#888780'
+  };
+  // Estado de mute/solo por sección+instrumento — ajuste de SESIÓN, mismo
+  // criterio ya usado en suite-pro-channel-mixer.js (no se guarda todavía).
+  const laneMuteSolo = {}; // { [sectionKey]: { [instrumentId]: {muted, solo} } }
+  function getLaneState(sectionKey, instrumentId) {
+    if (!laneMuteSolo[sectionKey]) laneMuteSolo[sectionKey] = {};
+    if (!laneMuteSolo[sectionKey][instrumentId]) laneMuteSolo[sectionKey][instrumentId] = { muted: false, solo: false };
+    return laneMuteSolo[sectionKey][instrumentId];
+  }
+
+  function groupTakesByInstrument(sectionKey) {
+    const groups = {};
+    listTakesForSection(sectionKey).forEach(t => {
+      const key = t.instrument || 'otro';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(t);
+    });
+    return groups;
+  }
+
+  function tickBackgroundStyle() {
+    return 'repeating-linear-gradient(to right, transparent 0, transparent calc(25% - 1px), rgba(255,255,255,.22) calc(25% - 1px), rgba(255,255,255,.22) 25%)';
+  }
+
+  function laneMiniBtn(symbol, title, color, onClick) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 's936tr-lanebtn';
+    b.title = title;
+    b.setAttribute('aria-label', title);
+    b.textContent = symbol;
+    if (color) b.style.color = color;
+    b.onclick = (e) => { e.stopPropagation(); onClick(e); };
+    return b;
+  }
+
+  async function playInstrumentGroup(takes) {
+    for (const take of takes) {
+      const url = await ensureTakePlayable(take);
+      if (!url) continue;
+      const a = new Audio(url);
+      a.play().catch(() => {});
+    }
+  }
+
+  function buildLaneRow(sectionKey, instrumentId, takes) {
+    const info = INSTRUMENTS.find(i => i.id === instrumentId) || INSTRUMENTS[INSTRUMENTS.length - 1];
+    const color = LANE_COLORS[instrumentId] || LANE_COLORS.otro;
+    const icon = LANE_ICONS[instrumentId] || LANE_ICONS.otro;
+    const state = getLaneState(sectionKey, instrumentId);
+
+    const row = document.createElement('div');
+    row.className = 's936tr-lanerow';
+
+    const label = document.createElement('div');
+    label.className = 's936tr-lanelabel';
+
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 's936tr-laneicon';
+    iconSpan.title = info.label;
+    iconSpan.textContent = icon;
+
+    const track = document.createElement('div');
+    track.className = 's936tr-lanetrack';
+    track.title = info.label;
+    track.style.backgroundColor = color;
+    track.style.backgroundImage = tickBackgroundStyle();
+    track.style.opacity = state.muted ? '0.2' : '0.55';
+
+    const playBtn = laneMiniBtn('▶', 'Escuchar ' + info.label, color, () => playInstrumentGroup(takes));
+    const muteBtn = laneMiniBtn(state.muted ? '🔇' : '🔊', 'Silenciar ' + info.label, null, () => {
+      state.muted = !state.muted;
+      track.style.opacity = state.muted ? '0.2' : '0.55';
+      muteBtn.textContent = state.muted ? '🔇' : '🔊';
+      muteBtn.classList.toggle('is-active', state.muted);
+    });
+    const soloBtn = laneMiniBtn('🎧', 'Solo ' + info.label, null, () => {
+      state.solo = !state.solo;
+      soloBtn.classList.toggle('is-active', state.solo);
+      soloBtn.style.color = state.solo ? color : '';
+    });
+    const delBtn = laneMiniBtn('🗑', 'Borrar ' + info.label, null, () => {
+      takes.forEach(t => removeTake(sectionKey, t.id));
+      row.remove();
+    });
+
+    label.append(iconSpan, playBtn, muteBtn, soloBtn, delBtn);
+    row.append(label, track);
+    return row;
+  }
+
+  function buildAddInstrumentControl(sectionKey, laneListEl) {
+    const wrap = document.createElement('div');
+    wrap.className = 's936tr-laneadd';
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 's936tr-laneaddbtn';
+    addBtn.title = 'Agregar instrumento';
+    addBtn.setAttribute('aria-label', 'Agregar instrumento');
+    addBtn.textContent = '+';
+
+    const picker = document.createElement('div');
+    picker.className = 's936tr-lanepicker';
+    picker.style.display = 'none';
+    LANE_INSTRUMENTS.forEach(inst => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.title = inst.label;
+      b.setAttribute('aria-label', inst.label);
+      b.textContent = LANE_ICONS[inst.id] || '🎵';
+      b.onclick = (e) => {
+        e.stopPropagation();
+        picker.style.display = 'none';
+        // Reutiliza el panel de grabación real ya construido — no se
+        // duplica lógica de grabar, solo se abre preseleccionado.
+        currentInstrument = inst.id;
+        openPanel();
+      };
+      picker.appendChild(b);
+    });
+    addBtn.onclick = (e) => {
+      e.stopPropagation();
+      picker.style.display = picker.style.display === 'none' ? 'flex' : 'none';
+    };
+
+    wrap.append(addBtn, picker);
+    return wrap;
+  }
+
+  function renderSectionLanes(sectionEl, sectionKey) {
+    if (!sectionEl || !sectionKey) return;
+    installStyles();
+    const wrap = document.createElement('div');
+    wrap.className = 's936tr-lanewrap';
+    const groups = groupTakesByInstrument(sectionKey);
+    Object.keys(groups).forEach(instrumentId => {
+      wrap.appendChild(buildLaneRow(sectionKey, instrumentId, groups[instrumentId]));
+    });
+    wrap.appendChild(buildAddInstrumentControl(sectionKey, wrap));
+    sectionEl.appendChild(wrap);
+  }
+
   function toggle() {
     if (panelEl && panelEl.style.display !== 'none') closePanel();
     else openPanel();
@@ -755,5 +936,5 @@
     openPanel();
   });
 
-  window.Studio936TrackRecorder = { toggle, openPanel, closePanel };
+  window.Studio936TrackRecorder = { toggle, openPanel, closePanel, renderSectionLanes };
 })();

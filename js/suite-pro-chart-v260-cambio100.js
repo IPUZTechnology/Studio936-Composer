@@ -5585,6 +5585,12 @@ body.s936-chart-stage main{
       }
 
       sec.appendChild(Object.assign(document.createElement("div"), { className: "s936-ch-dblbar" }));
+      // Cambio 258: gancho mínimo — todo el dibujo real de la línea de
+      // pistas vive en suite-pro-track-recorder.js (módulo aparte), este
+      // archivo no gana lógica nueva, solo avisa "aquí termina la sección,
+      // dibuja lo tuyo si quieres". Envuelto en try/catch: si ese módulo no
+      // está cargado o falla, el Chart sigue funcionando exactamente igual.
+      try { window.Studio936TrackRecorder?.renderSectionLanes?.(sec, item.section); } catch(_) {}
       body.appendChild(sec);
     });
 
