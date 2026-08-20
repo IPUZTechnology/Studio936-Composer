@@ -525,6 +525,14 @@
       .s936tr-btn.small{padding:5px 8px;font-size:.72rem;flex:none;}
       .s936tr-hint{font-size:.72rem;color:#7fa8a0;margin-top:10px;line-height:1.4;}
       .s936tr-empty{font-size:.78rem;color:#7fa8a0;font-style:italic;}
+      .s936tr-lane-strip{display:flex;flex-wrap:wrap;align-items:center;gap:6px;
+        padding:6px 14px;background:rgba(91,232,201,.06);border-bottom:1px solid rgba(91,232,201,.14);
+        font-size:.72rem;}
+      .s936tr-lane-label{color:#7fa8a0;font-weight:700;}
+      .s936tr-lane-empty{color:#7fa8a0;font-style:italic;}
+      .s936tr-lane-chip{background:rgba(91,232,201,.14);border:1px solid rgba(91,232,201,.3);
+        color:#5be8c9;border-radius:12px;padding:2px 9px;cursor:pointer;font-weight:600;}
+      .s936tr-lane-chip:hover{background:rgba(91,232,201,.24);}
     `;
     document.head.appendChild(style);
   }
@@ -727,6 +735,68 @@
   window.addEventListener('studio936:chart-practice-stop', () => {
     stopSyncedPlayback();
   });
+
+  // ─── Cambio 253: renglón de pistas dentro del editor Ly Letra ──────────
+  //
+  // No se toca suite-pro-structure-v489-cambio94.js (el archivo que dibuja
+  // el editor Ly Letra) — se vigila cuándo aparece su panel flotante en el
+  // DOM y se le inyecta, aparte, una franja delgada con las pistas
+  // grabadas de esa sección. Es solo de referencia (nombre + play chico),
+  // no reemplaza al panel completo de grabación.
+  function buildTrackLaneStrip(sectionKey) {
+    const strip = el('div', 's936tr-lane-strip');
+    const takes = listTakesForSection(sectionKey);
+    if (!takes.length) {
+      strip.appendChild(el('span', 's936tr-lane-empty', '🎙️ Sin pistas grabadas en esta sección'));
+      return strip;
+    }
+    strip.appendChild(el('span', 's936tr-lane-label', '🎙️ Pistas:'));
+    takes.forEach(take => {
+      const chip = el('span', 's936tr-lane-chip');
+      chip.textContent = (take.instrumentLabel || take.label || 'Pista');
+      chip.title = 'Reproducir ' + (take.label || '');
+      chip.onclick = async () => {
+        const url = await ensureTakePlayable(take);
+        if (!url) { toast('⚠️ Esta pista ya no tiene audio disponible.'); return; }
+        const a = new Audio(url);
+        a.play().catch(() => {});
+      };
+      strip.appendChild(chip);
+    });
+    return strip;
+  }
+
+  function injectTrackLaneIntoLyricsEditor(panelEl) {
+    if (!panelEl || panelEl.querySelector('.s936tr-lane-strip')) return;
+    const head = panelEl.querySelector('.s936-lyrics-head');
+    const sectionKey = getCurrentSectionKey();
+    const strip = buildTrackLaneStrip(sectionKey);
+    if (head && head.parentNode) {
+      head.parentNode.insertBefore(strip, head.nextSibling);
+    } else {
+      panelEl.insertBefore(strip, panelEl.firstChild);
+    }
+  }
+
+  function watchForLyricsEditor() {
+    if (!window.MutationObserver) return;
+    const observer = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        for (const node of m.addedNodes) {
+          if (node.nodeType !== 1) continue;
+          if (node.id === 's936-lyrics-float-panel') {
+            injectTrackLaneIntoLyricsEditor(node);
+          } else if (node.querySelector) {
+            const found = node.querySelector('#s936-lyrics-float-panel');
+            if (found) injectTrackLaneIntoLyricsEditor(found);
+          }
+        }
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+  watchForLyricsEditor();
+  installStyles();
 
   function toggle() {
     if (panelEl && panelEl.style.display !== 'none') closePanel();
