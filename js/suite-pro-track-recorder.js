@@ -898,17 +898,30 @@
     return wrap;
   }
 
+  let _laneDiagnosticShown = false;
   function renderSectionLanes(sectionEl, sectionKey) {
-    if (!sectionEl || !sectionKey) return;
-    installStyles();
-    const wrap = document.createElement('div');
-    wrap.className = 's936tr-lanewrap';
-    const groups = groupTakesByInstrument(sectionKey);
-    Object.keys(groups).forEach(instrumentId => {
-      wrap.appendChild(buildLaneRow(sectionKey, instrumentId, groups[instrumentId]));
-    });
-    wrap.appendChild(buildAddInstrumentControl(sectionKey, wrap));
-    sectionEl.appendChild(wrap);
+    try {
+      if (!sectionEl || !sectionKey) return;
+      installStyles();
+      const wrap = document.createElement('div');
+      wrap.className = 's936tr-lanewrap';
+      const groups = groupTakesByInstrument(sectionKey);
+      Object.keys(groups).forEach(instrumentId => {
+        wrap.appendChild(buildLaneRow(sectionKey, instrumentId, groups[instrumentId]));
+      });
+      wrap.appendChild(buildAddInstrumentControl(sectionKey, wrap));
+      sectionEl.appendChild(wrap);
+    } catch (e) {
+      // Cambio 258 (diagnóstico): si algo falla aquí, antes quedaba mudo
+      // (protegido por el try/catch del Chart) y no había forma de saber
+      // por qué sin abrir DevTools. Ahora avisa en pantalla, una sola vez
+      // por sesión, con el mensaje real del error.
+      console.error('[Studio936TrackRecorder] renderSectionLanes falló:', e);
+      if (!_laneDiagnosticShown) {
+        _laneDiagnosticShown = true;
+        toast('⚠️ La línea de pistas no se pudo dibujar: ' + (e && e.message ? e.message : 'error desconocido'));
+      }
+    }
   }
 
   function toggle() {
