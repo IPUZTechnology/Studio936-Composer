@@ -1178,19 +1178,16 @@ window.Studio936SuiteProChart = (() => {
   letter-spacing:.4px;margin-bottom:4px;white-space:nowrap}
 .s936-ch-cont-row{display:flex;gap:3px;margin-bottom:3px}
 .s936-ch-cont-cell{background:rgba(255,255,255,.05);border-radius:5px;
-  padding:4px 6px;font-size:.62rem;width:92px;text-align:center;
+  padding:4px 6px;font-size:.62rem;width:130px;text-align:center;
   flex-shrink:0;box-sizing:border-box}
 .s936-ch-cont-cell.chord{font-weight:700;color:#e8f4f2;cursor:pointer;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .s936-ch-cont-cell.chord:hover{background:rgba(0,255,204,.1)}
-.s936-ch-cont-chordname{overflow:hidden;text-overflow:ellipsis}
-.s936-ch-cont-minipiano{display:flex;gap:1px;height:14px;margin-top:3px;
-  border-radius:2px;overflow:hidden;background:#0a0a0a;padding:1px}
-.s936-ch-cont-minipiano-key{flex:1;border-radius:1px}
-.s936-ch-cont-minipiano-key.white{background:rgba(255,255,255,.15)}
-.s936-ch-cont-minipiano-key.black{background:rgba(255,255,255,.05);max-width:60%;align-self:flex-start}
-.s936-ch-cont-minipiano-key.on.white{background:#00ffcc}
-.s936-ch-cont-minipiano-key.on.black{background:#00cc9e}
+.s936-ch-cont-chordname{overflow:hidden;text-overflow:ellipsis;font-size:.6rem}
+.s936-ch-cont-segwrap{display:flex;gap:2px;margin-top:2px}
+.s936-ch-cont-seg{min-width:0;overflow:hidden}
+.s936-ch-cont-minireal{transform:scale(.62);transform-origin:top left;
+  width:161%;margin-top:1px;pointer-events:none}
 .s936-ch-cont-cell.lyric{color:#9fd8cc;white-space:normal;word-break:break-word;
   line-height:1.25;min-height:2.4em}
 .s936-ch-cont-playhead{position:absolute;top:0;bottom:0;left:0;width:2px;
@@ -5595,58 +5592,105 @@ body.s936-chart-stage main{
         const lyricRow = document.createElement("div");
         lyricRow.className = "s936-ch-cont-row";
 
+        const beatsData = getBeatsData(item.section);
+
         for (let idx = 0; idx < totalMeasures; idx++) {
           const info = barMap[idx];
-          const chordVal = info?.isFirst === false ? "" : (info?.chord?.name || "");
+          const baseChordVal = info?.isFirst === false ? "" : (info?.chord?.name || "");
+
+          // Cambio 263: un compás puede tener MÁS de un acorde (uno por
+          // tiempo, hasta 4) — antes esta vista solo leía el acorde a
+          // nivel de compás y perdía cualquier cambio agregado tiempo por
+          // tiempo. Aquí se arman los "segmentos" reales del compás,
+          // igual que ya hace la vista de bloques.
+          const segments = [];
+          let curName = beatsData[idx + "_0"] || baseChordVal || "";
+          let curStart = 0;
+          for (let t = 1; t < 4; t++) {
+            const tVal = beatsData[idx + "_" + t];
+            if (tVal !== undefined && tVal !== curName) {
+              segments.push({ name: curName, beat: curStart });
+              curName = tVal;
+              curStart = t;
+            }
+          }
+          segments.push({ name: curName, beat: curStart });
+          const realSegments = segments.filter(s => s.name);
+
           const chordCell = document.createElement("div");
           chordCell.className = "s936-ch-cont-cell chord";
           chordCell.title = "Clic para editar este acorde";
 
-          const nameEl = document.createElement("div");
-          nameEl.className = "s936-ch-cont-chordname";
-          nameEl.textContent = info?.isFirst === false ? "%" : (chordVal || "—");
-          chordCell.appendChild(nameEl);
+          if (info?.isFirst === false) {
+            const nameEl = document.createElement("div");
+            nameEl.className = "s936-ch-cont-chordname";
+            nameEl.textContent = "%";
+            chordCell.appendChild(nameEl);
+          } else if (!realSegments.length) {
+            const nameEl = document.createElement("div");
+            nameEl.className = "s936-ch-cont-chordname";
+            nameEl.textContent = "—";
+            chordCell.appendChild(nameEl);
+          } else {
+            // Cambio 263: reutiliza miniPiano()/miniFret() — las MISMAS
+            // funciones que dibujan el piano/diapasón chico en la vista
+            // de bloques (Cambio 260 usaba un mini-piano inventado, sin
+            // relación real con la digitación guardada). Se escala hacia
+            // abajo con CSS, no se redibuja nada distinto.
+            const segWrap = document.createElement("div");
+            segWrap.className = "s936-ch-cont-segwrap";
+            realSegments.forEach(seg => {
+              const segBox = document.createElement("div");
+              segBox.className = "s936-ch-cont-seg";
+              segBox.style.flex = "1";
+              const nameEl = document.createElement("div");
+              nameEl.className = "s936-ch-cont-chordname";
+              nameEl.textContent = seg.name;
+              segBox.appendChild(nameEl);
 
-          // Cambio 262: mini-piano REAL — antes era un patrón decorativo
-          // (5 segmentos según la posición de la nota raíz, sin relación
-          // con las notas de verdad). Ahora usa chordPitchClasses(), la
-          // misma función que ya calcula las notas exactas para el editor
-          // completo — 12 teclas (blancas/negras), resaltando solo las
-          // que de verdad forman parte del acorde.
-          if (chordVal) {
-            const mini = document.createElement("div");
-            mini.className = "s936-ch-cont-minipiano";
-            const pcs = chordPitchClasses(chordVal); // Set de 0-11
-            const BLACK_KEYS = new Set([1, 3, 6, 8, 10]);
-            for (let pc = 0; pc < 12; pc++) {
-              const key = document.createElement("span");
-              const isBlack = BLACK_KEYS.has(pc);
-              key.className = "s936-ch-cont-minipiano-key" + (isBlack ? " black" : " white") + (pcs.has(pc) ? " on" : "");
-              mini.appendChild(key);
-            }
-            chordCell.appendChild(mini);
+              const nameUpper = seg.name.toUpperCase().trim();
+              const miniHolder = document.createElement("div");
+              miniHolder.className = "s936-ch-cont-minireal";
+              try {
+                let miniEl;
+                if (inst === "piano") {
+                  const beatVoicing = getBeatVoicing(item.section, idx, seg.beat, inst);
+                  const savedVoicing = beatVoicing || voicingLibrary?.[inst]?.[nameUpper] || null;
+                  miniEl = miniPiano(savedVoicing, seg.name);
+                } else {
+                  let savedVoicing = getBeatVoicing(item.section, idx, seg.beat, inst) || voicingLibrary?.[inst]?.[nameUpper];
+                  const fretVoicing = savedVoicing || calcFretVoicing(seg.name, inst);
+                  miniEl = miniFret(fretVoicing);
+                }
+                miniHolder.appendChild(miniEl);
+              } catch(_) {}
+              segBox.appendChild(miniHolder);
+              segWrap.appendChild(segBox);
+            });
+            chordCell.appendChild(segWrap);
           }
 
           // Cambio 260 (paso 2): clic abre el MISMO editor de siempre
           // (showBeatPop → openVoicingEditor), reutilizando exactamente
           // las mismas funciones de guardado que usa la vista de bloques
           // (saveBeat/saveBeatRhythm/repairBarRhythmAfterChordSave/
-          // saveBeatVoicing) — no se creó ningún editor nuevo. Por ahora
-          // edita el Tiempo 1 del compás (el caso normal, un acorde por
-          // compás); afinar edición por tiempo individual queda para
-          // después si hace falta.
+          // saveBeatVoicing) — no se creó ningún editor nuevo. Edita el
+          // primer segmento del compás; si el compás tiene varios
+          // acordes, se puede refinar más adelante para editar cada
+          // segmento por separado.
           chordCell.addEventListener("click", (e) => {
             e.stopPropagation();
             const sectionKey = item.section;
             const barIndex = idx;
             const beatIndex = 0;
-            const label = chordVal ? "Editar acorde" : "Añadir acorde";
-            const effectiveRhythm = normalizeRhythmMode(chordVal ? "hit" : "empty");
+            const clickChordVal = realSegments[0]?.name || "";
+            const label = clickChordVal ? "Editar acorde" : "Añadir acorde";
+            const effectiveRhythm = normalizeRhythmMode(clickChordVal ? "hit" : "empty");
             const onRerenderCont = () => render({ container, instrument: inst, onChordEdit });
             showBeatPop(
               chordCell,
               label + " · Compás " + (barIndex + 1),
-              chordVal,
+              clickChordVal,
               inst,
               effectiveRhythm,
               (val, voicing, nextRhythm) => {
@@ -5657,8 +5701,8 @@ body.s936-chart-stage main{
                 onRerenderCont();
               },
               previewName => {
-                const startName = previewName || chordVal || "";
-                if (startName && startName !== chordVal) {
+                const startName = previewName || clickChordVal || "";
+                if (startName && startName !== clickChordVal) {
                   saveBeat(sectionKey, barIndex, beatIndex, startName);
                   onRerenderCont();
                 }
