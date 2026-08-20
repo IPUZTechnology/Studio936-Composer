@@ -28,6 +28,7 @@
   'use strict';
 
   const META_KEY = 's936_section_tracks_v1';
+  const S936_API_BASE = 'https://studio936-escenario-api.ripuz.workers.dev';
   const INSTRUMENTS = [
     { id: 'voz', label: 'Voz' },
     { id: 'guitarra', label: 'Guitarra' },
@@ -149,6 +150,60 @@
       const fh = await dirHandle.getFileHandle(filename);
       return await fh.getFile();
     } catch (_) { return null; }
+  }
+
+  // ─── Cambio 254: nube (R2 vía backend) ──────────────────────────────────
+
+  function getCurrentCompositionId() {
+    try { return window.Studio936Library?.getCurrentOpenCompositionId?.() || null; }
+    catch (_) { return null; }
+  }
+
+  function getCurrentUser() {
+    try { return window.Studio936Library?.getCurrentUser?.() || null; }
+    catch (_) { return null; }
+  }
+
+  async function tryUploadTrackToCloud(sectionKey, instrumentId, label, blob, durationSec) {
+    const compositionId = getCurrentCompositionId();
+    const user = getCurrentUser();
+    if (!user) return { ok: false, reason: 'no-session' };
+    if (!compositionId) return { ok: false, reason: 'no-composition' };
+    try {
+      const params = new URLSearchParams({
+        compositionId, section: sectionKey, instrument: instrumentId,
+        label: label || '', durationSec: String(durationSec || 0)
+      });
+      const resp = await fetch(S936_API_BASE + '/api/tracks?' + params.toString(), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': blob.type || 'audio/webm' },
+        body: blob
+      });
+      if (!resp.ok) return { ok: false, reason: 'http-' + resp.status };
+      const data = await resp.json();
+      return { ok: true, cloudTrackId: data.id, cloudFileUrl: data.fileUrl };
+    } catch (e) {
+      return { ok: false, reason: 'network' };
+    }
+  }
+
+  async function tryFetchBlobFromCloud(take) {
+    if (!take.cloudFileUrl) return null;
+    try {
+      const resp = await fetch(S936_API_BASE + take.cloudFileUrl, { credentials: 'include' });
+      if (!resp.ok) return null;
+      return await resp.blob();
+    } catch (_) { return null; }
+  }
+
+  function updateTakeMeta(sectionKey, takeId, patch) {
+    const store = readMetaStore();
+    const list = store[sectionKey] || [];
+    const take = list.find(t => t.id === takeId);
+    if (!take) return;
+    Object.assign(take, patch);
+    writeMetaStore(store);
   }
 
   // ─── Grabación ──────────────────────────────────────────────────────────
@@ -284,6 +339,9 @@
       label: instrumentInfo.label + ' · ' + fmtTime(recordSeconds),
       fileName: savedToDisk ? fileName : null,
       savedToDisk: !!savedToDisk,
+      savedToCloud: false,
+      cloudTrackId: null,
+      cloudFileUrl: null,
       createdAt: Date.now(),
       durationSec: recordSeconds,
       anchorAudioCtxTime: recordAnchorCtxTime // para Cambio 252
@@ -294,6 +352,7 @@
     // Guarda también en memoria para esta sesión, para poder escuchar la
     // toma de una vez sin depender de la carpeta configurada.
     objectUrlsById[id] = pendingObjectUrl;
+    const blobForCloud = pendingBlob;
     pendingObjectUrl = null;
     pendingBlob = null;
     recordSeconds = 0;
@@ -302,6 +361,25 @@
       ? '🎙️ Pista guardada en tu carpeta y lista para esta sección.'
       : '🎙️ Pista guardada en esta sesión (configura una carpeta local para que sobreviva a cerrar la pestaña).');
 
+    renderPanelBody();
+
+    // Cambio 254: subir a la nube (R2), sin bloquear ni deshacer el
+    // guardado local si esto falla — la copia local ya está a salvo.
+    const cloudResult = await tryUploadTrackToCloud(sectionKey, currentInstrument, take.label, blobForCloud, take.durationSec);
+    if (cloudResult.ok) {
+      updateTakeMeta(sectionKey, id, {
+        savedToCloud: true,
+        cloudTrackId: cloudResult.cloudTrackId,
+        cloudFileUrl: cloudResult.cloudFileUrl
+      });
+      toast('☁️ Pista también guardada en la nube.');
+    } else if (cloudResult.reason === 'no-session') {
+      toast('☁️ Pista NO subida a la nube — inicia sesión para respaldarla ahí también.');
+    } else if (cloudResult.reason === 'no-composition') {
+      toast('☁️ Pista NO subida a la nube — guarda primero la canción en la Librería.');
+    } else {
+      toast('⚠️ No se pudo subir la pista a la nube (se quedó en tu copia local).');
+    }
     renderPanelBody();
   }
 
@@ -315,14 +393,34 @@
         return url;
       }
     }
+    // Cambio 254: si no está en disco ni en memoria, pero sí se subió a la
+    // nube en su momento, se recupera de ahí — esto es justo lo que evita
+    // que una pista quede "perdida" solo por cerrar la pestaña sin carpeta
+    // configurada.
+    if (take.savedToCloud && take.cloudFileUrl) {
+      const blob = await tryFetchBlobFromCloud(take);
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        objectUrlsById[take.id] = url;
+        return url;
+      }
+    }
     return null;
   }
 
   function removeTake(sectionKey, takeId) {
+    const takes = listTakesForSection(sectionKey);
+    const take = takes.find(t => t.id === takeId);
     deleteTakeMeta(sectionKey, takeId);
     if (objectUrlsById[takeId]) {
       try { URL.revokeObjectURL(objectUrlsById[takeId]); } catch (_) {}
       delete objectUrlsById[takeId];
+    }
+    if (take && take.savedToCloud && take.cloudTrackId) {
+      fetch(S936_API_BASE + '/api/tracks/' + encodeURIComponent(take.cloudTrackId), {
+        method: 'DELETE',
+        credentials: 'include'
+      }).catch(() => {});
     }
     renderPanelBody();
   }
@@ -459,7 +557,7 @@
       takes.forEach(take => {
         const box = el('div', 's936tr-take');
         const head = el('div', 's936tr-take-head');
-        head.appendChild(el('span', '', take.label + (take.savedToDisk ? ' 💾' : ' (solo esta sesión)')));
+        head.appendChild(el('span', '', take.label + (take.savedToDisk ? ' 💾' : ' (solo esta sesión)') + (take.savedToCloud ? ' ☁️' : '')));
         const delBtn = el('button', 's936tr-take-del', '✕ borrar');
         delBtn.onclick = () => removeTake(sectionKey, take.id);
         head.appendChild(delBtn);
@@ -506,7 +604,7 @@
     body.appendChild(listWrap);
 
     const hint = el('div', 's936tr-hint',
-      'Para grabar desde una interfaz externa (ej. Flow 8 con guitarra conectada), selecciónala como entrada de audio del sistema antes de grabar. Esta pieza guarda tomas por sección; que suenen junto con el Play de la sección llega en la siguiente entrega.');
+      'Para grabar desde una interfaz externa (ej. Flow 8 con guitarra conectada), selecciónala como entrada de audio del sistema antes de grabar. Al darle Play a esta sección desde el Chart, las pistas guardadas aquí suenan junto con el groove — como referencia, no con precisión de estudio profesional todavía.');
     body.appendChild(hint);
   }
 
@@ -528,6 +626,49 @@
   function closePanel() {
     if (panelEl) panelEl.style.display = 'none';
   }
+
+  // ─── Cambio 252: reproducción sincronizada con el Play de la sección ───
+  //
+  // Nota honesta sobre precisión: esto usa elementos <audio> normales, no
+  // el reloj de muestra exacta de Web Audio (AudioBufferSourceNode +
+  // ctx.currentTime). Eso significa que puede haber unos pocos
+  // milisegundos de desfase — imperceptible para escuchar una referencia
+  // mientras compones, pero no es el nivel de precisión de un canal real
+  // de estudio. Si más adelante hace falta esa precisión exacta (para el
+  // sistema de canales real del Studio), se puede reconstruir con
+  // AudioBufferSourceNode anclado a ctx.currentTime — pieza aparte, no
+  // esta.
+  const playingTrackEls = [];
+
+  function stopSyncedPlayback() {
+    while (playingTrackEls.length) {
+      const audioEl = playingTrackEls.pop();
+      try { audioEl.pause(); audioEl.currentTime = 0; } catch (_) {}
+    }
+  }
+
+  async function startSyncedPlaybackForSection(sectionKey) {
+    stopSyncedPlayback();
+    const takes = listTakesForSection(sectionKey);
+    if (!takes.length) return;
+    for (const take of takes) {
+      const url = await ensureTakePlayable(take);
+      if (!url) continue; // toma perdida (sin carpeta configurada) — se salta, no rompe el Play
+      const audioEl = new Audio(url);
+      audioEl.currentTime = 0;
+      try { await audioEl.play(); } catch (_) {}
+      playingTrackEls.push(audioEl);
+    }
+  }
+
+  window.addEventListener('studio936:chart-practice-start', (ev) => {
+    const sectionKey = ev?.detail?.section || getCurrentSectionKey();
+    startSyncedPlaybackForSection(sectionKey);
+  });
+
+  window.addEventListener('studio936:chart-practice-stop', () => {
+    stopSyncedPlayback();
+  });
 
   function toggle() {
     if (panelEl && panelEl.style.display !== 'none') closePanel();
