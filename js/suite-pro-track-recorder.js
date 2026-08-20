@@ -525,18 +525,6 @@
       .s936tr-btn.small{padding:5px 8px;font-size:.72rem;flex:none;}
       .s936tr-hint{font-size:.72rem;color:#7fa8a0;margin-top:10px;line-height:1.4;}
       .s936tr-empty{font-size:.78rem;color:#7fa8a0;font-style:italic;}
-      .s936tr-lane-strip{display:flex;flex-wrap:wrap;align-items:center;gap:6px;
-        padding:6px 14px;background:rgba(91,232,201,.06);border-bottom:1px solid rgba(91,232,201,.14);
-        font-size:.72rem;}
-      .s936tr-lane-label{color:#7fa8a0;font-weight:700;}
-      .s936tr-lane-empty{color:#7fa8a0;font-style:italic;}
-      .s936tr-lane-chip{background:rgba(91,232,201,.14);border:1px solid rgba(91,232,201,.3);
-        color:#5be8c9;border-radius:12px;padding:2px 9px;cursor:pointer;font-weight:600;}
-      .s936tr-lane-chip:hover{background:rgba(91,232,201,.24);}
-      .s936tr-bar-play{margin-left:6px;background:rgba(91,232,201,.16);border:1px solid rgba(91,232,201,.35);
-        color:#5be8c9;border-radius:50%;width:20px;height:20px;font-size:.6rem;cursor:pointer;
-        line-height:1;padding:0;vertical-align:middle;}
-      .s936tr-bar-play:hover{background:rgba(91,232,201,.3);}
     `;
     document.head.appendChild(style);
   }
@@ -740,119 +728,6 @@
     stopSyncedPlayback();
   });
 
-  // ─── Cambio 253: renglón de pistas dentro del editor Ly Letra ──────────
-  //
-  // No se toca suite-pro-structure-v489-cambio94.js (el archivo que dibuja
-  // el editor Ly Letra) — se vigila cuándo aparece su panel flotante en el
-  // DOM y se le inyecta, aparte, una franja delgada con las pistas
-  // grabadas de esa sección. Es solo de referencia (nombre + play chico),
-  // no reemplaza al panel completo de grabación.
-  function buildTrackLaneStrip(sectionKey) {
-    const strip = el('div', 's936tr-lane-strip');
-    const takes = listTakesForSection(sectionKey);
-    if (!takes.length) {
-      strip.appendChild(el('span', 's936tr-lane-empty', '🎙️ Sin pistas grabadas en esta sección'));
-      return strip;
-    }
-    strip.appendChild(el('span', 's936tr-lane-label', '🎙️ Pistas:'));
-    takes.forEach(take => {
-      const chip = el('span', 's936tr-lane-chip');
-      chip.textContent = (take.instrumentLabel || take.label || 'Pista');
-      chip.title = 'Reproducir ' + (take.label || '');
-      chip.onclick = async () => {
-        const url = await ensureTakePlayable(take);
-        if (!url) { toast('⚠️ Esta pista ya no tiene audio disponible.'); return; }
-        const a = new Audio(url);
-        a.play().catch(() => {});
-      };
-      strip.appendChild(chip);
-    });
-    return strip;
-  }
-
-  // Cambio 256: además del renglón general, un botón ▶ chico por compás
-  // (usa el data-bar="N" que el propio editor Ly Letra ya pone en cada
-  // casilla) — salta al segundo exacto de la grabación continua que
-  // corresponde a ese compás, calculado con el BPM real. No corta ni
-  // edita el audio — es navegación de escucha, no edición.
-  function getCurrentBpm() {
-    try {
-      const el2 = document.getElementById('bpmDisplay') || document.getElementById('bpmSlider');
-      const v = parseFloat(el2 && (el2.textContent || el2.value));
-      if (v && v > 0) return v;
-    } catch (_) {}
-    return 95; // valor por defecto razonable, mismo que el slider trae de fábrica
-  }
-
-  function secondsPerBar() {
-    const bpm = getCurrentBpm();
-    return 4 * (60 / bpm); // 4 tiempos por compás, como ya confirma el propio editor Ly Letra
-  }
-
-  async function previewBarFromTakes(sectionKey, barIndex) {
-    const takes = listTakesForSection(sectionKey);
-    if (!takes.length) { toast('⚠️ No hay pistas grabadas en esta sección.'); return; }
-    const startAt = barIndex * secondsPerBar();
-    const dur = secondsPerBar();
-    for (const take of takes) {
-      const url = await ensureTakePlayable(take);
-      if (!url) continue;
-      const a = new Audio(url);
-      a.currentTime = startAt;
-      a.play().catch(() => {});
-      setTimeout(() => { try { a.pause(); } catch (_) {} }, dur * 1000);
-    }
-  }
-
-  function injectBarPreviewButtons(panelEl, sectionKey) {
-    const cards = panelEl.querySelectorAll('.s936-lyrics-bar-card');
-    cards.forEach(card => {
-      if (card.querySelector('.s936tr-bar-play')) return; // ya inyectado
-      const head = card.querySelector('.s936-lyrics-bar-head');
-      if (!head) return;
-      const barIndex = parseInt(card.dataset.bar || '0', 10);
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 's936tr-bar-play';
-      btn.textContent = '▶';
-      btn.title = 'Escuchar la pista grabada en este compás';
-      btn.onclick = (e) => { e.stopPropagation(); previewBarFromTakes(sectionKey, barIndex); };
-      head.appendChild(btn);
-    });
-  }
-
-  function injectTrackLaneIntoLyricsEditor(panelEl) {
-    const sectionKey = getCurrentSectionKey();
-    if (!panelEl.querySelector('.s936tr-lane-strip')) {
-      const head = panelEl.querySelector('.s936-lyrics-head');
-      const strip = buildTrackLaneStrip(sectionKey);
-      if (head && head.parentNode) {
-        head.parentNode.insertBefore(strip, head.nextSibling);
-      } else {
-        panelEl.insertBefore(strip, panelEl.firstChild);
-      }
-    }
-    injectBarPreviewButtons(panelEl, sectionKey);
-  }
-
-  function watchForLyricsEditor() {
-    if (!window.MutationObserver) return;
-    const observer = new MutationObserver((mutations) => {
-      for (const m of mutations) {
-        for (const node of m.addedNodes) {
-          if (node.nodeType !== 1) continue;
-          if (node.id === 's936-lyrics-float-panel') {
-            injectTrackLaneIntoLyricsEditor(node);
-          } else if (node.querySelector) {
-            const found = node.querySelector('#s936-lyrics-float-panel');
-            if (found) injectTrackLaneIntoLyricsEditor(found);
-          }
-        }
-      }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-  }
-  watchForLyricsEditor();
   installStyles();
 
   function toggle() {
