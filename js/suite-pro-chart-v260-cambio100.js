@@ -1175,7 +1175,12 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-cont-cell{background:rgba(255,255,255,.05);border-radius:5px;
   padding:4px 7px;font-size:.62rem;width:60px;text-align:center;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
-.s936-ch-cont-cell.chord{font-weight:700;color:#e8f4f2}
+.s936-ch-cont-cell.chord{font-weight:700;color:#e8f4f2;cursor:pointer}
+.s936-ch-cont-cell.chord:hover{background:rgba(0,255,204,.1)}
+.s936-ch-cont-chordname{overflow:hidden;text-overflow:ellipsis}
+.s936-ch-cont-minimap{display:flex;gap:1px;height:6px;margin-top:3px;border-radius:2px;overflow:hidden}
+.s936-ch-cont-minimap-seg{flex:1;background:rgba(255,255,255,.12)}
+.s936-ch-cont-minimap-seg.on{background:#00ffcc}
 .s936-ch-cont-cell.lyric{color:#9fd8cc}
 #s936-chart-view-panel{font-family:system-ui,sans-serif;color:#fff;isolation:isolate}
 .s936-ch-change-banner{
@@ -5559,9 +5564,72 @@ body.s936-chart-stage main{
 
         for (let idx = 0; idx < totalMeasures; idx++) {
           const info = barMap[idx];
+          const chordVal = info?.isFirst === false ? "" : (info?.chord?.name || "");
           const chordCell = document.createElement("div");
           chordCell.className = "s936-ch-cont-cell chord";
-          chordCell.textContent = info?.isFirst === false ? "%" : (info?.chord?.name || "—");
+          chordCell.title = "Clic para editar este acorde";
+
+          const nameEl = document.createElement("div");
+          nameEl.className = "s936-ch-cont-chordname";
+          nameEl.textContent = info?.isFirst === false ? "%" : (chordVal || "—");
+          chordCell.appendChild(nameEl);
+
+          // Cambio 260 (paso 2): mini-mapa visual — referencia rápida, no
+          // la digitación exacta (eso sigue viviendo en el editor completo
+          // al hacer clic). Aquí solo un vistazo, como pediste, "bonito".
+          if (chordVal) {
+            const mini = document.createElement("div");
+            mini.className = "s936-ch-cont-minimap";
+            const parsedForMini = parseChord(chordVal);
+            const rootIdx = parsedForMini ? (NOTE_NAMES.indexOf(parsedForMini.root) % 5) : 0;
+            for (let k = 0; k < 5; k++) {
+              const seg = document.createElement("span");
+              seg.className = "s936-ch-cont-minimap-seg" + (k === rootIdx || k === (rootIdx + 2) % 5 ? " on" : "");
+              mini.appendChild(seg);
+            }
+            chordCell.appendChild(mini);
+          }
+
+          // Cambio 260 (paso 2): clic abre el MISMO editor de siempre
+          // (showBeatPop → openVoicingEditor), reutilizando exactamente
+          // las mismas funciones de guardado que usa la vista de bloques
+          // (saveBeat/saveBeatRhythm/repairBarRhythmAfterChordSave/
+          // saveBeatVoicing) — no se creó ningún editor nuevo. Por ahora
+          // edita el Tiempo 1 del compás (el caso normal, un acorde por
+          // compás); afinar edición por tiempo individual queda para
+          // después si hace falta.
+          chordCell.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const sectionKey = item.section;
+            const barIndex = idx;
+            const beatIndex = 0;
+            const label = chordVal ? "Editar acorde" : "Añadir acorde";
+            const effectiveRhythm = normalizeRhythmMode(chordVal ? "hit" : "empty");
+            const onRerenderCont = () => render({ container, instrument: inst, onChordEdit });
+            showBeatPop(
+              chordCell,
+              label + " · Compás " + (barIndex + 1),
+              chordVal,
+              inst,
+              effectiveRhythm,
+              (val, voicing, nextRhythm) => {
+                saveBeat(sectionKey, barIndex, beatIndex, val);
+                saveBeatRhythm(sectionKey, barIndex, beatIndex, nextRhythm);
+                repairBarRhythmAfterChordSave(sectionKey, barIndex, beatIndex, val, nextRhythm);
+                saveBeatVoicing(sectionKey, barIndex, beatIndex, inst, val ? voicing : null);
+                onRerenderCont();
+              },
+              previewName => {
+                const startName = previewName || chordVal || "";
+                if (startName && startName !== chordVal) {
+                  saveBeat(sectionKey, barIndex, beatIndex, startName);
+                  onRerenderCont();
+                }
+                setTimeout(() => openVoicingEditor(chordCell, sectionKey, barIndex, beatIndex, startName, inst, onRerenderCont), 0);
+              }
+            );
+          });
+
           chordRow.appendChild(chordCell);
 
           const lyricData = lyricForBar(item.section, idx);
