@@ -526,6 +526,8 @@
       .s936tr-hint{font-size:.72rem;color:#7fa8a0;margin-top:10px;line-height:1.4;}
       .s936tr-empty{font-size:.78rem;color:#7fa8a0;font-style:italic;}
       .s936tr-lanewrap{padding:6px 4px 2px;display:flex;flex-direction:column;gap:5px;}
+      .s936tr-laneheading{font-size:.62rem;color:#7fa8a0;text-transform:uppercase;letter-spacing:.5px;
+        font-weight:700;margin-bottom:1px;}
       .s936tr-lanerow{display:grid;grid-template-columns:92px 1fr;align-items:center;gap:6px;}
       .s936tr-lanelabel{display:flex;align-items:center;gap:2px;}
       .s936tr-laneicon{display:flex;align-items:center;justify-content:center;width:18px;height:18px;
@@ -905,6 +907,14 @@
       installStyles();
       const wrap = document.createElement('div');
       wrap.className = 's936tr-lanewrap';
+      // Cambio 258 (arreglo): sin esta etiqueta, cuando una sección tiene
+      // más de 4 compases (se dibuja en varias filas), la línea de pistas
+      // parece pertenecer solo a la última fila — aunque en realidad
+      // representa TODA la sección (se graba de corrido, no por compás).
+      const heading = document.createElement('div');
+      heading.className = 's936tr-laneheading';
+      heading.textContent = '🎙️ Pistas de toda esta sección';
+      wrap.appendChild(heading);
       const groups = groupTakesByInstrument(sectionKey);
       Object.keys(groups).forEach(instrumentId => {
         wrap.appendChild(buildLaneRow(sectionKey, instrumentId, groups[instrumentId]));
