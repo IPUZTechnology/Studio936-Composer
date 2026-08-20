@@ -29,6 +29,12 @@
 
   const META_KEY = 's936_section_tracks_v1';
   const S936_API_BASE = 'https://studio936-escenario-api.ripuz.workers.dev';
+  // Cambio 255: mismos canales que ya controla el Mixer de Compose
+  // (suite-pro-channel-mixer.js) — se reutilizan, no se inventa un
+  // sistema de mute nuevo.
+  const BACKING_CHANNELS = ['drums', 'bass', 'chord', 'solo', 'piano', 'ukulele'];
+  let muteBackingWhileRec = true;
+  let mutedChannelsBeforeRec = null;
   const INSTRUMENTS = [
     { id: 'voz', label: 'Voz' },
     { id: 'guitarra', label: 'Guitarra' },
@@ -244,6 +250,30 @@
     }, 1000);
   }
 
+  function muteBackingChannels() {
+    const bridge = window.Studio936AppBridge;
+    if (!bridge || !muteBackingWhileRec) { mutedChannelsBeforeRec = null; return; }
+    try {
+      const mix = bridge.getChannelMix?.() || {};
+      mutedChannelsBeforeRec = {};
+      BACKING_CHANNELS.forEach(key => {
+        mutedChannelsBeforeRec[key] = !!(mix[key] && mix[key].mute);
+        bridge.setChannelMute?.(key, true);
+      });
+    } catch (_) { mutedChannelsBeforeRec = null; }
+  }
+
+  function restoreBackingChannels() {
+    const bridge = window.Studio936AppBridge;
+    if (!bridge || !mutedChannelsBeforeRec) return;
+    try {
+      BACKING_CHANNELS.forEach(key => {
+        bridge.setChannelMute?.(key, !!mutedChannelsBeforeRec[key]);
+      });
+    } catch (_) {}
+    mutedChannelsBeforeRec = null;
+  }
+
   async function startRecording() {
     const stream = await ensureMic();
     if (!stream) return;
@@ -265,16 +295,24 @@
       if (ev.data && ev.data.size > 0) recordedChunks.push(ev.data);
     };
 
-    // Cambio 251: se marca el instante de arranque en el reloj compartido
-    // de audio (si ya existe un AudioContext activo) — este ancla queda
-    // guardada en la metadata de la toma, lista para que Cambio 252 la use
-    // al reproducir la sección en sincronía. Por ahora, esta entrega no
-    // dispara el Play de la sección automáticamente al grabar — se deja
-    // que el usuario lo controle aparte (botón Play normal del Chart) para
-    // no interferir con el motor de reproducción en esta primera pieza.
     const ctx = getMainAudioCtx();
     recordAnchorCtxTime = ctx ? ctx.currentTime : null;
     recordStartedAt = Date.now();
+
+    // Cambio 255: si el usuario dejó marcado "silenciar fondo", se
+    // silencian los canales del groove ANTES de arrancar el Play — así lo
+    // que se escuche por bocinas (y podría colarse por el micrófono) no
+    // suena, aunque el reloj interno del groove sí siga corriendo para
+    // mantener la sincronía con lo que grabas.
+    muteBackingChannels();
+
+    // Cambio 255: grabar ahora también arranca el Play de la sección
+    // actual al mismo tiempo — para que siempre haya base/click contra la
+    // cual cantar o tocar, en vez de grabar sobre silencio.
+    try {
+      const sectionKey = getCurrentSectionKey();
+      window.Studio936SuiteProChart?.startChartSectionPractice?.(null, sectionKey);
+    } catch (_) {}
 
     mediaRecorder.start();
     startRecordTimer();
@@ -291,6 +329,10 @@
         resolve(blob);
       };
       mediaRecorder.stop();
+      // Cambio 255: detener la grabación también detiene el Play de la
+      // sección y restaura el fondo a como estaba antes de silenciarlo.
+      try { window.Studio936SuiteProChart?.stopChartRhythmConsole?.({ stopAudio: true, stopBridge: true }); } catch (_) {}
+      restoreBackingChannels();
     });
   }
 
@@ -458,6 +500,9 @@
         color:#5be8c9;border-radius:7px;padding:5px 10px;font-size:.72rem;cursor:pointer;font-weight:700;}
       .s936tr-select{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(91,232,201,.25);
         border-radius:8px;color:#e8f4f2;padding:8px 10px;font-size:.85rem;margin-bottom:12px;}
+      .s936tr-mute-row{display:flex;align-items:center;gap:8px;font-size:.74rem;color:#9fd8cc;
+        margin-bottom:12px;cursor:pointer;}
+      .s936tr-mute-row input{cursor:pointer;}
       .s936tr-recrow{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
       .s936tr-recbtn{flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,120,120,.4);
         background:rgba(255,80,80,.14);color:#ffb3b3;font-weight:700;cursor:pointer;font-size:.85rem;}
@@ -523,6 +568,19 @@
     });
     select.onchange = () => { currentInstrument = select.value; };
     body.appendChild(select);
+
+    // Cambio 255: interruptor para silenciar el fondo mientras se graba
+    // (evita que se cuele por el micrófono si estás en bocinas, no
+    // audífonos). El groove sigue sonando "por dentro" para mantener el
+    // reloj — solo se silencia lo que sale por las bocinas.
+    const muteRow = el('label', 's936tr-mute-row');
+    const muteCheckbox = document.createElement('input');
+    muteCheckbox.type = 'checkbox';
+    muteCheckbox.checked = muteBackingWhileRec;
+    muteCheckbox.onchange = () => { muteBackingWhileRec = muteCheckbox.checked; };
+    muteRow.appendChild(muteCheckbox);
+    muteRow.appendChild(document.createTextNode(' Silenciar fondo mientras grabo (usa audífonos si lo desmarcas)'));
+    body.appendChild(muteRow);
 
     const live = mediaRecorder && mediaRecorder.state === 'recording';
     const recRow = el('div', 's936tr-recrow');
