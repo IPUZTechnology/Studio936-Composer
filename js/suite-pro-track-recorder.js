@@ -352,6 +352,12 @@
       .s936tr-body{padding:14px 16px;max-height:60vh;overflow-y:auto;}
       .s936tr-section{font-size:.78rem;color:#9fd8cc;margin-bottom:10px;}
       .s936tr-section b{color:#e8f4f2;}
+      .s936tr-folder-row{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;
+        padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.03);}
+      .s936tr-folder-ok{font-size:.74rem;color:#5be8c9;}
+      .s936tr-folder-warn{font-size:.74rem;color:#ffc98a;}
+      .s936tr-folder-btn{align-self:flex-start;background:rgba(91,232,201,.14);border:1px solid rgba(91,232,201,.35);
+        color:#5be8c9;border-radius:7px;padding:5px 10px;font-size:.72rem;cursor:pointer;font-weight:700;}
       .s936tr-select{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(91,232,201,.25);
         border-radius:8px;color:#e8f4f2;padding:8px 10px;font-size:.85rem;margin-bottom:12px;}
       .s936tr-recrow{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
@@ -368,9 +374,12 @@
       .s936tr-btn.danger{background:rgba(255,80,80,.12);border-color:rgba(255,120,120,.3);color:#ffb3b3;}
       .s936tr-list h5{font-size:.75rem;color:#9fd8cc;text-transform:uppercase;letter-spacing:.6px;margin:14px 0 8px;}
       .s936tr-take{border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 10px;margin-bottom:8px;}
+      .s936tr-take.is-lost{border-color:rgba(255,180,120,.35);background:rgba(255,180,120,.05);}
       .s936tr-take-head{display:flex;justify-content:space-between;align-items:center;font-size:.82rem;margin-bottom:6px;}
       .s936tr-take-del{background:none;border:none;color:#ff9d9d;cursor:pointer;font-size:.75rem;}
       .s936tr-take audio{width:100%;}
+      .s936tr-take-actions{margin-top:6px;}
+      .s936tr-btn.small{padding:5px 8px;font-size:.72rem;flex:none;}
       .s936tr-hint{font-size:.72rem;color:#7fa8a0;margin-top:10px;line-height:1.4;}
       .s936tr-empty{font-size:.78rem;color:#7fa8a0;font-style:italic;}
     `;
@@ -388,6 +397,24 @@
     const sectionInfo = el('div', 's936tr-section');
     sectionInfo.innerHTML = 'Sección actual: <b>' + getCurrentSectionLabel() + '</b>';
     body.appendChild(sectionInfo);
+
+    // Cambio 251 (arreglo de guardado): aviso claro de si hay carpeta
+    // configurada o no — sin esto, una toma grabada sin carpeta se pierde
+    // en silencio al cerrar la pestaña, y el usuario no se entera hasta
+    // que la busca y no está.
+    const hasFolder = !!localStorage.getItem('s936_library_dir_name');
+    const folderRow = el('div', 's936tr-folder-row');
+    if (hasFolder) {
+      folderRow.appendChild(el('span', 's936tr-folder-ok', '💾 Carpeta configurada: lo que grabes queda guardado de verdad.'));
+    } else {
+      folderRow.appendChild(el('span', 's936tr-folder-warn', '⚠️ Sin carpeta configurada: lo que grabes se pierde al cerrar esta pestaña.'));
+      const cfgBtn = el('button', 's936tr-folder-btn', '📁 Configurar carpeta ahora');
+      cfgBtn.onclick = () => {
+        try { window.Studio936SuiteProStructure?.openLibraryConfig?.({}); } catch (_) {}
+      };
+      folderRow.appendChild(cfgBtn);
+    }
+    body.appendChild(folderRow);
 
     const select = el('select', 's936tr-select');
     INSTRUMENTS.forEach(i => {
@@ -441,7 +468,37 @@
         const audio = document.createElement('audio');
         audio.controls = true;
         box.appendChild(audio);
-        ensureTakePlayable(take).then(url => { if (url) audio.src = url; });
+
+        const takeActions = el('div', 's936tr-take-actions');
+        const dlBtn = el('button', 's936tr-btn secondary small', '⬇ Descargar');
+        dlBtn.disabled = true;
+        takeActions.appendChild(dlBtn);
+        box.appendChild(takeActions);
+
+        ensureTakePlayable(take).then(url => {
+          if (url) {
+            audio.src = url;
+            dlBtn.disabled = false;
+            dlBtn.onclick = () => {
+              // Cambio 251 (arreglo): cada pista es un archivo de audio
+              // estándar (.webm) — se puede descargar y llevar a
+              // cualquier otra herramienta, no queda encerrada aquí.
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = (take.fileName || (take.label.replace(/[^a-z0-9]+/gi, '-') + '.webm'));
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+            };
+          } else {
+            // Ficha sin audio disponible: no se saved a disco y ya no
+            // está en memoria (sesión anterior cerrada). Se avisa en vez
+            // de dejar un reproductor mudo sin explicación.
+            box.classList.add('is-lost');
+            head.querySelector('span').textContent = take.label + ' — ⚠️ audio perdido (no se guardó en disco)';
+            audio.remove();
+          }
+        });
 
         listWrap.appendChild(box);
       });
