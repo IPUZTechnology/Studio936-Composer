@@ -5741,13 +5741,19 @@ body.s936-chart-stage main{
       }
 
       function onPracticeStart(ev) {
+        // Cambio 261 (diagnóstico temporal): confirmar en pantalla si este
+        // evento realmente llega, en vez de seguir adivinando a ciegas.
+        try {
+          if (window.s936CloudToast) {
+            window.s936CloudToast('🔍 Péndulo: evento de Play recibido (sección: ' + (ev?.detail?.section || '?') + ', scope: ' + (ev?.detail?.scope || '?') + ')', true);
+          } else {
+            console.log('[Péndulo] chart-practice-start recibido', ev?.detail);
+          }
+        } catch(_) {}
         const ctx = window.__studio936AudioCtx;
         const wallStart = ctx ? ctx.currentTime : (Date.now() / 1000);
         const scope = ev?.detail?.scope;
         const sectionKey = ev?.detail?.section;
-        // Si es Play de una sola sección, el reloj arranca desde el ancla
-        // de esa sección en el reloj plano; si es Play de toda la
-        // canción, arranca desde el principio absoluto.
         const anchorSec = (scope === "section" && sectionKey && sectionAnchors[sectionKey] != null)
           ? sectionAnchors[sectionKey]
           : 0;
