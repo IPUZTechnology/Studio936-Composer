@@ -1888,17 +1888,17 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
 }
 .s936-ch-fm{position:absolute;color:rgba(255,80,80,.8);font-size:.5rem;font-weight:900;transform:translateX(-50%)}
 .s936-ch-capo{position:absolute;left:0;top:0;bottom:0;width:3px;background:rgba(255,224,102,.6);border-radius:0 2px 2px 0}
-.s936-ch-fret-label{
-  position:absolute;
-  right:2px;
-  top:1px;
+.s936-ch-fret-outer{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.s936-ch-fret-label-outer{
+  text-align:right;
   color:#00ffcc;
-  background:rgba(0,0,0,.55);
-  border-radius:3px;
-  font-size:.6rem;
-  font-weight:900;
-  padding:1px 3px;
-  z-index:6;
+  font-size:.55rem;
+  font-weight:800;
+  padding-right:2px;
 }
 
 /* ─── POPUP ─── */
@@ -3956,11 +3956,21 @@ body.s936-chart-stage main{
 
   // ─── MINI FRETBOARD ──────────────────────────────────────────────────────
   function miniFret(voicingFret) {
+    // Cambio 275: la etiqueta de traste vive en un contenedor APARTE,
+    // fuera de la caja del diapasón (que tiene overflow:hidden y por eso
+    // cualquier cosa "afuera" de ella se recorta). Antes la etiqueta
+    // estaba pegada al borde interior — parecía "afuera" pero seguía
+    // dentro de la caja recortada. Ahora es literalmente un renglón
+    // aparte, encima.
+    const outer = document.createElement("div");
+    outer.className = "s936-ch-fret-outer";
+
     const wrap = document.createElement("div");
     wrap.className = "s936-ch-fret-mini";
 
     if (!voicingFret || !Array.isArray(voicingFret.frets) || !voicingFret.frets.length) {
-      return wrap;
+      outer.appendChild(wrap);
+      return outer;
     }
 
     // Cambio 265: se quita el .reverse() — causaba que el orden de
@@ -3992,23 +4002,14 @@ body.s936-chart-stage main{
     headstock.className = "s936-ch-headstock-zone";
     wrap.appendChild(headstock);
 
+    // Cambio 275: la etiqueta ahora es un renglón aparte, ENCIMA de la
+    // caja del diapasón (fuera del recorte), no una capa flotante
+    // adentro.
     const fretLabel = document.createElement("div");
-    fretLabel.className = "s936-ch-fret-label";
-    // Cambio 266: la etiqueta mostraba "start" (el traste ANTERIOR a la
-    // ventana visible), no el primer traste real que se ve — desfase de
-    // uno que podía hacer parecer que un acorde "empieza" un traste antes
-    // de donde en realidad está. También se mostraba en blanco cuando
-    // start=0, dejando la posición ambigua (sin ninguna referencia
-    // numérica). Ahora siempre muestra el primer traste real (start + 1).
-    fretLabel.textContent = String(start + 1);
-    // Cambio 264: espejo horizontal — la etiqueta del traste inicial pasa
-    // del lado izquierdo (donde antes empezaba la ventana de trastes) al
-    // derecho, para coincidir con el panel grande ya volteado.
-    fretLabel.style.left = "auto";
-    fretLabel.style.right = "13%";
-    fretLabel.style.paddingLeft = "0";
-    fretLabel.style.paddingRight = "1px";
-    wrap.appendChild(fretLabel);
+    fretLabel.className = "s936-ch-fret-label-outer";
+    fretLabel.textContent = "Traste " + String(start + 1);
+    outer.appendChild(fretLabel);
+    outer.appendChild(wrap);
 
     if (capo > 0) {
       const c = document.createElement("div");
@@ -4042,9 +4043,9 @@ body.s936-chart-stage main{
         const m = document.createElement("div");
         m.className = "s936-ch-fm";
         m.textContent = "×";
-        // Cambio 274: "X" (cuerda muda) vive en la franja de clavijero,
-        // no encima de los trastes.
-        m.style.cssText = `top:${top}%;left:94%;z-index:2`;
+        // Cambio 275: se separa un poco más de la línea verde (cejuela),
+        // de 94% a 96%, por estética — quedaba demasiado pegada.
+        m.style.cssText = `top:${top}%;left:96%;z-index:2`;
         wrap.appendChild(m);
       } else {
         const f0 = Number(fret);
@@ -4057,7 +4058,8 @@ body.s936-chart-stage main{
         // no de la línea del traste siguiente.
         // Cambio 274: la cuerda al aire (f0===0) vive en la franja de
         // clavijero, separada de los trastes numerados.
-        const leftPct = f0 === 0 ? 94 : 88 - ((f0 - start - 0.5) / span) * 80;
+        // Cambio 275: cuerda al aire también separada de 94% a 96%.
+        const leftPct = f0 === 0 ? 96 : 88 - ((f0 - start - 0.5) / span) * 80;
         const dot = document.createElement("div");
         dot.className = "s936-ch-fd";
         dot.style.cssText = `top:${top}%;left:${leftPct}%;z-index:3`;
@@ -4065,7 +4067,7 @@ body.s936-chart-stage main{
       }
     });
 
-    return wrap;
+    return outer;
   }
 
   // ─── POPUP CON PREVIEW ──────────────────────────────────────────────────
