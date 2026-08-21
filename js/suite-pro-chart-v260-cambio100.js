@@ -1863,9 +1863,8 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
 .s936-ch-capo{position:absolute;left:0;top:0;bottom:0;width:3px;background:rgba(255,224,102,.6);border-radius:0 2px 2px 0}
 .s936-ch-fret-label{
   position:absolute;
-  left:0;
-  top:50%;
-  transform:translateY(-50%);
+  right:2px;
+  top:1px;
   color:#00ffcc;
   background:rgba(0,0,0,.55);
   border-radius:3px;
@@ -3827,9 +3826,18 @@ body.s936-chart-stage main{
         };
         shape = defaultShapes[root];
       }
-      return shape ? { frets: shape } : null;
+      // Cambio 271: GUITAR_SHAPES y defaultShapes están escritas en el
+      // orden estándar de tablatura (Mi grave → Mi aguda), pero el resto
+      // del sistema (cfg.strings, cfg.open, miniFret, el editor grande)
+      // espera el orden contrario (Mi aguda → Mi grave). Sin este
+      // .reverse(), cada nota calculada automáticamente caía en la
+      // cuerda equivocada — por eso un Sol mayor podía sonar/detectarse
+      // como otro acorde. Esto NO afecta digitaciones que ya guardaste a
+      // mano (esas se guardan directamente en el orden correcto desde el
+      // editor grande) — solo corrige el cálculo automático de respaldo.
+      return shape ? { frets: [...shape].reverse() } : null;
     }
-    
+
     if (inst === "ukulele") {
       let shape = null;
       for (const variant of searchVariants) {
