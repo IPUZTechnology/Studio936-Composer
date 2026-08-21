@@ -1865,11 +1865,13 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
   left:0;
   top:50%;
   transform:translateY(-50%);
-  color:rgba(255,255,255,.3);
-  font-size:.35rem;
-  font-weight:700;
-  padding-left:1px;
-  z-index:4;
+  color:#00ffcc;
+  background:rgba(0,0,0,.55);
+  border-radius:3px;
+  font-size:.6rem;
+  font-weight:900;
+  padding:1px 3px;
+  z-index:6;
 }
 
 /* ─── POPUP ─── */
