@@ -5724,51 +5724,89 @@ body.s936-chart-stage main{
                 miniHolder.appendChild(miniEl);
               } catch(_) {}
               segBox.appendChild(miniHolder);
+
+              // Cambio 272: el clic se ata a ESTE segmento específico, no
+              // a la celda completa — antes, en compases con más de un
+              // acorde, hacer clic en CUALQUIER parte de la celda siempre
+              // abría el primer segmento (beatIndex 0), sin importar en
+              // cuál de los acordes tocaras. Ahora cada mini-mapa abre y
+              // guarda su propio tiempo real dentro del compás.
+              segBox.style.cursor = "pointer";
+              segBox.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const sectionKey = item.section;
+                const barIndex = idx;
+                const beatIndex = seg.beat;
+                const clickChordVal = seg.name || "";
+                const label = clickChordVal ? "Editar acorde" : "Añadir acorde";
+                const effectiveRhythm = normalizeRhythmMode(clickChordVal ? "hit" : "empty");
+                const onRerenderCont = () => render({ container, instrument: inst, onChordEdit });
+                showBeatPop(
+                  segBox,
+                  label + " · Compás " + (barIndex + 1) + " · Tiempo " + (beatIndex + 1),
+                  clickChordVal,
+                  inst,
+                  effectiveRhythm,
+                  (val, voicing, nextRhythm) => {
+                    saveBeat(sectionKey, barIndex, beatIndex, val);
+                    saveBeatRhythm(sectionKey, barIndex, beatIndex, nextRhythm);
+                    repairBarRhythmAfterChordSave(sectionKey, barIndex, beatIndex, val, nextRhythm);
+                    saveBeatVoicing(sectionKey, barIndex, beatIndex, inst, val ? voicing : null);
+                    onRerenderCont();
+                  },
+                  previewName => {
+                    const startName = previewName || clickChordVal || "";
+                    if (startName && startName !== clickChordVal) {
+                      saveBeat(sectionKey, barIndex, beatIndex, startName);
+                      onRerenderCont();
+                    }
+                    setTimeout(() => openVoicingEditor(segBox, sectionKey, barIndex, beatIndex, startName, inst, onRerenderCont), 0);
+                  }
+                );
+              });
+
               segWrap.appendChild(segBox);
             });
             chordCell.appendChild(segWrap);
           }
 
-          // Cambio 260 (paso 2): clic abre el MISMO editor de siempre
-          // (showBeatPop → openVoicingEditor), reutilizando exactamente
-          // las mismas funciones de guardado que usa la vista de bloques
-          // (saveBeat/saveBeatRhythm/repairBarRhythmAfterChordSave/
-          // saveBeatVoicing) — no se creó ningún editor nuevo. Edita el
-          // primer segmento del compás; si el compás tiene varios
-          // acordes, se puede refinar más adelante para editar cada
-          // segmento por separado.
-          chordCell.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const sectionKey = item.section;
-            const barIndex = idx;
-            const beatIndex = 0;
-            const clickChordVal = realSegments[0]?.name || "";
-            const label = clickChordVal ? "Editar acorde" : "Añadir acorde";
-            const effectiveRhythm = normalizeRhythmMode(clickChordVal ? "hit" : "empty");
-            const onRerenderCont = () => render({ container, instrument: inst, onChordEdit });
-            showBeatPop(
-              chordCell,
-              label + " · Compás " + (barIndex + 1),
-              clickChordVal,
-              inst,
-              effectiveRhythm,
-              (val, voicing, nextRhythm) => {
-                saveBeat(sectionKey, barIndex, beatIndex, val);
-                saveBeatRhythm(sectionKey, barIndex, beatIndex, nextRhythm);
-                repairBarRhythmAfterChordSave(sectionKey, barIndex, beatIndex, val, nextRhythm);
-                saveBeatVoicing(sectionKey, barIndex, beatIndex, inst, val ? voicing : null);
-                onRerenderCont();
-              },
-              previewName => {
-                const startName = previewName || clickChordVal || "";
-                if (startName && startName !== clickChordVal) {
-                  saveBeat(sectionKey, barIndex, beatIndex, startName);
+          // Cambio 272: cuando el compás tiene UN solo acorde (caso
+          // normal), el clic sigue en la celda completa, editando el
+          // Tiempo 1 — igual que antes.
+          if (realSegments.length <= 1) {
+            chordCell.addEventListener("click", (e) => {
+              e.stopPropagation();
+              const sectionKey = item.section;
+              const barIndex = idx;
+              const beatIndex = 0;
+              const clickChordVal = realSegments[0]?.name || "";
+              const label = clickChordVal ? "Editar acorde" : "Añadir acorde";
+              const effectiveRhythm = normalizeRhythmMode(clickChordVal ? "hit" : "empty");
+              const onRerenderCont = () => render({ container, instrument: inst, onChordEdit });
+              showBeatPop(
+                chordCell,
+                label + " · Compás " + (barIndex + 1),
+                clickChordVal,
+                inst,
+                effectiveRhythm,
+                (val, voicing, nextRhythm) => {
+                  saveBeat(sectionKey, barIndex, beatIndex, val);
+                  saveBeatRhythm(sectionKey, barIndex, beatIndex, nextRhythm);
+                  repairBarRhythmAfterChordSave(sectionKey, barIndex, beatIndex, val, nextRhythm);
+                  saveBeatVoicing(sectionKey, barIndex, beatIndex, inst, val ? voicing : null);
                   onRerenderCont();
+                },
+                previewName => {
+                  const startName = previewName || clickChordVal || "";
+                  if (startName && startName !== clickChordVal) {
+                    saveBeat(sectionKey, barIndex, beatIndex, startName);
+                    onRerenderCont();
+                  }
+                  setTimeout(() => openVoicingEditor(chordCell, sectionKey, barIndex, beatIndex, startName, inst, onRerenderCont), 0);
                 }
-                setTimeout(() => openVoicingEditor(chordCell, sectionKey, barIndex, beatIndex, startName, inst, onRerenderCont), 0);
-              }
-            );
-          });
+              );
+            });
+          }
 
           chordRow.appendChild(chordCell);
 
