@@ -2132,7 +2132,7 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
 }
 .s936-picker-fret-live{
   display:grid;
-  grid-template-columns:64px 34px 34px repeat(6,minmax(34px,1fr));
+  grid-template-columns:64px repeat(6,minmax(34px,1fr)) 34px 34px;
   gap:3px;
   width:100%;
   min-width:420px;
@@ -3930,6 +3930,13 @@ body.s936-chart-stage main{
     const fretLabel = document.createElement("div");
     fretLabel.className = "s936-ch-fret-label";
     fretLabel.textContent = start > 0 ? start : "";
+    // Cambio 264: espejo horizontal — la etiqueta del traste inicial pasa
+    // del lado izquierdo (donde antes empezaba la ventana de trastes) al
+    // derecho, para coincidir con el panel grande ya volteado.
+    fretLabel.style.left = "auto";
+    fretLabel.style.right = "0";
+    fretLabel.style.paddingLeft = "0";
+    fretLabel.style.paddingRight = "1px";
     wrap.appendChild(fretLabel);
 
     if (capo > 0) {
@@ -3945,10 +3952,12 @@ body.s936-chart-stage main{
       wrap.appendChild(el);
     }
 
+    // Cambio 264: mismas líneas de traste, en posición espejada
+    // (96% → 8% en vez de 8% → 96%).
     for (let f = 0; f <= span; f++) {
       const el = document.createElement("div");
       el.className = "s936-ch-ff";
-      el.style.cssText = `left:${8 + f / span * 88}%;z-index:1`;
+      el.style.cssText = `left:${96 - f / span * 88}%;z-index:1`;
       wrap.appendChild(el);
     }
 
@@ -3959,11 +3968,12 @@ body.s936-chart-stage main{
         const m = document.createElement("div");
         m.className = "s936-ch-fm";
         m.textContent = "×";
-        m.style.cssText = `top:${top}%;left:4%;z-index:2`;
+        // Cambio 264: "X" (cuerda mudo) al lado derecho, espejado.
+        m.style.cssText = `top:${top}%;left:96%;z-index:2`;
         wrap.appendChild(m);
       } else {
         const f0 = Number(fret);
-        const leftPct = f0 === 0 ? 4 : 8 + ((f0 - start + 0.5) / span) * 88;
+        const leftPct = f0 === 0 ? 96 : 96 - ((f0 - start + 0.5) / span) * 88;
         const dot = document.createElement("div");
         dot.className = "s936-ch-fd";
         dot.style.cssText = `top:${top}%;left:${leftPct}%;z-index:3`;
@@ -4389,13 +4399,19 @@ body.s936-chart-stage main{
       const fretGrid = document.createElement("div");
       fretGrid.className = "s936-picker-fret-live";
       const strings = cfg.strings || [];
-      const frets = Array.from({ length: visibleFrets }, (_, i) => fretStart + i + 1);
+      // Cambio 264: espejo horizontal — traste 0 (al aire) y "X" (mudo)
+      // quedan a la DERECHA, los trastes más altos a la IZQUIERDA. Se
+      // logra invirtiendo únicamente el ORDEN en que se dibujan las
+      // columnas — cada botón sigue ligado exactamente al mismo número
+      // de traste real de antes (fret, cfg.open[sIndex] + fret), solo
+      // cambia dónde queda dibujado en pantalla.
+      const frets = Array.from({ length: visibleFrets }, (_, i) => fretStart + i + 1).reverse();
 
       const headerEmpty = document.createElement("div");
       headerEmpty.className = "s936-picker-fret-cell head";
       headerEmpty.textContent = "Cuerda";
       fretGrid.appendChild(headerEmpty);
-      ["X", "0", ...frets].forEach(f => {
+      [...frets, "0", "X"].forEach(f => {
         const h = document.createElement("div");
         h.className = "s936-picker-fret-cell head";
         h.textContent = String(f);
@@ -4407,31 +4423,6 @@ body.s936-chart-stage main{
         lbl.className = "s936-picker-fret-cell string-label";
         lbl.textContent = stringLabel;
         fretGrid.appendChild(lbl);
-
-        const xBtn = document.createElement("button");
-        xBtn.className = "s936-picker-fret-cell fret-btn" + (inlineFrets[sIndex] === null || inlineFrets[sIndex] === "X" ? " active muted" : "");
-        xBtn.textContent = "×";
-        xBtn.onclick = (e) => {
-          e.stopPropagation();
-          inlineFrets[sIndex] = null;
-          renderInlineMap(false);
-          pulseLiveChordNow();
-        };
-        fretGrid.appendChild(xBtn);
-
-        const openBtn = document.createElement("button");
-        openBtn.className = "s936-picker-fret-cell fret-btn" + (Number(inlineFrets[sIndex]) === 0 ? " active" : "");
-        openBtn.textContent = "○";
-        openBtn.onclick = (e) => {
-          e.stopPropagation();
-          inlineFrets[sIndex] = Number(inlineFrets[sIndex]) === 0 ? null : 0;
-          if (Number(inlineFrets[sIndex]) === 0) playPopupSingleMidi(cfg.open[sIndex]);
-          const detected = detectChordFromFrets(inlineFrets, previewInst);
-          if (detected) applyDetectedChord(detected);
-          renderInlineMap(false);
-          pulseLiveChordNow();
-        };
-        fretGrid.appendChild(openBtn);
 
         frets.forEach((fret) => {
           const btn = document.createElement("button");
@@ -4448,6 +4439,31 @@ body.s936-chart-stage main{
           };
           fretGrid.appendChild(btn);
         });
+
+        const openBtn = document.createElement("button");
+        openBtn.className = "s936-picker-fret-cell fret-btn" + (Number(inlineFrets[sIndex]) === 0 ? " active" : "");
+        openBtn.textContent = "○";
+        openBtn.onclick = (e) => {
+          e.stopPropagation();
+          inlineFrets[sIndex] = Number(inlineFrets[sIndex]) === 0 ? null : 0;
+          if (Number(inlineFrets[sIndex]) === 0) playPopupSingleMidi(cfg.open[sIndex]);
+          const detected = detectChordFromFrets(inlineFrets, previewInst);
+          if (detected) applyDetectedChord(detected);
+          renderInlineMap(false);
+          pulseLiveChordNow();
+        };
+        fretGrid.appendChild(openBtn);
+
+        const xBtn = document.createElement("button");
+        xBtn.className = "s936-picker-fret-cell fret-btn" + (inlineFrets[sIndex] === null || inlineFrets[sIndex] === "X" ? " active muted" : "");
+        xBtn.textContent = "×";
+        xBtn.onclick = (e) => {
+          e.stopPropagation();
+          inlineFrets[sIndex] = null;
+          renderInlineMap(false);
+          pulseLiveChordNow();
+        };
+        fretGrid.appendChild(xBtn);
       });
 
       mapBox.appendChild(fretGrid);
