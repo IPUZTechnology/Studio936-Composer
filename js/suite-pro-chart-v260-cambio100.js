@@ -1870,6 +1870,10 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
   background:linear-gradient(90deg,rgba(139,91,49,.4),rgba(70,45,26,.2));
 }
 .s936-ch-fs{position:absolute;left:2%;right:0;height:1px;background:rgba(200,180,140,.5)}
+.s936-ch-headstock-zone{
+  position:absolute;top:0;bottom:0;right:0;width:12%;
+  background:rgba(20,20,25,.75);z-index:0;
+}
 .s936-ch-ff{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.35)}
 .s936-ch-ff.nut{width:3px;background:#00ffcc;box-shadow:0 0 4px rgba(0,255,204,.6)}
 .s936-ch-fd{
@@ -2186,6 +2190,14 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
   color:#ffe066;
   background:rgba(255,224,102,.08);
   border:1px solid rgba(255,224,102,.15);
+}
+.s936-picker-fret-cell.headstock{
+  border-left:3px solid rgba(0,255,204,.4) !important;
+  background:rgba(255,255,255,.02);
+}
+.s936-picker-fret-cell.head.headstock{
+  border-left:3px solid rgba(0,255,204,.4);
+  color:#00ffcc;
 }
 .s936-picker-fret-cell.fret-btn{
   border:1px solid rgba(255,255,255,.1);
@@ -3966,8 +3978,19 @@ body.s936-chart-stage main{
     const numeric = frets.filter(f => f !== null && String(f).toUpperCase() !== "X" && Number(f) >= 0).map(Number);
     const minF = numeric.length ? Math.min(...numeric.filter(n => n > 0)) : 0;
     const maxF = numeric.length ? Math.max(...numeric) : 4;
-    const start = capo > 0 ? capo : (minF > 1 ? minF - 1 : 0);
+    // Cambio 274: mismo criterio que el panel grande — solo desplazar la
+    // ventana si el acorde no cabe en la vista por defecto (4 trastes),
+    // no apenas la nota más baja sea mayor a 1.
+    const start = capo > 0 ? capo : (maxF > 4 ? minF - 1 : 0);
     const span = Math.max(4, maxF - start + 1);
+
+    // Cambio 274: se reserva una franja aparte (88%-100%) para el
+    // clavijero/cejuela — el "0" (al aire) y "X" (mudo) viven ahí, con
+    // fondo distinto al cuello de madera, en vez de sentarse encima de
+    // los trastes numerados como si fueran uno más.
+    const headstock = document.createElement("div");
+    headstock.className = "s936-ch-headstock-zone";
+    wrap.appendChild(headstock);
 
     const fretLabel = document.createElement("div");
     fretLabel.className = "s936-ch-fret-label";
@@ -3982,7 +4005,7 @@ body.s936-chart-stage main{
     // del lado izquierdo (donde antes empezaba la ventana de trastes) al
     // derecho, para coincidir con el panel grande ya volteado.
     fretLabel.style.left = "auto";
-    fretLabel.style.right = "0";
+    fretLabel.style.right = "13%";
     fretLabel.style.paddingLeft = "0";
     fretLabel.style.paddingRight = "1px";
     wrap.appendChild(fretLabel);
@@ -4000,15 +4023,15 @@ body.s936-chart-stage main{
       wrap.appendChild(el);
     }
 
-    // Cambio 269: la línea f=0 marca el borde de inicio del diapasón (la
-    // cejuela/clavijero cuando el acorde empieza en el traste 1, o el
-    // límite de la ventana visible cuando empieza más arriba) — se dibuja
-    // más gruesa y brillante que las demás líneas de traste, para que se
-    // note claramente dónde "arranca" el mapa, no solo el número.
+    // Cambio 274: el eje horizontal se recalcula para dejar la franja de
+    // clavijero (88%-100%) completamente aparte de los trastes numerados
+    // (0%-88%). La línea f=0 (Cambio 269, la más gruesa) ahora cae justo
+    // en el borde entre el cuello y el clavijero — es literalmente la
+    // cejuela.
     for (let f = 0; f <= span; f++) {
       const el = document.createElement("div");
       el.className = "s936-ch-ff" + (f === 0 ? " nut" : "");
-      el.style.cssText = `left:${96 - f / span * 88}%;z-index:1`;
+      el.style.cssText = `left:${88 - f / span * 80}%;z-index:1`;
       wrap.appendChild(el);
     }
 
@@ -4019,8 +4042,9 @@ body.s936-chart-stage main{
         const m = document.createElement("div");
         m.className = "s936-ch-fm";
         m.textContent = "×";
-        // Cambio 264: "X" (cuerda mudo) al lado derecho, espejado.
-        m.style.cssText = `top:${top}%;left:96%;z-index:2`;
+        // Cambio 274: "X" (cuerda muda) vive en la franja de clavijero,
+        // no encima de los trastes.
+        m.style.cssText = `top:${top}%;left:94%;z-index:2`;
         wrap.appendChild(m);
       } else {
         const f0 = Number(fret);
@@ -4031,7 +4055,9 @@ body.s936-chart-stage main{
         // si estuviera en el 2). El centro real de un traste es el punto
         // medio ENTRE su línea de inicio y la línea del traste anterior,
         // no de la línea del traste siguiente.
-        const leftPct = f0 === 0 ? 96 : 96 - ((f0 - start - 0.5) / span) * 88;
+        // Cambio 274: la cuerda al aire (f0===0) vive en la franja de
+        // clavijero, separada de los trastes numerados.
+        const leftPct = f0 === 0 ? 94 : 88 - ((f0 - start - 0.5) / span) * 80;
         const dot = document.createElement("div");
         dot.className = "s936-ch-fd";
         dot.style.cssText = `top:${top}%;left:${leftPct}%;z-index:3`;
@@ -4301,7 +4327,13 @@ body.s936-chart-stage main{
       inlineNotes = null;
       const numeric = inlineFrets.filter(f => f !== null && f !== "X" && Number.isFinite(Number(f))).map(Number);
       const minF = numeric.length ? Math.min(...numeric.filter(f => f > 0)) : 0;
-      fretStart = Math.max(0, Math.min((cfg?.frets || 12) - visibleFrets, minF > 1 ? minF - 1 : 0));
+      const maxF = numeric.length ? Math.max(...numeric) : 0;
+      // Cambio 274: antes se desplazaba la ventana apenas la nota más baja
+      // era mayor a 1, aunque el acorde entero cupiera de sobra en la
+      // vista normal (trastes 1-6) — por eso el Sol (notas en 2 y 3)
+      // quedaba con "Traste inicial: 1" sin necesidad real. Ahora solo se
+      // desplaza cuando el acorde de verdad no cabe en esa ventana.
+      fretStart = Math.max(0, Math.min((cfg?.frets || 12) - visibleFrets, maxF > visibleFrets ? minF - 1 : 0));
     }
 
     function currentInlineVoicing() {
@@ -4469,9 +4501,19 @@ body.s936-chart-stage main{
       headerEmpty.className = "s936-picker-fret-cell head";
       headerEmpty.textContent = "Cuerda";
       fretGrid.appendChild(headerEmpty);
-      [...frets, "0", "X"].forEach(f => {
+      frets.forEach(f => {
         const h = document.createElement("div");
         h.className = "s936-picker-fret-cell head";
+        h.textContent = String(f);
+        fretGrid.appendChild(h);
+      });
+      // Cambio 274: "0" (al aire) y "X" (mudo) NO son trastes — son el
+      // clavijero/cejuela, fuera del cuello. Se marcan con una clase
+      // distinta ("headstock") para separarlas visualmente del resto,
+      // en vez de verse como una casilla de traste más.
+      ["0", "X"].forEach(f => {
+        const h = document.createElement("div");
+        h.className = "s936-picker-fret-cell head headstock";
         h.textContent = String(f);
         fretGrid.appendChild(h);
       });
@@ -4507,7 +4549,7 @@ body.s936-chart-stage main{
         });
 
         const openBtn = document.createElement("button");
-        openBtn.className = "s936-picker-fret-cell fret-btn" + (Number(inlineFrets[sIndex]) === 0 ? " active" : "");
+        openBtn.className = "s936-picker-fret-cell fret-btn headstock" + (Number(inlineFrets[sIndex]) === 0 ? " active" : "");
         openBtn.textContent = "○";
         openBtn.onclick = (e) => {
           e.stopPropagation();
@@ -4521,7 +4563,7 @@ body.s936-chart-stage main{
         fretGrid.appendChild(openBtn);
 
         const xBtn = document.createElement("button");
-        xBtn.className = "s936-picker-fret-cell fret-btn" + (inlineFrets[sIndex] === null || inlineFrets[sIndex] === "X" ? " active muted" : "");
+        xBtn.className = "s936-picker-fret-cell fret-btn headstock" + (inlineFrets[sIndex] === null || inlineFrets[sIndex] === "X" ? " active muted" : "");
         xBtn.textContent = "×";
         xBtn.onclick = (e) => {
           e.stopPropagation();
