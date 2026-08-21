@@ -3836,30 +3836,34 @@ body.s936-chart-stage main{
         shape = GUITAR_SHAPES[variant];
         if (shape) break;
       }
+      // Cambio 277: se quitan las heurísticas de respaldo que buscaban
+      // 'm'/'M' dentro de cleanName para adivinar mayor/menor/séptima —
+      // como cleanName ya está en MAYÚSCULAS (línea de arriba), buscar la
+      // 'm' minúscula de "menor" nunca podía encontrar nada (comparación
+      // rota desde el principio), y buscar 'M' mayúscula sí encontraba
+      // coincidencias falsas (ej. "Fm" → "FM" en mayúsculas, contiene
+      // "M", así que terminaba sacando "Fmaj7" para lo que en realidad
+      // era un Fm — un acorde totalmente distinto al pedido).
       if (!shape && root) {
-        if (cleanName.includes('M') && !cleanName.includes('MAJ7')) {
-          shape = GUITAR_SHAPES[root + 'maj7'];
+        // Solo se usa el catálogo de respaldo (una forma mayor simple
+        // por nota) cuando de verdad se pidió mayor simple — es decir,
+        // el nombre completo es solo la nota raíz, sin ninguna calidad
+        // agregada (ni "m", ni "7", ni "9", ni nada). Para cualquier otra
+        // calidad que no esté en GUITAR_SHAPES, se devuelve null en vez
+        // de sustituir en silencio por la forma equivocada — es mejor no
+        // dibujar nada a dibujar el acorde incorrecto sin avisar.
+        const isPlainMajorRequest = cleanName === root;
+        if (isPlainMajorRequest) {
+          const defaultShapes = {
+            'C': [null,3,2,0,1,0], 'C#': [null,4,3,1,2,1], 'Db': [null,4,3,1,2,1],
+            'D': [null,null,0,2,3,2], 'D#': [null,null,1,3,4,3], 'Eb': [null,null,1,3,4,3],
+            'E': [0,2,2,1,0,0], 'F': [1,3,3,2,1,1], 'F#': [2,4,4,3,2,2], 'Gb': [2,4,4,3,2,2],
+            'G': [3,2,0,0,0,3], 'G#': [4,3,1,1,1,4], 'Ab': [4,3,1,1,1,4],
+            'A': [null,0,2,2,2,0], 'A#': [null,1,3,3,3,1], 'Bb': [null,1,3,3,3,1],
+            'B': [null,2,4,4,4,2]
+          };
+          shape = defaultShapes[root];
         }
-        if (!shape && cleanName.includes('m') && !cleanName.includes('MAJ7')) {
-          shape = GUITAR_SHAPES[root + 'm'];
-        }
-        if (!shape && cleanName.includes('7')) {
-          shape = GUITAR_SHAPES[root + '7'];
-        }
-        if (!shape) {
-          shape = GUITAR_SHAPES[root];
-        }
-      }
-      if (!shape && root) {
-        const defaultShapes = {
-          'C': [null,3,2,0,1,0], 'C#': [null,4,3,1,2,1], 'Db': [null,4,3,1,2,1],
-          'D': [null,null,0,2,3,2], 'D#': [null,null,1,3,4,3], 'Eb': [null,null,1,3,4,3],
-          'E': [0,2,2,1,0,0], 'F': [1,3,3,2,1,1], 'F#': [2,4,4,3,2,2], 'Gb': [2,4,4,3,2,2],
-          'G': [3,2,0,0,0,3], 'G#': [4,3,1,1,1,4], 'Ab': [4,3,1,1,1,4],
-          'A': [null,0,2,2,2,0], 'A#': [null,1,3,3,3,1], 'Bb': [null,1,3,3,3,1],
-          'B': [null,2,4,4,4,2]
-        };
-        shape = defaultShapes[root];
       }
       // Cambio 271: GUITAR_SHAPES y defaultShapes están escritas en el
       // orden estándar de tablatura (Mi grave → Mi aguda), pero el resto
@@ -4080,7 +4084,7 @@ body.s936-chart-stage main{
     if (ov) ov.remove();
   }
 
-  function showBeatPop(targetEl, label, currentVal, inst, currentRhythm, onSave, onOpenVoicing) {
+  function showBeatPop(targetEl, label, currentVal, inst, currentRhythm, onSave, onOpenVoicing, savedVoicing) {
     closePopups();
 
     const ROOTS = ["C","D","E","F","G","A","B"];
@@ -4722,7 +4726,27 @@ body.s936-chart-stage main{
 
     if (currentVal) normalizeChordToPicker(currentVal);
     setPickerClasses();
-    renderInlineMap(true);
+    // Cambio 276: si viene una digitación real ya guardada (savedVoicing),
+    // se usa DIRECTO en vez de recalcular una forma por defecto a partir
+    // del nombre — antes, reabrir el editor de un acorde ya editado a
+    // mano siempre mostraba una forma genérica, distinta a la que en
+    // realidad estaba guardada (y que el mini-diapasón sí mostraba bien).
+    let usedSavedVoicing = false;
+    if (savedVoicing) {
+      if (previewInst === "piano" && Array.isArray(savedVoicing.midis) && savedVoicing.midis.length) {
+        inlineNotes = [...savedVoicing.midis].sort((a, b) => a - b);
+        inlineFrets = null;
+        usedSavedVoicing = true;
+      } else if (previewInst !== "piano" && Array.isArray(savedVoicing.frets) && savedVoicing.frets.length) {
+        const cfg = FRETBOARD_CONFIG[previewInst];
+        const stringCount = cfg?.strings?.length || (previewInst === "guitar" ? 6 : 4);
+        inlineFrets = savedVoicing.frets.slice(0, stringCount);
+        while (inlineFrets.length < stringCount) inlineFrets.push(null);
+        inlineNotes = null;
+        usedSavedVoicing = true;
+      }
+    }
+    renderInlineMap(!usedSavedVoicing);
 
     const doSave = (val, voicing) => { stopChartPopupAudio(); pop.remove(); onSave(val, voicing, rhythmMode); };
     okBtn.onclick = (e) => { e.stopPropagation(); doSave(buildChordName(), currentInlineVoicing()); };
@@ -4889,6 +4913,12 @@ body.s936-chart-stage main{
       e.stopPropagation();
       const popupStartVal = beatVal || inheritedVal || "";
       const label = beatVal ? "Editar acorde" : "Añadir acorde";
+      // Cambio 276: se recalcula aquí (mismo patrón que arriba) porque la
+      // variable de más arriba queda encerrada en su propio if/else, sin
+      // alcance hasta este clic.
+      const nameUpperForPopup = String(popupStartVal || "").toUpperCase().trim();
+      const savedVoicingForPopup = getBeatVoicing(sectionKey, barIndex, beatIndex, inst)
+        || voicingLibrary?.[inst]?.[nameUpperForPopup] || null;
       showBeatPop(
         cell,
         label + " · Tiempo " + (beatIndex + 1),
@@ -4909,7 +4939,8 @@ body.s936-chart-stage main{
             onRerender();
           }
           setTimeout(() => openVoicingEditor(cell, sectionKey, barIndex, beatIndex, startName, inst, onRerender), 0);
-        }
+        },
+        savedVoicingForPopup
       );
     });
 
@@ -5382,6 +5413,7 @@ body.s936-chart-stage main{
       rep.innerHTML = `<span>%</span><small>Repite compás anterior</small>`;
       rep.onclick = (e) => {
         e.stopPropagation();
+        const savedVoicingForRepeat = getBeatVoicing(sectionKey, barIndex, 0, inst);
         showBeatPop(
           rep,
           "Editar repetición · Compás " + (barIndex + 1),
@@ -5394,7 +5426,9 @@ body.s936-chart-stage main{
             repairBarRhythmAfterChordSave(sectionKey, barIndex, 0, val, val ? "hit" : (nextRhythm || "repeat"));
             saveBeatVoicing(sectionKey, barIndex, 0, inst, val ? voicing : null);
             onRerender();
-          }
+          },
+          undefined,
+          savedVoicingForRepeat
         );
       };
       bar.appendChild(rep);
