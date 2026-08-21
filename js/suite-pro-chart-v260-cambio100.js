@@ -3933,7 +3933,13 @@ body.s936-chart-stage main{
 
     const fretLabel = document.createElement("div");
     fretLabel.className = "s936-ch-fret-label";
-    fretLabel.textContent = start > 0 ? start : "";
+    // Cambio 266: la etiqueta mostraba "start" (el traste ANTERIOR a la
+    // ventana visible), no el primer traste real que se ve — desfase de
+    // uno que podía hacer parecer que un acorde "empieza" un traste antes
+    // de donde en realidad está. También se mostraba en blanco cuando
+    // start=0, dejando la posición ambigua (sin ninguna referencia
+    // numérica). Ahora siempre muestra el primer traste real (start + 1).
+    fretLabel.textContent = String(start + 1);
     // Cambio 264: espejo horizontal — la etiqueta del traste inicial pasa
     // del lado izquierdo (donde antes empezaba la ventana de trastes) al
     // derecho, para coincidir con el panel grande ya volteado.
