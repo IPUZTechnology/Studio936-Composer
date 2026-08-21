@@ -1088,6 +1088,29 @@ window.Studio936SuiteProChart = (() => {
       } catch(_) {}
     }
     
+    // Cambio 273: MT.detectChord no existe de verdad — este código
+    // siempre caía en el respaldo de abajo. Ese respaldo asumía que la
+    // PRIMERA cuerda del arreglo (Mi aguda, E4) era automáticamente la
+    // raíz del acorde — funciona por casualidad en posición abierta,
+    // pero se rompe apenas la forma se mueve a otro traste o es una
+    // inversión (exactamente el caso "G detectado como Bm" que reportó
+    // Val). Se reemplaza por window.detectChordFromPcs — el mismo
+    // algoritmo que ya usa app.js, que SÍ prueba cada nota como posible
+    // raíz y elige la que mejor encaja con un acorde real, en vez de
+    // asumir cuál es la raíz de antemano.
+    if (window.detectChordFromPcs) {
+      try {
+        const pcs = notes.map(n => {
+          const midi = noteToMidi(n);
+          return midi != null ? ((midi % 12) + 12) % 12 : null;
+        }).filter(pc => pc !== null);
+        const detected = window.detectChordFromPcs(pcs);
+        if (detected) return detected;
+      } catch(_) {}
+    }
+
+    // Respaldo final, solo si detectChordFromPcs tampoco estuviera
+    // disponible por algún motivo — mismo comportamiento de antes.
     const rootNote = notes[0];
     const rootMatch = rootNote.match(/^([A-G][#b]?)/);
     if (!rootMatch) return null;
