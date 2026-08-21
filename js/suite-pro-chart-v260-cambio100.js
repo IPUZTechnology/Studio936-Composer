@@ -3917,7 +3917,11 @@ body.s936-chart-stage main{
       return wrap;
     }
 
-    const frets = [...voicingFret.frets].reverse();
+    // Cambio 265: se quita el .reverse() — causaba que el orden de
+    // cuerdas del mini-diapasón quedara AL CONTRARIO del panel grande de
+    // edición (que no tiene ese reverse). Ahora ambos usan el mismo
+    // orden de cuerdas, de arriba a abajo, sin diferencia entre ellos.
+    const frets = [...voicingFret.frets];
     const strings = frets.length;
     const capo = Number(voicingFret.capo) || 0;
 
