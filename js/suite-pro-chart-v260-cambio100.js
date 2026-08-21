@@ -1178,16 +1178,16 @@ window.Studio936SuiteProChart = (() => {
   letter-spacing:.4px;margin-bottom:4px;white-space:nowrap}
 .s936-ch-cont-row{display:flex;gap:3px;margin-bottom:3px}
 .s936-ch-cont-cell{background:rgba(255,255,255,.05);border-radius:5px;
-  padding:4px 6px;font-size:.62rem;width:150px;text-align:center;
+  padding:4px 6px;font-size:.62rem;min-width:150px;text-align:center;
   flex-shrink:0;box-sizing:border-box}
 .s936-ch-cont-cell.chord{font-weight:700;color:#e8f4f2;cursor:pointer;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .s936-ch-cont-cell.chord:hover{background:rgba(0,255,204,.1)}
 .s936-ch-cont-chordname{overflow:hidden;text-overflow:ellipsis;font-size:.6rem}
 .s936-ch-cont-segwrap{display:flex;gap:2px;margin-top:2px}
-.s936-ch-cont-seg{min-width:0}
+.s936-ch-cont-seg{min-width:110px;flex:none}
 .s936-ch-cont-minireal{transform:scale(.85);transform-origin:top left;
-  width:118%;margin-top:1px;pointer-events:none;overflow:visible}
+  width:129px;margin-top:1px;pointer-events:none;overflow:visible}
 .s936-ch-cont-cell.lyric{color:#9fd8cc;white-space:normal;word-break:break-word;
   line-height:1.25;min-height:2.4em}
 .s936-ch-cont-playhead{position:absolute;top:0;bottom:0;left:0;width:2px;
@@ -1841,13 +1841,13 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
   height:40px;
   width:100%;
   position:relative;
-  border:1px solid rgba(86,96,106,.5);
+  border:1.5px solid rgba(0,255,204,.4);
   border-radius:3px;
   overflow:hidden;
   background:linear-gradient(90deg,rgba(139,91,49,.4),rgba(70,45,26,.2));
 }
 .s936-ch-fs{position:absolute;left:2%;right:0;height:1px;background:rgba(200,180,140,.5)}
-.s936-ch-ff{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.15)}
+.s936-ch-ff{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.35)}
 .s936-ch-fd{
   position:absolute;
   width:8px;
