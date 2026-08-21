@@ -1848,6 +1848,7 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
 }
 .s936-ch-fs{position:absolute;left:2%;right:0;height:1px;background:rgba(200,180,140,.5)}
 .s936-ch-ff{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.35)}
+.s936-ch-ff.nut{width:3px;background:#00ffcc;box-shadow:0 0 4px rgba(0,255,204,.6)}
 .s936-ch-fd{
   position:absolute;
   width:8px;
@@ -3964,11 +3965,14 @@ body.s936-chart-stage main{
       wrap.appendChild(el);
     }
 
-    // Cambio 264: mismas líneas de traste, en posición espejada
-    // (96% → 8% en vez de 8% → 96%).
+    // Cambio 269: la línea f=0 marca el borde de inicio del diapasón (la
+    // cejuela/clavijero cuando el acorde empieza en el traste 1, o el
+    // límite de la ventana visible cuando empieza más arriba) — se dibuja
+    // más gruesa y brillante que las demás líneas de traste, para que se
+    // note claramente dónde "arranca" el mapa, no solo el número.
     for (let f = 0; f <= span; f++) {
       const el = document.createElement("div");
-      el.className = "s936-ch-ff";
+      el.className = "s936-ch-ff" + (f === 0 ? " nut" : "");
       el.style.cssText = `left:${96 - f / span * 88}%;z-index:1`;
       wrap.appendChild(el);
     }
@@ -3985,7 +3989,14 @@ body.s936-chart-stage main{
         wrap.appendChild(m);
       } else {
         const f0 = Number(fret);
-        const leftPct = f0 === 0 ? 96 : 96 - ((f0 - start + 0.5) / span) * 88;
+        // Cambio 270: el punto se dibujaba un traste más adelante de
+        // donde debía — la fórmula sumaba 0.5 en vez de restar, lo que
+        // corría cada nota exactamente un traste hacia el lado
+        // equivocado (por eso el Fa, que va en el traste 1, se veía como
+        // si estuviera en el 2). El centro real de un traste es el punto
+        // medio ENTRE su línea de inicio y la línea del traste anterior,
+        // no de la línea del traste siguiente.
+        const leftPct = f0 === 0 ? 96 : 96 - ((f0 - start - 0.5) / span) * 88;
         const dot = document.createElement("div");
         dot.className = "s936-ch-fd";
         dot.style.cssText = `top:${top}%;left:${leftPct}%;z-index:3`;
