@@ -3932,7 +3932,11 @@ body.s936-chart-stage main{
     // cuerdas del mini-diapasón quedara AL CONTRARIO del panel grande de
     // edición (que no tiene ese reverse). Ahora ambos usan el mismo
     // orden de cuerdas, de arriba a abajo, sin diferencia entre ellos.
-    const frets = [...voicingFret.frets];
+    // Cambio 272: se reintroduce el volteo vertical — el panel grande
+    // (Cambio 272, arriba) ahora muestra Mi grave arriba/Mi aguda abajo;
+    // este mini debe coincidir con ese mismo orden, no con el que tenía
+    // antes de esa corrección.
+    const frets = [...voicingFret.frets].reverse();
     const strings = frets.length;
     const capo = Number(voicingFret.capo) || 0;
 
@@ -4449,7 +4453,15 @@ body.s936-chart-stage main{
         fretGrid.appendChild(h);
       });
 
-      strings.forEach((stringLabel, sIndex) => {
+      // Cambio 272: orden vertical de cuerdas — Mi GRAVE arriba, Mi AGUDA
+      // abajo (como cualquier diagrama de guitarra publicado, y como
+      // pidió Val con su patrón de referencia). cfg.strings guarda las
+      // cuerdas en orden aguda→grave (E4 primero); se recorre al revés
+      // solo para el ORDEN DE DIBUJO — cada fila sigue ligada a su
+      // sIndex real, así que los clics y el cálculo de nota no cambian.
+      const displayOrder = strings.map((_, i) => i).reverse();
+      displayOrder.forEach((sIndex) => {
+        const stringLabel = strings[sIndex];
         const lbl = document.createElement("div");
         lbl.className = "s936-picker-fret-cell string-label";
         lbl.textContent = stringLabel;
