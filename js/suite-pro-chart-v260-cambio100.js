@@ -3811,6 +3811,43 @@ body.s936-chart-stage main{
     return frets.map((f, i) => i === best ? f : (f <= 4 ? f : null));
   }
 
+  // ─── CEJILLAS MOVIBLES (Cambio 279) ────────────────────────────────────────
+  // Origen: sesión con Val (guitarrista) — ver PROYECTO_Cejillas_Movibles.md.
+  // Idea central: en vez de memorizar un acorde por nota, se usa UNA sola
+  // plantilla de dedos por CALIDAD, anclada en Mi (E) al aire, y se desliza
+  // tantos trastes como semitonos hay entre Mi y la nota raíz pedida
+  // (Mi→Fa→Fa#→Sol→Sol#→La→Sib→Si→Do→Do#→Re→Re#→Mi). Por ahora cubre solo
+  // las 4 calidades que Val ya confirmó en su propio editor (familia de 6
+  // cuerdas con cejilla completa, ancla en Mi). m7b5, dim7 y las otras 2
+  // familias (5 cuerdas/La, 4 cuerdas shell tipo bossa/jazz) quedan
+  // pendientes de captura — no se inventan aquí.
+  //
+  // Orden de cada plantilla: E2-A2-D3-G3-B3-E4 (grave→agudo) — el mismo
+  // orden "de tablatura" en el que ya está escrito GUITAR_SHAPES antes de
+  // su .reverse() final (ver comentario del Cambio 271, más abajo). Por
+  // eso generarDigitacion() NO hace su propio reverse: se apoya en el
+  // mismo .reverse() único que ya aplica calcFretVoicing() al final, para
+  // no romper el orden que espera el resto del sistema (cfg.strings,
+  // miniFret, editor grande).
+  const BARRE_TEMPLATES_MI = {
+    "":   [0, 2, 2, 1, 0, 0], // Mayor      (verificado: Sol+3 = [3,5,5,4,3,3])
+    "m":  [0, 2, 2, 0, 0, 0], // Menor
+    "7":  [0, 2, 0, 1, 0, 0], // Dominante 7 (Dom7)
+    "m7": [0, 2, 0, 0, 0, 0], // m7
+  };
+  const MAX_TRASTE_CEJILLA_RAZONABLE = 15; // por encima de esto no se ofrece
+
+  function generarDigitacion(root, qualRaw) {
+    const template = BARRE_TEMPLATES_MI[qualRaw];
+    if (!template || !root) return null;
+    const rootPc = PC[String(root).toUpperCase().replace("b", "B")];
+    if (rootPc === undefined) return null;
+    const semitonosDesdeMi = ((rootPc - PC["E"]) + 12) % 12;
+    const frets = template.map(f => f + semitonosDesdeMi);
+    if (Math.max(...frets) > MAX_TRASTE_CEJILLA_RAZONABLE) return null;
+    return { frets }; // orden E2→E4, sin invertir (ver nota arriba)
+  }
+
   function calcFretVoicing(chordName, inst) {
     if (!chordName) return null;
     
@@ -3844,6 +3881,22 @@ body.s936-chart-stage main{
       // coincidencias falsas (ej. "Fm" → "FM" en mayúsculas, contiene
       // "M", así que terminaba sacando "Fmaj7" para lo que en realidad
       // era un Fm — un acorde totalmente distinto al pedido).
+      if (!shape && root) {
+        // Cambio 279: antes de rendirse (o de caer al respaldo de "mayor
+        // simple" de abajo), se intenta calcular la digitación en vivo
+        // con el algoritmo de cejillas movibles. Esto tapa huecos reales
+        // del catálogo a mano (ej. F#7, C#m7, G#m7, Ebm — nunca se
+        // capturaron para todas las notas) para las 4 calidades ya
+        // confirmadas por Val. Si la calidad pedida no es una de esas 4
+        // (ej. "9", "sus4", "dim"), generarDigitacion() devuelve null y
+        // el flujo sigue igual que antes.
+        let baseName = String(chordName).trim();
+        if (baseName.includes('/')) baseName = baseName.split('/')[0];
+        const baseMatch = baseName.match(/^([A-G][b#]?)(.*)$/i);
+        const qualRaw = baseMatch ? baseMatch[2] : "";
+        const generado = generarDigitacion(root, qualRaw);
+        if (generado) shape = generado.frets;
+      }
       if (!shape && root) {
         // Solo se usa el catálogo de respaldo (una forma mayor simple
         // por nota) cuando de verdad se pidió mayor simple — es decir,
