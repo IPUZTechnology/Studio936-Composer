@@ -3869,9 +3869,36 @@ body.s936-chart-stage main{
     
     if (inst === "guitar") {
       let shape = null;
-      for (const variant of searchVariants) {
-        shape = GUITAR_SHAPES[variant];
-        if (shape) break;
+
+      // Cambio 280: DECISIÓN EXPLÍCITA DE VAL — para las 4 calidades que
+      // ya cubre el algoritmo de cejillas movibles (Mayor, Menor, Dom7,
+      // m7), el algoritmo manda SIEMPRE, para las 12 notas, incluso las
+      // que ya tenían una forma abierta guardada a mano en el catálogo
+      // viejo (Mi, La, Re, Sol, Do...). En el Cambio 279 el algoritmo
+      // solo tapaba huecos y el catálogo viejo ganaba en las notas que ya
+      // tenía guardadas — eso daba resultados inconsistentes (ej. Sol#
+      // mostraba una forma vieja distinta a la cejilla acordada, en vez
+      // de la misma plantilla corrida como en las demás notas). Val
+      // prefirió consistencia total en las 12 notas por encima de
+      // conservar las formas abiertas conocidas para estas 4 calidades.
+      let baseName = String(chordName).trim();
+      if (baseName.includes('/')) baseName = baseName.split('/')[0];
+      const baseMatch = baseName.match(/^([A-G][b#]?)(.*)$/i);
+      const qualRaw = baseMatch ? baseMatch[2] : "";
+      if (root && Object.prototype.hasOwnProperty.call(BARRE_TEMPLATES_MI, qualRaw)) {
+        const generado = generarDigitacion(root, qualRaw);
+        if (generado) shape = generado.frets;
+      }
+
+      // Para cualquier otra calidad que el algoritmo todavía no cubre
+      // (Maj7, m7b5, Dim, Dim7, Aug, Sus2, Sus4, 9, m9, Maj9, 11, 13,
+      // add9, 6, m6...) se sigue usando el catálogo fijo a mano, igual
+      // que siempre — nada de esto cambió.
+      if (!shape) {
+        for (const variant of searchVariants) {
+          shape = GUITAR_SHAPES[variant];
+          if (shape) break;
+        }
       }
       // Cambio 277: se quitan las heurísticas de respaldo que buscaban
       // 'm'/'M' dentro de cleanName para adivinar mayor/menor/séptima —
@@ -3882,29 +3909,16 @@ body.s936-chart-stage main{
       // "M", así que terminaba sacando "Fmaj7" para lo que en realidad
       // era un Fm — un acorde totalmente distinto al pedido).
       if (!shape && root) {
-        // Cambio 279: antes de rendirse (o de caer al respaldo de "mayor
-        // simple" de abajo), se intenta calcular la digitación en vivo
-        // con el algoritmo de cejillas movibles. Esto tapa huecos reales
-        // del catálogo a mano (ej. F#7, C#m7, G#m7, Ebm — nunca se
-        // capturaron para todas las notas) para las 4 calidades ya
-        // confirmadas por Val. Si la calidad pedida no es una de esas 4
-        // (ej. "9", "sus4", "dim"), generarDigitacion() devuelve null y
-        // el flujo sigue igual que antes.
-        let baseName = String(chordName).trim();
-        if (baseName.includes('/')) baseName = baseName.split('/')[0];
-        const baseMatch = baseName.match(/^([A-G][b#]?)(.*)$/i);
-        const qualRaw = baseMatch ? baseMatch[2] : "";
-        const generado = generarDigitacion(root, qualRaw);
-        if (generado) shape = generado.frets;
-      }
-      if (!shape && root) {
         // Solo se usa el catálogo de respaldo (una forma mayor simple
         // por nota) cuando de verdad se pidió mayor simple — es decir,
         // el nombre completo es solo la nota raíz, sin ninguna calidad
-        // agregada (ni "m", ni "7", ni "9", ni nada). Para cualquier otra
-        // calidad que no esté en GUITAR_SHAPES, se devuelve null en vez
-        // de sustituir en silencio por la forma equivocada — es mejor no
-        // dibujar nada a dibujar el acorde incorrecto sin avisar.
+        // agregada (ni "m", ni "7", ni "9", ni nada). Con el Cambio 280
+        // esto ya casi nunca se activa para mayor simple (el algoritmo lo
+        // resuelve antes), queda solo como red de seguridad. Para
+        // cualquier otra calidad que no esté en GUITAR_SHAPES, se
+        // devuelve null en vez de sustituir en silencio por la forma
+        // equivocada — es mejor no dibujar nada a dibujar el acorde
+        // incorrecto sin avisar.
         const isPlainMajorRequest = cleanName === root;
         if (isPlainMajorRequest) {
           const defaultShapes = {
