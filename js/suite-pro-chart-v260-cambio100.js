@@ -4009,9 +4009,20 @@ body.s936-chart-stage main{
     // Cambio 275: la etiqueta ahora es un renglón aparte, ENCIMA de la
     // caja del diapasón (fuera del recorte), no una capa flotante
     // adentro.
+    // Cambio 278: además de quitar la palabra "Traste", se centra
+    // horizontalmente justo encima de dónde cae ESE traste en el mapa de
+    // abajo — usando la misma fórmula que ya posiciona los puntos —, en
+    // vez de quedar genéricamente pegado a la derecha sin relación con
+    // el traste real.
     const fretLabel = document.createElement("div");
     fretLabel.className = "s936-ch-fret-label-outer";
-    fretLabel.textContent = "Traste " + String(start + 1);
+    fretLabel.textContent = String(start + 1);
+    const labelLeftPct = 88 - ((1 - 0.5) / span) * 80;
+    fretLabel.style.position = "relative";
+    fretLabel.style.display = "inline-block";
+    fretLabel.style.alignSelf = "flex-start";
+    fretLabel.style.left = labelLeftPct + "%";
+    fretLabel.style.transform = "translateX(-50%)";
     outer.appendChild(fretLabel);
     outer.appendChild(wrap);
 
@@ -5842,6 +5853,14 @@ body.s936-chart-stage main{
                 const label = clickChordVal ? "Editar acorde" : "Añadir acorde";
                 const effectiveRhythm = normalizeRhythmMode(clickChordVal ? "hit" : "empty");
                 const onRerenderCont = () => render({ container, instrument: inst, onChordEdit });
+                // Cambio 278: completa el Cambio 276 en esta llamada
+                // específica (compás con más de un acorde) — antes no
+                // pasaba la digitación real guardada de ESTE segmento,
+                // solo el nombre, y el editor recalculaba una forma
+                // genérica en vez de traer la que ya estaba dibujada.
+                const nameUpperSeg = clickChordVal.toUpperCase().trim();
+                const savedVoicingSeg = getBeatVoicing(sectionKey, barIndex, beatIndex, inst)
+                  || voicingLibrary?.[inst]?.[nameUpperSeg] || null;
                 showBeatPop(
                   segBox,
                   label + " · Compás " + (barIndex + 1) + " · Tiempo " + (beatIndex + 1),
@@ -5862,7 +5881,8 @@ body.s936-chart-stage main{
                       onRerenderCont();
                     }
                     setTimeout(() => openVoicingEditor(segBox, sectionKey, barIndex, beatIndex, startName, inst, onRerenderCont), 0);
-                  }
+                  },
+                  savedVoicingSeg
                 );
               });
 
@@ -5884,6 +5904,13 @@ body.s936-chart-stage main{
               const label = clickChordVal ? "Editar acorde" : "Añadir acorde";
               const effectiveRhythm = normalizeRhythmMode(clickChordVal ? "hit" : "empty");
               const onRerenderCont = () => render({ container, instrument: inst, onChordEdit });
+              // Cambio 278: se completa el Cambio 276, que había quedado
+              // a medias — esta llamada nunca recibía la digitación real
+              // guardada, por eso el editor mostraba una forma genérica
+              // en vez de la que de verdad estaba en el mini-mapa.
+              const nameUpperCont1 = clickChordVal.toUpperCase().trim();
+              const savedVoicingCont1 = getBeatVoicing(sectionKey, barIndex, beatIndex, inst)
+                || voicingLibrary?.[inst]?.[nameUpperCont1] || null;
               showBeatPop(
                 chordCell,
                 label + " · Compás " + (barIndex + 1),
@@ -5904,7 +5931,8 @@ body.s936-chart-stage main{
                     onRerenderCont();
                   }
                   setTimeout(() => openVoicingEditor(chordCell, sectionKey, barIndex, beatIndex, startName, inst, onRerenderCont), 0);
-                }
+                },
+                savedVoicingCont1
               );
             });
           }
