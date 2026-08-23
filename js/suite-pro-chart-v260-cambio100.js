@@ -3869,9 +3869,16 @@ body.s936-chart-stage main{
   // con Gm7 — verificado cruzando cuerda+traste contra "Notas: D·F·G·A#").
   // Curiosamente sale una mini-cejilla recta: mismo traste en las 4
   // cuerdas que suenan (6ª-4ª-3ª-2ª), mutando 5ª y 1ª.
+  // Cambio 285: se agrega Dom7 (G7) a la familia shell. Este no vino de
+  // una captura nueva (las últimas 3 que mandó Val eran, sin darse
+  // cuenta, la misma captura repetida de Maj7) — se derivó aplicando la
+  // misma fórmula ya confirmada en la familia completa (Dom7 = Mayor con
+  // la 7ª bajada un semitono), sobre el Maj7 shell ya confirmado, y Val
+  // lo validó ("Si"). Verificado: Sol+3 = [3,X,3,4,3,X] = G-F-B-D (G7).
   const SHELL_TEMPLATES_MI = {
     "maj7": [0, "X", 1, 1, 0, "X"], // Maj7 shell (bossa/jazz)
     "m7":   [0, "X", 0, 0, 0, "X"], // m7 shell (bossa/jazz)
+    "7":    [0, "X", 0, 1, 0, "X"], // Dom7 shell (bossa/jazz)
   };
   const FAMILIAS_CEJILLA = {
     completa: BARRE_TEMPLATES_MI,
