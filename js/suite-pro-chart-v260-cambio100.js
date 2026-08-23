@@ -2125,9 +2125,15 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
 }
 .s936-picker-family-row{
   display:flex;
+  align-items:center;
   gap:6px;
   flex-basis:100%;
   margin-top:4px;
+}
+.s936-picker-family-hint{
+  color:rgba(255,255,255,.4);
+  font-size:.48rem;
+  font-style:italic;
 }
 .s936-picker-fret-label{
   color:rgba(0,255,204,.72);
@@ -4472,13 +4478,12 @@ body.s936-chart-stage main{
       }
 
       // Cambio 282: si la familia elegida es "shell" pero la calidad de
-      // este acorde no tiene versión shell capturada todavía, se vuelve
-      // automáticamente a "completa" — evita quedar "atascado" en shell
-      // al cambiar de Maj7 a otra calidad que no la tiene.
-      if (cejillaFamilia === "shell" && previewInst === "guitar") {
-        const { qualRaw } = raizYCalidadCruda(name);
-        if (!SHELL_TEMPLATES_MI.hasOwnProperty(qualRaw)) cejillaFamilia = "completa";
-      }
+      // este acorde no tiene versión shell capturada todavía, se usa la
+      // completa para el CÁLCULO (ver calcFretVoicingConFamilia), pero
+      // ya NO se resetea el botón seleccionado (Cambio 284: Val quiere
+      // que el toggle sea permanente en todas las calidades, para que no
+      // "desaparezca" la selección mientras van llegando los datos jazz
+      // de Mayor, Menor, Dom7, Dim y m7b5).
 
       const cfg = FRETBOARD_CONFIG[previewInst];
       const stringCount = cfg?.strings?.length || (previewInst === "guitar" ? 6 : 4);
@@ -4588,36 +4593,48 @@ body.s936-chart-stage main{
 
       fretControls.append(minus, label, value, range, plus);
 
-      // Cambio 282: selector "Cejilla completa / Jazz-Bossa". Solo se
-      // muestra en guitarra, y solo cuando la calidad actual de verdad
-      // tiene una segunda forma (shell) capturada — hoy solo Maj7. Para
-      // el resto de calidades no aparece, para no mostrar un control que
-      // no serviría de nada todavía.
+      // Cambio 284: DECISIÓN DE VAL — el selector "Cejilla completa /
+      // Jazz-Bossa" ahora es PERMANENTE en guitarra, para todas las
+      // calidades, no solo las que ya tienen dato jazz capturado (antes
+      // solo Maj7/m7). La idea es que cada calidad va a tener su propia
+      // forma jazz distinta (Mayor, Menor, Dom7 — cada una diferente),
+      // excepto Dim y m7b5 que según Val convergen en la misma forma.
+      // Si todavía no hay dato jazz para la calidad activa, el cálculo
+      // cae en silencio a la cejilla completa (ver
+      // calcFretVoicingConFamilia) y se muestra un aviso chiquito.
       if (previewInst === "guitar") {
         const { qualRaw } = raizYCalidadCruda(buildChordName());
-        if (SHELL_TEMPLATES_MI.hasOwnProperty(qualRaw)) {
-          const familyRow = document.createElement("div");
-          familyRow.className = "s936-picker-family-row";
+        const tieneJazz = SHELL_TEMPLATES_MI.hasOwnProperty(qualRaw);
 
-          const btnCompleta = document.createElement("button");
-          btnCompleta.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "completa" ? " sel" : "");
-          btnCompleta.textContent = "Cejilla completa";
+        const familyRow = document.createElement("div");
+        familyRow.className = "s936-picker-family-row";
 
-          const btnShell = document.createElement("button");
-          btnShell.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "shell" ? " sel" : "");
-          btnShell.textContent = "Jazz-Bossa";
+        const btnCompleta = document.createElement("button");
+        btnCompleta.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "completa" ? " sel" : "");
+        btnCompleta.textContent = "Cejilla completa";
 
-          const setFamilia = (f) => {
-            if (cejillaFamilia === f) return;
-            cejillaFamilia = f;
-            renderInlineMap(true);
-          };
-          btnCompleta.onclick = (e) => { e.stopPropagation(); setFamilia("completa"); };
-          btnShell.onclick = (e) => { e.stopPropagation(); setFamilia("shell"); };
+        const btnShell = document.createElement("button");
+        btnShell.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "shell" ? " sel" : "");
+        btnShell.textContent = "Jazz-Bossa";
 
-          familyRow.append(btnCompleta, btnShell);
-          fretControls.appendChild(familyRow);
+        const setFamilia = (f) => {
+          if (cejillaFamilia === f) return;
+          cejillaFamilia = f;
+          renderInlineMap(true);
+        };
+        btnCompleta.onclick = (e) => { e.stopPropagation(); setFamilia("completa"); };
+        btnShell.onclick = (e) => { e.stopPropagation(); setFamilia("shell"); };
+
+        familyRow.append(btnCompleta, btnShell);
+
+        if (cejillaFamilia === "shell" && !tieneJazz) {
+          const hint = document.createElement("span");
+          hint.className = "s936-picker-family-hint";
+          hint.textContent = "Aún sin forma jazz para esta calidad — mostrando cejilla completa";
+          familyRow.appendChild(hint);
         }
+
+        fretControls.appendChild(familyRow);
       }
     }
 
