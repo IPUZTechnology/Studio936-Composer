@@ -2142,9 +2142,9 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
   display:flex;
   flex-direction:column;
   gap:6px;
-  margin-top:10px;
-  padding-top:10px;
-  border-top:1px solid rgba(0,255,204,.14);
+  margin-bottom:8px;
+  padding-bottom:8px;
+  border-bottom:1px solid rgba(0,255,204,.14);
 }
 .s936-picker-cat-row{
   display:flex;
@@ -2341,16 +2341,17 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
   background:rgba(255,224,102,.07);
   color:rgba(255,255,255,.72);
   border-radius:9px;
-  padding:8px 7px;
+  padding:6px 7px;
   font-size:.56rem;
   font-weight:900;
   cursor:pointer;
   text-transform:uppercase;
   letter-spacing:.35px;
   display:flex;
+  flex-direction:column;
   align-items:center;
   justify-content:center;
-  gap:6px;
+  gap:3px;
 }
 .s936-picker-family-icon{
   flex-shrink:0;
@@ -4510,15 +4511,20 @@ body.s936-chart-stage main{
   // diagrama de acorde de tablatura), resaltando en teal las que suenan
   // en esa familia y dejando en gris tenue las mudas. "usadas" es un
   // array de 6 booleans en ese mismo orden (grave→agudo).
+  // Cambio 308/309: Val pidió el ícono horizontal (como el mástil real
+  // de la guitarra visto desde arriba, cuerdas corriendo izq→der) en vez
+  // de vertical, y que las 6 líneas se vean claramente — no solo las 4
+  // que suenan. "usadas" es un array de 6 booleans en orden grave→agudo
+  // (Mi-La-Re-Sol-Si-Mi), de arriba hacia abajo en el dibujo.
   function iconoCuerdasFamilia(usadas) {
-    const w = 54, h = 26, n = 6;
-    const gap = w / (n - 1);
+    const w = 44, h = 34, n = 6;
+    const gap = h / (n - 1);
     let bars = "";
     for (let i = 0; i < n; i++) {
-      const x = i * gap;
+      const y = i * gap;
       const on = !!usadas[i];
-      bars += `<line x1="${x}" y1="2" x2="${x}" y2="${h - 2}" stroke="${on ? '#00ffcc' : 'rgba(255,255,255,.18)'}" stroke-width="${on ? 2.4 : 1.4}" stroke-linecap="round"/>`;
-      if (on) bars += `<circle cx="${x}" cy="${h / 2}" r="2.6" fill="#00ffcc"/>`;
+      bars += `<line x1="1" y1="${y}" x2="${w - 1}" y2="${y}" stroke="${on ? '#00ffcc' : 'rgba(255,255,255,.4)'}" stroke-width="${on ? 2.6 : 1.6}" stroke-linecap="round"/>`;
+      if (on) bars += `<circle cx="${w / 2}" cy="${y}" r="2.8" fill="#00ffcc"/>`;
     }
     return `<svg class="s936-picker-family-icon" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">${bars}</svg>`;
   }
@@ -4960,6 +4966,15 @@ body.s936-chart-stage main{
     if (!currentVal) preview.classList.add("empty");
     leftPane.appendChild(preview);
 
+    // Cambio 309: Val pidió que el selector de familia (Natural / Jazz-
+    // Bossa) quede pegado al nombre del acorde, arriba — antes (Cambio
+    // 306) vivía debajo del mapa, pero se veía "lejos". El slider de
+    // Traste inicial, en cambio, baja: ahora vive debajo del mapa (es un
+    // control del mapa, tiene más sentido ahí que arriba de todo).
+    const familySelectorBox = document.createElement("div");
+    familySelectorBox.className = "s936-picker-family-box";
+    leftPane.appendChild(familySelectorBox);
+
     const notesLine = document.createElement("div");
     notesLine.className = "s936-picker-notes-line";
     leftPane.appendChild(notesLine);
@@ -4969,23 +4984,13 @@ body.s936-chart-stage main{
     mapLabel.textContent = previewInst === "piano" ? "Mapa editable de notas" : "Mapa editable de digitación";
     leftPane.appendChild(mapLabel);
 
-    const fretControls = document.createElement("div");
-    fretControls.className = "s936-picker-fret-controls";
-    leftPane.appendChild(fretControls);
-
     const mapBox = document.createElement("div");
     mapBox.className = "s936-picker-map-box s936-picker-map-box-live";
     leftPane.appendChild(mapBox);
 
-    // Cambio 306: el selector de familia (Natural / Jazz-Bossa) se pinta
-    // AQUÍ, debajo del mapa — antes vivía arriba, dentro de
-    // fretControls, junto al slider de Traste inicial. Val pidió que el
-    // slider se quede arriba (es del mapa) pero el selector de familia
-    // baje, y que además se agrupe en solo 2 categorías en vez de 6
-    // botones sueltos.
-    const familySelectorBox = document.createElement("div");
-    familySelectorBox.className = "s936-picker-family-box";
-    leftPane.appendChild(familySelectorBox);
+    const fretControls = document.createElement("div");
+    fretControls.className = "s936-picker-fret-controls";
+    leftPane.appendChild(fretControls);
 
     const rhythmTitle = document.createElement("div");
     rhythmTitle.className = "s936-picker-rhythm-title";
@@ -5379,21 +5384,23 @@ body.s936-chart-stage main{
       // siendo exactamente la misma familia (SHELL_TEMPLATES_MI), solo
       // cambia el rótulo.
       btnShell.textContent = "Jazz-Bossa (Mi)";
-      // Cambio 308: ícono de mástil + tooltip — usa Mi grave, Re, Sol, Si
-      // (mudas: La y Mi agudo), verificado directo desde SHELL_TEMPLATES_MI.
-      btnShell.title = "Ancla en Mi · suenan Mi grave-Re-Sol-Si · mudas La y Mi agudo";
+      // Cambio 309: tooltip ahora solo dice la nomenclatura Entrada/Drop
+      // — el ícono ya muestra visualmente qué cuerdas suenan, no hace
+      // falta repetirlo en texto. Verificado numéricamente que Entrada V
+      // Drop 2 da el mismo contenido de notas que SHELL_TEMPLATES_MI.
+      btnShell.title = "Entrada V · Drop 2";
       btnShell.innerHTML = iconoCuerdasFamilia([true, false, true, true, true, false]) +
         '<span>Jazz-Bossa (Mi)</span>';
 
       const btnLa = document.createElement("button");
       btnLa.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "la" ? " sel" : "");
-      btnLa.title = "Ancla en La · suenan La-Re-Sol-Si · mudas Mi grave y Mi agudo";
+      btnLa.title = "Entrada III · Drop 2 · Segundo orden";
       btnLa.innerHTML = iconoCuerdasFamilia([false, true, true, true, true, false]) +
         '<span>Base La</span>';
 
       const btnRe = document.createElement("button");
       btnRe.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "re" ? " sel" : "");
-      btnRe.title = "Ancla en Re · suenan Re-Sol-Si-Mi agudo · mudas Mi grave y La";
+      btnRe.title = "Entrada III · Drop 2 · Primer orden";
       btnRe.innerHTML = iconoCuerdasFamilia([false, false, true, true, true, true]) +
         '<span>Base Re</span>';
 
