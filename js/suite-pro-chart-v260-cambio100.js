@@ -3980,6 +3980,347 @@ body.s936-chart-stage main{
   };
   const MAX_TRASTE_CEJILLA_RAZONABLE = 15; // por encima de esto no se ofrece
 
+  // ============================================================
+  // CAMBIO 302 — MOTOR "ENTRADA + DROP" (módulo Jazz y Bossa).
+  //
+  // Teoría fuente: "Teoría de Inversiones" de Rafael Ipuz (libro de
+  // Val, fotografiado y transcrito en la sesión de este Cambio — ver
+  // HANDOFF_Cejillas_Movibles_Cambio301.md para el detalle completo).
+  //
+  // Concepto en una frase: la "entrada" fija qué grado del acorde
+  // queda como la voz más aguda (la que lleva la melodía); el "drop"
+  // decide qué voz(es) intermedias bajan una octava para que cierre
+  // en la guitarra. No se captura nada a mano — se deriva todo de la
+  // tabla de grados de la página 2 del libro, igual que ya hicimos
+  // con los "colores" (9/11/13) en BARRE_TEMPLATES_MI.
+  //
+  // Este bloque es ADITIVO: no toca FAMILIAS_CEJILLA, NATURAL_SHAPES,
+  // generarDigitacion, ni calcFretVoicingConFamilia. Vive aparte y se
+  // usa solo desde la Librería Jazz y Bossa (abrirLibreriaJazzBossa,
+  // más abajo). Verificado contra 44 acordes reales (fotos + ZIP de
+  // Val) antes de escribir esta versión — ver autotestEntradaDrop().
+  // ============================================================
+
+  // Tabla de grados (página 2 del libro): semitonos desde la raíz.
+  // "" = Mayor, "m" = menor (mismas claves de qualRaw que ya usa el
+  // resto del archivo). El grado "7" de Mayor/menor no es una séptima
+  // real — el libro usa ahí la OCTAVA (8), aquí representada como 12
+  // semitonos, porque una tríada necesita una 4ª voz para completar
+  // la posición cerrada.
+  const GRADOS_ENTRADA_DROP = {
+    "":     { 1: 0, 3: 4, 5: 7, 7: 12 },
+    "m":    { 1: 0, 3: 3, 5: 7, 7: 12 },
+    "maj7": { 1: 0, 3: 4, 5: 7, 7: 11 },
+    "7":    { 1: 0, 3: 4, 5: 7, 7: 10 },
+    "m7":   { 1: 0, 3: 3, 5: 7, 7: 10 },
+    "m7b5": { 1: 0, 3: 3, 5: 6, 7: 10 },
+    "dim7": { 1: 0, 3: 3, 5: 6, 7: 9  },
+  };
+
+  // Ciclo fijo de la posición cerrada (páginas 4-5 del libro): 1-7-5-3,
+  // rotado según la entrada. Ej. entrada III → [3,1,7,5]. Devuelve las
+  // 4 voces de arriba (melodía) hacia abajo.
+  const CICLO_ENTRADA_DROP = [1, 7, 5, 3];
+
+  function gradosPorEntrada(entrada) {
+    const idx = CICLO_ENTRADA_DROP.indexOf(Number(entrada));
+    if (idx === -1) return null;
+    return [0, 1, 2, 3].map(i => CICLO_ENTRADA_DROP[(idx + i) % 4]);
+  }
+
+  // Construye la posición CERRADA: apila las 4 voces en terceras,
+  // ascendiendo desde la más grave. Devuelve offsets en semitonos ya
+  // en orden arriba→abajo (voz1..voz4), listos para aplicarles un drop.
+  function posicionCerradaEntradaDrop(entrada, qualRaw) {
+    const gradosArriba = gradosPorEntrada(entrada);
+    const tabla = GRADOS_ENTRADA_DROP[qualRaw];
+    if (!gradosArriba || !tabla) return null;
+    const gradosAbajo = [...gradosArriba].reverse();
+    let prev = tabla[gradosAbajo[0]] % 12;
+    const absolutos = [prev];
+    for (let i = 1; i < gradosAbajo.length; i++) {
+      const pc = tabla[gradosAbajo[i]] % 12;
+      let cand = pc;
+      while (cand <= prev) cand += 12;
+      absolutos.push(cand);
+      prev = cand;
+    }
+    return { gradosArriba, offsetsArriba: [...absolutos].reverse() };
+  }
+
+  // drop: null/"" (cerrada), 2, 3, o "2y4" — qué voz(es) bajan 1 octava.
+  function aplicarDropEntradaDrop(offsetsArriba, drop) {
+    const o = [...offsetsArriba];
+    if (drop === 2 || drop === "2") o[1] -= 12;
+    else if (drop === 3 || drop === "3") o[2] -= 12;
+    else if (drop === "2y4") { o[1] -= 12; o[3] -= 12; }
+    return o;
+  }
+
+  // Punto de entrada puramente musical: calidad + entrada + drop →
+  // 4 semitonos relativos (voz1 arriba .. voz4 abajo). Todavía sin
+  // raíz ni cuerdas — eso lo hace asignarPrimerOrdenEntradaDrop.
+  function generarEntradaDrop(qualRaw, entrada, drop) {
+    const pos = posicionCerradaEntradaDrop(entrada, qualRaw);
+    if (!pos) return null;
+    const offsets = aplicarDropEntradaDrop(pos.offsetsArriba, drop);
+    return { gradosArriba: pos.gradosArriba, offsets };
+  }
+
+  // Notas reales (nombres) para una raíz dada, arriba→abajo. Se usa
+  // tanto en la librería como en el autotest.
+  function notasEntradaDrop(root, qualRaw, entrada, drop) {
+    const gen = generarEntradaDrop(qualRaw, entrada, drop);
+    if (!gen) return null;
+    const rootPc = PC[String(root || "").toUpperCase()];
+    if (rootPc === undefined) return null;
+    const notas = gen.offsets.map(o => NOTE_NAMES[((rootPc + o) % 12 + 12) % 12]);
+    return { ...gen, notas, root, qualRaw, entrada, drop };
+  }
+
+  // ─── ÚNICA FUENTE DE VERDAD: notas reales desde cualquier patrón de
+  // trastes. Misma matemática que ya usa detectChordFromFrets (más
+  // abajo en este archivo) para el camino "clic manual en el
+  // diapasón" — se replica aquí como función aparte, chiquita y sin
+  // dependencias, para poder usarla también en la verificación del
+  // camino "generado desde la librería" sin tocar detectChordFromFrets.
+  function notasDesdeFrets(frets, inst) {
+    const config = FRETBOARD_CONFIG[inst];
+    if (!config || !Array.isArray(frets)) return [];
+    return frets.map((fret, i) => {
+      if (fret === null || fret === undefined || String(fret).toUpperCase() === "X") return null;
+      const midi = config.open[i] + Number(fret);
+      return midiToNote(midi);
+    }).filter(n => n !== null);
+  }
+
+  // Asigna las 4 voces a "Primer orden" (cuerdas E2-A2-D3-G3, las 4
+  // graves — E4 y B3 mudas). Ordena las voces por altura real (después
+  // del drop) y las reparte de grave a aguda en esas 4 cuerdas. Frets
+  // en el mismo orden que FRETBOARD_CONFIG.guitar (E4,B3,G3,D3,A2,E2).
+  function asignarPrimerOrdenEntradaDrop(root, qualRaw, entrada, drop) {
+    const gen = notasEntradaDrop(root, qualRaw, entrada, drop);
+    if (!gen) return null;
+    const rootPc = PC[String(root || "").toUpperCase()];
+    const cfg = FRETBOARD_CONFIG.guitar;
+    // orden low->high de las 4 cuerdas usadas: E2(5), A2(4), D3(3), G3(2)
+    const cuerdasUsadas = [5, 4, 3, 2];
+    const voces = gen.offsets.map((offset, voiceIdx) => ({ voiceIdx, offset }));
+    voces.sort((a, b) => a.offset - b.offset); // grave -> agudo real
+    if (voces.length !== cuerdasUsadas.length) return null;
+
+    const frets = new Array(6).fill("X");
+    voces.forEach((v, i) => {
+      const stringIdx = cuerdasUsadas[i];
+      const openPc = cfg.open[stringIdx] % 12;
+      const targetPc = ((rootPc + v.offset) % 12 + 12) % 12;
+      frets[stringIdx] = ((targetPc - openPc) % 12 + 12) % 12;
+    });
+
+    const numericos = frets.filter(f => f !== "X");
+    if (numericos.some(f => f > MAX_TRASTE_CEJILLA_RAZONABLE || f < 0)) return null;
+
+    // ── verificación cruzada obligatoria antes de devolver nada ──
+    const notasReales = new Set(notasDesdeFrets(frets, "guitar"));
+    const notasEsperadas = new Set(gen.notas);
+    const coincide = notasReales.size === notasEsperadas.size &&
+      [...notasReales].every(n => notasEsperadas.has(n));
+    if (!coincide) {
+      console.error("[EntradaDrop] verificación cruzada FALLÓ", { root, qualRaw, entrada, drop, notasReales: [...notasReales], notasEsperadas: [...notasEsperadas] });
+      return null; // nunca se muestra un voicing que no pasó la verificación
+    }
+
+    return { frets, notas: gen.notas, gradosArriba: gen.gradosArriba, verificado: true };
+  }
+
+  // ─── AUTOTEST — los 44 acordes verificados a mano contra el ZIP y
+  // las fotos en la sesión del Cambio 301/302. Correr desde la consola
+  // del navegador: Studio936EntradaDrop.autotest()
+  const AUTOTEST_ENTRADA_DROP = [
+    ["A","7",1,3,["A","C#","E","G"],"A"], ["A","",1,3,["A","C#","E"],"A"],
+    ["A","dim7",1,3,["A","C","D#","F#"],"A"], ["A","m7",1,3,["A","C","E","G"],"A"],
+    ["A","m7b5",1,3,["A","C","D#","G"],"A"], ["D","7",1,3,["D","F#","A","C"],"D"],
+    ["D","dim7",1,3,["D","F","G#","B"],"D"], ["D","m7",1,3,["D","F","A","C"],"D"],
+    ["D","m7b5",1,3,["D","F","G#","C"],"D"], ["E","",1,3,["E","G#","B"],"E"],
+    ["E","dim7",1,3,["E","G","A#","C#"],"E"], ["E","m7b5",1,3,["E","G","A#","D"],"E"],
+    ["G","7",1,3,["G","B","D","F"],"G"], ["G","",1,3,["G","B","D"],"G"],
+    ["G","dim7",1,3,["G","A#","C#","E"],"G"], ["G","m7",1,3,["G","A#","D","F"],"G"],
+    ["G","m7b5",1,3,["G","A#","C#","F"],"G"], ["A","7",1,2,["A","C#","E","G"],"A"],
+    ["A","",1,2,["A","C#","E"],"A"], ["A","dim7",1,2,["A","C","D#","F#"],"A"],
+    ["A","m7",1,2,["A","C","E","G"],"A"], ["C","7",1,2,["C","E","G","A#"],"C"],
+    ["E","7",1,2,["E","G#","B","D"],"E"], ["E","",1,2,["E","G#","B"],"E"],
+    ["E","dim7",1,2,["E","G","A#","C#"],"E"], ["C","7",3,3,["C","E","G","A#"],"E"],
+    ["C","m7",3,3,["C","D#","G","A#"],"D#"], ["C","maj7",3,3,["C","E","G","B"],"E"],
+    ["F","dim7",3,3,["F","G#","B","D"],"G#"], ["F","m7",3,3,["F","G#","C","D#"],"G#"],
+    ["F","m7b5",3,3,["F","G#","B","D#"],"G#"], ["F","7",3,2,["F","A","C","D#"],null],
+    ["F","",3,2,["F","A","C"],null], ["F","dim7",3,2,["F","G#","B","D"],null],
+    ["F","m7",3,2,["F","G#","C","D#"],null], ["F","m7b5",3,2,["F","G#","B","D#"],null],
+    ["D","7",3,"2y4",["D","F#","A","C"],"F#"], ["D","m7",3,"2y4",["D","F","A","C"],"F"],
+    ["D","m7b5",3,"2y4",["D","F","G#","C"],"F"], ["G","7",3,"2y4",["G","B","D","F"],"B"],
+    ["G","dim7",3,"2y4",["G","A#","C#","E"],"A#"], ["G","m7",3,"2y4",["G","A#","D","F"],"A#"],
+    ["G","m7b5",3,"2y4",["G","A#","C#","F"],"A#"], ["G","maj7",3,"2y4",["G","B","D","F#"],"B"],
+  ];
+
+  function autotestEntradaDrop() {
+    let ok = 0, fail = 0;
+    AUTOTEST_ENTRADA_DROP.forEach(([root, qualRaw, entrada, drop, esperado, vozArriba]) => {
+      const gen = notasEntradaDrop(root, qualRaw, entrada, drop);
+      const notas = gen ? gen.notas : [];
+      // Comparación por CONJUNTO, no por longitud: Mayor/menor duplican
+      // la raíz (usan la octava como 4ª voz) y eso es correcto, no un
+      // error — el conjunto de notas distintas sigue siendo el mismo.
+      const notasSet = new Set(notas);
+      const esperadoSet = new Set(esperado);
+      const setOk = gen && notasSet.size === esperadoSet.size &&
+        [...esperadoSet].every(n => notasSet.has(n));
+      const topOk = !vozArriba || (notas[0] === vozArriba);
+      if (setOk && topOk) ok++; else {
+        fail++;
+        console.warn("[EntradaDrop autotest] FALLA", { root, qualRaw, entrada, drop, notas, esperado, vozArriba });
+      }
+    });
+    console.log(`[EntradaDrop autotest] ${ok} OK / ${fail} FALLA de ${AUTOTEST_ENTRADA_DROP.length}`);
+    return { ok, fail, total: AUTOTEST_ENTRADA_DROP.length };
+  }
+
+  window.Studio936EntradaDrop = {
+    generarEntradaDrop, notasEntradaDrop, asignarPrimerOrdenEntradaDrop,
+    notasDesdeFrets, autotest: autotestEntradaDrop,
+  };
+
+  // ─── LIBRERÍA JAZZ Y BOSSA — panel aparte, no modifica el editor
+  // principal. Genera cualquier raíz/calidad/entrada/drop, la dibuja
+  // con miniFret() (el mismo dibujo que ya usa el resto de la app) y
+  // muestra las notas reales debajo de cada cuerda — nunca solo
+  // números. Por ahora solo ofrece "Primer orden" (cuerdas E-A-D-G);
+  // segundo y tercer orden quedan para un Cambio siguiente.
+  const ROOTS_LIBRERIA = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+  const CALIDADES_LIBRERIA = [
+    { qualRaw: "",     label: "Mayor" },
+    { qualRaw: "m",    label: "menor" },
+    { qualRaw: "maj7", label: "Mayor 7" },
+    { qualRaw: "7",    label: "Dominante 7" },
+    { qualRaw: "m7",   label: "menor 7" },
+    { qualRaw: "m7b5", label: "m7(b5)" },
+    { qualRaw: "dim7", label: "Disminuido 7" },
+  ];
+
+  function abrirLibreriaJazzBossa(rootInicial, qualRawInicial) {
+    const existente = document.querySelector(".s936-libreria-jazz-overlay");
+    if (existente) existente.remove();
+
+    let root = ROOTS_LIBRERIA.includes(rootInicial) ? rootInicial : "A";
+    let qualRaw = CALIDADES_LIBRERIA.some(c => c.qualRaw === qualRawInicial) ? qualRawInicial : "7";
+    let entrada = 1;
+    let drop = 3;
+
+    const overlay = document.createElement("div");
+    overlay.className = "s936-libreria-jazz-overlay";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;";
+
+    const panel = document.createElement("div");
+    panel.style.cssText = "background:#141b22;border:1px solid #22303c;border-radius:12px;padding:20px;width:min(520px,92vw);color:#e6edf3;font-family:inherit;";
+    overlay.appendChild(panel);
+
+    const header = document.createElement("div");
+    header.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;";
+    header.innerHTML = '<strong style="color:#2dd4bf;">Librería de acordes — Jazz y Bossa</strong>';
+    const btnCerrar = document.createElement("button");
+    btnCerrar.textContent = "✕";
+    btnCerrar.style.cssText = "background:none;border:none;color:#8b98a5;font-size:16px;cursor:pointer;";
+    btnCerrar.onclick = () => overlay.remove();
+    header.appendChild(btnCerrar);
+    panel.appendChild(header);
+
+    const fila = (label) => {
+      const row = document.createElement("div");
+      row.style.cssText = "margin-bottom:10px;";
+      const lab = document.createElement("div");
+      lab.textContent = label;
+      lab.style.cssText = "font-size:11px;color:#8b98a5;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;";
+      row.appendChild(lab);
+      panel.appendChild(row);
+      return row;
+    };
+
+    const rowRootQual = fila("Raíz y calidad");
+    const selRoot = document.createElement("select");
+    ROOTS_LIBRERIA.forEach(r => selRoot.add(new Option(r, r)));
+    selRoot.value = root;
+    const selQual = document.createElement("select");
+    CALIDADES_LIBRERIA.forEach(c => selQual.add(new Option(c.label, c.qualRaw)));
+    selQual.value = qualRaw;
+    selRoot.style.marginRight = "8px";
+    rowRootQual.append(selRoot, selQual);
+
+    const rowEntrada = fila("Entrada (voz arriba)");
+    const rowDrop = fila("Drop (voz(es) abajo)");
+    const preview = document.createElement("div");
+    preview.style.cssText = "background:#0f151b;border:1px solid #22303c;border-radius:10px;padding:14px;margin-top:6px;min-height:120px;";
+    panel.appendChild(preview);
+
+    const footer = document.createElement("div");
+    footer.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-top:14px;";
+    const btnAutotest = document.createElement("button");
+    btnAutotest.textContent = "Correr autotest (44 acordes)";
+    btnAutotest.style.cssText = "background:#1c2731;color:#e0b84a;border:1px solid #e0b84a;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;";
+    const autotestOut = document.createElement("span");
+    autotestOut.style.cssText = "font-size:12px;color:#8b98a5;margin-left:10px;";
+    btnAutotest.onclick = () => {
+      const r = autotestEntradaDrop();
+      autotestOut.textContent = `${r.ok} OK / ${r.fail} FALLA de ${r.total}`;
+      autotestOut.style.color = r.fail === 0 ? "#2dd4bf" : "#e05a5a";
+    };
+    footer.append(btnAutotest, autotestOut);
+    panel.appendChild(footer);
+
+    function pillRow(container, opciones, valorActual, onPick) {
+      container.querySelectorAll(".s936-libreria-pill").forEach(el => el.remove());
+      opciones.forEach(op => {
+        const b = document.createElement("button");
+        b.className = "s936-libreria-pill";
+        b.textContent = op.label;
+        const sel = op.valor === valorActual;
+        b.style.cssText = "margin:0 6px 0 0;padding:5px 10px;border-radius:14px;font-size:12px;cursor:pointer;" +
+          (sel ? "background:#2dd4bf;color:#00201c;border:none;" : "background:transparent;color:#8b98a5;border:1px solid #22303c;");
+        b.onclick = () => onPick(op.valor);
+        container.appendChild(b);
+      });
+    }
+
+    function actualizar() {
+      pillRow(rowEntrada, [
+        { valor: 1, label: "Por I" }, { valor: 3, label: "Por III" },
+        { valor: 5, label: "Por V" }, { valor: 7, label: "Por VII" },
+      ], entrada, (v) => { entrada = v; actualizar(); });
+
+      pillRow(rowDrop, [
+        { valor: null, label: "Cerrada" }, { valor: 2, label: "Drop 2" },
+        { valor: 3, label: "Drop 3" }, { valor: "2y4", label: "Drop 2 y 4" },
+      ], drop, (v) => { drop = v; actualizar(); });
+
+      preview.innerHTML = "";
+      const resultado = asignarPrimerOrdenEntradaDrop(root, qualRaw, entrada, drop);
+      if (!resultado) {
+        preview.innerHTML = '<div style="color:#e05a5a;font-size:13px;">No disponible en Primer orden para esta combinación (o no pasó la verificación cruzada) — probar otra entrada/drop.</div>';
+        return;
+      }
+      preview.appendChild(miniFret({ frets: resultado.frets }));
+      const notas = document.createElement("div");
+      notas.style.cssText = "margin-top:8px;font-size:13px;color:#2dd4bf;";
+      notas.textContent = "Notas: " + resultado.notas.join(" · ") + " — verificado ✓";
+      preview.appendChild(notas);
+    }
+
+    selRoot.onchange = () => { root = selRoot.value; actualizar(); };
+    selQual.onchange = () => { qualRaw = selQual.value; actualizar(); };
+
+    document.body.appendChild(overlay);
+    actualizar();
+  }
+
+  window.abrirLibreriaJazzBossa = abrirLibreriaJazzBossa;
+
   // Cambio 298: FAMILIA "NATURAL" — acordes abiertos de primera posición
   // (los que se aprenden al principio), verificados con una tablatura de
   // Val (archivo .txt) para Re, cruzando cada forma contra los acordes
@@ -4894,7 +5235,19 @@ body.s936-chart-stage main{
         btnLa.onclick = (e) => { e.stopPropagation(); setFamilia("la"); };
         btnNatural.onclick = (e) => { e.stopPropagation(); setFamilia("natural"); };
 
-        familyRow.append(btnCompleta, btnShell, btnLa, btnNatural);
+        // Cambio 302: quinto botón — abre la Librería Jazz y Bossa
+        // (panel aparte, ver abrirLibreriaJazzBossa). No participa del
+        // toggle cejillaFamilia — es una ventana independiente, no
+        // reemplaza ninguna de las 4 familias existentes.
+        const btnLibreria = document.createElement("button");
+        btnLibreria.className = "s936-picker-rhythm-btn";
+        btnLibreria.textContent = "Librería Jazz-Bossa";
+        btnLibreria.onclick = (e) => {
+          e.stopPropagation();
+          abrirLibreriaJazzBossa(root, qualRaw);
+        };
+
+        familyRow.append(btnCompleta, btnShell, btnLa, btnNatural, btnLibreria);
 
         if (cejillaFamilia === "shell" && !tieneJazz) {
           const hint = document.createElement("span");
