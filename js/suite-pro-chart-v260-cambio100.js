@@ -4215,7 +4215,14 @@ body.s936-chart-stage main{
     if (numericos.some(f => f > MAX_TRASTE_CEJILLA_RAZONABLE || f < 0)) return null;
 
     // ── verificación cruzada obligatoria antes de devolver nada ──
-    const notasReales = new Set(notasDesdeFrets(frets, "guitar"));
+    // Cambio 316: BUG ENCONTRADO — notasDesdeFrets() devuelve notas CON
+    // octava (via midiToNote, ej. "C4"), pero gen.notas (notasEsperadas)
+    // son nombres de nota SIN octava (ej. "C"). La comparación nunca
+    // podía coincidir, así el cálculo estuviera perfecto — por eso la
+    // Librería casi siempre mostraba "No disponible", en el 100% de los
+    // casos probados (barrido de 1344 combinaciones: 0 pasaban antes de
+    // este fix). Se le quita la octava a notasReales antes de comparar.
+    const notasReales = new Set(notasDesdeFrets(frets, "guitar").map(n => n.replace(/-?\d+$/, "")));
     const notasEsperadas = new Set(gen.notas);
     const coincide = notasReales.size === notasEsperadas.size &&
       [...notasReales].every(n => notasEsperadas.has(n));
