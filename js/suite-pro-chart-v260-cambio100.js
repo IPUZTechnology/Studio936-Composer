@@ -3865,13 +3865,21 @@ body.s936-chart-stage main{
   // un chequeo de traste mínimo en generarDigitacion(), además del
   // máximo que ya existía.
   const BARRE_TEMPLATES_MI = {
-    "":     [0, 2, 2, 1, 0, 0],       // Mayor      (verificado: Sol+3 = [3,5,5,4,3,3])
-    "m":    [0, 2, 2, 0, 0, 0],       // Menor
-    "7":    [0, 2, 0, 1, 0, 0],       // Dominante 7 (Dom7)
-    "m7":   [0, 2, 0, 0, 0, 0],       // m7
-    "maj7": [0, 2, 1, 1, 0, 0],       // Maj7 (verificado: Sol+3 = [3,5,4,4,3,3])
-    "m7b5": [0, "X", 0, 0, -1, "X"],  // semidisminuido (verificado: Sol+3 = [3,X,3,3,2,X])
-    "dim7": [0, "X", -1, 0, -1, "X"], // Dim7 (verificado: Sol+3 = [3,X,2,3,2,X])
+    "":      [0, 2, 2, 1, 0, 0],       // Mayor      (verificado: Sol+3 = [3,5,5,4,3,3])
+    "m":     [0, 2, 2, 0, 0, 0],       // Menor
+    "7":     [0, 2, 0, 1, 0, 0],       // Dominante 7 (Dom7)
+    "m7":    [0, 2, 0, 0, 0, 0],       // m7
+    "maj7":  [0, 2, 1, 1, 0, 0],       // Maj7 (verificado: Sol+3 = [3,5,4,4,3,3])
+    "m7b5":  [0, "X", 0, 0, -1, "X"],  // semidisminuido (verificado: Sol+3 = [3,X,3,3,2,X])
+    "dim7":  [0, "X", -1, 0, -1, "X"], // Dim7 (verificado: Sol+3 = [3,X,2,3,2,X])
+    // Cambio 287: primer "color" derivado matemáticamente (no capturado a
+    // mano) — Sus4 = Mayor con la 3ª subida medio tono más a la 4ª. En la
+    // plantilla de Mayor esa nota vive en G3 (fret 1); subirla a fret 2
+    // da la 4ª. Confianza alta: en Mi (offset 0) esto da exactamente el
+    // Esus4 abierto real y conocido (0,2,2,2,0,0) — no es una forma
+    // inventada. PENDIENTE que Val confirme que así es como él la toca
+    // en otras notas antes de darla por cerrada del todo.
+    "sus4":  [0, 2, 2, 2, 0, 0],       // Sus4 (derivado: Mayor con 3ª→4ª en G3)
   };
 
   // Cambio 282: segunda familia — "shell" de 4 cuerdas (bossa/jazz), la
