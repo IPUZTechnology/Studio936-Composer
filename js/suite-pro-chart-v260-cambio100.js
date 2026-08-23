@@ -2121,6 +2121,13 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
   align-items:center;
   gap:6px;
   min-height:28px;
+  flex-wrap:wrap;
+}
+.s936-picker-family-row{
+  display:flex;
+  gap:6px;
+  flex-basis:100%;
+  margin-top:4px;
 }
 .s936-picker-fret-label{
   color:rgba(0,255,204,.72);
@@ -3829,23 +3836,78 @@ body.s936-chart-stage main{
   // mismo .reverse() único que ya aplica calcFretVoicing() al final, para
   // no romper el orden que espera el resto del sistema (cfg.strings,
   // miniFret, editor grande).
+  // Cambio 281: se agrega Maj7, quinta calidad confirmada por Val (dato
+  // cruzado y verificado contra "Notas: D · F# · G · B" que la app mostró
+  // para Gmaj7 — no leído a ojo desde la captura). Respecto al Mayor, solo
+  // cambia la cuerda D3: baja un semitono (de octava de la raíz a 7ª
+  // mayor). Coincide además con el Emaj7 abierto real y conocido
+  // (0-2-1-1-0-0). Pendientes: m7b5 y Dim7 (Val los va a confirmar en una
+  // nota distinta de Mi, para evitar el problema de la cuerda al aire que
+  // no se puede "bajar más").
   const BARRE_TEMPLATES_MI = {
-    "":   [0, 2, 2, 1, 0, 0], // Mayor      (verificado: Sol+3 = [3,5,5,4,3,3])
-    "m":  [0, 2, 2, 0, 0, 0], // Menor
-    "7":  [0, 2, 0, 1, 0, 0], // Dominante 7 (Dom7)
-    "m7": [0, 2, 0, 0, 0, 0], // m7
+    "":     [0, 2, 2, 1, 0, 0], // Mayor      (verificado: Sol+3 = [3,5,5,4,3,3])
+    "m":    [0, 2, 2, 0, 0, 0], // Menor
+    "7":    [0, 2, 0, 1, 0, 0], // Dominante 7 (Dom7)
+    "m7":   [0, 2, 0, 0, 0, 0], // m7
+    "maj7": [0, 2, 1, 1, 0, 0], // Maj7 (verificado: Sol+3 = [3,5,4,4,3,3])
+  };
+
+  // Cambio 282: segunda familia — "shell" de 4 cuerdas (bossa/jazz), la
+  // misma que ya estaba anotada como pendiente en el documento original.
+  // Mismo ancla en Mi, misma lógica de desplazamiento, pero solo suenan
+  // 4 cuerdas (6ta y 1ra mudas). Por ahora solo Maj7 está confirmado
+  // (verificado: Sol+3 = [3,X,4,4,3,X], cruzado contra "Notas: D·F#·G·B").
+  // Val decidió que ambas familias convivan (no que una reemplace a la
+  // otra) y que se pueda elegir cuál usar desde el editor.
+  const SHELL_TEMPLATES_MI = {
+    "maj7": [0, "X", 1, 1, 0, "X"], // Maj7 shell (bossa/jazz)
+  };
+  const FAMILIAS_CEJILLA = {
+    completa: BARRE_TEMPLATES_MI,
+    shell: SHELL_TEMPLATES_MI,
   };
   const MAX_TRASTE_CEJILLA_RAZONABLE = 15; // por encima de esto no se ofrece
 
-  function generarDigitacion(root, qualRaw) {
-    const template = BARRE_TEMPLATES_MI[qualRaw];
+  function generarDigitacion(root, qualRaw, familia) {
+    const mapa = FAMILIAS_CEJILLA[familia] || BARRE_TEMPLATES_MI;
+    const template = mapa[qualRaw];
     if (!template || !root) return null;
     const rootPc = PC[String(root).toUpperCase().replace("b", "B")];
     if (rootPc === undefined) return null;
     const semitonosDesdeMi = ((rootPc - PC["E"]) + 12) % 12;
-    const frets = template.map(f => f + semitonosDesdeMi);
-    if (Math.max(...frets) > MAX_TRASTE_CEJILLA_RAZONABLE) return null;
+    const frets = template.map(f => (f === "X" ? "X" : f + semitonosDesdeMi));
+    const numericos = frets.filter(f => f !== "X" && Number.isFinite(f));
+    if (numericos.length && Math.max(...numericos) > MAX_TRASTE_CEJILLA_RAZONABLE) return null;
     return { frets }; // orden E2→E4, sin invertir (ver nota arriba)
+  }
+
+  // Cambio 282: extrae raíz + calidad "cruda" (ej. "maj7", "m", "7") de un
+  // nombre de acorde completo — se usa tanto para decidir si el toggle de
+  // familia debe mostrarse como para recalcular con la familia elegida.
+  function raizYCalidadCruda(chordName) {
+    if (!chordName) return { root: null, qualRaw: "" };
+    const rootMatch = String(chordName).match(/^([A-G][b#]?)/i);
+    const root = rootMatch ? rootMatch[1].toUpperCase() : null;
+    let baseName = String(chordName).trim();
+    if (baseName.includes('/')) baseName = baseName.split('/')[0];
+    const baseMatch = baseName.match(/^([A-G][b#]?)(.*)$/i);
+    const qualRaw = baseMatch ? baseMatch[2] : "";
+    return { root, qualRaw };
+  }
+
+  // Cambio 282: variante de calcFretVoicing() que permite pedir la familia
+  // "shell" explícitamente (desde el selector del editor). Si la calidad
+  // pedida todavía no tiene versión shell capturada, cae al cálculo normal
+  // (calcFretVoicing, familia completa + catálogo) para no dejar vacío.
+  // calcFretVoicing() en sí NO se toca — sigue devolviendo siempre la
+  // familia completa por default, para no afectar el resto del sistema
+  // (Chart automático, karaoke, detección, etc.) que no conoce familias.
+  function calcFretVoicingConFamilia(chordName, inst, familia) {
+    if (inst !== "guitar" || familia !== "shell") return calcFretVoicing(chordName, inst);
+    const { root, qualRaw } = raizYCalidadCruda(chordName);
+    const generado = root ? generarDigitacion(root, qualRaw, "shell") : null;
+    if (generado) return { frets: [...generado.frets].reverse() };
+    return calcFretVoicing(chordName, inst);
   }
 
   function calcFretVoicing(chordName, inst) {
@@ -4203,6 +4265,7 @@ body.s936-chart-stage main{
     let inlineFrets = null;
     let inlineNotes = null;
     let fretStart = 0;
+    let cejillaFamilia = "completa"; // Cambio 282: "completa" o "shell" (jazz/bossa)
     const visibleFrets = 6;
 
     const pop = document.createElement("div");
@@ -4403,9 +4466,18 @@ body.s936-chart-stage main{
         return;
       }
 
+      // Cambio 282: si la familia elegida es "shell" pero la calidad de
+      // este acorde no tiene versión shell capturada todavía, se vuelve
+      // automáticamente a "completa" — evita quedar "atascado" en shell
+      // al cambiar de Maj7 a otra calidad que no la tiene.
+      if (cejillaFamilia === "shell" && previewInst === "guitar") {
+        const { qualRaw } = raizYCalidadCruda(name);
+        if (!SHELL_TEMPLATES_MI.hasOwnProperty(qualRaw)) cejillaFamilia = "completa";
+      }
+
       const cfg = FRETBOARD_CONFIG[previewInst];
       const stringCount = cfg?.strings?.length || (previewInst === "guitar" ? 6 : 4);
-      const shape = name ? calcFretVoicing(name, previewInst) : null;
+      const shape = name ? calcFretVoicingConFamilia(name, previewInst, cejillaFamilia) : null;
       inlineFrets = shape?.frets ? shape.frets.slice(0, stringCount) : new Array(stringCount).fill(null);
       while (inlineFrets.length < stringCount) inlineFrets.push(null);
       inlineNotes = null;
@@ -4510,6 +4582,38 @@ body.s936-chart-stage main{
       range.oninput = (e) => { e.stopPropagation(); setStart(range.value); };
 
       fretControls.append(minus, label, value, range, plus);
+
+      // Cambio 282: selector "Cejilla completa / Jazz-Bossa". Solo se
+      // muestra en guitarra, y solo cuando la calidad actual de verdad
+      // tiene una segunda forma (shell) capturada — hoy solo Maj7. Para
+      // el resto de calidades no aparece, para no mostrar un control que
+      // no serviría de nada todavía.
+      if (previewInst === "guitar") {
+        const { qualRaw } = raizYCalidadCruda(buildChordName());
+        if (SHELL_TEMPLATES_MI.hasOwnProperty(qualRaw)) {
+          const familyRow = document.createElement("div");
+          familyRow.className = "s936-picker-family-row";
+
+          const btnCompleta = document.createElement("button");
+          btnCompleta.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "completa" ? " sel" : "");
+          btnCompleta.textContent = "Cejilla completa";
+
+          const btnShell = document.createElement("button");
+          btnShell.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "shell" ? " sel" : "");
+          btnShell.textContent = "Jazz-Bossa";
+
+          const setFamilia = (f) => {
+            if (cejillaFamilia === f) return;
+            cejillaFamilia = f;
+            renderInlineMap(true);
+          };
+          btnCompleta.onclick = (e) => { e.stopPropagation(); setFamilia("completa"); };
+          btnShell.onclick = (e) => { e.stopPropagation(); setFamilia("shell"); };
+
+          familyRow.append(btnCompleta, btnShell);
+          fretControls.appendChild(familyRow);
+        }
+      }
     }
 
     function renderInlinePiano() {
