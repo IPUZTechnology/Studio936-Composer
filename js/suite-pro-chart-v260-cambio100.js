@@ -3992,12 +3992,23 @@ body.s936-chart-stage main{
       cleanName = cleanName.split('/')[0];
     }
     
+    // Cambio 290: se QUITA "root" de esta lista. Estaba como último
+    // intento de búsqueda en el catálogo, y eso significaba que cualquier
+    // calidad que el algoritmo no cubriera Y que no estuviera guardada
+    // exacta en el catálogo (ej. Em7b5 en Mi, donde el algoritmo
+    // correctamente no ofrece nada) terminaba encontrando GUITAR_SHAPES
+    // del puro nombre de la raíz (ej. "E" = Mi Mayor simple) y lo
+    // devolvía como si fuera válido — sustituyendo en silencio la calidad
+    // pedida por Mayor. Val lo detectó pidiendo Em7b5 y viendo aparecer
+    // la forma de Mi Mayor en el mapa. La sustitución "mayor simple"
+    // sigue existiendo más abajo (Cambio 277), pero ahí SÍ está protegida
+    // correctamente: solo se activa cuando de verdad se pidió la nota
+    // sola, sin ninguna calidad (cleanName === root).
     const searchVariants = [
       cleanName,
       cleanName.replace(/MAJOR/g, 'MAJ7').replace(/MAJ/g, 'MAJ7'),
       cleanName.replace(/MINOR/g, 'm').replace(/MIN/g, 'm'),
       cleanName.replace(/[0-9]/g, ''),
-      root,
     ];
     
     if (inst === "guitar") {
