@@ -1916,21 +1916,23 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
 }
 .s936-ch-pop label{font-size:.42rem;color:rgba(0,255,204,.6);text-transform:uppercase;letter-spacing:.6px;font-weight:700;display:block;margin-bottom:3px}
 .s936-picker-preview{
-  font-size:1.4rem;
-  font-weight:900;
-  color:#00ffcc;
+  font-family:'Fraunces',serif;
+  font-weight:650;
+  font-size:1.9rem;
+  color:#eaf5f2;
   text-align:center;
-  padding:10px;
-  background:rgba(0,255,204,.12);
-  border-radius:6px;
+  padding:14px 10px 12px;
+  background:linear-gradient(180deg, rgba(0,255,204,.08), transparent 75%);
+  border-bottom:1px solid rgba(0,255,204,.16);
+  border-radius:10px 10px 0 0;
   margin-bottom:8px;
   min-height:44px;
   display:flex;
+  text-shadow:0 0 30px rgba(0,255,204,.35);
+  letter-spacing:-.01em;
   align-items:center;
   justify-content:center;
-  border:2px solid rgba(0,255,204,.5);
-  letter-spacing:0.5px;
-  text-shadow:0 0 20px rgba(0,255,204,.3);
+  border:1px solid rgba(0,255,204,.28);
 }
 .s936-picker-preview.empty{
   color:rgba(255,255,255,.25);
@@ -2148,14 +2150,18 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
 }
 .s936-picker-cat-row{
   display:flex;
-  gap:8px;
+  gap:4px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(0,255,204,.16);
+  border-radius:999px;
+  padding:4px;
 }
 .s936-picker-cat-btn{
   flex:1;
-  border:1px solid rgba(0,255,204,.3);
-  background:rgba(0,255,204,.06);
-  color:rgba(255,255,255,.75);
-  border-radius:10px;
+  border:none;
+  background:transparent;
+  color:rgba(255,255,255,.6);
+  border-radius:999px;
   padding:9px 10px;
   font-size:.6rem;
   font-weight:900;
@@ -2164,15 +2170,13 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
   letter-spacing:.5px;
 }
 .s936-picker-cat-btn:hover{
-  background:rgba(0,255,204,.12);
-  border-color:rgba(0,255,204,.5);
+  background:rgba(0,255,204,.1);
   color:#00ffcc;
 }
 .s936-picker-cat-btn.sel{
-  background:rgba(0,255,204,.2);
-  border-color:#00ffcc;
-  color:#00ffcc;
-  box-shadow:0 0 14px rgba(0,255,204,.18);
+  background:#00ffcc;
+  color:#00201c;
+  box-shadow:0 4px 16px rgba(0,255,204,.35);
 }
 .s936-picker-fret-label{
   color:rgba(0,255,204,.72);
@@ -2337,13 +2341,13 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
   margin:5px 0 8px;
 }
 .s936-picker-rhythm-btn{
-  border:1px solid rgba(255,224,102,.24);
-  background:rgba(255,224,102,.07);
+  border:1px solid rgba(0,255,204,.16);
+  background:rgba(255,255,255,.02);
   color:rgba(255,255,255,.72);
-  border-radius:9px;
-  padding:6px 7px;
+  border-radius:12px;
+  padding:10px 8px;
   font-size:.56rem;
-  font-weight:900;
+  font-weight:700;
   cursor:pointer;
   text-transform:uppercase;
   letter-spacing:.35px;
@@ -2351,22 +2355,22 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  gap:3px;
+  gap:6px;
+  transition:.15s ease;
+}
+.s936-picker-rhythm-btn:hover{
+  border-color:rgba(0,255,204,.4);
+  background:rgba(0,255,204,.06);
+}
+.s936-picker-rhythm-btn.sel{
+  border-color:#00ffcc;
+  background:rgba(0,255,204,.1);
+  color:#00ffcc;
+  box-shadow:0 0 16px rgba(0,255,204,.14);
 }
 .s936-picker-family-icon{
   flex-shrink:0;
   display:block;
-}
-.s936-picker-rhythm-btn:hover{
-  background:rgba(255,224,102,.13);
-  border-color:rgba(255,224,102,.45);
-  color:#ffe066;
-}
-.s936-picker-rhythm-btn.sel{
-  background:rgba(0,255,204,.16);
-  border-color:rgba(0,255,204,.55);
-  color:#00ffcc;
-  box-shadow:0 0 14px rgba(0,255,204,.12);
 }
 .s936-picker-audio-row{
   display:grid;
