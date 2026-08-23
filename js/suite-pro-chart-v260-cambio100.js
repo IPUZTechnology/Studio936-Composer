@@ -3859,8 +3859,13 @@ body.s936-chart-stage main{
   // (verificado: Sol+3 = [3,X,4,4,3,X], cruzado contra "Notas: D·F#·G·B").
   // Val decidió que ambas familias convivan (no que una reemplace a la
   // otra) y que se pueda elegir cuál usar desde el editor.
+  // Cambio 283: se agrega m7 a la familia shell (dato confirmado por Val
+  // con Gm7 — verificado cruzando cuerda+traste contra "Notas: D·F·G·A#").
+  // Curiosamente sale una mini-cejilla recta: mismo traste en las 4
+  // cuerdas que suenan (6ª-4ª-3ª-2ª), mutando 5ª y 1ª.
   const SHELL_TEMPLATES_MI = {
     "maj7": [0, "X", 1, 1, 0, "X"], // Maj7 shell (bossa/jazz)
+    "m7":   [0, "X", 0, 0, 0, "X"], // m7 shell (bossa/jazz)
   };
   const FAMILIAS_CEJILLA = {
     completa: BARRE_TEMPLATES_MI,
