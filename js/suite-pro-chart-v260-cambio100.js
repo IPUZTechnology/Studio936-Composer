@@ -3973,10 +3973,30 @@ body.s936-chart-stage main{
     "dim7": ["X", 0, 1, -1, 1, "X"],  // Dim7 (verificado: Re+5 = [X,5,6,4,6,X])
   };
 
+  // Cambio 301 (RECUPERADO — se había construido y verificado en una
+  // sesión anterior pero nunca llegó a quedar guardado en el repo; Val lo
+  // detectó porque ya la había dado y el editor no la mostraba):
+  // FAMILIA 4 — "Base Re", ancla en la 4ta cuerda (Re) al aire, usando
+  // las 4 cuerdas más agudas (Re-Sol-Si-Mi), mudando las dos graves (Mi
+  // grave y La). Es el MISMO dato que la tabla de Re de la familia
+  // Natural (Cambio 298) — no es una captura nueva, es ese mismo mapa
+  // usado como plantilla que se desliza. Verificado que desliza bien:
+  // Re Mayor +2 semitonos (Re→Mi) da E-B-E-G# = Mi Mayor real.
+  const RE_TEMPLATES = {
+    "":     ["X", "X", 0, 2, 3, 2],
+    "maj7": ["X", "X", 0, 2, 2, 2],
+    "7":    ["X", "X", 0, 2, 1, 2],
+    "m":    ["X", "X", 0, 2, 3, 1],
+    "m7":   ["X", "X", 0, 2, 1, 1],
+    "m7b5": ["X", "X", 0, 1, 1, 1],
+    "dim7": ["X", "X", 0, 1, 0, 1],
+  };
+
   const FAMILIAS_CEJILLA = {
     completa: { templates: BARRE_TEMPLATES_MI, ancla: "E" },
     shell:    { templates: SHELL_TEMPLATES_MI, ancla: "E" },
     la:       { templates: LA_TEMPLATES,       ancla: "A" },
+    re:       { templates: RE_TEMPLATES,       ancla: "D" },
   };
   const MAX_TRASTE_CEJILLA_RAZONABLE = 15; // por encima de esto no se ofrece
 
@@ -4455,7 +4475,8 @@ body.s936-chart-stage main{
   // Cambio 282: variante de calcFretVoicing() que permite pedir una
   // familia explícita (desde el selector del editor): "shell" (Mi, 4
   // cuerdas jazz/bossa), "la" (ancla en La, 4 cuerdas centrales, desde el
-  // Cambio 291), o "natural" (acordes abiertos de primera posición, sin
+  // Cambio 291), "re" (ancla en Re, 4 cuerdas agudas, Cambio 301,
+  // recuperado), o "natural" (acordes abiertos de primera posición, sin
   // desplazamiento, desde el Cambio 298). Si la calidad pedida todavía no
   // tiene versión capturada en esa familia, cae al cálculo normal
   // (calcFretVoicing, familia completa + catálogo) para no dejar vacío.
@@ -4463,7 +4484,7 @@ body.s936-chart-stage main{
   // familia completa por default, para no afectar el resto del sistema
   // (Chart automático, karaoke, detección, etc.) que no conoce familias.
   function calcFretVoicingConFamilia(chordName, inst, familia) {
-    const familiasConFormula = familia === "shell" || familia === "la";
+    const familiasConFormula = familia === "shell" || familia === "la" || familia === "re";
     if (inst !== "guitar" || (!familiasConFormula && familia !== "natural")) {
       return calcFretVoicing(chordName, inst);
     }
@@ -4899,10 +4920,13 @@ body.s936-chart-stage main{
     const rhythmRow = document.createElement("div");
     rhythmRow.className = "s936-picker-rhythm-row";
     const rhythmBtns = {};
+    // Cambio 304: Val pidió simplificar — aquí solo se quiere editar y
+    // poner acorde. "Sostener" y "Silencio" se quitan del selector (ya no
+    // se pueden ASIGNAR desde este editor), pero los compases que ya
+    // tenían guardado hold/rest de antes siguen sonando igual en el
+    // Chart — esto no borra ni migra datos, solo dos botones menos aquí.
     [
       ["hit", "♩ Tocar"],
-      ["hold", "♩ Sostener"],
-      ["rest", "𝄽 Silencio"],
       ["repeat", "% Repetir"]
     ].forEach(([mode, txt]) => {
       const btn = document.createElement("button");
@@ -4945,7 +4969,14 @@ body.s936-chart-stage main{
     stopBtn.textContent = "■ Stop";
     stopBtn.title = "Detener prueba de audio";
 
-    audioRow.append(chordBtn, arpBtn, rhythmBtn, pulseBtn, stopBtn);
+    // Cambio 304: Val pidió dejar solo "Acorde" y "Arpegio" visibles —
+    // Ritmo Tempo, Pulso y Stop se quitan de esta fila. Las variables
+    // rhythmBtn/pulseBtn/stopBtn se dejan creadas (no se borran del
+    // código) porque otras funciones de este mismo popup las referencian
+    // (updateAudioButtonState, etc.) — simplemente no se agregan al DOM,
+    // así que no se ven ni se pueden usar, sin tener que tocar el resto
+    // de la lógica de audio en vivo.
+    audioRow.append(chordBtn, arpBtn);
     leftPane.appendChild(audioRow);
 
     const audioHint = document.createElement("div");
@@ -5204,6 +5235,7 @@ body.s936-chart-stage main{
         const { root, qualRaw } = raizYCalidadCruda(buildChordName());
         const tieneJazz = SHELL_TEMPLATES_MI.hasOwnProperty(qualRaw);
         const tieneLa = LA_TEMPLATES.hasOwnProperty(qualRaw);
+        const tieneRe = RE_TEMPLATES.hasOwnProperty(qualRaw);
         const tieneNatural = !!(NATURAL_SHAPES[String(root || "").toUpperCase()]?.hasOwnProperty(qualRaw));
 
         const familyRow = document.createElement("div");
@@ -5221,6 +5253,12 @@ body.s936-chart-stage main{
         btnLa.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "la" ? " sel" : "");
         btnLa.textContent = "Base La";
 
+        // Cambio 301 (recuperado): sexto botón — familia deslizante con
+        // ancla en la 4ta cuerda (Re), 4 cuerdas agudas.
+        const btnRe = document.createElement("button");
+        btnRe.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "re" ? " sel" : "");
+        btnRe.textContent = "Base Re";
+
         const btnNatural = document.createElement("button");
         btnNatural.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "natural" ? " sel" : "");
         btnNatural.textContent = "Natural";
@@ -5233,12 +5271,13 @@ body.s936-chart-stage main{
         btnCompleta.onclick = (e) => { e.stopPropagation(); setFamilia("completa"); };
         btnShell.onclick = (e) => { e.stopPropagation(); setFamilia("shell"); };
         btnLa.onclick = (e) => { e.stopPropagation(); setFamilia("la"); };
+        btnRe.onclick = (e) => { e.stopPropagation(); setFamilia("re"); };
         btnNatural.onclick = (e) => { e.stopPropagation(); setFamilia("natural"); };
 
         // Cambio 302: quinto botón — abre la Librería Jazz y Bossa
         // (panel aparte, ver abrirLibreriaJazzBossa). No participa del
         // toggle cejillaFamilia — es una ventana independiente, no
-        // reemplaza ninguna de las 4 familias existentes.
+        // reemplaza ninguna de las familias existentes.
         const btnLibreria = document.createElement("button");
         btnLibreria.className = "s936-picker-rhythm-btn";
         btnLibreria.textContent = "Librería Jazz-Bossa";
@@ -5247,7 +5286,7 @@ body.s936-chart-stage main{
           abrirLibreriaJazzBossa(root, qualRaw);
         };
 
-        familyRow.append(btnCompleta, btnShell, btnLa, btnNatural, btnLibreria);
+        familyRow.append(btnCompleta, btnShell, btnLa, btnRe, btnNatural, btnLibreria);
 
         if (cejillaFamilia === "shell" && !tieneJazz) {
           const hint = document.createElement("span");
@@ -5259,6 +5298,12 @@ body.s936-chart-stage main{
           const hint = document.createElement("span");
           hint.className = "s936-picker-family-hint";
           hint.textContent = "Aún sin forma en base La para esta calidad — mostrando cejilla completa";
+          familyRow.appendChild(hint);
+        }
+        if (cejillaFamilia === "re" && !tieneRe) {
+          const hint = document.createElement("span");
+          hint.className = "s936-picker-family-hint";
+          hint.textContent = "Aún sin forma en base Re para esta calidad — mostrando cejilla completa";
           familyRow.appendChild(hint);
         }
         if (cejillaFamilia === "natural" && !tieneNatural) {
@@ -5376,6 +5421,23 @@ body.s936-chart-stage main{
         lbl.textContent = stringLabel;
         fretGrid.appendChild(lbl);
 
+        // Cambio 303 (Parte A): las 3 acciones posibles sobre una cuerda
+        // (poner traste, cuerda al aire, mutear) deben resincronizar el
+        // nombre de arriba de la MISMA forma, sin importar de qué familia
+        // (Cejilla completa / Jazz-Bossa / Base La / Natural) salió el
+        // mapa que se está editando a mano — detectChordFromFrets() ya
+        // era agnóstico de familia (solo mira notas reales por cuerda+
+        // traste), pero el botón "×" (mutear) nunca llamaba esta función,
+        // así que mutear una cuerda dejaba el nombre viejo pegado aunque
+        // el mapa ya hubiera cambiado. Se unifica en un solo helper para
+        // que este hueco no se repita si se agrega un cuarto control.
+        const syncNameFromMap = () => {
+          const detected = detectChordFromFrets(inlineFrets, previewInst);
+          if (detected) applyDetectedChord(detected);
+          renderInlineMap(false);
+          pulseLiveChordNow();
+        };
+
         frets.forEach((fret) => {
           const btn = document.createElement("button");
           btn.className = "s936-picker-fret-cell fret-btn" + (Number(inlineFrets[sIndex]) === fret ? " active" : "");
@@ -5384,10 +5446,7 @@ body.s936-chart-stage main{
             e.stopPropagation();
             inlineFrets[sIndex] = Number(inlineFrets[sIndex]) === fret ? null : fret;
             if (Number(inlineFrets[sIndex]) === fret) playPopupSingleMidi(cfg.open[sIndex] + fret);
-            const detected = detectChordFromFrets(inlineFrets, previewInst);
-            if (detected) applyDetectedChord(detected);
-            renderInlineMap(false);
-            pulseLiveChordNow();
+            syncNameFromMap();
           };
           fretGrid.appendChild(btn);
         });
@@ -5399,10 +5458,7 @@ body.s936-chart-stage main{
           e.stopPropagation();
           inlineFrets[sIndex] = Number(inlineFrets[sIndex]) === 0 ? null : 0;
           if (Number(inlineFrets[sIndex]) === 0) playPopupSingleMidi(cfg.open[sIndex]);
-          const detected = detectChordFromFrets(inlineFrets, previewInst);
-          if (detected) applyDetectedChord(detected);
-          renderInlineMap(false);
-          pulseLiveChordNow();
+          syncNameFromMap();
         };
         fretGrid.appendChild(openBtn);
 
@@ -5412,8 +5468,7 @@ body.s936-chart-stage main{
         xBtn.onclick = (e) => {
           e.stopPropagation();
           inlineFrets[sIndex] = null;
-          renderInlineMap(false);
-          pulseLiveChordNow();
+          syncNameFromMap();
         };
         fretGrid.appendChild(xBtn);
       });
