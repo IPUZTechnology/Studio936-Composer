@@ -3743,6 +3743,25 @@ body.s936-chart-stage main{
     if (!m) return new Set();
     const rootPc = PC[m[1].toUpperCase().replace("b","B")] ?? 0;
     const qual = m[2].toLowerCase();
+
+    // Cambio 288: Dim7 y m7b5 (semidisminuido) necesitan resolverse ANTES
+    // de la lógica genérica de abajo. Val detectó que la línea "Notas:"
+    // mostraba un Em7b5 con Si natural (5ª sin bajar) en vez de Si
+    // bemol — la causa: "m7b5" contiene la letra "m" (cae en la rama de
+    // Menor, 5ª natural) pero no contiene "dim", así que nunca entraba a
+    // la rama que sí baja la 5ª; luego la regla genérica de "7" le suma
+    // una 7ª normal encima, dando una m7 corriente en vez de un
+    // semidisminuido. Dim7 tenía el mismo problema del otro lado: la
+    // rama "dim" sí arma bien la triada (1-b3-b5), pero la regla
+    // genérica de "7" le suma una 7ª normal (10) en vez de la doble
+    // bemol real (9) que lleva un Dim7 de verdad.
+    if (qual.includes("dim7")) {
+      return new Set([0, 3, 6, 9].map(i => ((rootPc + i) % 12 + 12) % 12));
+    }
+    if (qual.includes("m7b5") || qual.includes("ø")) {
+      return new Set([0, 3, 6, 10].map(i => ((rootPc + i) % 12 + 12) % 12));
+    }
+
     let ints = [0, 4, 7];
     if (qual.includes("m") && !qual.includes("maj")) ints = [0, 3, 7];
     if (qual.includes("dim")) ints = [0, 3, 6];
