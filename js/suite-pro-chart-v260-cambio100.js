@@ -3906,6 +3906,16 @@ body.s936-chart-stage main{
     // en Mi (offset 0) da exactamente el E9 abierto real y muy conocido
     // (0,2,0,1,0,2) — no es una forma inventada.
     "9":     [0, 2, 0, 1, 0, 2],       // Dom9 (derivado: Dom7 con octava→9ª en E4)
+    // Cambio 297: 11 y 13, misma regla (subir la cuerda de la octava),
+    // verificada con fuentes reales de teoría de guitarra antes de
+    // meterla (Val pidió no confiar solo en su memoria). Confirmado con
+    // guitar-chord.org / fachords.com: E11 real = E-G#-B-D-F#-A, E13
+    // real = E-G#-B-D-F#-A-C#. Nuestra versión omite la 9ª (F#) en
+    // ambos casos, quedándose con la 3ª-5ª-b7ª-color — las mismas
+    // fuentes confirman que omitir la 9ª/11ª en posición abierta es
+    // una simplificación común y válida, no un invento.
+    "11":    [0, 2, 0, 1, 0, 5],       // Dom11 (derivado: Dom7 con octava→11ª en E4)
+    "13":    [0, 2, 0, 1, 0, 9],       // Dom13 (derivado: Dom7 con octava→13ª en E4)
   };
 
   // Cambio 282: segunda familia — "shell" de 4 cuerdas (bossa/jazz), la
