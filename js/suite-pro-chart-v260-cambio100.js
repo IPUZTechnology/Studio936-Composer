@@ -5405,12 +5405,16 @@ body.s936-chart-stage main{
       familySelectorBox.appendChild(catRow);
 
       if (categoriaActiva === "natural") {
-        if (!tieneNatural) {
-          const hint = document.createElement("span");
-          hint.className = "s936-picker-family-hint";
-          hint.textContent = "Aún sin forma natural para esta nota/calidad — mostrando cejilla completa";
-          familySelectorBox.appendChild(hint);
-        }
+        // Cambio 314: Val preguntó "¿dónde está Cejilla completa dentro
+        // de Natural?" — la respuesta es que sigue siendo automática
+        // (como confirmó antes), pero ahora se ve SIEMPRE cuál de las
+        // dos se está mostrando en este momento, no solo cuando falla.
+        const indicador = document.createElement("span");
+        indicador.className = "s936-picker-family-hint";
+        indicador.textContent = tieneNatural
+          ? "Mostrando: forma Natural"
+          : "Mostrando: Cejilla completa (respaldo automático)";
+        familySelectorBox.appendChild(indicador);
         return;
       }
 
@@ -5434,25 +5438,26 @@ body.s936-chart-stage main{
       // siendo exactamente la misma familia (SHELL_TEMPLATES_MI), solo
       // cambia el rótulo.
       btnShell.textContent = "Jazz-Bossa (Mi)";
-      // Cambio 309: tooltip ahora solo dice la nomenclatura Entrada/Drop
-      // — el ícono ya muestra visualmente qué cuerdas suenan, no hace
-      // falta repetirlo en texto. Verificado numéricamente que Entrada V
-      // Drop 2 da el mismo contenido de notas que SHELL_TEMPLATES_MI.
+      // Cambio 314: Val pidió nombres consistentes — las 3 son la misma
+      // familia (Jazz), solo cambia el ancla (Mi/La/Re). Antes decía
+      // "Jazz-Bossa (Mi)" pero "Base La"/"Base Re" — dos esquemas de
+      // nombre distintos para lo mismo. Ahora las 3 comparten el mismo
+      // prefijo "Jazz".
       btnShell.title = "Entrada V · Drop 2";
       btnShell.innerHTML = iconoCuerdasFamilia([true, false, true, true, true, false]) +
-        '<span>Jazz-Bossa (Mi)</span>';
+        '<span>Jazz (Mi)</span>';
 
       const btnLa = document.createElement("button");
       btnLa.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "la" ? " sel" : "");
       btnLa.title = "Entrada III · Drop 2 · Segundo orden";
       btnLa.innerHTML = iconoCuerdasFamilia([false, true, true, true, true, false]) +
-        '<span>Base La</span>';
+        '<span>Jazz (La)</span>';
 
       const btnRe = document.createElement("button");
       btnRe.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "re" ? " sel" : "");
       btnRe.title = "Entrada III · Drop 2 · Primer orden";
       btnRe.innerHTML = iconoCuerdasFamilia([false, false, true, true, true, true]) +
-        '<span>Base Re</span>';
+        '<span>Jazz (Re)</span>';
 
       const setFamilia = (f) => {
         if (cejillaFamilia === f) return;
