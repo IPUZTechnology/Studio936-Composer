@@ -5338,15 +5338,28 @@ body.s936-chart-stage main{
 
       const btnShell = document.createElement("button");
       btnShell.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "shell" ? " sel" : "");
-      btnShell.textContent = "Entrada Mi";
+      // Cambio 306b: Val marcó que "Entrada Mi/La/Re" confundía, porque
+      // Cejilla completa TAMBIÉN ancla en Mi (y ahora vive dentro de
+      // Natural) — dos cosas distintas con el mismo nombre de ancla. Se
+      // devuelven los nombres propios que ya conocía de antes: cada uno
+      // sigue llamando exactamente a la misma familia que antes (shell =
+      // SHELL_TEMPLATES_MI, la = LA_TEMPLATES, re = RE_TEMPLATES) — esto
+      // es solo el rótulo, no cambia la lógica ni qué botón hace qué.
+      // Cambio 306c: Val señaló que el botón y la categoría que lo
+      // contiene se llamaban IGUAL ("Jazz-Bossa" adentro de "Jazz-Bossa"),
+      // por eso no se distinguía como una opción propia. Se le agrega el
+      // ancla al nombre, igual que ya tienen Base La y Base Re — sigue
+      // siendo exactamente la misma familia (SHELL_TEMPLATES_MI), solo
+      // cambia el rótulo.
+      btnShell.textContent = "Jazz-Bossa (Mi)";
 
       const btnLa = document.createElement("button");
       btnLa.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "la" ? " sel" : "");
-      btnLa.textContent = "Entrada La";
+      btnLa.textContent = "Base La";
 
       const btnRe = document.createElement("button");
       btnRe.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "re" ? " sel" : "");
-      btnRe.textContent = "Entrada Re";
+      btnRe.textContent = "Base Re";
 
       const setFamilia = (f) => {
         if (cejillaFamilia === f) return;
