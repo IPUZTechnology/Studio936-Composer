@@ -3980,6 +3980,104 @@ body.s936-chart-stage main{
   };
   const MAX_TRASTE_CEJILLA_RAZONABLE = 15; // por encima de esto no se ofrece
 
+  // Cambio 298: FAMILIA "NATURAL" — acordes abiertos de primera posición
+  // (los que se aprenden al principio), verificados con una tablatura de
+  // Val (archivo .txt) para Re, cruzando cada forma contra los acordes
+  // abiertos reales y conocidos: D-X-X-0-2-3-2, Dmaj7-X-X-0-2-2-2,
+  // D7-X-X-0-2-1-2, Dm-X-X-0-2-3-1, Dm7-X-X-0-2-1-1, Dm7b5-X-X-0-1-1-1,
+  // Ddim7-X-X-0-1-0-1 — las 7 coinciden exactas con las formas estándar
+  // de cualquier método de guitarra. A diferencia de las otras 3
+  // familias, esta NO se desliza con una fórmula de semitonos — cada
+  // nota tiene su propia forma fija (por eso es un catálogo por nota,
+  // no una plantilla con ancla). Si una nota no está capturada todavía,
+  // simplemente no hay forma "Natural" para ella.
+  const NATURAL_SHAPES = {
+    D: {
+      "":     ["X", "X", 0, 2, 3, 2],
+      "maj7": ["X", "X", 0, 2, 2, 2],
+      "7":    ["X", "X", 0, 2, 1, 2],
+      "m":    ["X", "X", 0, 2, 3, 1],
+      "m7":   ["X", "X", 0, 2, 1, 1],
+      "m7b5": ["X", "X", 0, 1, 1, 1],
+      "dim7": ["X", "X", 0, 1, 0, 1],
+    },
+    // Cambio 299: Mi y La, verificados con dos tablaturas de Val
+    // (mi.txt, LA.txt). Varias formas coinciden exactas con lo que ya
+    // teníamos calculado en las otras familias (Mayor/Menor/Dom7/m7/Maj7
+    // de Mi = misma cejilla completa en offset 0; las 7 de La = mismas
+    // que "Base La" en offset 0) — buena señal cruzada de consistencia.
+    // Lo nuevo real: Mi m7b5 y Mi Dim7 SÍ tienen forma natural jugable
+    // (a diferencia de la cejilla, que en Mi da vacío por el traste
+    // negativo) — verificadas nota por nota: Em7b5 = E-Bb-D-G-D exacto,
+    // Edim7 = E-Bb-E-G-Db-E exacto.
+    E: {
+      "":     [0, 2, 2, 1, 0, 0],
+      "maj7": [0, 2, 1, 1, 0, 0],
+      "7":    [0, 2, 0, 1, 0, 0],
+      "m":    [0, 2, 2, 0, 0, 0],
+      "m7":   [0, 2, 0, 0, 0, 0],
+      "m7b5": [0, 1, 0, 0, 3, "X"],
+      "dim7": [0, 1, 2, 0, 2, 0],
+    },
+    A: {
+      "":     ["X", 0, 2, 2, 2, 0],
+      "maj7": ["X", 0, 2, 1, 2, 0],
+      "7":    ["X", 0, 2, 0, 2, 0],
+      "m":    ["X", 0, 2, 2, 1, 0],
+      "m7":   ["X", 0, 2, 0, 1, 0],
+      "m7b5": ["X", 0, 1, 0, 1, "X"],
+      "dim7": ["X", 0, 1, 2, 1, 2],
+    },
+    // Cambio 300: Do, Fa, Sol y Si — verificados con cuatro tablaturas de
+    // Val (DO_fundamental.txt, FA.txt, SOl.txt, SI.txt), nota por nota
+    // contra la teoría real. Coinciden con las formas abiertas/barré
+    // estándar de cualquier método (X32010, 320003, X24442, etc). Con
+    // esto la familia Natural queda completa en las 7 notas naturales.
+    C: {
+      "":     ["X", 3, 2, 0, 1, 0],
+      "maj7": ["X", 3, 2, 0, 0, 0],
+      "7":    ["X", 3, 2, 3, 1, 0],
+      "m":    ["X", 3, 1, 0, 1, "X"],
+      "m7":   ["X", 3, 1, 3, 1, "X"],
+      "m7b5": ["X", 3, 4, 3, 4, "X"],
+      "dim7": ["X", 3, 4, 2, 4, "X"],
+    },
+    F: {
+      "":     [1, 3, 3, 2, 1, 1],
+      "maj7": [1, 3, 3, 2, 1, 0],
+      "7":    [1, 3, 1, 2, 1, 1],
+      "m":    [1, 3, 3, 1, 1, 1],
+      "m7":   [1, 1, 1, 1, 1, 1],
+      "m7b5": [1, "X", 1, 1, 0, "X"],
+      "dim7": [1, "X", 0, 1, 0, "X"],
+    },
+    G: {
+      "":     [3, 2, 0, 0, 0, 3],
+      "maj7": [3, 2, 0, 0, 0, 2],
+      "7":    [3, 2, 0, 0, 0, 1],
+      "m":    [3, 1, 0, 0, 3, 3],
+      "m7":   [3, 1, 0, 0, 3, 1],
+      "m7b5": [3, 1, "X", 0, 2, 1],
+      "dim7": [3, 1, 2, 0, 2, "X"],
+    },
+    B: {
+      "":     ["X", 2, 4, 4, 4, 2],
+      "maj7": ["X", 2, 4, 3, 4, 2],
+      "7":    ["X", 2, 1, 2, 0, 2],
+      "m":    ["X", 2, 4, 4, 3, 2],
+      "m7":   ["X", 2, 0, 2, 0, 2],
+      "m7b5": ["X", 2, 3, 2, 3, "X"],
+      "dim7": ["X", 2, 3, 1, 3, "X"],
+    },
+  };
+
+  function generarDigitacionNatural(root, qualRaw) {
+    const tabla = NATURAL_SHAPES[String(root || "").toUpperCase()];
+    const template = tabla ? tabla[qualRaw] : null;
+    if (!template) return null;
+    return { frets: [...template] }; // orden E2→E4, fijo, sin desplazar
+  }
+
   function generarDigitacion(root, qualRaw, familia) {
     const fam = FAMILIAS_CEJILLA[familia] || FAMILIAS_CEJILLA.completa;
     const template = fam.templates[qualRaw];
@@ -4015,17 +4113,23 @@ body.s936-chart-stage main{
 
   // Cambio 282: variante de calcFretVoicing() que permite pedir una
   // familia explícita (desde el selector del editor): "shell" (Mi, 4
-  // cuerdas jazz/bossa) o, desde el Cambio 291, "la" (ancla en La, 4
-  // cuerdas centrales). Si la calidad pedida todavía no tiene versión
-  // capturada en esa familia, cae al cálculo normal (calcFretVoicing,
-  // familia completa + catálogo) para no dejar vacío. calcFretVoicing()
-  // en sí NO se toca — sigue devolviendo siempre la familia completa por
-  // default, para no afectar el resto del sistema (Chart automático,
-  // karaoke, detección, etc.) que no conoce familias.
+  // cuerdas jazz/bossa), "la" (ancla en La, 4 cuerdas centrales, desde el
+  // Cambio 291), o "natural" (acordes abiertos de primera posición, sin
+  // desplazamiento, desde el Cambio 298). Si la calidad pedida todavía no
+  // tiene versión capturada en esa familia, cae al cálculo normal
+  // (calcFretVoicing, familia completa + catálogo) para no dejar vacío.
+  // calcFretVoicing() en sí NO se toca — sigue devolviendo siempre la
+  // familia completa por default, para no afectar el resto del sistema
+  // (Chart automático, karaoke, detección, etc.) que no conoce familias.
   function calcFretVoicingConFamilia(chordName, inst, familia) {
-    if (inst !== "guitar" || (familia !== "shell" && familia !== "la")) return calcFretVoicing(chordName, inst);
+    const familiasConFormula = familia === "shell" || familia === "la";
+    if (inst !== "guitar" || (!familiasConFormula && familia !== "natural")) {
+      return calcFretVoicing(chordName, inst);
+    }
     const { root, qualRaw } = raizYCalidadCruda(chordName);
-    const generado = root ? generarDigitacion(root, qualRaw, familia) : null;
+    const generado = root
+      ? (familia === "natural" ? generarDigitacionNatural(root, qualRaw) : generarDigitacion(root, qualRaw, familia))
+      : null;
     if (generado) return { frets: [...generado.frets].reverse() };
     return calcFretVoicing(chordName, inst);
   }
@@ -4748,10 +4852,18 @@ body.s936-chart-stage main{
       // documento original, ancla en la 5ta cuerda, 4 cuerdas centrales.
       // Mismo patrón que Jazz-Bossa: permanente, con aviso si la calidad
       // activa todavía no tiene dato en esta familia.
+      // Cambio 298: cuarto botón, "Natural" — acordes abiertos de primera
+      // posición (catálogo por nota, no fórmula de semitonos). El aviso
+      // aquí dice explícitamente "para esta nota Y calidad" porque a
+      // diferencia de las otras familias, en Natural falta tanto por
+      // calidad (aún solo Dim7/m7b5/etc para Re) como por nota entera
+      // (aún solo existe Re; cualquier otra nota siempre mostrará el
+      // aviso, sin importar la calidad).
       if (previewInst === "guitar") {
-        const { qualRaw } = raizYCalidadCruda(buildChordName());
+        const { root, qualRaw } = raizYCalidadCruda(buildChordName());
         const tieneJazz = SHELL_TEMPLATES_MI.hasOwnProperty(qualRaw);
         const tieneLa = LA_TEMPLATES.hasOwnProperty(qualRaw);
+        const tieneNatural = !!(NATURAL_SHAPES[String(root || "").toUpperCase()]?.hasOwnProperty(qualRaw));
 
         const familyRow = document.createElement("div");
         familyRow.className = "s936-picker-family-row";
@@ -4768,6 +4880,10 @@ body.s936-chart-stage main{
         btnLa.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "la" ? " sel" : "");
         btnLa.textContent = "Base La";
 
+        const btnNatural = document.createElement("button");
+        btnNatural.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "natural" ? " sel" : "");
+        btnNatural.textContent = "Natural";
+
         const setFamilia = (f) => {
           if (cejillaFamilia === f) return;
           cejillaFamilia = f;
@@ -4776,8 +4892,9 @@ body.s936-chart-stage main{
         btnCompleta.onclick = (e) => { e.stopPropagation(); setFamilia("completa"); };
         btnShell.onclick = (e) => { e.stopPropagation(); setFamilia("shell"); };
         btnLa.onclick = (e) => { e.stopPropagation(); setFamilia("la"); };
+        btnNatural.onclick = (e) => { e.stopPropagation(); setFamilia("natural"); };
 
-        familyRow.append(btnCompleta, btnShell, btnLa);
+        familyRow.append(btnCompleta, btnShell, btnLa, btnNatural);
 
         if (cejillaFamilia === "shell" && !tieneJazz) {
           const hint = document.createElement("span");
@@ -4789,6 +4906,12 @@ body.s936-chart-stage main{
           const hint = document.createElement("span");
           hint.className = "s936-picker-family-hint";
           hint.textContent = "Aún sin forma en base La para esta calidad — mostrando cejilla completa";
+          familyRow.appendChild(hint);
+        }
+        if (cejillaFamilia === "natural" && !tieneNatural) {
+          const hint = document.createElement("span");
+          hint.className = "s936-picker-family-hint";
+          hint.textContent = "Aún sin forma natural para esta nota/calidad — mostrando cejilla completa";
           familyRow.appendChild(hint);
         }
 
