@@ -2347,6 +2347,14 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
   cursor:pointer;
   text-transform:uppercase;
   letter-spacing:.35px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+}
+.s936-picker-family-icon{
+  flex-shrink:0;
+  display:block;
 }
 .s936-picker-rhythm-btn:hover{
   background:rgba(255,224,102,.13);
@@ -4496,6 +4504,25 @@ body.s936-chart-stage main{
     return { frets }; // orden E2→E4, sin invertir (ver nota arriba)
   }
 
+  // Cambio 308: Val pidió un ícono junto a cada botón de familia Jazz-
+  // Bossa mostrando qué cuerdas usa (en vez de solo el nombre). Dibuja 6
+  // líneas verticales (Mi-La-Re-Sol-Si-Mi, grave→agudo, igual que un
+  // diagrama de acorde de tablatura), resaltando en teal las que suenan
+  // en esa familia y dejando en gris tenue las mudas. "usadas" es un
+  // array de 6 booleans en ese mismo orden (grave→agudo).
+  function iconoCuerdasFamilia(usadas) {
+    const w = 54, h = 26, n = 6;
+    const gap = w / (n - 1);
+    let bars = "";
+    for (let i = 0; i < n; i++) {
+      const x = i * gap;
+      const on = !!usadas[i];
+      bars += `<line x1="${x}" y1="2" x2="${x}" y2="${h - 2}" stroke="${on ? '#00ffcc' : 'rgba(255,255,255,.18)'}" stroke-width="${on ? 2.4 : 1.4}" stroke-linecap="round"/>`;
+      if (on) bars += `<circle cx="${x}" cy="${h / 2}" r="2.6" fill="#00ffcc"/>`;
+    }
+    return `<svg class="s936-picker-family-icon" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">${bars}</svg>`;
+  }
+
   // Cambio 282: extrae raíz + calidad "cruda" (ej. "maj7", "m", "7") de un
   // nombre de acorde completo — se usa tanto para decidir si el toggle de
   // familia debe mostrarse como para recalcular con la familia elegida.
@@ -5352,14 +5379,23 @@ body.s936-chart-stage main{
       // siendo exactamente la misma familia (SHELL_TEMPLATES_MI), solo
       // cambia el rótulo.
       btnShell.textContent = "Jazz-Bossa (Mi)";
+      // Cambio 308: ícono de mástil + tooltip — usa Mi grave, Re, Sol, Si
+      // (mudas: La y Mi agudo), verificado directo desde SHELL_TEMPLATES_MI.
+      btnShell.title = "Ancla en Mi · suenan Mi grave-Re-Sol-Si · mudas La y Mi agudo";
+      btnShell.innerHTML = iconoCuerdasFamilia([true, false, true, true, true, false]) +
+        '<span>Jazz-Bossa (Mi)</span>';
 
       const btnLa = document.createElement("button");
       btnLa.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "la" ? " sel" : "");
-      btnLa.textContent = "Base La";
+      btnLa.title = "Ancla en La · suenan La-Re-Sol-Si · mudas Mi grave y Mi agudo";
+      btnLa.innerHTML = iconoCuerdasFamilia([false, true, true, true, true, false]) +
+        '<span>Base La</span>';
 
       const btnRe = document.createElement("button");
       btnRe.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "re" ? " sel" : "");
-      btnRe.textContent = "Base Re";
+      btnRe.title = "Ancla en Re · suenan Re-Sol-Si-Mi agudo · mudas Mi grave y La";
+      btnRe.innerHTML = iconoCuerdasFamilia([false, false, true, true, true, true]) +
+        '<span>Base Re</span>';
 
       const setFamilia = (f) => {
         if (cejillaFamilia === f) return;
