@@ -3850,12 +3850,28 @@ body.s936-chart-stage main{
   // (0-2-1-1-0-0). Pendientes: m7b5 y Dim7 (Val los va a confirmar en una
   // nota distinta de Mi, para evitar el problema de la cuerda al aire que
   // no se puede "bajar más").
+  // Cambio 286: se agregan Dim7 y m7b5. Estas dos, a diferencia de las
+  // demás, quedan IGUALES en las dos familias (Val: "los disminuidos
+  // convergen") — el mismo dato entra en BARRE_TEMPLATES_MI y en
+  // SHELL_TEMPLATES_MI, así que el toggle no cambia nada visualmente para
+  // estas dos calidades, y eso es lo esperado. Dato verificado con dos
+  // capturas de Val (Gm7b5 y G Dim7), cruzando cuerda+traste contra el
+  // NOMBRE AUTODETECTADO en rojo (no contra el panel de Nota/Calidad de
+  // la derecha ni la línea "Notas:", que en esas capturas quedaron
+  // desactualizados por no sincronizarse con el mapa dibujado a mano —
+  // bug de sincronización aparte, ya anotado). Ambas confirman lo que Val
+  // ya había anticipado: en la nota Mi exacta, alguna cuerda pide un
+  // traste negativo ("no hay dónde bajar más") — por eso se agrega abajo
+  // un chequeo de traste mínimo en generarDigitacion(), además del
+  // máximo que ya existía.
   const BARRE_TEMPLATES_MI = {
-    "":     [0, 2, 2, 1, 0, 0], // Mayor      (verificado: Sol+3 = [3,5,5,4,3,3])
-    "m":    [0, 2, 2, 0, 0, 0], // Menor
-    "7":    [0, 2, 0, 1, 0, 0], // Dominante 7 (Dom7)
-    "m7":   [0, 2, 0, 0, 0, 0], // m7
-    "maj7": [0, 2, 1, 1, 0, 0], // Maj7 (verificado: Sol+3 = [3,5,4,4,3,3])
+    "":     [0, 2, 2, 1, 0, 0],       // Mayor      (verificado: Sol+3 = [3,5,5,4,3,3])
+    "m":    [0, 2, 2, 0, 0, 0],       // Menor
+    "7":    [0, 2, 0, 1, 0, 0],       // Dominante 7 (Dom7)
+    "m7":   [0, 2, 0, 0, 0, 0],       // m7
+    "maj7": [0, 2, 1, 1, 0, 0],       // Maj7 (verificado: Sol+3 = [3,5,4,4,3,3])
+    "m7b5": [0, "X", 0, 0, -1, "X"],  // semidisminuido (verificado: Sol+3 = [3,X,3,3,2,X])
+    "dim7": [0, "X", -1, 0, -1, "X"], // Dim7 (verificado: Sol+3 = [3,X,2,3,2,X])
   };
 
   // Cambio 282: segunda familia — "shell" de 4 cuerdas (bossa/jazz), la
@@ -3875,10 +3891,14 @@ body.s936-chart-stage main{
   // misma fórmula ya confirmada en la familia completa (Dom7 = Mayor con
   // la 7ª bajada un semitono), sobre el Maj7 shell ya confirmado, y Val
   // lo validó ("Si"). Verificado: Sol+3 = [3,X,3,4,3,X] = G-F-B-D (G7).
+  // Cambio 286: Dim7 y m7b5 también entran aquí, IDÉNTICOS a los de
+  // arriba (ver nota de Cambio 286 más arriba).
   const SHELL_TEMPLATES_MI = {
-    "maj7": [0, "X", 1, 1, 0, "X"], // Maj7 shell (bossa/jazz)
-    "m7":   [0, "X", 0, 0, 0, "X"], // m7 shell (bossa/jazz)
-    "7":    [0, "X", 0, 1, 0, "X"], // Dom7 shell (bossa/jazz)
+    "maj7": [0, "X", 1, 1, 0, "X"],   // Maj7 shell (bossa/jazz)
+    "m7":   [0, "X", 0, 0, 0, "X"],   // m7 shell (bossa/jazz)
+    "7":    [0, "X", 0, 1, 0, "X"],   // Dom7 shell (bossa/jazz)
+    "m7b5": [0, "X", 0, 0, -1, "X"],  // semidisminuido (igual que en completa)
+    "dim7": [0, "X", -1, 0, -1, "X"], // Dim7 (igual que en completa)
   };
   const FAMILIAS_CEJILLA = {
     completa: BARRE_TEMPLATES_MI,
@@ -3895,7 +3915,12 @@ body.s936-chart-stage main{
     const semitonosDesdeMi = ((rootPc - PC["E"]) + 12) % 12;
     const frets = template.map(f => (f === "X" ? "X" : f + semitonosDesdeMi));
     const numericos = frets.filter(f => f !== "X" && Number.isFinite(f));
+    // Cambio 286: además del máximo, ahora se valida un mínimo. Dim7 y
+    // m7b5 piden un traste negativo justo en la nota Mi (la plantilla no
+    // "cabe" ahí — confirmado por Val) — en vez de dibujar un traste
+    // imposible, simplemente no se ofrece cejilla para ese caso puntual.
     if (numericos.length && Math.max(...numericos) > MAX_TRASTE_CEJILLA_RAZONABLE) return null;
+    if (numericos.length && Math.min(...numericos) < 0) return null;
     return { frets }; // orden E2→E4, sin invertir (ver nota arriba)
   }
 
