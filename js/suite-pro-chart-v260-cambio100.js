@@ -3928,20 +3928,41 @@ body.s936-chart-stage main{
     "m7b5": [0, "X", 0, 0, -1, "X"],  // semidisminuido (igual que en completa)
     "dim7": [0, "X", -1, 0, -1, "X"], // Dim7 (igual que en completa)
   };
+  // Cambio 291: FAMILIA 2 — ancla en La (5ta cuerda), 4 cuerdas centrales
+  // (5ª-4ª-3ª-2ª, mudando 6ª y 1ª). Primera plantilla confirmada por Val:
+  // Re Maj7 (traste inicial 4) → A2=5,D3=7,G3=6,B3=7 — verificado
+  // cruzando contra "Notas: C#·D·F#·A". Restando 5 semitonos (distancia
+  // La→Re) da la plantilla ancla en La: A2=0,D3=2,G3=1,B3=2, que en La
+  // mismo (offset 0) coincide con el Amaj7 real y muy conocido en jazz
+  // (x,0,2,1,2,x). A diferencia de la familia de Mi, aquí el semitono de
+  // desplazamiento se cuenta desde La, no desde Mi — por eso
+  // generarDigitacion() ahora recibe también el "ancla" de cada familia.
+  const LA_TEMPLATES = {
+    "maj7": ["X", 0, 2, 1, 2, "X"], // Maj7 (verificado: Re+5 = [X,5,7,6,7,X])
+    "7": ["X", 0, 2, 0, 2, "X"],    // Dom7 (verificado: Re+5 = [X,5,7,5,7,X])
+    // Cambio 293: m7, verificado con la captura de Val (corrigió el
+    // título a "Dm7" a mano): A2=5(D),D3=7(A),G3=5(C),B3=6(F) = D-F-A-C
+    // = Dm7 exacto. Restando 5 semitonos (La→Re): A2=0,D3=2,G3=0,B3=1.
+    // En La mismo (offset 0) da A-E-G-C = Am7 real, coherente.
+    "m7": ["X", 0, 2, 0, 1, "X"],   // m7 (verificado: Re+5 = [X,5,7,5,6,X])
+  };
+
   const FAMILIAS_CEJILLA = {
-    completa: BARRE_TEMPLATES_MI,
-    shell: SHELL_TEMPLATES_MI,
+    completa: { templates: BARRE_TEMPLATES_MI, ancla: "E" },
+    shell:    { templates: SHELL_TEMPLATES_MI, ancla: "E" },
+    la:       { templates: LA_TEMPLATES,       ancla: "A" },
   };
   const MAX_TRASTE_CEJILLA_RAZONABLE = 15; // por encima de esto no se ofrece
 
   function generarDigitacion(root, qualRaw, familia) {
-    const mapa = FAMILIAS_CEJILLA[familia] || BARRE_TEMPLATES_MI;
-    const template = mapa[qualRaw];
+    const fam = FAMILIAS_CEJILLA[familia] || FAMILIAS_CEJILLA.completa;
+    const template = fam.templates[qualRaw];
     if (!template || !root) return null;
     const rootPc = PC[String(root).toUpperCase().replace("b", "B")];
-    if (rootPc === undefined) return null;
-    const semitonosDesdeMi = ((rootPc - PC["E"]) + 12) % 12;
-    const frets = template.map(f => (f === "X" ? "X" : f + semitonosDesdeMi));
+    const anclaPc = PC[fam.ancla];
+    if (rootPc === undefined || anclaPc === undefined) return null;
+    const semitonosDesdeAncla = ((rootPc - anclaPc) + 12) % 12;
+    const frets = template.map(f => (f === "X" ? "X" : f + semitonosDesdeAncla));
     const numericos = frets.filter(f => f !== "X" && Number.isFinite(f));
     // Cambio 286: además del máximo, ahora se valida un mínimo. Dim7 y
     // m7b5 piden un traste negativo justo en la nota Mi (la plantilla no
@@ -3966,17 +3987,19 @@ body.s936-chart-stage main{
     return { root, qualRaw };
   }
 
-  // Cambio 282: variante de calcFretVoicing() que permite pedir la familia
-  // "shell" explícitamente (desde el selector del editor). Si la calidad
-  // pedida todavía no tiene versión shell capturada, cae al cálculo normal
-  // (calcFretVoicing, familia completa + catálogo) para no dejar vacío.
-  // calcFretVoicing() en sí NO se toca — sigue devolviendo siempre la
-  // familia completa por default, para no afectar el resto del sistema
-  // (Chart automático, karaoke, detección, etc.) que no conoce familias.
+  // Cambio 282: variante de calcFretVoicing() que permite pedir una
+  // familia explícita (desde el selector del editor): "shell" (Mi, 4
+  // cuerdas jazz/bossa) o, desde el Cambio 291, "la" (ancla en La, 4
+  // cuerdas centrales). Si la calidad pedida todavía no tiene versión
+  // capturada en esa familia, cae al cálculo normal (calcFretVoicing,
+  // familia completa + catálogo) para no dejar vacío. calcFretVoicing()
+  // en sí NO se toca — sigue devolviendo siempre la familia completa por
+  // default, para no afectar el resto del sistema (Chart automático,
+  // karaoke, detección, etc.) que no conoce familias.
   function calcFretVoicingConFamilia(chordName, inst, familia) {
-    if (inst !== "guitar" || familia !== "shell") return calcFretVoicing(chordName, inst);
+    if (inst !== "guitar" || (familia !== "shell" && familia !== "la")) return calcFretVoicing(chordName, inst);
     const { root, qualRaw } = raizYCalidadCruda(chordName);
-    const generado = root ? generarDigitacion(root, qualRaw, "shell") : null;
+    const generado = root ? generarDigitacion(root, qualRaw, familia) : null;
     if (generado) return { frets: [...generado.frets].reverse() };
     return calcFretVoicing(chordName, inst);
   }
@@ -4695,9 +4718,14 @@ body.s936-chart-stage main{
       // Si todavía no hay dato jazz para la calidad activa, el cálculo
       // cae en silencio a la cejilla completa (ver
       // calcFretVoicingConFamilia) y se muestra un aviso chiquito.
+      // Cambio 291: se agrega un tercer botón, "Base La" — familia 2 del
+      // documento original, ancla en la 5ta cuerda, 4 cuerdas centrales.
+      // Mismo patrón que Jazz-Bossa: permanente, con aviso si la calidad
+      // activa todavía no tiene dato en esta familia.
       if (previewInst === "guitar") {
         const { qualRaw } = raizYCalidadCruda(buildChordName());
         const tieneJazz = SHELL_TEMPLATES_MI.hasOwnProperty(qualRaw);
+        const tieneLa = LA_TEMPLATES.hasOwnProperty(qualRaw);
 
         const familyRow = document.createElement("div");
         familyRow.className = "s936-picker-family-row";
@@ -4710,6 +4738,10 @@ body.s936-chart-stage main{
         btnShell.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "shell" ? " sel" : "");
         btnShell.textContent = "Jazz-Bossa";
 
+        const btnLa = document.createElement("button");
+        btnLa.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "la" ? " sel" : "");
+        btnLa.textContent = "Base La";
+
         const setFamilia = (f) => {
           if (cejillaFamilia === f) return;
           cejillaFamilia = f;
@@ -4717,13 +4749,20 @@ body.s936-chart-stage main{
         };
         btnCompleta.onclick = (e) => { e.stopPropagation(); setFamilia("completa"); };
         btnShell.onclick = (e) => { e.stopPropagation(); setFamilia("shell"); };
+        btnLa.onclick = (e) => { e.stopPropagation(); setFamilia("la"); };
 
-        familyRow.append(btnCompleta, btnShell);
+        familyRow.append(btnCompleta, btnShell, btnLa);
 
         if (cejillaFamilia === "shell" && !tieneJazz) {
           const hint = document.createElement("span");
           hint.className = "s936-picker-family-hint";
           hint.textContent = "Aún sin forma jazz para esta calidad — mostrando cejilla completa";
+          familyRow.appendChild(hint);
+        }
+        if (cejillaFamilia === "la" && !tieneLa) {
+          const hint = document.createElement("span");
+          hint.className = "s936-picker-family-hint";
+          hint.textContent = "Aún sin forma en base La para esta calidad — mostrando cejilla completa";
           familyRow.appendChild(hint);
         }
 
