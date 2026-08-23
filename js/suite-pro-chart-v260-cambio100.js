@@ -4992,10 +4992,15 @@ body.s936-chart-stage main{
     fretControls.className = "s936-picker-fret-controls";
     leftPane.appendChild(fretControls);
 
+    // Cambio 310: Val confirmó borrar también "Ritmo del beat" (Tocar +
+    // Repetir) — ya no se agregan a leftPane. rhythmTitle/rhythmRow y sus
+    // botones se siguen creando (rhythmBtns, updateRhythmButtons,
+    // setRhythmMode los referencian) pero quedan sin montar en el DOM:
+    // invisibles, sin romper la lógica de rhythmMode que sigue viajando
+    // en onSave(val, voicing, rhythmMode) tal como estaba.
     const rhythmTitle = document.createElement("div");
     rhythmTitle.className = "s936-picker-rhythm-title";
     rhythmTitle.textContent = "Ritmo del beat";
-    leftPane.appendChild(rhythmTitle);
 
     const rhythmRow = document.createElement("div");
     rhythmRow.className = "s936-picker-rhythm-row";
@@ -5019,7 +5024,7 @@ body.s936-chart-stage main{
       rhythmBtns[mode] = btn;
       rhythmRow.appendChild(btn);
     });
-    leftPane.appendChild(rhythmRow);
+    // Cambio 310: rhythmRow ya no se monta (ver nota arriba en rhythmTitle).
 
     const audioRow = document.createElement("div");
     audioRow.className = "s936-picker-audio-row";
@@ -5059,17 +5064,18 @@ body.s936-chart-stage main{
     audioRow.append(chordBtn, arpBtn);
     leftPane.appendChild(audioRow);
 
+    // Cambio 310: Val confirmó borrar también las 2 líneas de texto de
+    // ayuda (audioHint, hintLine) — se dejan creadas (por si algo más
+    // las referenciara) pero ya no se montan en el DOM.
     const audioHint = document.createElement("div");
     audioHint.className = "s936-picker-audio-mini";
     audioHint.textContent = "El ritmo sigue en vivo la nota/calidad/mapa que cambies, sin depender de app.js.";
-    leftPane.appendChild(audioHint);
 
     const hintLine = document.createElement("div");
     hintLine.className = "s936-picker-map-hint";
     hintLine.textContent = previewInst === "piano"
       ? "Toca teclas en este mapa: el acorde se recalcula aquí mismo."
       : "Toca cuerdas y trastes en este mapa: no se abre otra ventana.";
-    leftPane.appendChild(hintLine);
 
     let rhythmRunning = false;
     let pulseOn = false;
