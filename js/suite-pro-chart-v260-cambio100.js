@@ -4617,11 +4617,20 @@ body.s936-chart-stage main{
     // sigue existiendo más abajo (Cambio 277), pero ahí SÍ está protegida
     // correctamente: solo se activa cuando de verdad se pidió la nota
     // sola, sin ninguna calidad (cleanName === root).
+    // Cambio 313: se QUITA la variante que borraba todos los números del
+    // nombre (cleanName.replace(/[0-9]/g,'')). Causaba sustitución
+    // silenciosa idéntica en espíritu al bug ya corregido en Cambio 290:
+    // "F9" se convertía en "F" y encontraba el Fa Mayor simple en el
+    // catálogo (GUITAR_SHAPES/UKU_SHAPES), mostrando ese acorde como si
+    // fuera válido para F9 — sin avisar que la calidad pedida no existía.
+    // Val lo detectó en ukulele (F9/F11/F13/F6/Fm9/Fm6 mostraban F o Fm
+    // simple, sin cambiar el mapa). Sin esta variante, esas calidades
+    // simplemente no encuentran nada en el catálogo — que es lo correcto
+    // cuando de verdad no están capturadas, en vez de mentir.
     const searchVariants = [
       cleanName,
       cleanName.replace(/MAJOR/g, 'MAJ7').replace(/MAJ/g, 'MAJ7'),
       cleanName.replace(/MINOR/g, 'm').replace(/MIN/g, 'm'),
-      cleanName.replace(/[0-9]/g, ''),
     ];
     
     if (inst === "guitar") {
@@ -4707,7 +4716,15 @@ body.s936-chart-stage main{
         shape = UKU_SHAPES[variant];
         if (shape) break;
       }
-      if (!shape && root) {
+      // Cambio 313: este respaldo también sustituía en silencio — antes
+      // se activaba para CUALQUIER calidad no encontrada (F9, F13, Fm6...
+      // todas caían aquí y mostraban el Fa Mayor simple, sin avisar).
+      // Ahora, mismo criterio que ya protege esto en guitarra (Cambio
+      // 277): solo se usa el acorde Mayor simple cuando de verdad se
+      // pidió la nota sola, sin ninguna calidad (cleanName === root) —
+      // para cualquier calidad real que no esté en UKU_SHAPES, no se
+      // devuelve nada en vez de mentir.
+      if (!shape && root && cleanName === root) {
         const defaultShapes = {
           'C': [0,0,0,3], 'D': [2,2,2,0], 'E': [4,4,4,2], 'F': [2,0,1,0],
           'G': [0,2,3,2], 'A': [2,1,0,0], 'B': [4,3,2,2]
