@@ -3938,13 +3938,23 @@ body.s936-chart-stage main{
   // desplazamiento se cuenta desde La, no desde Mi — por eso
   // generarDigitacion() ahora recibe también el "ancla" de cada familia.
   const LA_TEMPLATES = {
+    // Cambio 295: Mayor y Menor (triadas simples), últimas dos de esta
+    // familia. Verificadas con dos capturas de Re (títulos autodetectados
+    // mal, corregidos a mano por Val — mismo bug de detección de siempre,
+    // pero el MAPA cruzado no deja dudas):
+    // D Mayor: A2=5,D3=7,G3=7,B3=7 (E2/E4 mudos) = D-F#-A exacto, cabe en
+    // las 4 cuerdas centrales solamente.
+    // D Menor: A2=5,D3=7,G3=7,B3=6,E4=5 (E2 mudo) = D-F-A exacto — esta
+    // SÍ necesita la 5ta cuerda (E4) sonando, no cabe en solo 4 como el
+    // Mayor. Se guardan tal cual, sin forzarlas a tener la misma cantidad
+    // de cuerdas.
+    "":  ["X", 0, 2, 2, 2, "X"], // Mayor (verificado: Re+5 = [X,5,7,7,7,X])
+    "m": ["X", 0, 2, 2, 1, 0],   // Menor (verificado: Re+5 = [X,5,7,7,6,5])
     "maj7": ["X", 0, 2, 1, 2, "X"], // Maj7 (verificado: Re+5 = [X,5,7,6,7,X])
     "7": ["X", 0, 2, 0, 2, "X"],    // Dom7 (verificado: Re+5 = [X,5,7,5,7,X])
-    // Cambio 293: m7, verificado con la captura de Val (corrigió el
-    // título a "Dm7" a mano): A2=5(D),D3=7(A),G3=5(C),B3=6(F) = D-F-A-C
-    // = Dm7 exacto. Restando 5 semitonos (La→Re): A2=0,D3=2,G3=0,B3=1.
-    // En La mismo (offset 0) da A-E-G-C = Am7 real, coherente.
     "m7": ["X", 0, 2, 0, 1, "X"],   // m7 (verificado: Re+5 = [X,5,7,5,6,X])
+    "m7b5": ["X", 0, 1, 0, 1, "X"],   // m7b5 (verificado: Re+5 = [X,5,6,5,6,X])
+    "dim7": ["X", 0, 1, -1, 1, "X"],  // Dim7 (verificado: Re+5 = [X,5,6,4,6,X])
   };
 
   const FAMILIAS_CEJILLA = {
