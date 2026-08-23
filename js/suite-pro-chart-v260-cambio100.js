@@ -1946,6 +1946,7 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
 }
 .s936-picker-btn:hover{background:rgba(0,255,204,.14);border-color:rgba(0,255,204,.4);color:#00ffcc}
 .s936-picker-btn.sel{background:rgba(0,255,204,.22);border-color:#00ffcc;color:#00ffcc}
+.s936-picker-btn:disabled{opacity:.28;cursor:not-allowed;pointer-events:none}
 .s936-picker-acc{display:flex;gap:3px;margin-bottom:5px}
 .s936-picker-acc .s936-picker-btn{flex:1;font-size:.52rem}
 .s936-picker-quals{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin-bottom:5px}
@@ -4517,7 +4518,29 @@ body.s936-chart-stage main{
 
     function setPickerClasses() {
       Object.entries(rootBtns).forEach(([r, b]) => b.classList.toggle("sel", r === selRoot));
-      Object.entries(accBtns).forEach(([a, b]) => b.classList.toggle("sel", a === selAcc));
+
+      // Cambio 289: Val (músico, conoce armonía) señaló que entre Mi-Fa y
+      // Si-Do solo hay medio tono, no un tono entero — por eso "Mi
+      // sostenido" y "Si sostenido" no existen como nombres reales (son
+      // Fa y Do respectivamente), y lo mismo con "Do bemol" (=Si) y "Fa
+      // bemol" (=Mi). El motor de cejillas ya calculaba el traste
+      // correcto para esos casos (Mi sostenido y Fa dan el mismo
+      // traste, porque es la misma nota), pero la interfaz permitía
+      // armar esos nombres que ningún músico usaría. Se deshabilitan
+      // aquí esas combinaciones, y si ya estaba seleccionada una
+      // inválida (ej. veías al abrir un acorde guardado como "Mi#"), se
+      // corrige sola a Natural.
+      const sharpInvalido = (selRoot === "E" || selRoot === "B");
+      const flatInvalido = (selRoot === "C" || selRoot === "F");
+      if ((selAcc === "#" && sharpInvalido) || (selAcc === "b" && flatInvalido)) {
+        selAcc = "♮";
+      }
+      Object.entries(accBtns).forEach(([a, b]) => {
+        b.classList.toggle("sel", a === selAcc);
+        const deshabilitado = (a === "#" && sharpInvalido) || (a === "b" && flatInvalido);
+        b.disabled = deshabilitado;
+      });
+
       Object.entries(qualBtns).forEach(([q, b]) => b.classList.toggle("sel", !manualChordName && q === selQual));
     }
 
