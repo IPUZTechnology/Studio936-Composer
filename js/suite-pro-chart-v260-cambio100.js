@@ -3900,6 +3900,12 @@ body.s936-chart-stage main{
     // inventada. PENDIENTE que Val confirme que así es como él la toca
     // en otras notas antes de darla por cerrada del todo.
     "sus4":  [0, 2, 2, 2, 0, 0],       // Sus4 (derivado: Mayor con 3ª→4ª en G3)
+    // Cambio 296: "9" (Dom9), derivado con la regla que explicó Val — se
+    // toma la cuerda que duplica la tónica en la octava (aquí, E4) y se
+    // sube 2 trastes (un tono) para convertirla en la 9ª. Confianza alta:
+    // en Mi (offset 0) da exactamente el E9 abierto real y muy conocido
+    // (0,2,0,1,0,2) — no es una forma inventada.
+    "9":     [0, 2, 0, 1, 0, 2],       // Dom9 (derivado: Dom7 con octava→9ª en E4)
   };
 
   // Cambio 282: segunda familia — "shell" de 4 cuerdas (bossa/jazz), la
