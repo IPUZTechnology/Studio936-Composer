@@ -2136,6 +2136,44 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
   font-size:.48rem;
   font-style:italic;
 }
+/* Cambio 306: selector de familia reubicado debajo del mapa, agrupado
+   en 2 categorías (Natural / Jazz-Bossa) en vez de 6 botones sueltos. */
+.s936-picker-family-box{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px solid rgba(0,255,204,.14);
+}
+.s936-picker-cat-row{
+  display:flex;
+  gap:8px;
+}
+.s936-picker-cat-btn{
+  flex:1;
+  border:1px solid rgba(0,255,204,.3);
+  background:rgba(0,255,204,.06);
+  color:rgba(255,255,255,.75);
+  border-radius:10px;
+  padding:9px 10px;
+  font-size:.6rem;
+  font-weight:900;
+  cursor:pointer;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+}
+.s936-picker-cat-btn:hover{
+  background:rgba(0,255,204,.12);
+  border-color:rgba(0,255,204,.5);
+  color:#00ffcc;
+}
+.s936-picker-cat-btn.sel{
+  background:rgba(0,255,204,.2);
+  border-color:#00ffcc;
+  color:#00ffcc;
+  box-shadow:0 0 14px rgba(0,255,204,.18);
+}
 .s936-picker-fret-label{
   color:rgba(0,255,204,.72);
   font-size:.52rem;
@@ -4862,7 +4900,7 @@ body.s936-chart-stage main{
     let inlineFrets = null;
     let inlineNotes = null;
     let fretStart = 0;
-    let cejillaFamilia = "completa"; // Cambio 282: "completa" o "shell" (jazz/bossa)
+    let cejillaFamilia = "natural"; // Cambio 306: Val pidió que el editor empiece siempre en Natural
     const visibleFrets = 6;
 
     const pop = document.createElement("div");
@@ -4911,6 +4949,16 @@ body.s936-chart-stage main{
     const mapBox = document.createElement("div");
     mapBox.className = "s936-picker-map-box s936-picker-map-box-live";
     leftPane.appendChild(mapBox);
+
+    // Cambio 306: el selector de familia (Natural / Jazz-Bossa) se pinta
+    // AQUÍ, debajo del mapa — antes vivía arriba, dentro de
+    // fretControls, junto al slider de Traste inicial. Val pidió que el
+    // slider se quede arriba (es del mapa) pero el selector de familia
+    // baje, y que además se agrupe en solo 2 categorías en vez de 6
+    // botones sueltos.
+    const familySelectorBox = document.createElement("div");
+    familySelectorBox.className = "s936-picker-family-box";
+    leftPane.appendChild(familySelectorBox);
 
     const rhythmTitle = document.createElement("div");
     rhythmTitle.className = "s936-picker-rhythm-title";
@@ -5210,110 +5258,133 @@ body.s936-chart-stage main{
       range.oninput = (e) => { e.stopPropagation(); setStart(range.value); };
 
       fretControls.append(minus, label, value, range, plus);
+    }
 
-      // Cambio 284: DECISIÓN DE VAL — el selector "Cejilla completa /
-      // Jazz-Bossa" ahora es PERMANENTE en guitarra, para todas las
-      // calidades, no solo las que ya tienen dato jazz capturado (antes
-      // solo Maj7/m7). La idea es que cada calidad va a tener su propia
-      // forma jazz distinta (Mayor, Menor, Dom7 — cada una diferente),
-      // excepto Dim y m7b5 que según Val convergen en la misma forma.
-      // Si todavía no hay dato jazz para la calidad activa, el cálculo
-      // cae en silencio a la cejilla completa (ver
-      // calcFretVoicingConFamilia) y se muestra un aviso chiquito.
-      // Cambio 291: se agrega un tercer botón, "Base La" — familia 2 del
-      // documento original, ancla en la 5ta cuerda, 4 cuerdas centrales.
-      // Mismo patrón que Jazz-Bossa: permanente, con aviso si la calidad
-      // activa todavía no tiene dato en esta familia.
-      // Cambio 298: cuarto botón, "Natural" — acordes abiertos de primera
-      // posición (catálogo por nota, no fórmula de semitonos). El aviso
-      // aquí dice explícitamente "para esta nota Y calidad" porque a
-      // diferencia de las otras familias, en Natural falta tanto por
-      // calidad (aún solo Dim7/m7b5/etc para Re) como por nota entera
-      // (aún solo existe Re; cualquier otra nota siempre mostrará el
-      // aviso, sin importar la calidad).
-      if (previewInst === "guitar") {
-        const { root, qualRaw } = raizYCalidadCruda(buildChordName());
-        const tieneJazz = SHELL_TEMPLATES_MI.hasOwnProperty(qualRaw);
-        const tieneLa = LA_TEMPLATES.hasOwnProperty(qualRaw);
-        const tieneRe = RE_TEMPLATES.hasOwnProperty(qualRaw);
-        const tieneNatural = !!(NATURAL_SHAPES[String(root || "").toUpperCase()]?.hasOwnProperty(qualRaw));
+    // Cambio 306: reemplaza el bloque de 6 botones sueltos (Cejilla
+    // completa / Jazz-Bossa / Base La / Base Re / Natural / Librería) por
+    // 2 categorías, tal como pidió Val — "todo lo que dice cejilla es
+    // natural" (Natural + Cejilla completa van juntas) y "todos los
+    // otros son categoría ya bossa, solo que tienen entradas diferentes"
+    // (Jazz-Bossa/Base La/Base Re son la misma idea, ancla distinta).
+    //
+    // Categoría "Natural": un solo botón, sin sub-opciones — usa Natural
+    // si existe para esa nota/calidad, si no cae sola a Cejilla completa
+    // (mismo fallback automático que ya existía, Val confirmó que lo
+    // quiere automático, no manual).
+    //
+    // Categoría "Jazz-Bossa": tres "entradas" (Mi/La/Re) como pills,
+    // parecido al selector de la Librería que a Val le gustó, más el
+    // botón que abre esa Librería aparte.
+    //
+    // Nota: el buscador real "muéveme el traste y encuéntrame la misma
+    // nota en cualquier posición/familia" (lo que Val describió después)
+    // queda pendiente como Cambio 307 — esto de aquí solo reordena y
+    // agrupa lo que ya existía, no le suma inteligencia nueva todavía.
+    function renderFamilySelector() {
+      familySelectorBox.innerHTML = "";
+      if (previewInst !== "guitar") return;
 
-        const familyRow = document.createElement("div");
-        familyRow.className = "s936-picker-family-row";
+      const { root, qualRaw } = raizYCalidadCruda(buildChordName());
+      const tieneJazz = SHELL_TEMPLATES_MI.hasOwnProperty(qualRaw);
+      const tieneLa = LA_TEMPLATES.hasOwnProperty(qualRaw);
+      const tieneRe = RE_TEMPLATES.hasOwnProperty(qualRaw);
+      const tieneNatural = !!(NATURAL_SHAPES[String(root || "").toUpperCase()]?.hasOwnProperty(qualRaw));
 
-        const btnCompleta = document.createElement("button");
-        btnCompleta.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "completa" ? " sel" : "");
-        btnCompleta.textContent = "Cejilla completa";
+      const familiasJazz = ["shell", "la", "re"];
+      const categoriaActiva = familiasJazz.includes(cejillaFamilia) ? "jazz" : "natural";
 
-        const btnShell = document.createElement("button");
-        btnShell.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "shell" ? " sel" : "");
-        btnShell.textContent = "Jazz-Bossa";
+      const catRow = document.createElement("div");
+      catRow.className = "s936-picker-cat-row";
 
-        const btnLa = document.createElement("button");
-        btnLa.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "la" ? " sel" : "");
-        btnLa.textContent = "Base La";
+      const btnCatNatural = document.createElement("button");
+      btnCatNatural.className = "s936-picker-cat-btn" + (categoriaActiva === "natural" ? " sel" : "");
+      btnCatNatural.textContent = "Natural";
+      btnCatNatural.onclick = (e) => {
+        e.stopPropagation();
+        if (cejillaFamilia === "natural") return;
+        cejillaFamilia = "natural";
+        renderInlineMap(true);
+      };
 
-        // Cambio 301 (recuperado): sexto botón — familia deslizante con
-        // ancla en la 4ta cuerda (Re), 4 cuerdas agudas.
-        const btnRe = document.createElement("button");
-        btnRe.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "re" ? " sel" : "");
-        btnRe.textContent = "Base Re";
+      const btnCatJazz = document.createElement("button");
+      btnCatJazz.className = "s936-picker-cat-btn" + (categoriaActiva === "jazz" ? " sel" : "");
+      btnCatJazz.textContent = "Jazz-Bossa";
+      btnCatJazz.onclick = (e) => {
+        e.stopPropagation();
+        if (familiasJazz.includes(cejillaFamilia)) return;
+        // Al entrar a la categoría Jazz-Bossa por primera vez, arranca en
+        // la entrada de Mi (la más completa hoy); si ya estabas en una de
+        // las 3, se respeta cuál.
+        cejillaFamilia = "shell";
+        renderInlineMap(true);
+      };
 
-        const btnNatural = document.createElement("button");
-        btnNatural.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "natural" ? " sel" : "");
-        btnNatural.textContent = "Natural";
+      catRow.append(btnCatNatural, btnCatJazz);
+      familySelectorBox.appendChild(catRow);
 
-        const setFamilia = (f) => {
-          if (cejillaFamilia === f) return;
-          cejillaFamilia = f;
-          renderInlineMap(true);
-        };
-        btnCompleta.onclick = (e) => { e.stopPropagation(); setFamilia("completa"); };
-        btnShell.onclick = (e) => { e.stopPropagation(); setFamilia("shell"); };
-        btnLa.onclick = (e) => { e.stopPropagation(); setFamilia("la"); };
-        btnRe.onclick = (e) => { e.stopPropagation(); setFamilia("re"); };
-        btnNatural.onclick = (e) => { e.stopPropagation(); setFamilia("natural"); };
-
-        // Cambio 302: quinto botón — abre la Librería Jazz y Bossa
-        // (panel aparte, ver abrirLibreriaJazzBossa). No participa del
-        // toggle cejillaFamilia — es una ventana independiente, no
-        // reemplaza ninguna de las familias existentes.
-        const btnLibreria = document.createElement("button");
-        btnLibreria.className = "s936-picker-rhythm-btn";
-        btnLibreria.textContent = "Librería Jazz-Bossa";
-        btnLibreria.onclick = (e) => {
-          e.stopPropagation();
-          abrirLibreriaJazzBossa(root, qualRaw);
-        };
-
-        familyRow.append(btnCompleta, btnShell, btnLa, btnRe, btnNatural, btnLibreria);
-
-        if (cejillaFamilia === "shell" && !tieneJazz) {
-          const hint = document.createElement("span");
-          hint.className = "s936-picker-family-hint";
-          hint.textContent = "Aún sin forma jazz para esta calidad — mostrando cejilla completa";
-          familyRow.appendChild(hint);
-        }
-        if (cejillaFamilia === "la" && !tieneLa) {
-          const hint = document.createElement("span");
-          hint.className = "s936-picker-family-hint";
-          hint.textContent = "Aún sin forma en base La para esta calidad — mostrando cejilla completa";
-          familyRow.appendChild(hint);
-        }
-        if (cejillaFamilia === "re" && !tieneRe) {
-          const hint = document.createElement("span");
-          hint.className = "s936-picker-family-hint";
-          hint.textContent = "Aún sin forma en base Re para esta calidad — mostrando cejilla completa";
-          familyRow.appendChild(hint);
-        }
-        if (cejillaFamilia === "natural" && !tieneNatural) {
+      if (categoriaActiva === "natural") {
+        if (!tieneNatural) {
           const hint = document.createElement("span");
           hint.className = "s936-picker-family-hint";
           hint.textContent = "Aún sin forma natural para esta nota/calidad — mostrando cejilla completa";
-          familyRow.appendChild(hint);
+          familySelectorBox.appendChild(hint);
         }
+        return;
+      }
 
-        fretControls.appendChild(familyRow);
+      // Categoría Jazz-Bossa activa: mostrar las 3 entradas + Librería.
+      const entradaRow = document.createElement("div");
+      entradaRow.className = "s936-picker-family-row";
+
+      const btnShell = document.createElement("button");
+      btnShell.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "shell" ? " sel" : "");
+      btnShell.textContent = "Entrada Mi";
+
+      const btnLa = document.createElement("button");
+      btnLa.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "la" ? " sel" : "");
+      btnLa.textContent = "Entrada La";
+
+      const btnRe = document.createElement("button");
+      btnRe.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "re" ? " sel" : "");
+      btnRe.textContent = "Entrada Re";
+
+      const setFamilia = (f) => {
+        if (cejillaFamilia === f) return;
+        cejillaFamilia = f;
+        renderInlineMap(true);
+      };
+      btnShell.onclick = (e) => { e.stopPropagation(); setFamilia("shell"); };
+      btnLa.onclick = (e) => { e.stopPropagation(); setFamilia("la"); };
+      btnRe.onclick = (e) => { e.stopPropagation(); setFamilia("re"); };
+
+      const btnLibreria = document.createElement("button");
+      btnLibreria.className = "s936-picker-rhythm-btn";
+      btnLibreria.textContent = "Librería Jazz-Bossa";
+      btnLibreria.onclick = (e) => {
+        e.stopPropagation();
+        abrirLibreriaJazzBossa(root, qualRaw);
+      };
+
+      entradaRow.append(btnShell, btnLa, btnRe, btnLibreria);
+      familySelectorBox.appendChild(entradaRow);
+
+      if (cejillaFamilia === "shell" && !tieneJazz) {
+        const hint = document.createElement("span");
+        hint.className = "s936-picker-family-hint";
+        hint.textContent = "Aún sin forma jazz para esta calidad — mostrando cejilla completa";
+        familySelectorBox.appendChild(hint);
+      }
+      if (cejillaFamilia === "la" && !tieneLa) {
+        const hint = document.createElement("span");
+        hint.className = "s936-picker-family-hint";
+        hint.textContent = "Aún sin forma en base La para esta calidad — mostrando cejilla completa";
+        familySelectorBox.appendChild(hint);
+      }
+      if (cejillaFamilia === "re" && !tieneRe) {
+        const hint = document.createElement("span");
+        hint.className = "s936-picker-family-hint";
+        hint.textContent = "Aún sin forma en base Re para esta calidad — mostrando cejilla completa";
+        familySelectorBox.appendChild(hint);
       }
     }
 
@@ -5487,11 +5558,13 @@ body.s936-chart-stage main{
         empty.textContent = "Selecciona nota y calidad para iniciar el mapa.";
         mapBox.appendChild(empty);
         refreshPreviewText("");
+        renderFamilySelector();
         return;
       }
       refreshPreviewText(name);
       if (previewInst === "piano") renderInlinePiano();
       else renderInlineFrets();
+      renderFamilySelector();
     }
 
     chordBtn.onclick = (e) => {
@@ -5610,10 +5683,17 @@ body.s936-chart-stage main{
     acts.className = "s936-picker-acts s936-picker-acts-v7";
     const okBtn = document.createElement("button");
     okBtn.className = "s936-picker-ok";
-    okBtn.textContent = "✓ Aplicar acorde y mapa";
+    okBtn.textContent = "✓ Aplicar";
+    // Cambio 305: "Borrar" pasaba a vaciar el compás (rhythmMode="empty",
+    // doSave("", null)) — Val lo estaba usando como si fuera "Cancelar" y
+    // efectivamente borraba el acorde sin querer. Ahora es un Cancelar
+    // real: cierra el editor sin llamar a onSave, dejando el compás
+    // exactamente como estaba antes de abrirlo. Si de verdad se quiere
+    // vaciar un compás, eso se hace desde fuera del editor (click normal
+    // en la celda ya vacía), no desde aquí.
     const delBtn = document.createElement("button");
     delBtn.className = "s936-picker-del";
-    delBtn.textContent = "Borrar";
+    delBtn.textContent = "Cancelar";
     acts.append(okBtn, delBtn);
     rightPane.appendChild(acts);
 
@@ -5643,7 +5723,7 @@ body.s936-chart-stage main{
 
     const doSave = (val, voicing) => { stopChartPopupAudio(); pop.remove(); onSave(val, voicing, rhythmMode); };
     okBtn.onclick = (e) => { e.stopPropagation(); doSave(buildChordName(), currentInlineVoicing()); };
-    delBtn.onclick = (e) => { e.stopPropagation(); rhythmMode = "empty"; doSave("", null); };
+    delBtn.onclick = (e) => { e.stopPropagation(); stopChartPopupAudio(); pop.remove(); };
 
     function makeMovable() {
       let moving = false;
