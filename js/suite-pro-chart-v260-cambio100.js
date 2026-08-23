@@ -5383,7 +5383,7 @@ body.s936-chart-stage main{
       btnCatNatural.textContent = "Natural";
       btnCatNatural.onclick = (e) => {
         e.stopPropagation();
-        if (cejillaFamilia === "natural") return;
+        if (categoriaActiva === "natural") return;
         cejillaFamilia = "natural";
         renderInlineMap(true);
       };
@@ -5405,15 +5405,51 @@ body.s936-chart-stage main{
       familySelectorBox.appendChild(catRow);
 
       if (categoriaActiva === "natural") {
-        // Cambio 314: Val preguntó "¿dónde está Cejilla completa dentro
-        // de Natural?" — la respuesta es que sigue siendo automática
-        // (como confirmó antes), pero ahora se ve SIEMPRE cuál de las
-        // dos se está mostrando en este momento, no solo cuando falla.
+        // Cambio 315: Val pidió recuperar el submenú Natural/Cejilla
+        // DENTRO de Natural — quedamos en que Cejilla completa (ancla en
+        // la 6ta cuerda, movible con el traste) vive aquí. Antes esto
+        // era 100% automático (Natural si existe, si no cae a Cejilla),
+        // pero Val necesita poder FORZAR Cejilla completa aunque Natural
+        // ya tenga forma propia — es la única de las dos que se desliza
+        // con "Traste inicial" (Natural es un catálogo fijo por nota, no
+        // tiene sentido moverle el traste).
+        const subRow = document.createElement("div");
+        subRow.className = "s936-picker-family-row";
+
+        const btnSubNatural = document.createElement("button");
+        btnSubNatural.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "natural" ? " sel" : "");
+        btnSubNatural.textContent = "Natural";
+        btnSubNatural.title = "Forma fija de primera posición, por nota";
+        btnSubNatural.onclick = (e) => {
+          e.stopPropagation();
+          if (cejillaFamilia === "natural") return;
+          cejillaFamilia = "natural";
+          renderInlineMap(true);
+        };
+
+        const btnSubCejilla = document.createElement("button");
+        btnSubCejilla.className = "s936-picker-rhythm-btn" + (cejillaFamilia === "completa" ? " sel" : "");
+        btnSubCejilla.textContent = "Cejilla (6ta cuerda)";
+        btnSubCejilla.title = "Movible con Traste inicial — ancla en Mi/6ta cuerda";
+        btnSubCejilla.onclick = (e) => {
+          e.stopPropagation();
+          if (cejillaFamilia === "completa") return;
+          cejillaFamilia = "completa";
+          renderInlineMap(true);
+        };
+
+        subRow.append(btnSubNatural, btnSubCejilla);
+        familySelectorBox.appendChild(subRow);
+
         const indicador = document.createElement("span");
         indicador.className = "s936-picker-family-hint";
-        indicador.textContent = tieneNatural
-          ? "Mostrando: forma Natural"
-          : "Mostrando: Cejilla completa (respaldo automático)";
+        if (cejillaFamilia === "completa") {
+          indicador.textContent = "Mostrando: Cejilla completa (forma movible)";
+        } else {
+          indicador.textContent = tieneNatural
+            ? "Mostrando: forma Natural"
+            : "Mostrando: Cejilla completa (respaldo automático, Natural no tiene esta nota/calidad)";
+        }
         familySelectorBox.appendChild(indicador);
         return;
       }
