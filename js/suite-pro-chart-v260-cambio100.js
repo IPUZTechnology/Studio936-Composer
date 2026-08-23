@@ -4022,6 +4022,20 @@ body.s936-chart-stage main{
     "m7": ["X", 0, 2, 0, 1, "X"],   // m7 (verificado: Re+5 = [X,5,7,5,6,X])
     "m7b5": ["X", 0, 1, 0, 1, "X"],   // m7b5 (verificado: Re+5 = [X,5,6,5,6,X])
     "dim7": ["X", 0, 1, -1, 1, "X"],  // Dim7 (verificado: Re+5 = [X,5,6,4,6,X])
+    // Cambio 312: colores derivados matemáticamente con la técnica
+    // "sacrificar la 5ª" (Val confirmó: esta familia no tiene cuerda de
+    // repuesto como Cejilla completa, así que se sustituye la 5ª — la
+    // nota menos esencial — por el color, técnica estándar en jazz real
+    // confirmada con fuentes externas antes de meterla). Solo cambia D3
+    // (la que hoy toca la 5ª); A2=raíz, G3=b7ª, B3=3ª quedan intactas.
+    // Verificado: A9 → A-B-G-C# (root-9ª-b7-3ª, sin 5ª, patrón real
+    // documentado). A11 → A-D-G-C# (root-11ª-b7-3ª, coincide EXACTO con
+    // la forma real de 11 documentada: "root, 3rd, 7th, 11th, 5th y 9ª
+    // omitidas"). A13 → A-F#-G-C# (root-13ª-b7-3ª, igual que el A13/D13
+    // reales que también excluyen la 5ª).
+    "9":  ["X", 0, 9, 0, 2, "X"],
+    "11": ["X", 0, 0, 0, 2, "X"],
+    "13": ["X", 0, 4, 0, 2, "X"],
   };
 
   // Cambio 301 (RECUPERADO — se había construido y verificado en una
@@ -4041,6 +4055,15 @@ body.s936-chart-stage main{
     "m7":   ["X", "X", 0, 2, 1, 1],
     "m7b5": ["X", "X", 0, 1, 1, 1],
     "dim7": ["X", "X", 0, 1, 0, 1],
+    // Cambio 312: mismo criterio que Base La — se sustituye la 5ª (aquí
+    // vive en G3) por el color, dejando D3=raíz, B3=b7ª, E4=3ª intactas.
+    // Verificado: D9 → D-E-C-F# (root-9ª-b7-3ª). D11 → D-G-C-F#
+    // (root-11ª-b7-3ª, mismo patrón real documentado sin 5ª ni 9ª).
+    // D13 → D-B-C-F# (root-13ª-b7-3ª, igual que el D13 real que también
+    // excluye la 5ª).
+    "9":  ["X", "X", 0, 9, 1, 2],
+    "11": ["X", "X", 0, 0, 1, 2],
+    "13": ["X", "X", 0, 4, 1, 2],
   };
 
   const FAMILIAS_CEJILLA = {
