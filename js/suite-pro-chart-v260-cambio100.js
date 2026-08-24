@@ -4255,6 +4255,16 @@ body.s936-chart-stage main{
     // la posición en gradosArriba ([1,7,5,3] para toda entrada, por
     // construcción del ciclo): 0=raíz,1=7ª,2=5ª,3=3ª.
     "1_3": [[0, 0], [3, 1], [1, 2], [4, 3]], // E4=raíz, D3=7ª, B3=5ª, A2=3ª
+    // Cambio 329: SEGUNDA asignación directa verificada para la misma
+    // Entrada I + Drop 3 — Val confirmó con 8 fotos reales (D7/Dm7/
+    // Ddim7/Dm7b5/G7/Gdim7/Gm7/Gm7b5) que existe otra variante con
+    // cuerdas mudas distintas: A2 y E4 (en vez de G3 y E2 de la de
+    // arriba). Sonando: E2-D3-G3-B3. Asignación directa (no por tono):
+    // E2=raíz, D3=7ª, G3=3ª, B3=5ª. 8/8 coincide, espacio de 1-2 trastes
+    // en todos los casos probados. Se guarda con clave distinta porque
+    // usa un set de cuerdas diferente para la MISMA entrada+drop — según
+    // cuál se pida en la Librería (variante identificada por sufijo "b").
+    "1_3b": [[5, 0], [3, 1], [2, 3], [1, 2]], // E2=raíz, D3=7ª, G3=3ª, B3=5ª
   };
 
   function asignarOrdenEntradaDrop(root, qualRaw, entrada, drop, orden) {
