@@ -5987,6 +5987,22 @@ body.s936-chart-stage main{
           // que el Cambio 317 original.
           inlineFrets = [...datos.frets];
           inlineNotes = null;
+          // Cambio 344: BUG encontrado — initInlineStateFromChord() es la
+          // única función que ajusta "fretStart" (el traste inicial
+          // visible), pero solo corre cuando resetFromPicker=true. Esta
+          // llamada usa deliberadamente resetFromPicker=false (para NO
+          // recalcular la digitación desde cero), así que fretStart se
+          // quedaba en lo que fuera antes — si la digitación elegida en
+          // la Librería cae en trastes altos (ej. 10-12), quedaba fuera
+          // de la ventana visible por defecto (1-6) y parecía que "no
+          // capturaba nada", cuando en realidad SÍ se había guardado
+          // bien, solo que fuera de vista. Se replica aquí el mismo
+          // cálculo de fretStart que usa initInlineStateFromChord.
+          const cfgLib = FRETBOARD_CONFIG[previewInst];
+          const numericLib = inlineFrets.filter(f => f !== null && f !== "X" && Number.isFinite(Number(f))).map(Number);
+          const minFLib = numericLib.length ? Math.min(...numericLib.filter(f => f > 0)) : 0;
+          const maxFLib = numericLib.length ? Math.max(...numericLib) : 0;
+          fretStart = Math.max(0, Math.min((cfgLib?.frets || 12) - visibleFrets, maxFLib > visibleFrets ? minFLib - 1 : 0));
           // resetFromPicker=false: se preserva la digitación que acabamos
           // de asignar, en vez de recalcularla desde cero por familia.
           renderInlineMap(false);
