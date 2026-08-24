@@ -4306,7 +4306,7 @@ body.s936-chart-stage main{
     { qualRaw: "dim7", label: "Disminuido 7" },
   ];
 
-  function abrirLibreriaJazzBossa(rootInicial, qualRawInicial) {
+  function abrirLibreriaJazzBossa(rootInicial, qualRawInicial, onUsarVoicing) {
     const existente = document.querySelector(".s936-libreria-jazz-overlay");
     if (existente) existente.remove();
 
@@ -4411,6 +4411,21 @@ body.s936-chart-stage main{
       notas.style.cssText = "margin-top:8px;font-size:13px;color:#2dd4bf;";
       notas.textContent = "Notas: " + resultado.notas.join(" · ") + " — verificado ✓";
       preview.appendChild(notas);
+
+      // Cambio 317: botón para aplicar esta digitación directo al editor
+      // principal, sin copiar nada a mano. Solo aparece si quien abrió la
+      // Librería pasó un callback (el editor grande sí lo pasa; si se
+      // abre la Librería de otra forma sin callback, este botón no sale).
+      if (typeof onUsarVoicing === "function") {
+        const btnUsar = document.createElement("button");
+        btnUsar.textContent = "→ Usar en el editor";
+        btnUsar.style.cssText = "margin-top:10px;background:#2dd4bf;color:#00201c;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;";
+        btnUsar.onclick = () => {
+          onUsarVoicing({ root, qualRaw, frets: resultado.frets });
+          overlay.remove();
+        };
+        preview.appendChild(btnUsar);
+      }
     }
 
     selRoot.onchange = () => { root = selRoot.value; actualizar(); };
@@ -5516,7 +5531,30 @@ body.s936-chart-stage main{
       btnLibreria.textContent = "Librería Jazz-Bossa";
       btnLibreria.onclick = (e) => {
         e.stopPropagation();
-        abrirLibreriaJazzBossa(root, qualRaw);
+        // Cambio 317: callback real — cuando el usuario da clic en
+        // "Usar en el editor" dentro de la Librería, esto actualiza
+        // Nota/Alteración/Calidad y el mapa del editor principal con la
+        // digitación exacta que eligió (ya verificada nota por nota),
+        // sin que tenga que copiar los números a mano.
+        abrirLibreriaJazzBossa(root, qualRaw, (datos) => {
+          const m = String(datos.root || "").match(/^([A-G])(#)?$/);
+          if (m) {
+            manualChordName = "";
+            selRoot = m[1];
+            selAcc = m[2] === "#" ? "#" : "♮";
+          }
+          if (qualValues.has(datos.qualRaw)) {
+            manualChordName = "";
+            selQual = datos.qualRaw;
+          }
+          setPickerClasses();
+          inlineFrets = [...datos.frets];
+          inlineNotes = null;
+          // resetFromPicker=false: se preserva la digitación que acabamos
+          // de asignar, en vez de recalcularla desde cero por familia.
+          renderInlineMap(false);
+          pulseLiveChordNow();
+        });
       };
 
       entradaRow.append(btnShell, btnLa, btnRe, btnLibreria);
