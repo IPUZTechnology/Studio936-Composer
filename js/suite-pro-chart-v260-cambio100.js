@@ -4587,23 +4587,80 @@ body.s936-chart-stage main{
     const dropSel = new Set();
     const ordenSel = new Set();
 
+    // Cambio 338: estilos propios inyectados una sola vez (scrollbar
+    // personalizado + transición suave de los pills + cursor de arrastre
+    // en el header). Se inyecta una sola vez por sesión de página, no en
+    // cada apertura, para no acumular <style> repetidos.
+    if (!document.getElementById("s936-libreria-style")) {
+      const style = document.createElement("style");
+      style.id = "s936-libreria-style";
+      style.textContent = `
+        .s936-libreria-panel::-webkit-scrollbar{width:9px;}
+        .s936-libreria-panel::-webkit-scrollbar-track{background:transparent;}
+        .s936-libreria-panel::-webkit-scrollbar-thumb{background:#2a3844;border-radius:6px;}
+        .s936-libreria-panel::-webkit-scrollbar-thumb:hover{background:#3a4d5c;}
+        .s936-libreria-panel{scrollbar-width:thin;scrollbar-color:#2a3844 transparent;}
+        .s936-libreria-pill{transition:background .12s ease,color .12s ease,border-color .12s ease,transform .08s ease;}
+        .s936-libreria-pill:hover{border-color:#2dd4bf !important;transform:translateY(-1px);}
+        .s936-libreria-header{cursor:move;user-select:none;}
+        .s936-libreria-fila:hover{background:#0f151b;}
+        .s936-libreria-chip{transition:border-color .12s ease;}
+        .s936-libreria-fila:hover .s936-libreria-chip{border-color:#2dd4bf;}
+      `;
+      document.head.appendChild(style);
+    }
+
     const overlay = document.createElement("div");
     overlay.className = "s936-libreria-jazz-overlay";
-    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;";
 
     const panel = document.createElement("div");
-    panel.style.cssText = "background:#141b22;border:1px solid #22303c;border-radius:12px;padding:20px;width:min(760px,95vw);max-height:88vh;overflow:auto;color:#e6edf3;font-family:inherit;";
+    panel.className = "s936-libreria-panel";
+    panel.style.cssText = "position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#141b22;border:1px solid #22303c;border-radius:12px;padding:20px 14px 20px 20px;width:min(760px,95vw);max-height:88vh;overflow:auto;color:#e6edf3;font-family:inherit;box-shadow:0 20px 60px rgba(0,0,0,.5);";
     overlay.appendChild(panel);
 
+    // Cambio 338: ventana flexible — se puede arrastrar desde el header
+    // y soltar en cualquier parte de la pantalla, en vez de quedar fija
+    // en el centro. Funciona con mouse y con dedo (pointer events cubre
+    // ambos). Se deja un margen de 20px para no perderla fuera de la
+    // pantalla.
     const header = document.createElement("div");
-    header.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;";
-    header.innerHTML = '<strong style="color:#2dd4bf;">Librería de acordes — Jazz y Bossa</strong>';
+    header.className = "s936-libreria-header";
+    header.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:2px;";
+    header.innerHTML = '<strong style="color:#2dd4bf;display:flex;align-items:center;gap:8px;"><span style="opacity:.5;font-size:13px;">⠿</span> Librería de acordes — Jazz y Bossa</strong>';
     const btnCerrar = document.createElement("button");
     btnCerrar.textContent = "✕";
     btnCerrar.style.cssText = "background:none;border:none;color:#8b98a5;font-size:16px;cursor:pointer;";
     btnCerrar.onclick = () => overlay.remove();
     header.appendChild(btnCerrar);
     panel.appendChild(header);
+
+    let arrastrando = false, offX = 0, offY = 0;
+    header.addEventListener("pointerdown", (e) => {
+      if (e.target === btnCerrar) return;
+      arrastrando = true;
+      const r = panel.getBoundingClientRect();
+      offX = e.clientX - r.left;
+      offY = e.clientY - r.top;
+      panel.style.transform = "none";
+      panel.style.left = r.left + "px";
+      panel.style.top = r.top + "px";
+      header.setPointerCapture(e.pointerId);
+    });
+    header.addEventListener("pointermove", (e) => {
+      if (!arrastrando) return;
+      const margen = 20;
+      const maxX = window.innerWidth - margen;
+      const maxY = window.innerHeight - margen;
+      let x = e.clientX - offX;
+      let y = e.clientY - offY;
+      x = Math.min(Math.max(x, -panel.offsetWidth + margen), maxX);
+      y = Math.min(Math.max(y, 0), maxY);
+      panel.style.left = x + "px";
+      panel.style.top = y + "px";
+    });
+    header.addEventListener("pointerup", () => { arrastrando = false; });
+    header.addEventListener("pointercancel", () => { arrastrando = false; });
 
     const fila = (label) => {
       const row = document.createElement("div");
@@ -4627,12 +4684,35 @@ body.s936-chart-stage main{
     selRoot.style.marginRight = "8px";
     rowRootQual.append(selRoot, selQual);
 
-    const rowEntrada = fila("Entrada (voz arriba) — sin elegir = todas");
-    const rowDrop = fila("Drop (voz(es) abajo) — sin elegir = todas");
-    const rowOrden = fila("Orden (qué 4 cuerdas) — sin elegir = todas");
+    // Cambio 338: cada grupo de filtro (Entrada/Drop/Orden) ahora vive
+    // dentro de su propia tarjeta con fondo y borde suave, en vez de
+    // texto+pills sueltos directamente sobre el fondo del panel — más
+    // fácil de escanear como grupos separados.
+    const grupoFiltros = document.createElement("div");
+    grupoFiltros.style.cssText = "display:flex;flex-direction:column;gap:10px;background:#0f151b;border:1px solid #1c2731;border-radius:10px;padding:12px 14px;margin-bottom:14px;";
+    panel.appendChild(grupoFiltros);
+    const filaEnGrupo = (label) => {
+      const row = document.createElement("div");
+      const lab = document.createElement("div");
+      lab.textContent = label;
+      lab.style.cssText = "font-size:11px;color:#8b98a5;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;";
+      row.appendChild(lab);
+      grupoFiltros.appendChild(row);
+      return row;
+    };
+    const rowEntrada = filaEnGrupo("Entrada (voz arriba) — sin elegir = todas");
+    const rowDrop = filaEnGrupo("Drop (voz(es) abajo) — sin elegir = todas");
+    const rowOrden = filaEnGrupo("Orden (qué 4 cuerdas) — sin elegir = todas");
+
+    // Cambio 338: la columna del mini-mapa pasa de "auto" (que dejaba
+    // que el diapasón se apretujara casi a cero de ancho, cortándolo) a
+    // un ancho fijo de 120px — ahora el mapa se ve completo en vez de
+    // solo un borde. Se guarda como constante para usarla igual en la
+    // cabecera y en cada fila.
+    const GRID_COLS = "1fr 2fr 120px";
 
     const cabecera = document.createElement("div");
-    cabecera.style.cssText = "display:grid;grid-template-columns:1fr 2.2fr auto;gap:0;font-size:11px;color:#8b98a5;padding:10px 8px 6px;border-bottom:1px solid #22303c;text-transform:uppercase;letter-spacing:.04em;margin-top:6px;";
+    cabecera.style.cssText = `display:grid;grid-template-columns:${GRID_COLS};gap:8px;font-size:11px;color:#8b98a5;padding:10px 8px 6px;border-bottom:1px solid #22303c;text-transform:uppercase;letter-spacing:.04em;`;
     cabecera.innerHTML = "<span>Acorde</span><span>Inversión (cuerdas usadas)</span><span>Mapa</span>";
     panel.appendChild(cabecera);
 
@@ -4666,8 +4746,8 @@ body.s936-chart-stage main{
         b.className = "s936-libreria-pill";
         b.textContent = op.label;
         const sel = seleccionados.has(op.valor);
-        b.style.cssText = "margin:0 6px 6px 0;padding:5px 10px;border-radius:14px;font-size:12px;cursor:pointer;" +
-          (sel ? "background:#2dd4bf;color:#00201c;border:none;" : "background:transparent;color:#8b98a5;border:1px solid #22303c;");
+        b.style.cssText = "margin:0 6px 6px 0;padding:5px 11px;border-radius:14px;font-size:12px;cursor:pointer;" +
+          (sel ? "background:#2dd4bf;color:#00201c;border:1px solid #2dd4bf;font-weight:600;" : "background:#141b22;color:#8b98a5;border:1px solid #22303c;");
         b.onclick = () => {
           seleccionados.has(op.valor) ? seleccionados.delete(op.valor) : seleccionados.add(op.valor);
           actualizar();
@@ -4700,31 +4780,48 @@ body.s936-chart-stage main{
               variantes.forEach(({ resultado, etiqueta }) => {
                 total++;
                 const fila2 = document.createElement("div");
-                fila2.style.cssText = "display:grid;grid-template-columns:1fr 2.2fr auto;gap:0;align-items:center;padding:8px;border-bottom:1px solid #1c2731;cursor:pointer;";
-                fila2.onmouseenter = () => { fila2.style.background = "#0f151b"; };
-                fila2.onmouseleave = () => { fila2.style.background = "transparent"; };
+                fila2.className = "s936-libreria-fila";
+                fila2.style.cssText = `display:grid;grid-template-columns:${GRID_COLS};gap:8px;align-items:center;padding:8px;border-bottom:1px solid #1c2731;cursor:pointer;`;
 
-                const nombreCol = document.createElement("span");
-                nombreCol.style.cssText = "font-weight:600;font-size:14px;";
-                nombreCol.textContent = root + cal.qualRaw; // qualRaw ya es el sufijo correcto (ej. "m7", "maj7", "")
+                // Cambio 338: la celda de acorde pasa de texto suelto a una
+                // "chip" con borde — raíz+calidad grande arriba, y si la
+                // combinación tiene más de una variante real, la etiqueta
+                // (Variante A/B) chiquita debajo, en vez de todo en una
+                // sola línea plana.
+                const nombreCol = document.createElement("div");
+                nombreCol.className = "s936-libreria-chip";
+                nombreCol.style.cssText = "display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;background:#0f151b;border:1px solid #22303c;border-radius:8px;padding:4px 10px;";
+                const nombreTxt = document.createElement("span");
+                nombreTxt.style.cssText = "font-weight:700;font-size:14px;color:#e6edf3;";
+                nombreTxt.textContent = root + cal.qualRaw; // qualRaw ya es el sufijo correcto (ej. "m7", "maj7", "")
+                nombreCol.appendChild(nombreTxt);
+                if (etiqueta && etiqueta !== "Variante A") {
+                  const varTxt = document.createElement("span");
+                  varTxt.style.cssText = "font-size:10px;color:#2dd4bf;letter-spacing:.03em;";
+                  varTxt.textContent = etiqueta;
+                  nombreCol.appendChild(varTxt);
+                }
 
                 const invCol = document.createElement("span");
                 invCol.style.cssText = "font-size:12px;color:#8b98a5;display:flex;align-items:center;gap:8px;";
                 const iconoWrap = document.createElement("span");
-                iconoWrap.style.color = "#8b98a5";
+                iconoWrap.style.cssText = "color:#8b98a5;flex-shrink:0;display:flex;";
                 // resultado.frets viene en orden E4→E2 (igual que
                 // FRETBOARD_CONFIG.guitar / CUERDAS_POR_ORDEN), pero
                 // iconoCuerdasFamilia espera grave→agudo (E2→E4), el mismo
                 // orden que ya usan los botones Jazz (Mi)/(La)/(Re) — hay
                 // que voltear el arreglo, si no las cuerdas salen al revés.
                 iconoWrap.innerHTML = iconoCuerdasFamilia([...resultado.frets].reverse().map(f => f !== "X"));
-                let texto = `${ent.label} · ${dr.label} · ${ord.label}`;
-                if (etiqueta && etiqueta !== "Variante A") texto += ` · ${etiqueta}`;
                 const textoSpan = document.createElement("span");
-                textoSpan.textContent = texto;
+                textoSpan.textContent = `${ent.label} · ${dr.label} · ${ord.label}`;
                 invCol.append(iconoWrap, textoSpan);
 
-                const mapaCol = document.createElement("span");
+                // Cambio 338: la columna del mapa ahora tiene ancho fijo
+                // (ver GRID_COLS) para que .s936-ch-fret-mini (width:100%)
+                // tenga un contenedor real del que sacar su tamaño, en vez
+                // de comprimirse a casi nada dentro de una columna "auto".
+                const mapaCol = document.createElement("div");
+                mapaCol.style.cssText = "width:100%;display:flex;align-items:center;";
                 mapaCol.appendChild(miniFret({ frets: resultado.frets }));
 
                 fila2.append(nombreCol, invCol, mapaCol);
