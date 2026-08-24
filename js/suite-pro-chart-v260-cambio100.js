@@ -4214,6 +4214,24 @@ body.s936-chart-stage main{
     const numericos = frets.filter(f => f !== "X");
     if (numericos.some(f => f > MAX_TRASTE_CEJILLA_RAZONABLE || f < 0)) return null;
 
+    // Cambio 318: Val detectó que algunos resultados quedaban "como para
+    // piano" — notas correctas mates, pero repartidas en trastes muy
+    // separados, imposibles de tocar con una sola mano. Causa: cada
+    // cuerda calcula su traste de forma independiente (mod 12), sin
+    // comparar contra las demás, así que una nota puede caer en el
+    // traste 1 y otra en el 9 aunque ambas sean la nota correcta. Se
+    // rechaza (igual que ya se hace con MAX_TRASTE_CEJILLA_RAZONABLE)
+    // cualquier resultado donde el rango entre el traste más bajo y el
+    // más alto pase de 4 — el máximo realista de una mano en una
+    // posición, sin cejilla adicional. Es una cota conservadora e
+    // internamente definida (como MAX_TRASTE_CEJILLA_RAZONABLE); si en
+    // la práctica Val toca aperturas de 5, se puede subir este número.
+    const MAX_ESPACIO_JUGABLE = 4;
+    if (numericos.length) {
+      const espacio = Math.max(...numericos) - Math.min(...numericos);
+      if (espacio > MAX_ESPACIO_JUGABLE) return null;
+    }
+
     // ── verificación cruzada obligatoria antes de devolver nada ──
     // Cambio 316: BUG ENCONTRADO — notasDesdeFrets() devuelve notas CON
     // octava (via midiToNote, ej. "C4"), pero gen.notas (notasEsperadas)
