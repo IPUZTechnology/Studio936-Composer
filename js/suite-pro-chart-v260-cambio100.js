@@ -4250,11 +4250,31 @@ body.s936-chart-stage main{
   // la calidad. Se guarda aparte de CUERDAS_EXCEPCION_POR_DROP porque
   // usa una lógica de asignación distinta (directa, no ordenada).
   // Pendiente confirmar si esto aplica igual a Entrada III/V/VII.
+  // Cambio 334: BUG ENCONTRADO — la clave de esta tabla era solo
+  // "orden_drop" (sin la Entrada), así que la excepción de cuerdas de
+  // Entrada I + Drop 3 + Primer Orden se estaba aplicando también a
+  // Entrada III (y a cualquier otra Entrada) con esa misma combinación
+  // orden+drop, sin haber sido verificada ahí. Val trajo hoy fotos
+  // reales de "Entrada III + Drop 3 + Primer Orden" (carpeta del ZIP
+  // "e3 3voz" = Entrada 3, voz 3 abajo) y el patrón de cuerdas mudas es
+  // DISTINTO al de Entrada I: usa el set normal del Primer Orden
+  // (D3-G3-B3-E4, mudas A2 y E2), no la excepción de Entrada I (que
+  // muta G3 y E2). Esto confirma lo que quedó pendiente en el Cambio
+  // 328/329 ("¿aplica igual a Entrada III/V/VII?") — la respuesta es
+  // NO. Se corrige agregando la Entrada a la clave: ahora es
+  // "entrada_orden_drop" en vez de "orden_drop", así cada Entrada tiene
+  // su propia excepción y ninguna otra Entrada la hereda por accidente.
+  // Entrada I sigue funcionando exactamente igual que antes (mismos
+  // datos, solo con la clave renombrada); Entrada III con esta
+  // combinación ahora cae correctamente al buscador general (Cambio
+  // 332), que ya da las notas correctas verificadas contra las fotos
+  // de hoy (Fm7b5/Fdim7/C7/Cmaj7/Fm7/Cm7, raíces F y C).
   const ASIGNACION_DIRECTA_POR_DROP = {
-    // "1_3": [ [stringIdx, gradoArribaIndex], ... ] — gradoArribaIndex es
-    // la posición en gradosArriba ([1,7,5,3] para toda entrada, por
-    // construcción del ciclo): 0=raíz,1=7ª,2=5ª,3=3ª.
-    "1_3": [[0, 0], [3, 1], [1, 2], [4, 3]], // E4=raíz, D3=7ª, B3=5ª, A2=3ª
+    // "1_1_3": [ [stringIdx, gradoArribaIndex], ... ] — gradoArribaIndex
+    // es la posición en gradosArriba ([1,7,5,3] para toda entrada, por
+    // construcción del ciclo): 0=raíz,1=7ª,2=5ª,3=3ª. Clave:
+    // entrada_orden_drop.
+    "1_1_3": [[0, 0], [3, 1], [1, 2], [4, 3]], // E4=raíz, D3=7ª, B3=5ª, A2=3ª
     // Cambio 329: SEGUNDA asignación directa verificada para la misma
     // Entrada I + Drop 3 — Val confirmó con 8 fotos reales (D7/Dm7/
     // Ddim7/Dm7b5/G7/Gdim7/Gm7/Gm7b5) que existe otra variante con
@@ -4264,7 +4284,7 @@ body.s936-chart-stage main{
     // en todos los casos probados. Se guarda con clave distinta porque
     // usa un set de cuerdas diferente para la MISMA entrada+drop — según
     // cuál se pida en la Librería (variante identificada por sufijo "b").
-    "1_3b": [[5, 0], [3, 1], [2, 3], [1, 2]], // E2=raíz, D3=7ª, G3=3ª, B3=5ª
+    "1_1_3b": [[5, 0], [3, 1], [2, 3], [1, 2]], // E2=raíz, D3=7ª, G3=3ª, B3=5ª
   };
 
   function calcularConAsignacionDirecta(gen, rootPc, cfg, directa) {
@@ -4306,7 +4326,9 @@ body.s936-chart-stage main{
     if (!gen) return null;
     const rootPc = PC[String(root || "").toUpperCase()];
     const cfg = FRETBOARD_CONFIG.guitar;
-    const claveExcepcion = orden + "_" + drop;
+    // Cambio 334: la clave ahora incluye la Entrada (antes era solo
+    // orden+drop) — ver comentario junto a ASIGNACION_DIRECTA_POR_DROP.
+    const claveExcepcion = entrada + "_" + orden + "_" + drop;
 
     // Cambio 333: digitación FIJADA (verificada exacta) tiene prioridad
     // sobre todo lo demás.
@@ -4429,7 +4451,8 @@ body.s936-chart-stage main{
     if (principal) variantes.push({ resultado: principal, etiqueta: "Variante A" });
 
     const gen = notasEntradaDrop(root, qualRaw, entrada, drop);
-    const claveB = orden + "_" + drop + "b";
+    // Cambio 334: clave con Entrada incluida (ver ASIGNACION_DIRECTA_POR_DROP).
+    const claveB = entrada + "_" + orden + "_" + drop + "b";
     const directaB = gen && ASIGNACION_DIRECTA_POR_DROP[claveB];
     if (directaB) {
       const rootPc = PC[String(root || "").toUpperCase()];
