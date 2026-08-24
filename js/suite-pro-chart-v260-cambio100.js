@@ -4208,9 +4208,21 @@ body.s936-chart-stage main{
   // versión parametrizada; cada arreglo ya viene ordenado grave→agudo
   // dentro de las 4 cuerdas de ese orden.
   const CUERDAS_POR_ORDEN = {
-    1: [3, 2, 1, 0], // Primer Orden: D3,G3,B3,E4 (grave→agudo)
-    2: [4, 3, 2, 1], // Segundo Orden: A2,D3,G3,B3
-    3: [5, 3, 2, 1], // Tercer Orden: E2,D3,G3,B3
+    1: [3, 2, 1, 0], // Primer Orden: D3,G3,B3,E4 (grave→agudo, verificado)
+    2: [4, 3, 2, 1], // Segundo Orden: A2,D3,G3,B3 (grave→agudo, verificado)
+    // Cambio 323: Tercer Orden NO sigue el orden grave→agudo puro. Con
+    // el único mapa real verificado (C7, Entrada I, Drop 2, foto de
+    // Val), la asignación real es G3,D3,E2,B3 — la Sol y la Mi grave
+    // van intercambiadas respecto al orden de tono. Con [5,3,2,1]
+    // (grave→agudo puro) el resultado matemáticamente correcto en notas
+    // quedaba con 6 trastes de separación (intocable); con este orden
+    // real da 2 trastes de separación, igual que la foto. Como Tercer
+    // Orden salta la 5ta cuerda (no son 4 cuerdas consecutivas), el
+    // patrón de "grave a agudo" que sí funciona en Primer y Segundo no
+    // aplica igual aquí. Verificado solo con esta una foto — si aparecen
+    // más ejemplos reales de Tercer Orden, hay que re-confirmar que esta
+    // regla se sostiene para otras entradas/calidades.
+    3: [2, 3, 5, 1], // Tercer Orden: G3,D3,E2,B3 (orden real, no por tono)
   };
 
   function asignarOrdenEntradaDrop(root, qualRaw, entrada, drop, orden) {
