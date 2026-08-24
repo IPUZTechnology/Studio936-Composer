@@ -139,7 +139,7 @@ window.Studio936SuiteProChart = (() => {
     guitar: {
       strings: ['E4', 'B3', 'G3', 'D3', 'A2', 'E2'],
       open: [64, 59, 55, 50, 45, 40],
-      frets: 15,
+      frets: 23,
       label: 'Guitarra'
     },
     ukulele: {
@@ -1878,13 +1878,22 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
 .s936-ch-ff.nut{width:3px;background:#00ffcc;box-shadow:0 0 4px rgba(0,255,204,.6)}
 .s936-ch-fd{
   position:absolute;
-  width:8px;
-  height:8px;
+  min-width:16px;
+  height:16px;
+  padding:0 2px;
   border-radius:50%;
   background:#00ffcc;
   transform:translate(-50%,-50%);
   box-shadow:0 0 6px rgba(0,255,204,.7);
   z-index:3;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:.42rem;
+  font-weight:900;
+  color:#00201c;
+  line-height:1;
+  white-space:nowrap;
 }
 .s936-ch-fm{position:absolute;color:rgba(255,80,80,.8);font-size:.5rem;font-weight:900;transform:translateX(-50%)}
 .s936-ch-capo{position:absolute;left:0;top:0;bottom:0;width:3px;background:rgba(255,224,102,.6);border-radius:0 2px 2px 0}
@@ -4072,7 +4081,7 @@ body.s936-chart-stage main{
     la:       { templates: LA_TEMPLATES,       ancla: "A" },
     re:       { templates: RE_TEMPLATES,       ancla: "D" },
   };
-  const MAX_TRASTE_CEJILLA_RAZONABLE = 15; // por encima de esto no se ofrece
+  const MAX_TRASTE_CEJILLA_RAZONABLE = 23; // guitarra eléctrica real (Cambio 321, antes 15)
 
   // ============================================================
   // CAMBIO 302 — MOTOR "ENTRADA + DROP" (módulo Jazz y Bossa).
@@ -4989,6 +4998,12 @@ body.s936-chart-stage main{
       wrap.appendChild(el);
     }
 
+    // Cambio 321: Val pidió ver el nombre de la nota justo en la casilla
+    // donde cae cada punto verde (no en todo el traste, solo ahí). Se
+    // calcula con la misma cuenta que ya usa el resto del sistema:
+    // nota_real = cuerda_al_aire + traste, mod 12 → nombre de nota.
+    const opensReversed = [...FRETBOARD_CONFIG.guitar.open].reverse();
+
     frets.forEach((fret, si) => {
       const top = (si + 0.5) / strings * 100;
       const strF = String(fret).toUpperCase();
@@ -5016,6 +5031,10 @@ body.s936-chart-stage main{
         const dot = document.createElement("div");
         dot.className = "s936-ch-fd";
         dot.style.cssText = `top:${top}%;left:${leftPct}%;z-index:3`;
+        const openMidi = opensReversed[si];
+        if (Number.isFinite(openMidi)) {
+          dot.textContent = NOTE_NAMES[(openMidi + f0) % 12];
+        }
         wrap.appendChild(dot);
       }
     });
