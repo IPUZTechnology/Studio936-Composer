@@ -4220,7 +4220,7 @@ body.s936-chart-stage main{
   // versión parametrizada; cada arreglo ya viene ordenado grave→agudo
   // dentro de las 4 cuerdas de ese orden.
   const CUERDAS_POR_ORDEN = {
-    1: [3, 2, 1, 0], // Primer Orden: D3,G3,B3,E4 (grave→agudo, verificado)
+    1: [3, 2, 1, 0], // Primer Orden: D3,G3,B3,E4 (grave→agudo, verificado — Drop 2)
     2: [4, 3, 2, 1], // Segundo Orden: A2,D3,G3,B3 (grave→agudo, verificado)
     // Cambio 324: CORRECCIÓN — el libro (páginas 6-7) decía "cuerdas
     // 2,3,4,6" para Tercer Orden, pero Val armó C7 en su propio editor
@@ -4234,11 +4234,59 @@ body.s936-chart-stage main{
     3: [5, 4, 3, 2], // Tercer Orden: E2,A2,D3,G3 (grave→agudo, verificado)
   };
 
+  // Cambio 328: DESCUBRIMIENTO IMPORTANTE — el set de 4 cuerdas de un
+  // orden NO es fijo sin importar el Drop. Val confirmó con 5 fotos
+  // reales (AM/A7/Am7/Adim7/Am7b5, Entrada I + Drop 3) que en ese caso
+  // las cuerdas mudas son la 6 y la 3 (Mi grave y Sol) — cuerdas 1,2,4,5
+  // (Mi agudo-Si-Re-La), NO las 1-4 normales de Primer Orden. Notas
+  // verificadas 5/5 contra las fotos.
+  //
+  // Además, como estas 4 cuerdas NO son consecutivas (saltan la 3ra,
+  // Sol), la asignación "grave a agudo por tono" que sí funciona en
+  // Primer/Segundo/Tercer con Drop 2 aquí daba una forma con 6 trastes
+  // de separación (intocable). La forma real (probada con las 5 fotos,
+  // espacio de 1 traste) es una asignación DIRECTA por rol de grado, no
+  // por orden de tono: Mi agudo=raíz, Re=7ª, Si=5ª, La=3ª — sin importar
+  // la calidad. Se guarda aparte de CUERDAS_EXCEPCION_POR_DROP porque
+  // usa una lógica de asignación distinta (directa, no ordenada).
+  // Pendiente confirmar si esto aplica igual a Entrada III/V/VII.
+  const ASIGNACION_DIRECTA_POR_DROP = {
+    // "1_3": [ [stringIdx, gradoArribaIndex], ... ] — gradoArribaIndex es
+    // la posición en gradosArriba ([1,7,5,3] para toda entrada, por
+    // construcción del ciclo): 0=raíz,1=7ª,2=5ª,3=3ª.
+    "1_3": [[0, 0], [3, 1], [1, 2], [4, 3]], // E4=raíz, D3=7ª, B3=5ª, A2=3ª
+  };
+
   function asignarOrdenEntradaDrop(root, qualRaw, entrada, drop, orden) {
     const gen = notasEntradaDrop(root, qualRaw, entrada, drop);
     if (!gen) return null;
     const rootPc = PC[String(root || "").toUpperCase()];
     const cfg = FRETBOARD_CONFIG.guitar;
+    const claveExcepcion = orden + "_" + drop;
+
+    // Camino de asignación DIRECTA (verificada con fotos reales) cuando
+    // existe para esta combinación orden+drop.
+    const directa = ASIGNACION_DIRECTA_POR_DROP[claveExcepcion];
+    if (directa) {
+      const frets = new Array(6).fill("X");
+      for (const [stringIdx, voiceIdx] of directa) {
+        const openPc = cfg.open[stringIdx] % 12;
+        const targetPc = ((rootPc + gen.offsets[voiceIdx]) % 12 + 12) % 12;
+        frets[stringIdx] = ((targetPc - openPc) % 12 + 12) % 12;
+      }
+      const numericosD = frets.filter(f => f !== "X");
+      if (numericosD.some(f => f > MAX_TRASTE_CEJILLA_RAZONABLE || f < 0)) return null;
+      const notasRealesD = new Set(notasDesdeFrets(frets, "guitar").map(n => n.replace(/-?\d+$/, "")));
+      const notasEsperadasD = new Set(gen.notas);
+      const coincideD = notasRealesD.size === notasEsperadasD.size &&
+        [...notasRealesD].every(n => notasEsperadasD.has(n));
+      if (!coincideD) {
+        console.error("[EntradaDrop] verificación cruzada (directa) FALLÓ", { root, qualRaw, entrada, drop, orden });
+        return null;
+      }
+      return { frets, notas: gen.notas, gradosArriba: gen.gradosArriba, verificado: true };
+    }
+
     const cuerdasUsadas = CUERDAS_POR_ORDEN[orden] || CUERDAS_POR_ORDEN[1];
     const voces = gen.offsets.map((offset, voiceIdx) => ({ voiceIdx, offset }));
     voces.sort((a, b) => a.offset - b.offset); // grave -> agudo real
