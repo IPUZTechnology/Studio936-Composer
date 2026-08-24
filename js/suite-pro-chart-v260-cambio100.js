@@ -4267,6 +4267,23 @@ body.s936-chart-stage main{
     "1_3b": [[5, 0], [3, 1], [2, 3], [1, 2]], // E2=raíz, D3=7ª, G3=3ª, B3=5ª
   };
 
+  function calcularConAsignacionDirecta(gen, rootPc, cfg, directa) {
+    const frets = new Array(6).fill("X");
+    for (const [stringIdx, voiceIdx] of directa) {
+      const openPc = cfg.open[stringIdx] % 12;
+      const targetPc = ((rootPc + gen.offsets[voiceIdx]) % 12 + 12) % 12;
+      frets[stringIdx] = ((targetPc - openPc) % 12 + 12) % 12;
+    }
+    const numericosD = frets.filter(f => f !== "X");
+    if (numericosD.some(f => f > MAX_TRASTE_CEJILLA_RAZONABLE || f < 0)) return null;
+    const notasRealesD = new Set(notasDesdeFrets(frets, "guitar").map(n => n.replace(/-?\d+$/, "")));
+    const notasEsperadasD = new Set(gen.notas);
+    const coincideD = notasRealesD.size === notasEsperadasD.size &&
+      [...notasRealesD].every(n => notasEsperadasD.has(n));
+    if (!coincideD) return null;
+    return { frets, notas: gen.notas, gradosArriba: gen.gradosArriba, verificado: true };
+  }
+
   function asignarOrdenEntradaDrop(root, qualRaw, entrada, drop, orden) {
     const gen = notasEntradaDrop(root, qualRaw, entrada, drop);
     if (!gen) return null;
@@ -4278,23 +4295,9 @@ body.s936-chart-stage main{
     // existe para esta combinación orden+drop.
     const directa = ASIGNACION_DIRECTA_POR_DROP[claveExcepcion];
     if (directa) {
-      const frets = new Array(6).fill("X");
-      for (const [stringIdx, voiceIdx] of directa) {
-        const openPc = cfg.open[stringIdx] % 12;
-        const targetPc = ((rootPc + gen.offsets[voiceIdx]) % 12 + 12) % 12;
-        frets[stringIdx] = ((targetPc - openPc) % 12 + 12) % 12;
-      }
-      const numericosD = frets.filter(f => f !== "X");
-      if (numericosD.some(f => f > MAX_TRASTE_CEJILLA_RAZONABLE || f < 0)) return null;
-      const notasRealesD = new Set(notasDesdeFrets(frets, "guitar").map(n => n.replace(/-?\d+$/, "")));
-      const notasEsperadasD = new Set(gen.notas);
-      const coincideD = notasRealesD.size === notasEsperadasD.size &&
-        [...notasRealesD].every(n => notasEsperadasD.has(n));
-      if (!coincideD) {
-        console.error("[EntradaDrop] verificación cruzada (directa) FALLÓ", { root, qualRaw, entrada, drop, orden });
-        return null;
-      }
-      return { frets, notas: gen.notas, gradosArriba: gen.gradosArriba, verificado: true };
+      const r = calcularConAsignacionDirecta(gen, rootPc, cfg, directa);
+      if (!r) console.error("[EntradaDrop] verificación cruzada (directa) FALLÓ", { root, qualRaw, entrada, drop, orden });
+      return r;
     }
 
     const cuerdasUsadas = CUERDAS_POR_ORDEN[orden] || CUERDAS_POR_ORDEN[1];
@@ -4365,6 +4368,32 @@ body.s936-chart-stage main{
     return { frets, notas: gen.notas, gradosArriba: gen.gradosArriba, verificado: true };
   }
 
+  // Cambio 330: Val pidió que cuando exista más de una digitación real
+  // verificada para la misma combinación Entrada+Drop+Orden (como pasa
+  // con Entrada I + Drop 3 + Primer, que tiene 2 variantes reales
+  // distintas — Cambios 328 y 329), la Librería las muestre AMBAS para
+  // elegir, en vez de forzar una sola. Esta función arma la lista
+  // completa: primero intenta la asignación normal del orden pedido, y
+  // si además hay una variante "b" guardada para esa misma clave
+  // orden+drop, la agrega como segunda opción. Devuelve un array de
+  // { resultado, etiqueta } — nunca vacío si al menos una funciona,
+  // vacío si ninguna es válida.
+  function obtenerVariantesEntradaDrop(root, qualRaw, entrada, drop, orden) {
+    const variantes = [];
+    const principal = asignarOrdenEntradaDrop(root, qualRaw, entrada, drop, orden);
+    if (principal) variantes.push({ resultado: principal, etiqueta: "Variante A" });
+
+    const gen = notasEntradaDrop(root, qualRaw, entrada, drop);
+    const claveB = orden + "_" + drop + "b";
+    const directaB = gen && ASIGNACION_DIRECTA_POR_DROP[claveB];
+    if (directaB) {
+      const rootPc = PC[String(root || "").toUpperCase()];
+      const cfg = FRETBOARD_CONFIG.guitar;
+      const b = calcularConAsignacionDirecta(gen, rootPc, cfg, directaB);
+      if (b) variantes.push({ resultado: b, etiqueta: "Variante B" });
+    }
+    return variantes;
+  }
   // Alias retrocompatible: Primer Orden es el default (orden=1, el que
   // corresponde a las fotos ya verificadas contra el ZIP).
   function asignarPrimerOrdenEntradaDrop(root, qualRaw, entrada, drop) {
@@ -4549,11 +4578,14 @@ body.s936-chart-stage main{
       ], orden, (v) => { orden = v; actualizar(); });
 
       preview.innerHTML = "";
-      const resultado = asignarOrdenEntradaDrop(root, qualRaw, entrada, drop, orden);
-      if (!resultado) {
-        // Cambio 320: si el orden elegido no funciona, se revisan los
-        // otros 2 y se avisa cuál sí serviría, en vez de solo decir "no
-        // disponible" sin más pista.
+      // Cambio 330: en vez de una sola digitación, se piden TODAS las
+      // variantes reales disponibles para esta combinación — la mayoría
+      // de casos solo tiene una (Variante A), pero cuando hay 2 formas
+      // verificadas distintas (como Entrada I + Drop 3 + Primer), se
+      // muestran ambas, cada una con su propio botón "Usar en el editor",
+      // en vez de forzar una sola.
+      const variantes = obtenerVariantesEntradaDrop(root, qualRaw, entrada, drop, orden);
+      if (!variantes.length) {
         const otros = [1, 2, 3].filter(o => o !== orden)
           .filter(o => asignarOrdenEntradaDrop(root, qualRaw, entrada, drop, o));
         const nombresOrden = { 1: "Primer", 2: "Segundo", 3: "Tercer" };
@@ -4562,26 +4594,39 @@ body.s936-chart-stage main{
           : '<div style="color:#e05a5a;font-size:13px;">No disponible en ningún orden para esta combinación — probar otra entrada/drop.</div>';
         return;
       }
-      preview.appendChild(miniFret({ frets: resultado.frets }));
-      const notas = document.createElement("div");
-      notas.style.cssText = "margin-top:8px;font-size:13px;color:#2dd4bf;";
-      notas.textContent = "Notas: " + resultado.notas.join(" · ") + " — verificado ✓";
-      preview.appendChild(notas);
 
-      // Cambio 317: botón para aplicar esta digitación directo al editor
-      // principal, sin copiar nada a mano. Solo aparece si quien abrió la
-      // Librería pasó un callback (el editor grande sí lo pasa; si se
-      // abre la Librería de otra forma sin callback, este botón no sale).
-      if (typeof onUsarVoicing === "function") {
-        const btnUsar = document.createElement("button");
-        btnUsar.textContent = "→ Usar en el editor";
-        btnUsar.style.cssText = "margin-top:10px;background:#2dd4bf;color:#00201c;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;";
-        btnUsar.onclick = () => {
-          onUsarVoicing({ root, qualRaw, frets: resultado.frets });
-          overlay.remove();
-        };
-        preview.appendChild(btnUsar);
-      }
+      variantes.forEach(({ resultado, etiqueta }) => {
+        const card = document.createElement("div");
+        card.style.cssText = variantes.length > 1
+          ? "border:1px solid #22303c;border-radius:8px;padding:10px;margin-bottom:10px;"
+          : "";
+        if (variantes.length > 1) {
+          const tag = document.createElement("div");
+          tag.style.cssText = "font-size:11px;color:#8b98a5;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;";
+          tag.textContent = etiqueta;
+          card.appendChild(tag);
+        }
+        card.appendChild(miniFret({ frets: resultado.frets }));
+        const notas = document.createElement("div");
+        notas.style.cssText = "margin-top:8px;font-size:13px;color:#2dd4bf;";
+        notas.textContent = "Notas: " + resultado.notas.join(" · ") + " — verificado ✓";
+        card.appendChild(notas);
+
+        // Cambio 317: botón para aplicar esta digitación directo al editor
+        // principal, sin copiar nada a mano. Solo aparece si quien abrió la
+        // Librería pasó un callback.
+        if (typeof onUsarVoicing === "function") {
+          const btnUsar = document.createElement("button");
+          btnUsar.textContent = "→ Usar en el editor";
+          btnUsar.style.cssText = "margin-top:10px;background:#2dd4bf;color:#00201c;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;";
+          btnUsar.onclick = () => {
+            onUsarVoicing({ root, qualRaw, frets: resultado.frets });
+            overlay.remove();
+          };
+          card.appendChild(btnUsar);
+        }
+        preview.appendChild(card);
+      });
     }
 
     selRoot.onchange = () => { root = selRoot.value; actualizar(); };
