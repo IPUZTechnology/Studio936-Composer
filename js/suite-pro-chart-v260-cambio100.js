@@ -4210,19 +4210,16 @@ body.s936-chart-stage main{
   const CUERDAS_POR_ORDEN = {
     1: [3, 2, 1, 0], // Primer Orden: D3,G3,B3,E4 (grave→agudo, verificado)
     2: [4, 3, 2, 1], // Segundo Orden: A2,D3,G3,B3 (grave→agudo, verificado)
-    // Cambio 323: Tercer Orden NO sigue el orden grave→agudo puro. Con
-    // el único mapa real verificado (C7, Entrada I, Drop 2, foto de
-    // Val), la asignación real es G3,D3,E2,B3 — la Sol y la Mi grave
-    // van intercambiadas respecto al orden de tono. Con [5,3,2,1]
-    // (grave→agudo puro) el resultado matemáticamente correcto en notas
-    // quedaba con 6 trastes de separación (intocable); con este orden
-    // real da 2 trastes de separación, igual que la foto. Como Tercer
-    // Orden salta la 5ta cuerda (no son 4 cuerdas consecutivas), el
-    // patrón de "grave a agudo" que sí funciona en Primer y Segundo no
-    // aplica igual aquí. Verificado solo con esta una foto — si aparecen
-    // más ejemplos reales de Tercer Orden, hay que re-confirmar que esta
-    // regla se sostiene para otras entradas/calidades.
-    3: [2, 3, 5, 1], // Tercer Orden: G3,D3,E2,B3 (orden real, no por tono)
+    // Cambio 324: CORRECCIÓN — el libro (páginas 6-7) decía "cuerdas
+    // 2,3,4,6" para Tercer Orden, pero Val armó C7 en su propio editor
+    // HOY (dato fresco y confiable, no una foto vieja ni dictado) y usa
+    // cuerdas 3,4,5,6 (Sol-Re-La-Mi grave) — SIN la cuerda Si. Verificado
+    // nota por nota: E2=A#(b7), A2=E(3ª), D3=G(5ª), G3=C(raíz), coincide
+    // exacto. Con este set de cuerdas SÍ son 4 consecutivas (3 a 6), así
+    // que la asignación es grave→agudo simple — igual que Primer y
+    // Segundo Orden —, sin el intercambio que se había inventado en el
+    // Cambio 323 para el set de cuerdas equivocado.
+    3: [5, 4, 3, 2], // Tercer Orden: E2,A2,D3,G3 (grave→agudo, verificado)
   };
 
   function asignarOrdenEntradaDrop(root, qualRaw, entrada, drop, orden) {
@@ -4384,7 +4381,7 @@ body.s936-chart-stage main{
     let qualRaw = CALIDADES_LIBRERIA.some(c => c.qualRaw === qualRawInicial) ? qualRawInicial : "7";
     let entrada = 1;
     let drop = 3;
-    let orden = 1; // Cambio 320: 1=Primer (cuerdas 1-4), 2=Segundo (2-5), 3=Tercer (2,3,4,6)
+    let orden = 1; // Cambio 324: 1=Primer (cuerdas 1-4), 2=Segundo (2-5), 3=Tercer (3-6)
 
     const overlay = document.createElement("div");
     overlay.className = "s936-libreria-jazz-overlay";
@@ -4478,7 +4475,7 @@ body.s936-chart-stage main{
       // las 3 reales de tu libro, cada una con su propio set de cuerdas.
       pillRow(rowOrden, [
         { valor: 1, label: "Primer (1-4)" }, { valor: 2, label: "Segundo (2-5)" },
-        { valor: 3, label: "Tercer (2,3,4,6)" },
+        { valor: 3, label: "Tercer (3-6)" },
       ], orden, (v) => { orden = v; actualizar(); });
 
       preview.innerHTML = "";
