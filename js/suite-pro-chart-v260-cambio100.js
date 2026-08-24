@@ -4998,10 +4998,17 @@ body.s936-chart-stage main{
   // (Mi-La-Re-Sol-Si-Mi), de arriba hacia abajo en el dibujo.
   function iconoCuerdasFamilia(usadas) {
     const w = 44, h = 34, n = 6;
-    const gap = h / (n - 1);
+    // Cambio 341: se agrega margen vertical (padY) — antes la primera y
+    // última línea tocaban el borde exacto del cuadro (y=0 y y=34), lo
+    // que hacía que este ícono se viera pegado arriba/abajo comparado con
+    // el de Librería (que sí tenía margen desde el principio). Ahora las
+    // 6 cuerdas quedan centradas dentro del mismo marco que usan todos
+    // los íconos del menú de familia.
+    const padY = 3;
+    const gap = (h - padY * 2) / (n - 1);
     let bars = "";
     for (let i = 0; i < n; i++) {
-      const y = i * gap;
+      const y = padY + i * gap;
       const on = !!usadas[i];
       bars += `<line x1="1" y1="${y}" x2="${w - 1}" y2="${y}" stroke="${on ? '#00ffcc' : 'rgba(255,255,255,.4)'}" stroke-width="${on ? 2.6 : 1.6}" stroke-linecap="round"/>`;
       if (on) bars += `<circle cx="${w / 2}" cy="${y}" r="2.8" fill="#00ffcc"/>`;
@@ -5596,7 +5603,16 @@ body.s936-chart-stage main{
     // así que no se ven ni se pueden usar, sin tener que tocar el resto
     // de la lógica de audio en vivo.
     audioRow.append(chordBtn, arpBtn);
-    leftPane.appendChild(audioRow);
+    // Cambio 342: Val pidió estos 2 botones más arriba — "al lado, debajo
+    // de las notas" — en vez de al final, después del slider de traste
+    // (donde quedaban colgando lejos, con un hueco grande de por medio).
+    // Se usa insertBefore(audioRow, mapLabel) en vez de appendChild
+    // porque mapLabel/mapBox/fretControls YA están en el DOM para cuando
+    // se llega a esta línea (se crean más abajo en el código, pero se
+    // insertan más arriba en la pantalla) — appendChild los habría puesto
+    // al final de todos modos; insertBefore los coloca justo después de
+    // notesLine, que es donde ya vive en el DOM justo antes de mapLabel.
+    leftPane.insertBefore(audioRow, mapLabel);
 
     // Cambio 310: Val confirmó borrar también las 2 líneas de texto de
     // ayuda (audioHint, hintLine) — se dejan creadas (por si algo más
@@ -5869,10 +5885,14 @@ body.s936-chart-stage main{
       const w = 44, h = 34;
       if (tipo === "natural") {
         // 6 líneas discontinuas — "varía según la nota", a diferencia de
-        // las cuerdas sólidas de las familias con forma fija.
+        // las cuerdas sólidas de las familias con forma fija. Mismo
+        // margen vertical (padY) que iconoCuerdasFamilia (Cambio 341)
+        // para que las 6 no queden pegadas al borde.
+        const padY = 3;
+        const gap = (h - padY * 2) / 5;
         let bars = "";
         for (let i = 0; i < 6; i++) {
-          const y = i * (h / 5);
+          const y = padY + i * gap;
           bars += `<line x1="1" y1="${y}" x2="${w - 1}" y2="${y}" stroke="rgba(255,255,255,.45)" stroke-width="1.6" stroke-dasharray="3,2" stroke-linecap="round"/>`;
         }
         return `<svg class="s936-picker-family-icon" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">${bars}</svg>`;
@@ -5960,11 +5980,19 @@ body.s936-chart-stage main{
             selQual = datos.qualRaw;
           }
           setPickerClasses();
-          // Cambio 339: datos.frets viene del motor Entrada+Drop en orden
-          // E4→E2 (agudo→grave, igual que FRETBOARD_CONFIG.guitar/
-          // CUERDAS_POR_ORDEN), pero inlineFrets espera el orden de
-          // tablatura estándar E2→E4 (grave→agudo) — hay que voltearlo.
-          inlineFrets = [...datos.frets].reverse();
+          // Cambio 341: CORRECCIÓN del Cambio 339 — ese cambio volteaba
+          // datos.frets pensando que inlineFrets necesitaba orden E2→E4
+          // (grave→agudo, como el catálogo GUITAR_SHAPES), pero es al
+          // revés: el propio código de generarDigitacion() dice
+          // explícitamente que entrega en grave→agudo, y
+          // calcFretVoicingConFamilia lo VOLTEA antes de entregarlo a
+          // inlineFrets (línea con "[...generado.frets].reverse()") — o
+          // sea que inlineFrets espera agudo→grave (E4 primero), el
+          // mismo orden nativo que YA usa CUERDAS_POR_ORDEN en el motor
+          // Entrada+Drop. El Cambio 339 volteaba algo que no debía
+          // voltearse. Esta es la versión correcta: sin volteo, igual
+          // que el Cambio 317 original.
+          inlineFrets = [...datos.frets];
           inlineNotes = null;
           // resetFromPicker=false: se preserva la digitación que acabamos
           // de asignar, en vez de recalcularla desde cero por familia.
