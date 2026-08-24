@@ -1878,22 +1878,13 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
 .s936-ch-ff.nut{width:3px;background:#00ffcc;box-shadow:0 0 4px rgba(0,255,204,.6)}
 .s936-ch-fd{
   position:absolute;
-  min-width:16px;
-  height:16px;
-  padding:0 2px;
+  width:8px;
+  height:8px;
   border-radius:50%;
   background:#00ffcc;
   transform:translate(-50%,-50%);
   box-shadow:0 0 6px rgba(0,255,204,.7);
   z-index:3;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:.42rem;
-  font-weight:900;
-  color:#00201c;
-  line-height:1;
-  white-space:nowrap;
 }
 .s936-ch-fm{position:absolute;color:rgba(255,80,80,.8);font-size:.5rem;font-weight:900;transform:translateX(-50%)}
 .s936-ch-capo{position:absolute;left:0;top:0;bottom:0;width:3px;background:rgba(255,224,102,.6);border-radius:0 2px 2px 0}
@@ -2279,6 +2270,8 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
   color:#04110e;
   border-color:#00ffcc;
   box-shadow:0 0 10px rgba(0,255,204,.35);
+  font-size:.52rem;
+  letter-spacing:-.02em;
 }
 .s936-picker-fret-cell.fret-btn.muted{
   background:rgba(255,80,80,.18);
@@ -4998,10 +4991,10 @@ body.s936-chart-stage main{
       wrap.appendChild(el);
     }
 
-    // Cambio 321: Val pidió ver el nombre de la nota justo en la casilla
-    // donde cae cada punto verde (no en todo el traste, solo ahí). Se
-    // calcula con la misma cuenta que ya usa el resto del sistema:
-    // nota_real = cuerda_al_aire + traste, mod 12 → nombre de nota.
+    // Cambio 322: Val aclaró que el nombre de nota lo quería SOLO en el
+    // mapa grande del editor (donde se seleccionan las notas a mano), no
+    // aquí en el mini-mapa — dijo que se ve feo en este tamaño chiquito.
+    // Se revierte esa parte del Cambio 321 solo para miniFret().
     const opensReversed = [...FRETBOARD_CONFIG.guitar.open].reverse();
 
     frets.forEach((fret, si) => {
@@ -5031,10 +5024,6 @@ body.s936-chart-stage main{
         const dot = document.createElement("div");
         dot.className = "s936-ch-fd";
         dot.style.cssText = `top:${top}%;left:${leftPct}%;z-index:3`;
-        const openMidi = opensReversed[si];
-        if (Number.isFinite(openMidi)) {
-          dot.textContent = NOTE_NAMES[(openMidi + f0) % 12];
-        }
         wrap.appendChild(dot);
       }
     });
@@ -5797,8 +5786,13 @@ body.s936-chart-stage main{
 
         frets.forEach((fret) => {
           const btn = document.createElement("button");
-          btn.className = "s936-picker-fret-cell fret-btn" + (Number(inlineFrets[sIndex]) === fret ? " active" : "");
-          btn.textContent = Number(inlineFrets[sIndex]) === fret ? "●" : "";
+          const activo = Number(inlineFrets[sIndex]) === fret;
+          btn.className = "s936-picker-fret-cell fret-btn" + (activo ? " active" : "");
+          // Cambio 322: Val pidió el nombre de la nota SOLO en el mapa
+          // grande del editor (donde se seleccionan las notas a mano),
+          // no en los mini-mapas chiquitos (Librería, miniaturas del
+          // Chart) — ahí se veía feo por el tamaño. Aquí sí hay espacio.
+          btn.textContent = activo ? NOTE_NAMES[(cfg.open[sIndex] + fret) % 12] : "";
           btn.onclick = (e) => {
             e.stopPropagation();
             inlineFrets[sIndex] = Number(inlineFrets[sIndex]) === fret ? null : fret;
@@ -5809,8 +5803,9 @@ body.s936-chart-stage main{
         });
 
         const openBtn = document.createElement("button");
-        openBtn.className = "s936-picker-fret-cell fret-btn headstock" + (Number(inlineFrets[sIndex]) === 0 ? " active" : "");
-        openBtn.textContent = "○";
+        const openActivo = Number(inlineFrets[sIndex]) === 0;
+        openBtn.className = "s936-picker-fret-cell fret-btn headstock" + (openActivo ? " active" : "");
+        openBtn.textContent = openActivo ? NOTE_NAMES[cfg.open[sIndex] % 12] : "○";
         openBtn.onclick = (e) => {
           e.stopPropagation();
           inlineFrets[sIndex] = Number(inlineFrets[sIndex]) === 0 ? null : 0;
