@@ -1886,7 +1886,7 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
   box-shadow:0 0 6px rgba(0,255,204,.7);
   z-index:3;
 }
-.s936-ch-fm{position:absolute;color:rgba(255,80,80,.8);font-size:.5rem;font-weight:900;transform:translateX(-50%)}
+.s936-ch-fm{position:absolute;color:rgba(255,80,80,.8);font-size:.5rem;font-weight:900;transform:translate(-50%,-50%)}
 .s936-ch-capo{position:absolute;left:0;top:0;bottom:0;width:3px;background:rgba(255,224,102,.6);border-radius:0 2px 2px 0}
 .s936-ch-fret-outer{
   display:flex;
