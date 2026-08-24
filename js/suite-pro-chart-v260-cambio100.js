@@ -4553,23 +4553,46 @@ body.s936-chart-stage main{
     { qualRaw: "m7b5", label: "m7(b5)" },
     { qualRaw: "dim7", label: "Disminuido 7" },
   ];
+  const ENTRADAS_LIBRERIA = [
+    { valor: 1, label: "Por I" }, { valor: 3, label: "Por III" },
+    { valor: 5, label: "Por V" }, { valor: 7, label: "Por VII" },
+  ];
+  const DROPS_LIBRERIA = [
+    { valor: null, label: "Cerrada" }, { valor: 2, label: "Drop 2" },
+    { valor: 3, label: "Drop 3" }, { valor: "2y4", label: "Drop 2 y 4" },
+  ];
+  const ORDENES_LIBRERIA = [
+    { valor: 1, label: "Primer (1-4)" }, { valor: 2, label: "Segundo (2-5)" },
+    { valor: 3, label: "Tercer (3-6)" },
+  ];
+  const TODAS_CALIDAD = "__TODAS__"; // centinela: "" ya significa Mayor
 
+  // Cambio 337: la Librería pasa de "una combinación a la vez" a una
+  // LISTA tipo Excel — Val pidió esto explícitamente: "que las liste
+  // todas, como en filas, con el nombre, la inversión, las cuerdas
+  // usadas en ícono, y el mapa". Entrada/Drop/Orden dejan de ser un
+  // único valor obligatorio y pasan a ser filtros de selección múltiple
+  // igual que Calidad: vacío = se muestran TODAS las combinaciones
+  // posibles; si eliges una o varias, la lista se reduce a esas. Val
+  // confirmó que está bien que salgan "repetidas" del mismo acorde en
+  // distinto Orden/Entrada/Drop — cada fila ya se distingue por su
+  // propia etiqueta de Inversión, así que no hay ambigüedad real.
   function abrirLibreriaJazzBossa(rootInicial, qualRawInicial, onUsarVoicing) {
     const existente = document.querySelector(".s936-libreria-jazz-overlay");
     if (existente) existente.remove();
 
     let root = ROOTS_LIBRERIA.includes(rootInicial) ? rootInicial : "A";
-    let qualRaw = CALIDADES_LIBRERIA.some(c => c.qualRaw === qualRawInicial) ? qualRawInicial : "7";
-    let entrada = 1;
-    let drop = 3;
-    let orden = 1; // Cambio 324: 1=Primer (cuerdas 1-4), 2=Segundo (2-5), 3=Tercer (3-6)
+    let qualFiltro = CALIDADES_LIBRERIA.some(c => c.qualRaw === qualRawInicial) ? qualRawInicial : TODAS_CALIDAD;
+    const entradaSel = new Set();
+    const dropSel = new Set();
+    const ordenSel = new Set();
 
     const overlay = document.createElement("div");
     overlay.className = "s936-libreria-jazz-overlay";
     overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;";
 
     const panel = document.createElement("div");
-    panel.style.cssText = "background:#141b22;border:1px solid #22303c;border-radius:12px;padding:20px;width:min(520px,92vw);color:#e6edf3;font-family:inherit;";
+    panel.style.cssText = "background:#141b22;border:1px solid #22303c;border-radius:12px;padding:20px;width:min(760px,95vw);max-height:88vh;overflow:auto;color:#e6edf3;font-family:inherit;";
     overlay.appendChild(panel);
 
     const header = document.createElement("div");
@@ -4598,17 +4621,28 @@ body.s936-chart-stage main{
     ROOTS_LIBRERIA.forEach(r => selRoot.add(new Option(r, r)));
     selRoot.value = root;
     const selQual = document.createElement("select");
+    selQual.add(new Option("Todas las calidades", TODAS_CALIDAD));
     CALIDADES_LIBRERIA.forEach(c => selQual.add(new Option(c.label, c.qualRaw)));
-    selQual.value = qualRaw;
+    selQual.value = qualFiltro;
     selRoot.style.marginRight = "8px";
     rowRootQual.append(selRoot, selQual);
 
-    const rowEntrada = fila("Entrada (voz arriba)");
-    const rowDrop = fila("Drop (voz(es) abajo)");
-    const rowOrden = fila("Orden (qué 4 cuerdas)");
-    const preview = document.createElement("div");
-    preview.style.cssText = "background:#0f151b;border:1px solid #22303c;border-radius:10px;padding:14px;margin-top:6px;min-height:120px;";
-    panel.appendChild(preview);
+    const rowEntrada = fila("Entrada (voz arriba) — sin elegir = todas");
+    const rowDrop = fila("Drop (voz(es) abajo) — sin elegir = todas");
+    const rowOrden = fila("Orden (qué 4 cuerdas) — sin elegir = todas");
+
+    const cabecera = document.createElement("div");
+    cabecera.style.cssText = "display:grid;grid-template-columns:1fr 2.2fr auto;gap:0;font-size:11px;color:#8b98a5;padding:10px 8px 6px;border-bottom:1px solid #22303c;text-transform:uppercase;letter-spacing:.04em;margin-top:6px;";
+    cabecera.innerHTML = "<span>Acorde</span><span>Inversión (cuerdas usadas)</span><span>Mapa</span>";
+    panel.appendChild(cabecera);
+
+    const filas = document.createElement("div");
+    panel.appendChild(filas);
+
+    const vacio = document.createElement("div");
+    vacio.style.cssText = "display:none;text-align:center;color:#8b98a5;font-size:13px;padding:24px 0;";
+    vacio.textContent = "Ninguna digitación posible con esta combinación todavía.";
+    panel.appendChild(vacio);
 
     const footer = document.createElement("div");
     footer.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-top:14px;";
@@ -4625,94 +4659,96 @@ body.s936-chart-stage main{
     footer.append(btnAutotest, autotestOut);
     panel.appendChild(footer);
 
-    function pillRow(container, opciones, valorActual, onPick) {
+    function pillRowMulti(container, opciones, seleccionados) {
       container.querySelectorAll(".s936-libreria-pill").forEach(el => el.remove());
       opciones.forEach(op => {
         const b = document.createElement("button");
         b.className = "s936-libreria-pill";
         b.textContent = op.label;
-        const sel = op.valor === valorActual;
-        b.style.cssText = "margin:0 6px 0 0;padding:5px 10px;border-radius:14px;font-size:12px;cursor:pointer;" +
+        const sel = seleccionados.has(op.valor);
+        b.style.cssText = "margin:0 6px 6px 0;padding:5px 10px;border-radius:14px;font-size:12px;cursor:pointer;" +
           (sel ? "background:#2dd4bf;color:#00201c;border:none;" : "background:transparent;color:#8b98a5;border:1px solid #22303c;");
-        b.onclick = () => onPick(op.valor);
+        b.onclick = () => {
+          seleccionados.has(op.valor) ? seleccionados.delete(op.valor) : seleccionados.add(op.valor);
+          actualizar();
+        };
         container.appendChild(b);
       });
     }
 
     function actualizar() {
-      pillRow(rowEntrada, [
-        { valor: 1, label: "Por I" }, { valor: 3, label: "Por III" },
-        { valor: 5, label: "Por V" }, { valor: 7, label: "Por VII" },
-      ], entrada, (v) => { entrada = v; actualizar(); });
+      pillRowMulti(rowEntrada, ENTRADAS_LIBRERIA, entradaSel);
+      pillRowMulti(rowDrop, DROPS_LIBRERIA, dropSel);
+      pillRowMulti(rowOrden, ORDENES_LIBRERIA, ordenSel);
 
-      pillRow(rowDrop, [
-        { valor: null, label: "Cerrada" }, { valor: 2, label: "Drop 2" },
-        { valor: 3, label: "Drop 3" }, { valor: "2y4", label: "Drop 2 y 4" },
-      ], drop, (v) => { drop = v; actualizar(); });
+      const calidades = qualFiltro === TODAS_CALIDAD ? CALIDADES_LIBRERIA : CALIDADES_LIBRERIA.filter(c => c.qualRaw === qualFiltro);
+      const entradas = entradaSel.size ? ENTRADAS_LIBRERIA.filter(e => entradaSel.has(e.valor)) : ENTRADAS_LIBRERIA;
+      const drops = dropSel.size ? DROPS_LIBRERIA.filter(d => dropSel.has(d.valor)) : DROPS_LIBRERIA;
+      const ordenes = ordenSel.size ? ORDENES_LIBRERIA.filter(o => ordenSel.has(o.valor)) : ORDENES_LIBRERIA;
 
-      // Cambio 320: selector de orden — Primer (cuerdas 1-4), Segundo
-      // (2-5), Tercer (2,3,4,6). Antes solo existía "Primer orden" y
-      // encima usaba las cuerdas equivocadas (E2-A2-D3-G3) — ahora son
-      // las 3 reales de tu libro, cada una con su propio set de cuerdas.
-      pillRow(rowOrden, [
-        { valor: 1, label: "Primer (1-4)" }, { valor: 2, label: "Segundo (2-5)" },
-        { valor: 3, label: "Tercer (3-6)" },
-      ], orden, (v) => { orden = v; actualizar(); });
+      filas.innerHTML = "";
+      let total = 0;
 
-      preview.innerHTML = "";
-      // Cambio 330: en vez de una sola digitación, se piden TODAS las
-      // variantes reales disponibles para esta combinación — la mayoría
-      // de casos solo tiene una (Variante A), pero cuando hay 2 formas
-      // verificadas distintas (como Entrada I + Drop 3 + Primer), se
-      // muestran ambas, cada una con su propio botón "Usar en el editor",
-      // en vez de forzar una sola.
-      const variantes = obtenerVariantesEntradaDrop(root, qualRaw, entrada, drop, orden);
-      if (!variantes.length) {
-        const otros = [1, 2, 3].filter(o => o !== orden)
-          .filter(o => asignarOrdenEntradaDrop(root, qualRaw, entrada, drop, o));
-        const nombresOrden = { 1: "Primer", 2: "Segundo", 3: "Tercer" };
-        preview.innerHTML = otros.length
-          ? `<div style="color:#e0b84a;font-size:13px;">No cabe en ${nombresOrden[orden]} Orden para esta combinación — prueba ${otros.map(o => nombresOrden[o]).join(" o ")} Orden.</div>`
-          : '<div style="color:#e05a5a;font-size:13px;">No disponible en ningún orden para esta combinación — probar otra entrada/drop.</div>';
-        return;
-      }
+      calidades.forEach(cal => {
+        entradas.forEach(ent => {
+          drops.forEach(dr => {
+            ordenes.forEach(ord => {
+              // Cambio 330: puede haber más de una variante real verificada
+              // para la misma combinación (ej. Entrada I+Drop3 tiene A y B) —
+              // se listan todas, cada una como su propia fila.
+              const variantes = obtenerVariantesEntradaDrop(root, cal.qualRaw, ent.valor, dr.valor, ord.valor);
+              variantes.forEach(({ resultado, etiqueta }) => {
+                total++;
+                const fila2 = document.createElement("div");
+                fila2.style.cssText = "display:grid;grid-template-columns:1fr 2.2fr auto;gap:0;align-items:center;padding:8px;border-bottom:1px solid #1c2731;cursor:pointer;";
+                fila2.onmouseenter = () => { fila2.style.background = "#0f151b"; };
+                fila2.onmouseleave = () => { fila2.style.background = "transparent"; };
 
-      variantes.forEach(({ resultado, etiqueta }) => {
-        const card = document.createElement("div");
-        card.style.cssText = variantes.length > 1
-          ? "border:1px solid #22303c;border-radius:8px;padding:10px;margin-bottom:10px;"
-          : "";
-        if (variantes.length > 1) {
-          const tag = document.createElement("div");
-          tag.style.cssText = "font-size:11px;color:#8b98a5;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;";
-          tag.textContent = etiqueta;
-          card.appendChild(tag);
-        }
-        card.appendChild(miniFret({ frets: resultado.frets }));
-        const notas = document.createElement("div");
-        notas.style.cssText = "margin-top:8px;font-size:13px;color:#2dd4bf;";
-        notas.textContent = "Notas: " + resultado.notas.join(" · ") + " — verificado ✓";
-        card.appendChild(notas);
+                const nombreCol = document.createElement("span");
+                nombreCol.style.cssText = "font-weight:600;font-size:14px;";
+                nombreCol.textContent = root + cal.qualRaw; // qualRaw ya es el sufijo correcto (ej. "m7", "maj7", "")
 
-        // Cambio 317: botón para aplicar esta digitación directo al editor
-        // principal, sin copiar nada a mano. Solo aparece si quien abrió la
-        // Librería pasó un callback.
-        if (typeof onUsarVoicing === "function") {
-          const btnUsar = document.createElement("button");
-          btnUsar.textContent = "→ Usar en el editor";
-          btnUsar.style.cssText = "margin-top:10px;background:#2dd4bf;color:#00201c;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;";
-          btnUsar.onclick = () => {
-            onUsarVoicing({ root, qualRaw, frets: resultado.frets });
-            overlay.remove();
-          };
-          card.appendChild(btnUsar);
-        }
-        preview.appendChild(card);
+                const invCol = document.createElement("span");
+                invCol.style.cssText = "font-size:12px;color:#8b98a5;display:flex;align-items:center;gap:8px;";
+                const iconoWrap = document.createElement("span");
+                iconoWrap.style.color = "#8b98a5";
+                // resultado.frets viene en orden E4→E2 (igual que
+                // FRETBOARD_CONFIG.guitar / CUERDAS_POR_ORDEN), pero
+                // iconoCuerdasFamilia espera grave→agudo (E2→E4), el mismo
+                // orden que ya usan los botones Jazz (Mi)/(La)/(Re) — hay
+                // que voltear el arreglo, si no las cuerdas salen al revés.
+                iconoWrap.innerHTML = iconoCuerdasFamilia([...resultado.frets].reverse().map(f => f !== "X"));
+                let texto = `${ent.label} · ${dr.label} · ${ord.label}`;
+                if (etiqueta && etiqueta !== "Variante A") texto += ` · ${etiqueta}`;
+                const textoSpan = document.createElement("span");
+                textoSpan.textContent = texto;
+                invCol.append(iconoWrap, textoSpan);
+
+                const mapaCol = document.createElement("span");
+                mapaCol.appendChild(miniFret({ frets: resultado.frets }));
+
+                fila2.append(nombreCol, invCol, mapaCol);
+
+                // Cambio 317 (conservado): aplicar la digitación directo al
+                // editor principal con un clic, sin copiar nada a mano.
+                if (typeof onUsarVoicing === "function") {
+                  fila2.onclick = () => {
+                    onUsarVoicing({ root, qualRaw: cal.qualRaw, frets: resultado.frets });
+                    overlay.remove();
+                  };
+                }
+                filas.appendChild(fila2);
+              });
+            });
+          });
+        });
       });
+
+      vacio.style.display = total ? "none" : "block";
     }
 
     selRoot.onchange = () => { root = selRoot.value; actualizar(); };
-    selQual.onchange = () => { qualRaw = selQual.value; actualizar(); };
+    selQual.onchange = () => { qualFiltro = selQual.value; actualizar(); };
 
     document.body.appendChild(overlay);
     actualizar();
