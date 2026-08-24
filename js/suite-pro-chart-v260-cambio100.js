@@ -1893,6 +1893,18 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
   flex-direction:column;
   gap:2px;
 }
+.s936-ch-string-label-mini{
+  position:absolute;
+  left:1px;
+  transform:translateY(-50%);
+  font-size:.36rem;
+  font-weight:700;
+  color:rgba(255,224,102,.75);
+  white-space:nowrap;
+  z-index:2;
+  pointer-events:none;
+  text-shadow:0 0 2px rgba(0,0,0,.9), 0 0 2px rgba(0,0,0,.9);
+}
 .s936-ch-fret-label-outer{
   text-align:right;
   color:#00ffcc;
@@ -4981,11 +4993,27 @@ body.s936-chart-stage main{
       wrap.appendChild(c);
     }
 
+    // Cambio 326: las etiquetas de cuerda van DENTRO de wrap, en el
+    // mismo bucle que ya dibuja las líneas de cuerda — mismo "top" que
+    // ya sabíamos que funciona. El intento anterior (Cambio 325, columna
+    // aparte fuera de wrap) se veía mal: los textos aparecían fuera de
+    // lugar (a la derecha, solo 2 de las 6) porque esa columna no tenía
+    // altura propia (todos sus hijos eran position:absolute, así que la
+    // columna colapsaba a 0px de alto y el % de "top" no tenía sobre qué
+    // calcularse). Aquí, wrap ya tiene una altura real fija, así que el
+    // mismo % que usan los puntos y las líneas funciona bien.
+    const stringNamesReversed = [...FRETBOARD_CONFIG.guitar.strings].reverse();
     for (let s = 0; s < strings; s++) {
       const el = document.createElement("div");
       el.className = "s936-ch-fs";
       el.style.top = ((s + 0.5) / strings * 100) + "%";
       wrap.appendChild(el);
+
+      const lbl = document.createElement("div");
+      lbl.className = "s936-ch-string-label-mini";
+      lbl.textContent = stringNamesReversed[s] || "";
+      lbl.style.top = ((s + 0.5) / strings * 100) + "%";
+      wrap.appendChild(lbl);
     }
 
     // Cambio 274: el eje horizontal se recalcula para dejar la franja de
