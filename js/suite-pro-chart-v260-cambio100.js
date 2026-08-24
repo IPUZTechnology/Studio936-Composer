@@ -4192,23 +4192,60 @@ body.s936-chart-stage main{
   // graves — E4 y B3 mudas). Ordena las voces por altura real (después
   // del drop) y las reparte de grave a aguda en esas 4 cuerdas. Frets
   // en el mismo orden que FRETBOARD_CONFIG.guitar (E4,B3,G3,D3,A2,E2).
-  function asignarPrimerOrdenEntradaDrop(root, qualRaw, entrada, drop) {
+  // Cambio 320: Val confirmó con las páginas de su libro (fotos nuevas)
+  // que "Primer/Segundo/Tercer Orden" es literalmente sobre CUÁLES 4
+  // cuerdas físicas se usan — no una familia nueva de acordes, solo un
+  // set de cuerdas distinto para las mismas fórmulas de Entrada+Drop:
+  //   Primer Orden  = cuerdas 1 a 4  → E4, B3, G3, D3 (índices 0,1,2,3)
+  //   Segundo Orden = cuerdas 2 a 5  → B3, G3, D3, A2 (índices 1,2,3,4)
+  //   Tercer Orden  = cuerdas 2,3,4,6 → B3, G3, D3, E2 (índices 1,2,3,5)
+  // (índices según FRETBOARD_CONFIG.guitar: 0=E4,1=B3,2=G3,3=D3,4=A2,5=E2)
+  // Lo que antes vivía aquí como "asignarPrimerOrdenEntradaDrop" en
+  // realidad usaba cuerdas E2-A2-D3-G3 (índices 5,4,3,2) — que no es
+  // ninguno de los 3 órdenes reales del libro. Se reemplaza por esta
+  // versión parametrizada; cada arreglo ya viene ordenado grave→agudo
+  // dentro de las 4 cuerdas de ese orden.
+  const CUERDAS_POR_ORDEN = {
+    1: [3, 2, 1, 0], // Primer Orden: D3,G3,B3,E4 (grave→agudo)
+    2: [4, 3, 2, 1], // Segundo Orden: A2,D3,G3,B3
+    3: [5, 3, 2, 1], // Tercer Orden: E2,D3,G3,B3
+  };
+
+  function asignarOrdenEntradaDrop(root, qualRaw, entrada, drop, orden) {
     const gen = notasEntradaDrop(root, qualRaw, entrada, drop);
     if (!gen) return null;
     const rootPc = PC[String(root || "").toUpperCase()];
     const cfg = FRETBOARD_CONFIG.guitar;
-    // orden low->high de las 4 cuerdas usadas: E2(5), A2(4), D3(3), G3(2)
-    const cuerdasUsadas = [5, 4, 3, 2];
+    const cuerdasUsadas = CUERDAS_POR_ORDEN[orden] || CUERDAS_POR_ORDEN[1];
     const voces = gen.offsets.map((offset, voiceIdx) => ({ voiceIdx, offset }));
     voces.sort((a, b) => a.offset - b.offset); // grave -> agudo real
     if (voces.length !== cuerdasUsadas.length) return null;
 
     const frets = new Array(6).fill("X");
+    // Cambio 319: antes cada cuerda calculaba su traste de forma
+    // independiente (mod 12, siempre 0-11), sin mirar a las demás — eso
+    // dejaba muchas combinaciones matemáticamente correctas pero
+    // repartidas en trastes lejanos (ej. traste 2 y traste 10 para la
+    // misma nota, según en qué cuerda cayera). Ahora, después de la
+    // primera cuerda, se prueba también la MISMA nota una octava arriba
+    // o abajo (+12/-12 trastes) y se elige la opción que quede más cerca
+    // de la cuerda anterior — reduce el espacio real cuando existe una
+    // alternativa más compacta, sin cambiar ninguna nota.
+    let prevFret = null;
     voces.forEach((v, i) => {
       const stringIdx = cuerdasUsadas[i];
       const openPc = cfg.open[stringIdx] % 12;
       const targetPc = ((rootPc + v.offset) % 12 + 12) % 12;
-      frets[stringIdx] = ((targetPc - openPc) % 12 + 12) % 12;
+      const base = ((targetPc - openPc) % 12 + 12) % 12;
+      let fret = base;
+      if (prevFret !== null) {
+        const candidatos = [base, base + 12, base - 12]
+          .filter(f => f >= 0 && f <= MAX_TRASTE_CEJILLA_RAZONABLE);
+        candidatos.sort((a, b) => Math.abs(a - prevFret) - Math.abs(b - prevFret));
+        fret = candidatos[0];
+      }
+      frets[stringIdx] = fret;
+      prevFret = fret;
     });
 
     const numericos = frets.filter(f => f !== "X");
@@ -4216,16 +4253,14 @@ body.s936-chart-stage main{
 
     // Cambio 318: Val detectó que algunos resultados quedaban "como para
     // piano" — notas correctas mates, pero repartidas en trastes muy
-    // separados, imposibles de tocar con una sola mano. Causa: cada
-    // cuerda calcula su traste de forma independiente (mod 12), sin
-    // comparar contra las demás, así que una nota puede caer en el
-    // traste 1 y otra en el 9 aunque ambas sean la nota correcta. Se
-    // rechaza (igual que ya se hace con MAX_TRASTE_CEJILLA_RAZONABLE)
-    // cualquier resultado donde el rango entre el traste más bajo y el
-    // más alto pase de 4 — el máximo realista de una mano en una
-    // posición, sin cejilla adicional. Es una cota conservadora e
-    // internamente definida (como MAX_TRASTE_CEJILLA_RAZONABLE); si en
-    // la práctica Val toca aperturas de 5, se puede subir este número.
+    // separados, imposibles de tocar con una sola mano. Se rechaza
+    // (igual que ya se hace con MAX_TRASTE_CEJILLA_RAZONABLE) cualquier
+    // resultado donde el rango entre el traste más bajo y el más alto
+    // pase de 4 — el máximo realista de una mano en una posición, sin
+    // cejilla adicional. Con la elección de octava más cercana (arriba)
+    // muchos casos que antes caían aquí ahora sí caben; los que siguen
+    // sin caber es porque de verdad no existe una forma compacta para
+    // esa combinación concreta de entrada/drop/calidad/orden.
     const MAX_ESPACIO_JUGABLE = 4;
     if (numericos.length) {
       const espacio = Math.max(...numericos) - Math.min(...numericos);
@@ -4235,21 +4270,24 @@ body.s936-chart-stage main{
     // ── verificación cruzada obligatoria antes de devolver nada ──
     // Cambio 316: BUG ENCONTRADO — notasDesdeFrets() devuelve notas CON
     // octava (via midiToNote, ej. "C4"), pero gen.notas (notasEsperadas)
-    // son nombres de nota SIN octava (ej. "C"). La comparación nunca
-    // podía coincidir, así el cálculo estuviera perfecto — por eso la
-    // Librería casi siempre mostraba "No disponible", en el 100% de los
-    // casos probados (barrido de 1344 combinaciones: 0 pasaban antes de
-    // este fix). Se le quita la octava a notasReales antes de comparar.
+    // son nombres de nota SIN octava (ej. "C"). Se le quita la octava a
+    // notasReales antes de comparar.
     const notasReales = new Set(notasDesdeFrets(frets, "guitar").map(n => n.replace(/-?\d+$/, "")));
     const notasEsperadas = new Set(gen.notas);
     const coincide = notasReales.size === notasEsperadas.size &&
       [...notasReales].every(n => notasEsperadas.has(n));
     if (!coincide) {
-      console.error("[EntradaDrop] verificación cruzada FALLÓ", { root, qualRaw, entrada, drop, notasReales: [...notasReales], notasEsperadas: [...notasEsperadas] });
+      console.error("[EntradaDrop] verificación cruzada FALLÓ", { root, qualRaw, entrada, drop, orden, notasReales: [...notasReales], notasEsperadas: [...notasEsperadas] });
       return null; // nunca se muestra un voicing que no pasó la verificación
     }
 
     return { frets, notas: gen.notas, gradosArriba: gen.gradosArriba, verificado: true };
+  }
+
+  // Alias retrocompatible: Primer Orden es el default (orden=1, el que
+  // corresponde a las fotos ya verificadas contra el ZIP).
+  function asignarPrimerOrdenEntradaDrop(root, qualRaw, entrada, drop) {
+    return asignarOrdenEntradaDrop(root, qualRaw, entrada, drop, 1);
   }
 
   // ─── AUTOTEST — los 44 acordes verificados a mano contra el ZIP y
@@ -4303,7 +4341,7 @@ body.s936-chart-stage main{
   }
 
   window.Studio936EntradaDrop = {
-    generarEntradaDrop, notasEntradaDrop, asignarPrimerOrdenEntradaDrop,
+    generarEntradaDrop, notasEntradaDrop, asignarPrimerOrdenEntradaDrop, asignarOrdenEntradaDrop,
     notasDesdeFrets, autotest: autotestEntradaDrop,
   };
 
@@ -4332,6 +4370,7 @@ body.s936-chart-stage main{
     let qualRaw = CALIDADES_LIBRERIA.some(c => c.qualRaw === qualRawInicial) ? qualRawInicial : "7";
     let entrada = 1;
     let drop = 3;
+    let orden = 1; // Cambio 320: 1=Primer (cuerdas 1-4), 2=Segundo (2-5), 3=Tercer (2,3,4,6)
 
     const overlay = document.createElement("div");
     overlay.className = "s936-libreria-jazz-overlay";
@@ -4374,6 +4413,7 @@ body.s936-chart-stage main{
 
     const rowEntrada = fila("Entrada (voz arriba)");
     const rowDrop = fila("Drop (voz(es) abajo)");
+    const rowOrden = fila("Orden (qué 4 cuerdas)");
     const preview = document.createElement("div");
     preview.style.cssText = "background:#0f151b;border:1px solid #22303c;border-radius:10px;padding:14px;margin-top:6px;min-height:120px;";
     panel.appendChild(preview);
@@ -4418,10 +4458,27 @@ body.s936-chart-stage main{
         { valor: 3, label: "Drop 3" }, { valor: "2y4", label: "Drop 2 y 4" },
       ], drop, (v) => { drop = v; actualizar(); });
 
+      // Cambio 320: selector de orden — Primer (cuerdas 1-4), Segundo
+      // (2-5), Tercer (2,3,4,6). Antes solo existía "Primer orden" y
+      // encima usaba las cuerdas equivocadas (E2-A2-D3-G3) — ahora son
+      // las 3 reales de tu libro, cada una con su propio set de cuerdas.
+      pillRow(rowOrden, [
+        { valor: 1, label: "Primer (1-4)" }, { valor: 2, label: "Segundo (2-5)" },
+        { valor: 3, label: "Tercer (2,3,4,6)" },
+      ], orden, (v) => { orden = v; actualizar(); });
+
       preview.innerHTML = "";
-      const resultado = asignarPrimerOrdenEntradaDrop(root, qualRaw, entrada, drop);
+      const resultado = asignarOrdenEntradaDrop(root, qualRaw, entrada, drop, orden);
       if (!resultado) {
-        preview.innerHTML = '<div style="color:#e05a5a;font-size:13px;">No disponible en Primer orden para esta combinación (o no pasó la verificación cruzada) — probar otra entrada/drop.</div>';
+        // Cambio 320: si el orden elegido no funciona, se revisan los
+        // otros 2 y se avisa cuál sí serviría, en vez de solo decir "no
+        // disponible" sin más pista.
+        const otros = [1, 2, 3].filter(o => o !== orden)
+          .filter(o => asignarOrdenEntradaDrop(root, qualRaw, entrada, drop, o));
+        const nombresOrden = { 1: "Primer", 2: "Segundo", 3: "Tercer" };
+        preview.innerHTML = otros.length
+          ? `<div style="color:#e0b84a;font-size:13px;">No cabe en ${nombresOrden[orden]} Orden para esta combinación — prueba ${otros.map(o => nombresOrden[o]).join(" o ")} Orden.</div>`
+          : '<div style="color:#e05a5a;font-size:13px;">No disponible en ningún orden para esta combinación — probar otra entrada/drop.</div>';
         return;
       }
       preview.appendChild(miniFret({ frets: resultado.frets }));
