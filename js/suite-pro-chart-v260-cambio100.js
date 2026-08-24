@@ -5603,16 +5603,9 @@ body.s936-chart-stage main{
     // así que no se ven ni se pueden usar, sin tener que tocar el resto
     // de la lógica de audio en vivo.
     audioRow.append(chordBtn, arpBtn);
-    // Cambio 342: Val pidió estos 2 botones más arriba — "al lado, debajo
-    // de las notas" — en vez de al final, después del slider de traste
-    // (donde quedaban colgando lejos, con un hueco grande de por medio).
-    // Se usa insertBefore(audioRow, mapLabel) en vez de appendChild
-    // porque mapLabel/mapBox/fretControls YA están en el DOM para cuando
-    // se llega a esta línea (se crean más abajo en el código, pero se
-    // insertan más arriba en la pantalla) — appendChild los habría puesto
-    // al final de todos modos; insertBefore los coloca justo después de
-    // notesLine, que es donde ya vive en el DOM justo antes de mapLabel.
-    leftPane.insertBefore(audioRow, mapLabel);
+    // Cambio 343: audioRow (▶ Acorde / ✦ Arpegio) se movió al panel
+    // derecho, justo encima de Aplicar/Cancelar — ver más abajo, junto a
+    // "acts". Ya no se inserta aquí en leftPane.
 
     // Cambio 310: Val confirmó borrar también las 2 líneas de texto de
     // ayuda (audioHint, hintLine) — se dejan creadas (por si algo más
@@ -6351,6 +6344,13 @@ body.s936-chart-stage main{
     const delBtn = document.createElement("button");
     delBtn.className = "s936-picker-del";
     delBtn.textContent = "Cancelar";
+    // Cambio 343: Val marcó con flecha que quería ▶ Acorde/✦ Arpegio
+    // aquí, junto a Aplicar/Cancelar en el panel derecho — no debajo de
+    // Notas en el izquierdo (Cambio 342, revertido). audioRow ya existe
+    // (creado más arriba en esta misma función); solo se agrega al DOM
+    // en este punto, justo antes de "acts", así queda arriba de los 2
+    // botones finales.
+    rightPane.appendChild(audioRow);
     acts.append(okBtn, delBtn);
     rightPane.appendChild(acts);
 
