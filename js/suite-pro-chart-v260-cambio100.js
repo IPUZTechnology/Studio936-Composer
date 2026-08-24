@@ -4285,6 +4285,20 @@ body.s936-chart-stage main{
     // usa un set de cuerdas diferente para la MISMA entrada+drop — según
     // cuál se pida en la Librería (variante identificada por sufijo "b").
     "1_1_3b": [[5, 0], [3, 1], [2, 3], [1, 2]], // E2=raíz, D3=7ª, G3=3ª, B3=5ª
+
+    // Cambio 335: Entrada III + Drop "2y4" — Val trajo 8 fotos reales
+    // (Gmaj7/G7/Gm7/Gm7b5/Gdim7 y D7/Dm7/Dm7b5) y describió el patrón de
+    // mudas de memoria (no midiéndolo cuerda por cuerda): "los Sol
+    // omiten E2 y G, los Re omiten D y E4". Verificado nota por nota
+    // contra las 8 fotos, con el mismo formato de rol fijo (no por
+    // tono) que ya se usaba en "1_1_3"/"1_1_3b" — y resulta ser
+    // EXACTAMENTE el mismo layout de cuerdas E4-D3-B3-A2 que la
+    // Variante A de Entrada I + Drop 3 (misma forma física, roles
+    // distintos porque cambia la Entrada). Probado también con raíces
+    // fuera de las fotos (C, A) para confirmar que la fórmula es
+    // universal, no exclusiva de Sol/Re — 44/44 autotest intacto.
+    "3_1_2y4": [[0, 0], [3, 1], [1, 2], [4, 3]], // E4=3ª, D3=raíz, B3=7ª, A2=5ª ("patrón Sol")
+    "3_1_2y4b": [[1, 0], [4, 1], [2, 2], [5, 3]], // B3=3ª, A2=raíz, G3=7ª, E2=5ª ("patrón Re")
   };
 
   function calcularConAsignacionDirecta(gen, rootPc, cfg, directa) {
