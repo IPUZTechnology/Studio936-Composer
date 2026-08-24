@@ -5275,6 +5275,17 @@ body.s936-chart-stage main{
 
     const ROOTS = ["C","D","E","F","G","A","B"];
     const ACCS  = ["♮","#","b"];
+    // Cambio 336: se QUITAN "maj9", "m6" y "5" (power chord) del selector.
+    // Auditoría completa (pedida por Val) confirmó que estas 3 no tienen
+    // NINGUNA digitación real en ninguna de las 12 notas — ni fórmula de
+    // familia, ni catálogo viejo. Antes, elegirlas mostraba un mapa que
+    // parecía un resultado (ej. Faug mostraba las 6 cuerdas al aire) pero
+    // en realidad era un vacío disfrazado — mismo tipo de "sustitución
+    // silenciosa" que ya se corrigió en otros lugares (Cambios 290/313).
+    // Quedan pendientes 6 calidades más (Dim, Aug, Sus2, m9, add9, 6) que
+    // SÍ tienen datos pero solo en 2-5 de las 12 notas — esas se dejan
+    // por ahora porque sí sirven en esas notas puntuales; ver auditoría
+    // completa en el HANDOFF de esta sesión.
     const QUALS = [
       ["",      "Mayor"],
       ["m",     "Menor"],
@@ -5289,13 +5300,10 @@ body.s936-chart-stage main{
       ["sus2",  "Sus2"],
       ["9",     "9"],
       ["m9",    "m9"],
-      ["maj9",  "Maj9"],
       ["11",    "11"],
       ["13",    "13"],
       ["add9",  "add9"],
       ["6",     "6"],
-      ["m6",    "m6"],
-      ["5",     "5 (power)"],
     ];
 
     const previewInst = INSTRUMENTS.some(i => i.id === inst) ? inst : (_chartInstrument || "piano");
