@@ -4284,12 +4284,39 @@ body.s936-chart-stage main{
     return { frets, notas: gen.notas, gradosArriba: gen.gradosArriba, verificado: true };
   }
 
+  // Cambio 333: Val eligió Opción B — las digitaciones que YA verificó
+  // exactas (tocándolas en su propio editor, no solo el contenido de
+  // notas) quedan FIJAS, sin importar qué encuentre el buscador general
+  // de la mejor posición (Cambio 332). El buscador general solo entra a
+  // resolver los casos que todavía no tienen un dato exacto verificado
+  // (como FM, que sí necesitaba el buscador para no quedar disperso).
+  // Formato igual al de ASIGNACION_DIRECTA_POR_DROP: [stringIdx,
+  // gradoArribaIndex]. Clave: orden_entrada_drop (sin el root — la
+  // fórmula se desliza igual a cualquier nota).
+  const DIGITACION_FIJADA = {
+    // Tercer Orden + Entrada I + Drop 2: Val armó C7 en su propio editor
+    // (Cambio 324) — E2=b7(6), A2=3ª(7), D3=5ª(5), G3=raíz(5). Se guarda
+    // así en vez de dejar que el buscador general elija otra posición
+    // igual de compacta mate distinta a la que él realmente toca.
+    "3_1_2": [[5, 1], [4, 3], [3, 2], [2, 0]],
+  };
+
   function asignarOrdenEntradaDrop(root, qualRaw, entrada, drop, orden) {
     const gen = notasEntradaDrop(root, qualRaw, entrada, drop);
     if (!gen) return null;
     const rootPc = PC[String(root || "").toUpperCase()];
     const cfg = FRETBOARD_CONFIG.guitar;
     const claveExcepcion = orden + "_" + drop;
+
+    // Cambio 333: digitación FIJADA (verificada exacta) tiene prioridad
+    // sobre todo lo demás.
+    const fijada = DIGITACION_FIJADA[orden + "_" + entrada + "_" + drop];
+    if (fijada) {
+      const r = calcularConAsignacionDirecta(gen, rootPc, cfg, fijada);
+      if (r) return r;
+      // si por algún motivo no pasa la verificación (no debería pasar
+      // nunca, ya está probada), cae al camino normal en vez de fallar.
+    }
 
     // Camino de asignación DIRECTA (verificada con fotos reales) cuando
     // existe para esta combinación orden+drop.
@@ -4302,35 +4329,53 @@ body.s936-chart-stage main{
 
     const cuerdasUsadas = CUERDAS_POR_ORDEN[orden] || CUERDAS_POR_ORDEN[1];
     const voces = gen.offsets.map((offset, voiceIdx) => ({ voiceIdx, offset }));
-    voces.sort((a, b) => a.offset - b.offset); // grave -> agudo real
     if (voces.length !== cuerdasUsadas.length) return null;
 
-    const frets = new Array(6).fill("X");
-    // Cambio 319: antes cada cuerda calculaba su traste de forma
-    // independiente (mod 12, siempre 0-11), sin mirar a las demás — eso
-    // dejaba muchas combinaciones matemáticamente correctas pero
-    // repartidas en trastes lejanos (ej. traste 2 y traste 10 para la
-    // misma nota, según en qué cuerda cayera). Ahora, después de la
-    // primera cuerda, se prueba también la MISMA nota una octava arriba
-    // o abajo (+12/-12 trastes) y se elige la opción que quede más cerca
-    // de la cuerda anterior — reduce el espacio real cuando existe una
-    // alternativa más compacta, sin cambiar ninguna nota.
-    let prevFret = null;
-    voces.forEach((v, i) => {
-      const stringIdx = cuerdasUsadas[i];
-      const openPc = cfg.open[stringIdx] % 12;
-      const targetPc = ((rootPc + v.offset) % 12 + 12) % 12;
-      const base = ((targetPc - openPc) % 12 + 12) % 12;
-      let fret = base;
-      if (prevFret !== null) {
-        const candidatos = [base, base + 12, base - 12]
-          .filter(f => f >= 0 && f <= MAX_TRASTE_CEJILLA_RAZONABLE);
-        candidatos.sort((a, b) => Math.abs(a - prevFret) - Math.abs(b - prevFret));
-        fret = candidatos[0];
+    // Cambio 332: BUSCAR LA MEJOR ASIGNACIÓN REAL, no solo aproximarla.
+    // El método anterior (Cambio 319) ordenaba las voces por tono y las
+    // encadenaba cuerda por cuerda, eligiendo en cada paso la octava más
+    // cercana SOLO a la cuerda inmediatamente anterior — un método
+    // voraz que puede quedarse atascado en una solución mediocre sin
+    // explorar el resto. Ejemplo real encontrado: FM (Entrada III, Drop
+    // 2, Primer Orden) daba espacio de 5 trastes con el método viejo,
+    // cuando probando TODAS las combinaciones (qué voz va en qué cuerda,
+    // y en qué octava) existía una de solo 2 trastes. Ahora se prueban
+    // las 24 formas de repartir las 4 voces entre las 4 cuerdas, cada
+    // una con sus 2 octavas posibles (base y base+12), y se toma la que
+    // dé el menor espacio total — 384 combinaciones como máximo, cálculo
+    // instantáneo. No cambia ninguna nota, solo busca mejor la posición.
+    function permutaciones(arr) {
+      if (arr.length <= 1) return [arr];
+      const result = [];
+      for (let i = 0; i < arr.length; i++) {
+        const resto = [...arr.slice(0, i), ...arr.slice(i + 1)];
+        for (const p of permutaciones(resto)) result.push([arr[i], ...p]);
       }
-      frets[stringIdx] = fret;
-      prevFret = fret;
-    });
+      return result;
+    }
+    let mejor = null;
+    for (const perm of permutaciones(voces)) {
+      (function buscar(idx, actuales) {
+        if (idx === cuerdasUsadas.length) {
+          const min = Math.min(...actuales), max = Math.max(...actuales);
+          const espacio = max - min;
+          if (!mejor || espacio < mejor.espacio) {
+            mejor = { espacio, frets: [...actuales], perm };
+          }
+          return;
+        }
+        const stringIdx = cuerdasUsadas[idx];
+        const openPc = cfg.open[stringIdx] % 12;
+        const targetPc = ((rootPc + perm[idx].offset) % 12 + 12) % 12;
+        const base = ((targetPc - openPc) % 12 + 12) % 12;
+        [base, base + 12].filter(f => f <= MAX_TRASTE_CEJILLA_RAZONABLE)
+          .forEach(f => buscar(idx + 1, [...actuales, f]));
+      })(0, []);
+    }
+    if (!mejor) return null;
+
+    const frets = new Array(6).fill("X");
+    cuerdasUsadas.forEach((stringIdx, i) => { frets[stringIdx] = mejor.frets[i]; });
 
     const numericos = frets.filter(f => f !== "X");
     if (numericos.some(f => f > MAX_TRASTE_CEJILLA_RAZONABLE || f < 0)) return null;
