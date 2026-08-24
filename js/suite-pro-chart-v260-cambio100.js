@@ -4790,14 +4790,20 @@ body.s936-chart-stage main{
                 // sola línea plana.
                 const nombreCol = document.createElement("div");
                 nombreCol.className = "s936-libreria-chip";
-                nombreCol.style.cssText = "display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;background:#0f151b;border:1px solid #22303c;border-radius:8px;padding:4px 10px;";
+                // Cambio 339: caja del nombre con más presencia — fondo
+                // con tinte teal (en vez de gris casi invisible), borde
+                // más marcado y el nombre del acorde bien grande. Se usa
+                // background con !important como blindaje: si algo más en
+                // la hoja de estilos llegara a chocar con esta clase, el
+                // fondo oscuro con acento no se pierde.
+                nombreCol.style.cssText = "display:inline-flex;flex-direction:column;align-items:flex-start;gap:2px;background:linear-gradient(135deg,rgba(45,212,191,.16),rgba(15,21,27,.9))!important;border:1px solid rgba(45,212,191,.45)!important;border-radius:9px;padding:6px 12px;";
                 const nombreTxt = document.createElement("span");
-                nombreTxt.style.cssText = "font-weight:700;font-size:14px;color:#e6edf3;";
+                nombreTxt.style.cssText = "font-weight:800;font-size:16px;letter-spacing:.01em;color:#eafff9!important;";
                 nombreTxt.textContent = root + cal.qualRaw; // qualRaw ya es el sufijo correcto (ej. "m7", "maj7", "")
                 nombreCol.appendChild(nombreTxt);
                 if (etiqueta && etiqueta !== "Variante A") {
                   const varTxt = document.createElement("span");
-                  varTxt.style.cssText = "font-size:10px;color:#2dd4bf;letter-spacing:.03em;";
+                  varTxt.style.cssText = "font-size:10px;color:#2dd4bf;letter-spacing:.03em;font-weight:600;";
                   varTxt.textContent = etiqueta;
                   nombreCol.appendChild(varTxt);
                 }
@@ -4816,13 +4822,22 @@ body.s936-chart-stage main{
                 textoSpan.textContent = `${ent.label} · ${dr.label} · ${ord.label}`;
                 invCol.append(iconoWrap, textoSpan);
 
-                // Cambio 338: la columna del mapa ahora tiene ancho fijo
-                // (ver GRID_COLS) para que .s936-ch-fret-mini (width:100%)
-                // tenga un contenedor real del que sacar su tamaño, en vez
-                // de comprimirse a casi nada dentro de una columna "auto".
+                // Cambio 339: la causa REAL de que el mini-mapa se viera
+                // cortado no era (solo) el ancho de la columna del grid
+                // (eso ya se arregló en el Cambio 338) — era que el nodo
+                // que devuelve miniFret() (clase .s936-ch-fret-outer, un
+                // flex en columna) no tiene ancho propio definido en su
+                // CSS. Dentro de un contenedor flex (mapaCol), un hijo sin
+                // ancho ni flex-grow se encoge a su contenido mínimo, así
+                // que aunque mapaCol SÍ tuviera 120px reales, el diapasón
+                // de adentro (que es width:100% DE SU PROPIO PADRE, no de
+                // mapaCol) igual se comprimía. Ahora se fuerza el ancho
+                // del nodo devuelto directamente, apenas se crea.
                 const mapaCol = document.createElement("div");
                 mapaCol.style.cssText = "width:100%;display:flex;align-items:center;";
-                mapaCol.appendChild(miniFret({ frets: resultado.frets }));
+                const mapaEl = miniFret({ frets: resultado.frets });
+                mapaEl.style.width = "100%";
+                mapaCol.appendChild(mapaEl);
 
                 fila2.append(nombreCol, invCol, mapaCol);
 
@@ -6001,7 +6016,17 @@ body.s936-chart-stage main{
             selQual = datos.qualRaw;
           }
           setPickerClasses();
-          inlineFrets = [...datos.frets];
+          // Cambio 339: BUG encontrado — datos.frets viene del motor
+          // Entrada+Drop en orden E4→E2 (agudo→grave, igual que
+          // FRETBOARD_CONFIG.guitar/CUERDAS_POR_ORDEN), pero inlineFrets
+          // (y todo lo que alimenta calcFretVoicingConFamilia/
+          // GUITAR_SHAPES) espera el orden de tablatura estándar E2→E4
+          // (grave→agudo). Sin este volteo, el editor mostraba el acorde
+          // con las cuerdas cambiadas — parecía que "no capturaba" la
+          // digitación elegida en la Librería. Existía desde el Cambio
+          // 317; nadie lo había notado porque la vista previa (miniFret)
+          // sí voltea internamente y por eso se veía bien ahí.
+          inlineFrets = [...datos.frets].reverse();
           inlineNotes = null;
           // resetFromPicker=false: se preserva la digitación que acabamos
           // de asignar, en vez de recalcularla desde cero por familia.
