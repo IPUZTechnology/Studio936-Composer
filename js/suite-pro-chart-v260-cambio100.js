@@ -5146,7 +5146,14 @@ body.s936-chart-stage main{
         m.textContent = "×";
         // Cambio 275: se separa un poco más de la línea verde (cejuela),
         // de 94% a 96%, por estética — quedaba demasiado pegada.
-        m.style.cssText = `top:${top}%;left:96%;z-index:2`;
+        // Cambio 331: antes las mudas vivían en la misma posición (96%)
+        // que las cuerdas al aire — cuando un acorde tenía ambas (como
+        // Re Maj7, Entrada III, Drop 3), quedaban amontonadas una sobre
+        // otra en filas cercanas, viéndose como si las notas se
+        // "salieran" del mástil. Ahora cada una tiene su propia columna
+        // dentro del clavijero: cuerda al aire un poco más adentro
+        // (93%), mudas más afuera (97%).
+        m.style.cssText = `top:${top}%;left:97%;z-index:2`;
         wrap.appendChild(m);
       } else {
         const f0 = Number(fret);
@@ -5160,7 +5167,7 @@ body.s936-chart-stage main{
         // Cambio 274: la cuerda al aire (f0===0) vive en la franja de
         // clavijero, separada de los trastes numerados.
         // Cambio 275: cuerda al aire también separada de 94% a 96%.
-        const leftPct = f0 === 0 ? 96 : 88 - ((f0 - start - 0.5) / span) * 80;
+        const leftPct = f0 === 0 ? 93 : 88 - ((f0 - start - 0.5) / span) * 80;
         const dot = document.createElement("div");
         dot.className = "s936-ch-fd";
         dot.style.cssText = `top:${top}%;left:${leftPct}%;z-index:3`;
