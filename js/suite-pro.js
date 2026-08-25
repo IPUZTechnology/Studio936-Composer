@@ -838,7 +838,12 @@ function normalizeNoteName(value) {
 #${PANEL_ID} .s936-sp-shell {
   height: 100%;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  /* Cambio 347: 2 filas en vez de 3 — el header (marca/SYNC/DOCK/CERRAR)
+     se quitó del shell por completo. Si se deja "auto auto minmax(0,1fr)"
+     con solo 2 hijos reales (tabs, contenido), el contenido cae en la fila
+     "auto" en vez de la última "minmax(0,1fr)", y deja de expandirse para
+     llenar el panel. */
+  grid-template-rows: auto minmax(0, 1fr);
   background:
     radial-gradient(circle at 20% 0%, rgba(0,255,204,.14), transparent 26%),
     linear-gradient(180deg, rgba(13,18,28,.98), rgba(5,7,12,.97));
@@ -1849,36 +1854,16 @@ function normalizeNoteName(value) {
     panel.dataset.ready = "1";
 
     const shell = el("div", "s936-sp-shell");
-    const header = el("header", "s936-sp-header");
-    const brand = el("div", "s936-sp-brand");
-    brand.appendChild(el("div", "s936-sp-kicker", "Studio 936"));
-    brand.appendChild(el("h2", "s936-sp-title", "Suite Pro"));
-    // Cambio 88: badge de versión visible — así se puede confirmar de un
-    // vistazo, sin DevTools, si el navegador corre esta versión o una
-    // anterior en caché. Bump este texto en cada cambio futuro a este archivo.
-    const dockVersionBadge = el("div", "s936-sp-version-badge", "DOCK CAMBIO 109");
-    brand.appendChild(dockVersionBadge);
-    const actions = el("div", "s936-sp-header-actions");
-
-    const refreshBtn = el("button", "s936-sp-icon", "SYNC");
-    refreshBtn.type = "button";
-    refreshBtn.onclick = () => render();
-
-    const modeBtn = el("button", "s936-sp-icon", state.mode === "max" ? "DOCK" : "MAX");
-    modeBtn.type = "button";
-    modeBtn.dataset.role = "mode";
-    modeBtn.onclick = () => {
-      state.mode = state.mode === "max" ? "dock" : "max";
-      localStorage.setItem("s936_suite_mode_v3", state.mode);
-      applyMode(panel);
-    };
-
-    const closeBtn = el("button", "s936-sp-icon", "CERRAR");
-    closeBtn.type = "button";
-    closeBtn.onclick = close;
-
-    actions.append(refreshBtn, modeBtn, closeBtn);
-    header.append(brand, actions);
+    // Cambio 347: Val pidió quitar el header completo (marca "Studio 936
+    // / Suite Pro", badge de versión, y los botones SYNC/DOCK/CERRAR) —
+    // era el panel flotante con controles de "ventana" que no encajaba
+    // con la idea de barra lateral fija. Se confirmó que es seguro
+    // quitarlo: app.js YA tiene su propio botón independiente
+    // (v19ToolsToggle) que llama a window.Studio936SuitePro.toggle()/
+    // .close() directamente — no depende del botón CERRAR de aquí adentro
+    // para poder cerrar el panel. Las funciones close()/toggle()/
+    // applyMode() se dejan intactas (no se borraron), solo se dejó de
+    // construir los botones que las disparaban desde este header.
 
     const tabs = el("nav", "s936-sp-tabs");
     AREAS.forEach(([key, label]) => {
@@ -1892,7 +1877,7 @@ function normalizeNoteName(value) {
     const content = el("section", "s936-sp-content");
     content.id = "s936SuiteProContent";
 
-    shell.append(header, tabs, content);
+    shell.append(tabs, content);
     panel.appendChild(shell);
     render();
   }
