@@ -1042,13 +1042,17 @@ html, body{
     const wrap = document.createElement("div");
     wrap.id = "s936-compose-top-menu-wrap";
     wrap.className = "s936-compose-top-menu-wrap";
-    wrap.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
+    // Cambio 357: Val pidió que los 5 botones queden SIEMPRE en una sola
+    // fila (antes "+ Crear Sección" se caía a una segunda línea al no
+    // caber) — mismo truco que ya usamos con los chips de secciones:
+    // nowrap + scroll horizontal en vez de salto de línea.
+    wrap.style.cssText = "display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;";
 
     const niceBtn = (label, onClick, extraStyle = "") => {
       const b = document.createElement("button");
       b.type = "button";
       b.textContent = label;
-      b.style.cssText = "background:#1c2731;color:#e6edf3;border:1px solid #2a3844;border-radius:10px;padding:8px 12px;font-size:.68rem;font-weight:800;cursor:pointer;" + extraStyle;
+      b.style.cssText = "background:#1c2731;color:#e6edf3;border:1px solid #2a3844;border-radius:10px;padding:8px 12px;font-size:.68rem;font-weight:800;cursor:pointer;flex-shrink:0;white-space:nowrap;" + extraStyle;
       b.onmouseenter = () => { b.style.borderColor = "rgba(0,255,204,.5)"; b.style.color = "#7dffe0"; };
       b.onmouseleave = () => { b.style.borderColor = "#2a3844"; b.style.color = "#e6edf3"; };
       b.onclick = (e) => { e.stopPropagation(); onClick(); };
@@ -1061,7 +1065,7 @@ html, body{
     // mismas funciones que ya existían en el menú viejo, sin tocar su
     // lógica interna.
     const guardarWrap = document.createElement("div");
-    guardarWrap.style.cssText = "position:relative;";
+    guardarWrap.style.cssText = "position:relative;flex-shrink:0;";
     const guardarBtn = niceBtn("Guardar ▾", () => {
       document.querySelectorAll(".s936-cmp-save-dd.open").forEach(d => d.classList.remove("open"));
       guardarDD.classList.toggle("open");

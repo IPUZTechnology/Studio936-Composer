@@ -779,7 +779,13 @@ function normalizeNoteName(value) {
     style.textContent = `
 #${PANEL_ID} {
   position: fixed;
-  left: 12px;
+  /* Cambio 357: se corre de 12px a 76px — la barra de íconos con hover
+     (Cambio 356) vive en left:12px con 56px de ancho; sin este ajuste,
+     ambas se superponían. 76px = 12 (margen) + 56 (ancho de la barra) +
+     8 (separación). Al expandirse con hover, la barra flota por encima
+     del borde del panel un momento — aceptable, es el mismo patrón que
+     un cajón/flyout normal. */
+  left: 76px;
   /* Cambio 353: Val marcó que el panel invadía la franja de controles de
      arriba (Play/metrónomo/tempo) — se baja de 112px a 132px como primer
      ajuste. Esto probablemente necesite un segundo ajuste fino una vez
