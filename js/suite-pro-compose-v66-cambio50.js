@@ -946,30 +946,24 @@ html, body{
     // Cambio 37: el menú queda como herramienta de Compose; Mapa Maestro vuelve a subnav.
     renderComposeSongMenu(ctx, shell);
 
+    // Cambio 345: Val pidió que Compose muestre ÚNICAMENTE Estructura — las
+    // otras 5 (Editor, Mapa Maestro, Escalas, Tab Pro, Teoría) se quitan de
+    // este subnav. No se borraron sus funciones de render (siguen abajo,
+    // por si se reubican en otro lugar más adelante, ej. dentro de Studio o
+    // Menú) — solo se dejó de ofrecerlas aquí. Como ya no hay nada entre
+    // qué elegir, no tiene sentido mostrar una barra de pestañas de un solo
+    // botón, así que directamente no se construye el nav.
     const tools = [
       ["structure","Estructura"],
-      ["editor","Editor"],
-      ["mastermap","Mapa Maestro"],
-      ["scales","Escalas"],
-      ["tabpro","Tab Pro"],
-      ["theory","Teoría"],
     ];
 
-    const nav = ctx.toolNav(tools, ctx.state.composeTool || state.tool || "structure", (v) => {
-      ctx.state.composeTool = v;
-      state.tool = v;
-      saveState();
-    });
-    try {
-      nav.classList.add("s936-compose-subrail");
-      nav.setAttribute("aria-label", "Herramientas de Compose");
-    } catch(_) {}
-    try {
-      Array.from(nav.querySelectorAll("button,[role='button']")).forEach((btn, i) => {
-        if (tools[i]) btn.dataset.tool = tools[i][0];
-      });
-    } catch(_) {}
-    shell.appendChild(nav);
+    // Cambio 345: se fuerza SIEMPRE "structure" como vista activa, sin
+    // importar qué haya guardado en ctx.state.composeTool/state.tool de una
+    // sesión anterior (ej. si alguien había dejado guardado "editor" antes
+    // de este cambio) — si no se forzara, la pantalla podría quedar en una
+    // vista sin pestaña visible para volver.
+    ctx.state.composeTool = "structure";
+    state.tool = "structure";
 
     // Cambio 5: el shell entra a pantalla ANTES de renderizar el módulo.
     // Si Estructura o Chart lanzan un error, ya no queda la vista "quieta" solo con el menú.
