@@ -77,7 +77,7 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProStructure = { version: "structure-v4.4.6-cambio-42", render, openLibraryConfig, getLibraryDirHandle, getLibraryAudioDirHandle };
+    window.Studio936SuiteProStructure = { version: "structure-v4.4.7-cambio-348-acordeon", render, openLibraryConfig, getLibraryDirHandle, getLibraryAudioDirHandle };
     window.Studio936SuiteProModules.structure = window.Studio936SuiteProStructure;
   }
 
@@ -5171,6 +5171,14 @@ body.s936-chart-stage .s936-chart-main-panel{
     const titleRow = ctx.el("div", "s936-struct-section-heading");
     const left = ctx.el("div", "");
     left.appendChild(ctx.el("h4", "", "Arreglo de la canción"));
+    // Cambio 348: badge visible de versión — Val pidió una forma de
+    // confirmar de un vistazo, sin consola ni DevTools, si el navegador
+    // está corriendo el acordeón (Cambio 346) o una copia vieja. Mismo
+    // patrón que ya usa suite-pro.js con "DOCK CAMBIO 109".
+    const accordionBadge = ctx.el("div", "", "ACORDEÓN · CAMBIO 348");
+    accordionBadge.style.cssText = "display:inline-block;margin-top:4px;padding:2px 7px;border-radius:999px;border:1px solid rgba(0,255,204,.35);background:rgba(0,255,204,.08);color:#7dffe0;font-size:.56rem;font-weight:900;letter-spacing:.3px;text-transform:uppercase;";
+    left.appendChild(accordionBadge);
+    console.log("[Studio936] Estructura — acordeón Cambio 348 CORRIENDO. expandedRows en el módulo:", typeof state.expandedRows);
 
     titleRow.appendChild(left);
 
@@ -5280,6 +5288,7 @@ body.s936-chart-stage .s936-chart-main-panel{
     // display:none los bloques de info/estado/acciones cuando está
     // cerrado, y renderAgain() vuelve a dibujar todo al togglear.
     const isOpen = index in state.expandedRows ? !!state.expandedRows[index] : index === 0;
+    console.log("[Studio936 Cambio 348] fila", index, "isOpen:", isOpen, "expandedRows:", JSON.stringify(state.expandedRows));
     const expandToggle = ctx.el("input", "s936-ckpt-part-expand");
     expandToggle.type = "checkbox";
     expandToggle.checked = isOpen;
