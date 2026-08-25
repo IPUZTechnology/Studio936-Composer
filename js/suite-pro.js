@@ -786,11 +786,8 @@ function normalizeNoteName(value) {
      del borde del panel un momento — aceptable, es el mismo patrón que
      un cajón/flyout normal. */
   left: 76px;
-  /* Cambio 359: segundo ajuste fino (132px -> 120px) tras ver la
-     alineación real en pantalla — Val pidió que "Intro" quede a la misma
-     altura que los mini-mapas del Chart. Puede necesitar un tercer ajuste
-     todavía, es afinación visual iterativa. */
-  top: 120px;
+  /* Cambio 363: tercer ajuste fino (120px -> 108px). */
+  top: 108px;
   /* Cambio 85: antes "bottom:12px" fijaba el panel entre top Y bottom a la
      vez, forzando su altura a llenar casi toda la pantalla sin importar
      cuánto contenido tuviera adentro — de ahí el hueco oscuro vacío al
@@ -3327,7 +3324,7 @@ function normalizeNoteName(value) {
     rail.style.cssText = `
       position: fixed;
       left: 12px;
-      top: 120px;
+      top: 108px;
       width: 56px;
       z-index: 10062;
       display: none;
@@ -3350,27 +3347,37 @@ function normalizeNoteName(value) {
     ITEMS.forEach((it) => {
       const b = document.createElement("button");
       b.type = "button";
+      // Cambio 363: !important en border/background/box-shadow — la barra
+      // vive fuera de #s936SuitePro (está pegada directo a <body>), así
+      // que no hereda los resets de botón de ese panel; algo más (estilo
+      // por defecto del navegador o del sitio) le estaba poniendo un
+      // marco negro visible a cada ícono, dándole aspecto de "cajita"
+      // separada en vez de verse integrado a la barra.
       b.style.cssText = `
         display: flex;
         align-items: center;
+        justify-content: center;
         gap: 10px;
         width: 100%;
-        padding: 8px 10px;
-        border: none;
-        background: transparent;
+        padding: 10px 8px;
+        border: none !important;
+        outline: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        border-radius: 10px;
         color: #e6edf3;
         cursor: pointer;
         white-space: nowrap;
-        overflow: hidden;
+        overflow: visible;
         font-size: .68rem;
         font-weight: 800;
       `;
       const iconSpan = el("span", "", it.icon);
-      iconSpan.style.cssText = "font-size:18px;flex-shrink:0;";
+      iconSpan.style.cssText = "font-size:20px;flex-shrink:0;line-height:1;";
       b.appendChild(iconSpan);
       b.title = it.label; // Cambio 361: el nombre queda como tooltip — ya no hay texto que se expande al lado, el Docker completo hace las veces de "expandir".
-      b.onmouseenter = () => { b.style.background = "rgba(0,255,204,.10)"; };
-      b.onmouseleave = () => { b.style.background = "transparent"; };
+      b.onmouseenter = () => { b.style.setProperty("background", "rgba(0,255,204,.14)", "important"); };
+      b.onmouseleave = () => { b.style.setProperty("background", "transparent", "important"); };
       b.onclick = () => {
         setArea(it.area);
         open();

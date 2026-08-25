@@ -1123,7 +1123,10 @@ html, body{
       pintarEstadoCrearSeccion(crearSeccionAbierto);
       if (crearSeccionAbierto) toggle.scrollIntoView({ behavior: "smooth", block: "center" });
     });
-    let crearSeccionAbierto = localStorage.getItem("s936_ckpt_add_open") === "1";
+    // Cambio 363: siempre arranca apagado (ver misma razón en el Cambio
+    // 363 de suite-pro-structure) — ya no se lee el valor guardado como
+    // estado inicial.
+    let crearSeccionAbierto = false;
     function pintarEstadoCrearSeccion(activo) {
       if (activo) {
         crearSeccionBtn.style.background = "rgba(0,255,204,.18)";

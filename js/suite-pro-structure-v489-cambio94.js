@@ -5091,7 +5091,13 @@ body.s936-chart-stage .s936-chart-main-panel{
   // Construye el bloque "+ Crear Sección" — usado en renderBuilder
   function buildAddSection(ctx, s, parts) {
     const addOpenKey = "s936_ckpt_add_open";
-    const addIsOpen = localStorage.getItem(addOpenKey) === "1";
+    // Cambio 363: Val pidió que este campo SIEMPRE arranque cerrado — antes
+    // recordaba el último estado guardado, así que si quedaba abierto en
+    // una sesión, la siguiente vez también abría solo, sin que nadie lo
+    // hubiera tocado. Ahora ignora ese valor guardado como estado inicial
+    // (localStorage se sigue actualizando al togglear, por si se necesita
+    // después, solo que ya no se usa para decidir el arranque).
+    const addIsOpen = false;
 
     const addToggle = ctx.el("div", "s936-ckpt-add-toggle" + (addIsOpen ? " open" : ""));
     addToggle.innerHTML = `<span>+ Crear Sección</span><span class="s936-ckpt-chevron">▾</span>`;
