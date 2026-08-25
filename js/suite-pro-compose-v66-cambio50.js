@@ -1029,93 +1029,88 @@ html, body{
     }, 30);
   }
 
+  // Cambio 354: Val pidió quitar el menú desplegable (☰ MENÚ) — tenía
+  // muchas opciones que ya no se usan. Se deja una fila de 4 botones
+  // directos con las únicas 4 que sí hacen falta: Plantillas (ahora
+  // ventana flotante — ver abrirPlantillasFlotante), Guardar (con mini-
+  // opción Local/Librería, reutilizando exactamente las mismas funciones
+  // que ya existían), Nueva canción (ya abre su propio modal, existente,
+  // sin cambios) y Crear Sección (activa el mismo formulario que ya vive
+  // dentro de Estructura, sin duplicar su lógica — solo lo "engancha"
+  // desde aquí arriba).
   function buildComposeMenuWrap() {
     const wrap = document.createElement("div");
     wrap.id = "s936-compose-top-menu-wrap";
     wrap.className = "s936-compose-top-menu-wrap";
+    wrap.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
 
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "s936-compose-top-menu-btn";
-    btn.title = "Menú principal";
-    btn.innerHTML = "☰ MENÚ";
-
-    const dd = document.createElement("div");
-    dd.className = "s936-compose-top-menu-dd";
-
-    const header = (label) => {
-      const h = document.createElement("div");
-      h.className = "s936-compose-top-menu-head";
-      h.textContent = label;
-      return h;
-    };
-    const item = (label, fn, cls="") => {
+    const niceBtn = (label, onClick, extraStyle = "") => {
       const b = document.createElement("button");
       b.type = "button";
-      b.className = "s936-compose-top-menu-item " + cls;
       b.textContent = label;
-      b.onclick = (e) => {
-        e.stopPropagation();
-        dd.classList.remove("open");
-        try { fn?.(); } catch(err) { console.warn(err); }
-      };
+      b.style.cssText = "background:#1c2731;color:#e6edf3;border:1px solid #2a3844;border-radius:10px;padding:8px 12px;font-size:.68rem;font-weight:800;cursor:pointer;" + extraStyle;
+      b.onmouseenter = () => { b.style.borderColor = "rgba(0,255,204,.5)"; b.style.color = "#7dffe0"; };
+      b.onmouseleave = () => { b.style.borderColor = "#2a3844"; b.style.color = "#e6edf3"; };
+      b.onclick = (e) => { e.stopPropagation(); onClick(); };
       return b;
     };
 
-    dd.appendChild(header("Compose"));
-    const openTool = (tool) => {
-      try {
-        const root = document.getElementById("s936SuitePro") || document;
-        const navBtn = Array.from(root.querySelectorAll(".s936-cmp-subtab,button,[role='button']")).find(el => {
-          const t = String(el.dataset?.tool || "");
-          const label = String(el.textContent || "").trim().toLowerCase();
-          return t === tool || label === tool.toLowerCase();
-        });
-        if (navBtn) { navBtn.click(); return; }
-        state.tool = tool;
-        saveState();
-        const composeBtn = Array.from(root.querySelectorAll("button,[role='button']")).find(el => /^compose$/i.test(String(el.textContent || "").trim()));
-        composeBtn?.click?.();
-      } catch(_) {}
+    wrap.appendChild(niceBtn("Plantillas", () => abrirPlantillasFlotante(), "background:rgba(0,255,204,.10);border-color:rgba(0,255,204,.35);color:#7dffe0;"));
+
+    // Guardar: botón con mini-menú de 2 opciones (Local / Librería) —
+    // mismas funciones que ya existían en el menú viejo, sin tocar su
+    // lógica interna.
+    const guardarWrap = document.createElement("div");
+    guardarWrap.style.cssText = "position:relative;";
+    const guardarBtn = niceBtn("Guardar ▾", () => {
+      document.querySelectorAll(".s936-cmp-save-dd.open").forEach(d => d.classList.remove("open"));
+      guardarDD.classList.toggle("open");
+    });
+    const guardarDD = document.createElement("div");
+    guardarDD.className = "s936-cmp-save-dd";
+    guardarDD.style.cssText = "display:none;position:absolute;top:calc(100% + 4px);left:0;background:#141b22;border:1px solid #2a3844;border-radius:8px;padding:4px;min-width:140px;z-index:10071;box-shadow:0 8px 24px rgba(0,0,0,.4);";
+    const ddItem = (label, fn) => {      const it = document.createElement("button");
+      it.type = "button";
+      it.textContent = label;
+      it.style.cssText = "display:block;width:100%;text-align:left;background:none;border:none;color:#e6edf3;padding:7px 9px;font-size:.66rem;cursor:pointer;border-radius:6px;";
+      it.onmouseenter = () => { it.style.background = "rgba(0,255,204,.08)"; };
+      it.onmouseleave = () => { it.style.background = "none"; };
+      it.onclick = (e) => { e.stopPropagation(); guardarDD.classList.remove("open"); fn(); };
+      return it;
     };
-    dd.appendChild(item("Plantillas", () => openTool("templates"), "strong"));
-    dd.appendChild(item("Inspiración", () => openTool("inspire")));
-    dd.appendChild(item("Transponer", () => openTool("transpose")));
-    dd.appendChild(item("Acordes IA", () => openTool("chordAI")));
-    dd.appendChild(item("Librería / sonidos", () => openTool("library")));
-    dd.appendChild(item("Configuración", () => openTool("settings")));
-    dd.appendChild(item("Nueva canción", () => window.S936OpenNewSongModal?.()));
-    dd.appendChild(item("Abrir canción", () => window.S936OpenSongPicker?.()));
-    dd.appendChild(item("Guardar local", () => window.Studio936AppBridge?.saveLocal?.() || window.Studio936AppBridge?.save?.()));
-    dd.appendChild(item("Guardar en Librería", () => {
-      // Cambio 235: guarda la canción actual como borrador en la Librería
-      // nueva (Studio936Library) — aparece en Composiciones bajo "Borradores"
-      // y se sincroniza con la nube si hay sesión activa.
+    guardarDD.appendChild(ddItem("Guardar local", () => window.Studio936AppBridge?.saveLocal?.() || window.Studio936AppBridge?.save?.()));
+    guardarDD.appendChild(ddItem("Guardar en Librería", () => {
       const snap = window.Studio936AppBridge?.getProjectSnapshot?.();
-      if(snap && window.Studio936Library?.saveOrUpdateCurrent) {
+      if (snap && window.Studio936Library?.saveOrUpdateCurrent) {
         snap.status = 'draft';
         window.Studio936Library.saveOrUpdateCurrent(snap);
       } else {
-        // Fallback: si no hay snapshot disponible, guardar local
         window.Studio936AppBridge?.saveLocal?.();
       }
-    }, "warn"));
-    dd.appendChild(item("Exportar / imprimir", () => window.Studio936ExportEngine?.open?.() || window.print?.(), "warn"));
-    dd.appendChild(header("Studio"));
-    dd.appendChild(item("Abrir Studio", () => {
-      const btns = Array.from(document.querySelectorAll("button,[role='button'],.s936-tab,.s936-suite-tab"));
-      const target = btns.find(el => /^studio$/i.test(String(el.textContent || "").trim()));
-      if (target) target.click();
+    }));
+    document.addEventListener("click", () => guardarDD.classList.remove("open"));
+    // CSS inline mínimo para mostrar/ocultar el mini-menú sin depender de
+    // una hoja de estilos aparte.
+    const obs = new MutationObserver(() => {
+      guardarDD.style.display = guardarDD.classList.contains("open") ? "block" : "none";
+    });
+    obs.observe(guardarDD, { attributes: true, attributeFilter: ["class"] });
+    guardarWrap.append(guardarBtn, guardarDD);
+    wrap.appendChild(guardarWrap);
+
+    wrap.appendChild(niceBtn("Nueva canción", () => window.S936OpenNewSongModal?.()));
+
+    // Crear Sección: no duplica el formulario (tipo/nombre/compases) que
+    // ya vive dentro de Estructura — solo busca ese mismo toggle en el
+    // DOM y lo abre, haciendo scroll hasta él.
+    wrap.appendChild(niceBtn("+ Crear Sección", () => {
+      const toggle = document.querySelector("#s936SuitePro .s936-ckpt-add-toggle");
+      if (toggle) {
+        if (!toggle.classList.contains("open")) toggle.click();
+        toggle.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
     }));
 
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      document.querySelectorAll(".s936-compose-top-menu-dd.open").forEach(d => { if (d !== dd) d.classList.remove("open"); });
-      dd.classList.toggle("open");
-    };
-    document.addEventListener("click", () => dd.classList.remove("open"));
-
-    wrap.append(btn, dd);
     return wrap;
   }
 
@@ -1341,6 +1336,59 @@ html, body{
     p.style.cssText = "margin:0;color:rgba(255,255,255,.62);font-size:.70rem;line-height:1.45";
     card.appendChild(p);
     shell.appendChild(card);
+  }
+
+  // Cambio 354: "Plantillas" pasa de ser una pestaña más dentro del panel
+  // acoplado a ser una VENTANA FLOTANTE aparte — Val pidió explícitamente
+  // que no quedara "atrapada" dentro del Docker. Reutiliza exactamente
+  // renderTemplates(ctx, shell) tal cual ya existe — el contenido es el
+  // mismo, solo cambia el contenedor donde se dibuja.
+  function abrirPlantillasFlotante() {
+    if (!_lastCtx) return;
+    document.querySelector(".s936-cmp-templates-overlay")?.remove();
+
+    const overlay = document.createElement("div");
+    overlay.className = "s936-cmp-templates-overlay";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10070;";
+
+    const panel = document.createElement("div");
+    panel.style.cssText = "position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#141b22;border:1px solid #22303c;border-radius:12px;padding:20px;width:min(780px,95vw);max-height:88vh;overflow:auto;color:#e6edf3;font-family:inherit;box-shadow:0 20px 60px rgba(0,0,0,.5);";
+    overlay.appendChild(panel);
+
+    const header = document.createElement("div");
+    header.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;cursor:move;user-select:none;";
+    header.innerHTML = '<strong style="color:#2dd4bf;">Plantillas</strong>';
+    const btnCerrar = document.createElement("button");
+    btnCerrar.textContent = "✕";
+    btnCerrar.style.cssText = "background:none;border:none;color:#8b98a5;font-size:16px;cursor:pointer;";
+    btnCerrar.onclick = () => overlay.remove();
+    header.appendChild(btnCerrar);
+    panel.appendChild(header);
+
+    // Arrastrable, mismo patrón que la Librería de acordes.
+    let arrastrando = false, offX = 0, offY = 0;
+    header.addEventListener("pointerdown", (e) => {
+      if (e.target === btnCerrar) return;
+      arrastrando = true;
+      const r = panel.getBoundingClientRect();
+      offX = e.clientX - r.left; offY = e.clientY - r.top;
+      panel.style.transform = "none";
+      panel.style.left = r.left + "px";
+      panel.style.top = r.top + "px";
+      header.setPointerCapture(e.pointerId);
+    });
+    header.addEventListener("pointermove", (e) => {
+      if (!arrastrando) return;
+      panel.style.left = Math.max(0, e.clientX - offX) + "px";
+      panel.style.top = Math.max(0, e.clientY - offY) + "px";
+    });
+    header.addEventListener("pointerup", () => { arrastrando = false; });
+
+    const body = document.createElement("div");
+    panel.appendChild(body);
+    renderTemplates(_lastCtx, body);
+
+    document.body.appendChild(overlay);
   }
 
   function renderTemplates(ctx, shell) {

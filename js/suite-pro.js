@@ -59,8 +59,8 @@
 
   const AREAS = [
     ["compose", "Compose"],
-    ["studio", "Studio"],
     ["command", "Mapa Maestro"]
+    // studio: quitado del tab principal (Cambio 354, a pedido de Val).
     // arrange, practice, export: ocultos temporalmente v0.8.1
   ];
 
