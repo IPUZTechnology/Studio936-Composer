@@ -1876,7 +1876,12 @@ function normalizeNoteName(value) {
     // construir los botones que las disparaban desde este header.
 
     const tabs = el("nav", "s936-sp-tabs");
-    AREAS.forEach(([key, label]) => {
+    // Cambio 360: se quita la pestaña "Compose" de aquí — Val pidió
+    // eliminarla porque era un título repetido (la barra de íconos con
+    // hover, Cambio 356, ya cubre esa navegación llamando a setArea()
+    // directamente). AREAS en sí no se toca (por si algo más la usa),
+    // solo se filtra al construir los botones visibles.
+    AREAS.filter(([key]) => key !== "compose").forEach(([key, label]) => {
       const btn = el("button", "s936-sp-tab", label);
       btn.type = "button";
       btn.dataset.area = key;

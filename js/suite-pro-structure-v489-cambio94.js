@@ -5095,6 +5095,12 @@ body.s936-chart-stage .s936-chart-main-panel{
 
     const addToggle = ctx.el("div", "s936-ckpt-add-toggle" + (addIsOpen ? " open" : ""));
     addToggle.innerHTML = `<span>+ Crear Sección</span><span class="s936-ckpt-chevron">▾</span>`;
+    // Cambio 360: Val pidió quitar este título de texto porque es
+    // redundante con el ícono ➕ que ya vive en la fila de botones de
+    // arriba (Cambio 359). No se borra el elemento del DOM — el ícono ➕
+    // le sigue haciendo .click() a este mismo addToggle para abrir/cerrar
+    // el formulario; solo se oculta visualmente para no repetirlo.
+    addToggle.style.display = "none";
 
     const addBody = ctx.el("div", "s936-ckpt-add-body" + (addIsOpen ? " open" : ""));
 
