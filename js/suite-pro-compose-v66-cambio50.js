@@ -1099,6 +1099,11 @@ html, body{
     wrap.appendChild(guardarWrap);
 
     wrap.appendChild(niceBtn("Nueva canción", () => window.S936OpenNewSongModal?.()));
+    // Cambio 355: "Abrir canción" reutiliza openSongPicker() tal cual ya
+    // existía — ya es una ventana flotante centrada y ya lee las
+    // composiciones guardadas en la Librería (s936_library_v2), no hacía
+    // falta construir nada nuevo, solo exponer el botón.
+    wrap.appendChild(niceBtn("Abrir canción", () => window.S936OpenSongPicker?.()));
 
     // Crear Sección: no duplica el formulario (tipo/nombre/compases) que
     // ya vive dentro de Estructura — solo busca ese mismo toggle en el
