@@ -44,7 +44,13 @@
     newLabel: "",
     newBars: 8,
     editingIndex: -1,
-    focusSection: ""
+    focusSection: "",
+    // Cambio 346: acordeón de secciones — Val pidió que solo la primera
+    // sección (normalmente Intro) empiece visible/expandida, y el resto
+    // colapsado con un check para abrir cada una. Se guarda como objeto
+    // {indice: true/false} en vez de un Set porque localStorage solo
+    // guarda JSON, y un Set se serializa vacío.
+    expandedRows: { 0: true }
   };
 
   const state = loadState();
@@ -824,6 +830,14 @@
 #s936SuitePro .s936-ckpt-part-row.is-editing{
   border-color:rgba(255,224,102,.45);
   background:rgba(255,224,102,.04);
+}
+#s936SuitePro .s936-ckpt-part-expand{
+  flex-shrink:0;
+  width:13px;
+  height:13px;
+  margin:0 2px 0 0;
+  accent-color:#00ffcc;
+  cursor:pointer;
 }
 #s936SuitePro .s936-ckpt-part-num{
   color:rgba(255,255,255,.3);
@@ -5259,6 +5273,24 @@ body.s936-chart-stage .s936-chart-main-panel{
     line.dataset.partIndex = String(index);
     line.dataset.consoleChannel = "section";
 
+    // Cambio 346: acordeón — por defecto solo la fila 0 (Intro) viene
+    // abierta; el resto empieza colapsado, mostrando únicamente número +
+    // pastilla de tipo. El check no toca la lógica de reproducción/orden/
+    // marcas de abajo (nada de eso se modificó) — solo esconde con
+    // display:none los bloques de info/estado/acciones cuando está
+    // cerrado, y renderAgain() vuelve a dibujar todo al togglear.
+    const isOpen = index in state.expandedRows ? !!state.expandedRows[index] : index === 0;
+    const expandToggle = ctx.el("input", "s936-ckpt-part-expand");
+    expandToggle.type = "checkbox";
+    expandToggle.checked = isOpen;
+    expandToggle.title = isOpen ? "Ocultar detalle de esta sección" : "Ver detalle de esta sección";
+    expandToggle.onclick = (e) => {
+      e.stopPropagation();
+      state.expandedRows[index] = !isOpen;
+      saveState(); renderAgain(ctx);
+    };
+    line.appendChild(expandToggle);
+
     // Número
     const num = ctx.el("div", "s936-ckpt-part-num", String(index + 1).padStart(2, "0"));
     line.appendChild(num);
@@ -5276,9 +5308,11 @@ body.s936-chart-stage .s936-chart-main-panel{
     // Info: solo nombre (sin compases)
     const info = ctx.el("div", "s936-ckpt-part-info");
     info.appendChild(ctx.el("div", "s936-ckpt-part-name", part.label || labelFor(part.section)));
+    if (!isOpen) info.style.display = "none";
     line.appendChild(info);
 
     const consoleState = ctx.el("span", "s936-ckpt-console-state", "ACTIVA");
+    if (!isOpen) consoleState.style.display = "none";
     line.appendChild(consoleState);
 
     // Badge marca navegación (Da Capo, Coda, etc.) — clickeable para desactivar
@@ -5428,6 +5462,7 @@ body.s936-chart-stage .s936-chart-main-panel{
     // Cambio 48: en Zoom sección, la barra del canal solo deja los controles principales.
     // Las herramientas grandes viven abajo en la consola ampliada para evitar duplicados.
     if (isFocus) {
+      if (!isOpen) rowActions.style.display = "none";
       line.appendChild(rowActions);
       row.appendChild(line);
       return row;
@@ -5523,6 +5558,7 @@ body.s936-chart-stage .s936-chart-main-panel{
 
     gearWrap.append(gearBtn, rowDD);
     rowActions.appendChild(gearWrap);
+    if (!isOpen) rowActions.style.display = "none";
     line.appendChild(rowActions);
     row.appendChild(line);
 
