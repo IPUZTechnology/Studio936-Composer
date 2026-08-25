@@ -5288,6 +5288,11 @@ body.s936-chart-stage .s936-chart-main-panel{
     // display:none los bloques de info/estado/acciones cuando está
     // cerrado, y renderAgain() vuelve a dibujar todo al togglear.
     const isOpen = index in state.expandedRows ? !!state.expandedRows[index] : index === 0;
+    // Cambio 349: además del console.log, se guarda en un arreglo global
+    // fácil de leer con un simple alert(), porque la consola del
+    // navegador resultó confusa de navegar en la práctica.
+    window.__s936Debug = window.__s936Debug || [];
+    window.__s936Debug.push({ index, isOpen, expandedRows: JSON.stringify(state.expandedRows) });
     console.log("[Studio936 Cambio 348] fila", index, "isOpen:", isOpen, "expandedRows:", JSON.stringify(state.expandedRows));
     const expandToggle = ctx.el("input", "s936-ckpt-part-expand");
     expandToggle.type = "checkbox";
