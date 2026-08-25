@@ -1039,7 +1039,7 @@ html, body{
     // fila (antes "+ Crear Sección" se caía a una segunda línea al no
     // caber) — mismo truco que ya usamos con los chips de secciones:
     // nowrap + scroll horizontal en vez de salto de línea.
-    wrap.style.cssText = "display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;";
+    wrap.style.cssText = "display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;justify-content:center;";
 
     const niceBtn = (icon, tooltip, onClick, extraStyle = "") => {
       const b = document.createElement("button");
@@ -1107,14 +1107,41 @@ html, body{
 
     // Crear Sección: no duplica el formulario (tipo/nombre/compases) que
     // ya vive dentro de Estructura — solo busca ese mismo toggle en el
-    // DOM y lo abre, haciendo scroll hasta él.
-    wrap.appendChild(niceBtn("➕", "Crear Sección", () => {
+    // DOM y lo abre/cierra, haciendo scroll hasta él cuando abre.
+    //
+    // Cambio 362: BUG encontrado — antes solo abría ("if (!open) click()"),
+    // nunca cerraba si ya estaba abierto, por eso Val lo veía "siempre
+    // activo" sin importar cuántas veces lo tocara. Ahora es un
+    // interruptor real: cada clic invierte el estado, y el ícono mismo
+    // se resalta cuando el formulario está expuesto, se apaga cuando no.
+    const crearSeccionBtn = niceBtn("➕", "Crear Sección", () => {
       const toggle = document.querySelector("#s936SuitePro .s936-ckpt-add-toggle");
-      if (toggle) {
-        if (!toggle.classList.contains("open")) toggle.click();
-        toggle.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (!toggle) return;
+      const estabaAbierto = toggle.classList.contains("open");
+      toggle.click(); // esto ya invierte open/closed en addToggle y addBody
+      crearSeccionAbierto = !estabaAbierto;
+      pintarEstadoCrearSeccion(crearSeccionAbierto);
+      if (crearSeccionAbierto) toggle.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    let crearSeccionAbierto = localStorage.getItem("s936_ckpt_add_open") === "1";
+    function pintarEstadoCrearSeccion(activo) {
+      if (activo) {
+        crearSeccionBtn.style.background = "rgba(0,255,204,.18)";
+        crearSeccionBtn.style.borderColor = "rgba(0,255,204,.6)";
+        crearSeccionBtn.style.color = "#7dffe0";
+      } else {
+        crearSeccionBtn.style.background = "#1c2731";
+        crearSeccionBtn.style.borderColor = "#2a3844";
+        crearSeccionBtn.style.color = "#e6edf3";
       }
-    }));
+    }
+    // Cambio 362: el hover base de niceBtn resetea siempre a los colores
+    // "apagados" al salir — eso borraba el resaltado si el formulario
+    // seguía abierto. Se sobreescribe el hover de ESTE botón para que
+    // respete el estado real en vez de forzar siempre lo mismo.
+    crearSeccionBtn.onmouseleave = () => { pintarEstadoCrearSeccion(crearSeccionAbierto); };
+    pintarEstadoCrearSeccion(crearSeccionAbierto);
+    wrap.appendChild(crearSeccionBtn);
 
     return wrap;
   }
