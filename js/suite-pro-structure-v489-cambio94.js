@@ -5175,7 +5175,7 @@ body.s936-chart-stage .s936-chart-main-panel{
     // confirmar de un vistazo, sin consola ni DevTools, si el navegador
     // está corriendo el acordeón (Cambio 346) o una copia vieja. Mismo
     // patrón que ya usa suite-pro.js con "DOCK CAMBIO 109".
-    const accordionBadge = ctx.el("div", "", "ACORDEÓN · CAMBIO 350");
+    const accordionBadge = ctx.el("div", "", "ACORDEÓN · CAMBIO 351");
     accordionBadge.style.cssText = "display:inline-block;margin-top:4px;padding:2px 7px;border-radius:999px;border:1px solid rgba(0,255,204,.35);background:rgba(0,255,204,.08);color:#7dffe0;font-size:.56rem;font-weight:900;letter-spacing:.3px;text-transform:uppercase;";
     left.appendChild(accordionBadge);
     console.log("[Studio936] Estructura — acordeón Cambio 348 CORRIENDO. expandedRows en el módulo:", typeof state.expandedRows);
@@ -5327,11 +5327,11 @@ body.s936-chart-stage .s936-chart-main-panel{
     // Info: solo nombre (sin compases)
     const info = ctx.el("div", "s936-ckpt-part-info");
     info.appendChild(ctx.el("div", "s936-ckpt-part-name", part.label || labelFor(part.section)));
-    if (!isOpen) info.style.display = "none";
+    if (!isOpen) info.style.setProperty("display", "none", "important");
     line.appendChild(info);
 
     const consoleState = ctx.el("span", "s936-ckpt-console-state", "ACTIVA");
-    if (!isOpen) consoleState.style.display = "none";
+    if (!isOpen) consoleState.style.setProperty("display", "none", "important");
     line.appendChild(consoleState);
 
     // Badge marca navegación (Da Capo, Coda, etc.) — clickeable para desactivar
@@ -5481,7 +5481,7 @@ body.s936-chart-stage .s936-chart-main-panel{
     // Cambio 48: en Zoom sección, la barra del canal solo deja los controles principales.
     // Las herramientas grandes viven abajo en la consola ampliada para evitar duplicados.
     if (isFocus) {
-      if (!isOpen) rowActions.style.display = "none";
+      if (!isOpen) rowActions.style.setProperty("display", "none", "important");
       line.appendChild(rowActions);
       const lineWrap = ctx.el("div", "s936-ckpt-line-wrap");
       lineWrap.style.cssText = "display:flex;align-items:flex-start;gap:4px;";
@@ -5581,7 +5581,7 @@ body.s936-chart-stage .s936-chart-main-panel{
 
     gearWrap.append(gearBtn, rowDD);
     rowActions.appendChild(gearWrap);
-    if (!isOpen) rowActions.style.display = "none";
+    if (!isOpen) rowActions.style.setProperty("display", "none", "important");
     line.appendChild(rowActions);
     const lineWrap = ctx.el("div", "s936-ckpt-line-wrap");
     lineWrap.style.cssText = "display:flex;align-items:flex-start;gap:4px;";
