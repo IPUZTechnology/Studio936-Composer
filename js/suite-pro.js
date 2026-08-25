@@ -3231,6 +3231,13 @@ function normalizeNoteName(value) {
     state.open = true;
     panel.classList.add("is-open");
     render();
+    // Cambio 356: mostrar la barra de íconos junto con el panel — es
+    // aditiva, no reemplaza las pestañas COMPOSE/Mapa Maestro de arriba
+    // (Val pidió explícitamente NO desactivar lo anterior todavía, tener
+    // "doble barra" mientras se decide qué hacer con la principal).
+    ensureHoverRail();
+    const rail = document.getElementById("s936HoverRail");
+    if (rail) rail.style.display = "flex";
     return panel;
   }
 
@@ -3245,6 +3252,91 @@ function normalizeNoteName(value) {
       try { window.Studio936AppBridge?.setInstrument?.(_instrumentBeforeSuitePro); } catch(_) {}
       _instrumentBeforeSuitePro = null;
     }
+    // Cambio 356: ocultar la barra de íconos junto con el panel.
+    const rail = document.getElementById("s936HoverRail");
+    if (rail) rail.style.display = "none";
+  }
+
+  // Cambio 356: barra de íconos con hover-expandir — Val la pidió como
+  // pieza ADICIONAL, coexistiendo con las pestañas COMPOSE/Mapa Maestro
+  // actuales (no las reemplaza todavía). Reutiliza setArea(), la misma
+  // función que ya usan esas pestañas — así, elegir "Compose" aquí hace
+  // exactamente lo mismo que tocar la pestaña de arriba, sin lógica
+  // duplicada. Vive como elemento propio en <body> (no dentro del grid
+  // del panel) para no tocar en absoluto el layout existente.
+  function ensureHoverRail() {
+    let rail = document.getElementById("s936HoverRail");
+    if (rail) return rail;
+
+    rail = document.createElement("div");
+    rail.id = "s936HoverRail";
+    rail.style.cssText = `
+      position: fixed;
+      left: 12px;
+      top: 132px;
+      width: 56px;
+      z-index: 10061;
+      display: none;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+      padding: 10px 0;
+      background: linear-gradient(180deg, rgba(13,18,28,.98), rgba(5,7,12,.97));
+      border: 1px solid rgba(0,255,204,.34);
+      border-radius: 14px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+      transition: width .15s ease;
+      overflow: hidden;
+    `;
+
+    const ITEMS = [
+      { area: "compose", label: "Compose", icon: "🎵" },
+      { area: "studio", label: "Studio", icon: "🎚" },
+    ];
+
+    ITEMS.forEach((it) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.style.cssText = `
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 8px 10px;
+        border: none;
+        background: transparent;
+        color: #e6edf3;
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        font-size: .68rem;
+        font-weight: 800;
+      `;
+      const iconSpan = el("span", "", it.icon);
+      iconSpan.style.cssText = "font-size:18px;flex-shrink:0;";
+      const labelSpan = el("span", "s936-hoverrail-label", it.label);
+      labelSpan.style.cssText = "opacity:0;transition:opacity .1s ease;";
+      b.append(iconSpan, labelSpan);
+      b.onmouseenter = () => { b.style.background = "rgba(0,255,204,.10)"; };
+      b.onmouseleave = () => { b.style.background = "transparent"; };
+      b.onclick = () => {
+        setArea(it.area);
+        open();
+      };
+      rail.appendChild(b);
+    });
+
+    rail.addEventListener("mouseenter", () => {
+      rail.style.width = "150px";
+      rail.querySelectorAll(".s936-hoverrail-label").forEach((l) => { l.style.opacity = "1"; });
+    });
+    rail.addEventListener("mouseleave", () => {
+      rail.style.width = "56px";
+      rail.querySelectorAll(".s936-hoverrail-label").forEach((l) => { l.style.opacity = "0"; });
+    });
+
+    document.body.appendChild(rail);
+    return rail;
   }
 
   function toggle() {
@@ -3275,7 +3367,7 @@ function normalizeNoteName(value) {
   }
 
   window.Studio936SuitePro = {
-    version: "professional-v3.12-recorder-library",
+    version: "professional-v3.13-cambio-356-hoverrail",
     open,
     close,
     toggle,
