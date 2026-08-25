@@ -77,7 +77,7 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProStructure = { version: "structure-v4.4.7-cambio-348-acordeon", render, openLibraryConfig, getLibraryDirHandle, getLibraryAudioDirHandle };
+    window.Studio936SuiteProStructure = { version: "structure-v4.4.8-cambio-352-secciones-activas", render, openLibraryConfig, getLibraryDirHandle, getLibraryAudioDirHandle };
     window.Studio936SuiteProModules.structure = window.Studio936SuiteProStructure;
   }
 
@@ -831,13 +831,8 @@
   border-color:rgba(255,224,102,.45);
   background:rgba(255,224,102,.04);
 }
-#s936SuitePro .s936-ckpt-part-expand{
-  flex-shrink:0;
-  width:13px;
-  height:13px;
-  margin:0 2px 0 0;
-  accent-color:#00ffcc;
-  cursor:pointer;
+#s936SuitePro .s936-ckpt-section-chip:hover{
+  filter:brightness(1.25);
 }
 #s936SuitePro .s936-ckpt-part-num{
   color:rgba(255,255,255,.3);
@@ -5159,6 +5154,9 @@ body.s936-chart-stage .s936-chart-main-panel{
       };
       state.newLabel = "";
       state.editingIndex = parts.length - 1;
+      // Cambio 352: la sección recién creada aparece visible/activa de
+      // una vez (no tendría sentido crearla y que quede oculta).
+      state.expandedRows[parts.length - 1] = true;
       saveState(); renderAgain(ctx);
     };
 
@@ -5171,14 +5169,13 @@ body.s936-chart-stage .s936-chart-main-panel{
     const titleRow = ctx.el("div", "s936-struct-section-heading");
     const left = ctx.el("div", "");
     left.appendChild(ctx.el("h4", "", "Arreglo de la canción"));
-    // Cambio 348: badge visible de versión — Val pidió una forma de
-    // confirmar de un vistazo, sin consola ni DevTools, si el navegador
-    // está corriendo el acordeón (Cambio 346) o una copia vieja. Mismo
-    // patrón que ya usa suite-pro.js con "DOCK CAMBIO 109".
-    const accordionBadge = ctx.el("div", "", "ACORDEÓN · CAMBIO 351");
+    // Cambio 352: Val aclaró que esto NO es un acordeón clásico (que
+    // muestra una versión chiquita de cada fila) — es una lista de
+    // secciones ACTIVAS/VISIBLES vs OCULTAS del todo. Se renombra el
+    // badge en consecuencia.
+    const accordionBadge = ctx.el("div", "", "SECCIONES ACTIVAS · CAMBIO 352");
     accordionBadge.style.cssText = "display:inline-block;margin-top:4px;padding:2px 7px;border-radius:999px;border:1px solid rgba(0,255,204,.35);background:rgba(0,255,204,.08);color:#7dffe0;font-size:.56rem;font-weight:900;letter-spacing:.3px;text-transform:uppercase;";
     left.appendChild(accordionBadge);
-    console.log("[Studio936] Estructura — acordeón Cambio 348 CORRIENDO. expandedRows en el módulo:", typeof state.expandedRows);
 
     titleRow.appendChild(left);
 
@@ -5198,10 +5195,49 @@ body.s936-chart-stage .s936-chart-main-panel{
       listCard.appendChild(addBody);
     }
 
+    // Cambio 352: fila de "chips" — Val pidió que TODAS las secciones se
+    // vean siempre como opciones para prender/apagar (no solo la primera),
+    // sin importar cuántas sean. Un clic en un chip decide si esa sección
+    // aparece completa en la lista de abajo, o no aparece en absoluto
+    // (nada de fila angosta ni número suelto — desaparece del todo).
+    if (!focusedPart && parts.length) {
+      const chipsRow = ctx.el("div", "s936-ckpt-chips-row");
+      chipsRow.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;padding:8px 2px 10px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:8px;";
+      parts.forEach((part, i) => {
+        const isOpen = i in state.expandedRows ? !!state.expandedRows[i] : i === 0;
+        const type = part.type || baseType(part.section) || "verse";
+        const chip = ctx.el("button", "s936-ckpt-section-chip" + (isOpen ? " on" : ""));
+        chip.type = "button";
+        chip.title = (part.label || labelFor(part.section)) + (isOpen ? " — clic para ocultar" : " — clic para mostrar");
+        const numSpan = ctx.el("span", "", String(i + 1).padStart(2, "0"));
+        numSpan.style.cssText = "opacity:.55;margin-right:4px;";
+        chip.appendChild(numSpan);
+        const badgeSpan = ctx.el("span", "", badgeLabel(type));
+        chip.appendChild(badgeSpan);
+        chip.setAttribute("style", (chip.getAttribute("style") || "") +
+          "display:inline-flex;align-items:center;padding:4px 9px;border-radius:12px;font-size:.56rem;font-weight:900;cursor:pointer;" +
+          (isOpen
+            ? "border:1px solid rgba(0,255,204,.5);background:rgba(0,255,204,.12);color:#7dffe0;"
+            : "border:1px solid rgba(255,255,255,.14);background:transparent;color:rgba(255,255,255,.55);"));
+        chip.onclick = () => {
+          state.expandedRows[i] = !isOpen;
+          saveState(); renderAgain(ctx);
+        };
+        chipsRow.appendChild(chip);
+      });
+      listCard.appendChild(chipsRow);
+    }
+
     const list = ctx.el("div", "s936-struct-list s936-struct-list-wide");
-    const visibleParts = focusedPart ? parts.filter(p => p.section === focusSection) : parts;
+    // Cambio 352: cuando NO hay Zoom activo, la lista de filas completas
+    // solo incluye las secciones marcadas como activas en los chips de
+    // arriba — las demás no se dibujan en absoluto (antes se dibujaban
+    // colapsadas a una barra angosta; ahora ni eso).
+    const visibleParts = focusedPart
+      ? parts.filter(p => p.section === focusSection)
+      : parts.filter((p, i) => (i in state.expandedRows ? !!state.expandedRows[i] : i === 0));
     if (!visibleParts.length) {
-      list.appendChild(ctx.el("div", "s936-struct-empty", "Todavía no hay partes. Créala en el tablero ADN de la canción."));
+      list.appendChild(ctx.el("div", "s936-struct-empty", focusedPart ? "Todavía no hay partes. Créala en el tablero ADN de la canción." : "Ninguna sección activa — toca un chip arriba para mostrarla."));
     } else {
       visibleParts.forEach((part) => {
         const originalIndex = parts.findIndex(p => p === part || p.section === part.section);
@@ -5277,38 +5313,9 @@ body.s936-chart-stage .s936-chart-main-panel{
 
     const isFocus = state.focusSection && state.focusSection === part.section;
     const line = ctx.el("div", "s936-ckpt-part-row" + (isEditing ? " is-editing" : "") + (isFocus ? " is-focus" : ""));
-    // Cambio 350: line ahora vive dentro de un lineWrap flex junto al
-    // checkbox — flex:1/min-width:0 para que siga ocupando el resto del
-    // ancho, sin achicarse, exactamente como cuando era hijo único de row.
-    line.style.cssText = "flex:1 1 auto;min-width:0;";
     line.dataset.section = part.section || "";
     line.dataset.partIndex = String(index);
     line.dataset.consoleChannel = "section";
-
-    // Cambio 346: acordeón — por defecto solo la fila 0 (Intro) viene
-    // abierta; el resto empieza colapsado, mostrando únicamente número +
-    // pastilla de tipo. El check no toca la lógica de reproducción/orden/
-    // marcas de abajo (nada de eso se modificó) — solo esconde con
-    // display:none los bloques de info/estado/acciones cuando está
-    // cerrado, y renderAgain() vuelve a dibujar todo al togglear.
-    const isOpen = index in state.expandedRows ? !!state.expandedRows[index] : index === 0;
-    const expandToggle = ctx.el("input", "s936-ckpt-part-expand");
-    expandToggle.type = "checkbox";
-    expandToggle.checked = isOpen;
-    expandToggle.title = isOpen ? "Ocultar detalle de esta sección" : "Ver detalle de esta sección";
-    expandToggle.onclick = (e) => {
-      e.stopPropagation();
-      state.expandedRows[index] = !isOpen;
-      saveState(); renderAgain(ctx);
-    };
-    // Cambio 350: NO se mete el checkbox dentro de "line" — line usa un
-    // CSS Grid con 4 columnas fijas (28px 54px minmax(0,1fr) auto, con
-    // !important, en 2 lugares del archivo) diseñado para exactamente
-    // num+badge+info+resto. Meter un quinto elemento al principio corría
-    // todo lo demás una columna y rompía el layout (esto era el bug real
-    // detrás de "sigue igual" — no era caché). El checkbox se agrega
-    // como HERMANO de line más abajo, envuelto en su propio contenedor,
-    // sin tocar la grilla interna de line en absoluto.
 
     // Número
     const num = ctx.el("div", "s936-ckpt-part-num", String(index + 1).padStart(2, "0"));
@@ -5327,11 +5334,9 @@ body.s936-chart-stage .s936-chart-main-panel{
     // Info: solo nombre (sin compases)
     const info = ctx.el("div", "s936-ckpt-part-info");
     info.appendChild(ctx.el("div", "s936-ckpt-part-name", part.label || labelFor(part.section)));
-    if (!isOpen) info.style.setProperty("display", "none", "important");
     line.appendChild(info);
 
     const consoleState = ctx.el("span", "s936-ckpt-console-state", "ACTIVA");
-    if (!isOpen) consoleState.style.setProperty("display", "none", "important");
     line.appendChild(consoleState);
 
     // Badge marca navegación (Da Capo, Coda, etc.) — clickeable para desactivar
@@ -5481,13 +5486,8 @@ body.s936-chart-stage .s936-chart-main-panel{
     // Cambio 48: en Zoom sección, la barra del canal solo deja los controles principales.
     // Las herramientas grandes viven abajo en la consola ampliada para evitar duplicados.
     if (isFocus) {
-      if (!isOpen) rowActions.style.setProperty("display", "none", "important");
       line.appendChild(rowActions);
-      const lineWrap = ctx.el("div", "s936-ckpt-line-wrap");
-      lineWrap.style.cssText = "display:flex;align-items:flex-start;gap:4px;";
-      lineWrap.appendChild(expandToggle);
-      lineWrap.appendChild(line);
-      row.appendChild(lineWrap);
+      row.appendChild(line);
       return row;
     }
 
@@ -5581,13 +5581,8 @@ body.s936-chart-stage .s936-chart-main-panel{
 
     gearWrap.append(gearBtn, rowDD);
     rowActions.appendChild(gearWrap);
-    if (!isOpen) rowActions.style.setProperty("display", "none", "important");
     line.appendChild(rowActions);
-    const lineWrap = ctx.el("div", "s936-ckpt-line-wrap");
-    lineWrap.style.cssText = "display:flex;align-items:flex-start;gap:4px;";
-    lineWrap.appendChild(expandToggle);
-    lineWrap.appendChild(line);
-    row.appendChild(lineWrap);
+    row.appendChild(line);
 
     const items = draftOrLiveItems(s, part.section);
     if (isEditing) {
