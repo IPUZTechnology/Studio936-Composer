@@ -1009,24 +1009,17 @@ html, body{
 
 
   function renderComposeSongMenu(ctx, shell) {
-    // Cambio 37: el menú queda como herramienta de Compose; no reemplaza Mapa Maestro.
-    // Mapa Maestro vuelve al subnav junto a Estructura/Editor/Escalas.
-    setTimeout(() => {
-      try {
-        mountComposeTopMenu();
-        scheduleMasterMapRelocation();
-      } catch (err) {
-        console.warn("Cambio 37 menú Compose:", err);
-        // Fallback visual dentro del shell si no se encuentra la barra superior.
-        if (!document.getElementById("s936-compose-top-menu-fallback")) {
-          const fallback = document.createElement("div");
-          fallback.id = "s936-compose-top-menu-fallback";
-          fallback.className = "s936-cmp-songbar is-fallback";
-          fallback.appendChild(buildComposeMenuWrap());
-          shell.insertBefore(fallback, shell.firstChild || null);
-        }
-      }
-    }, 30);
+    // Cambio 358: BUG encontrado — esto buscaba el botón "Compose"/"Studio"
+    // en el DOM y metía la fila de botones justo DESPUÉS de él (fuera del
+    // panel de contenido), en vez de dentro del mismo "shell" donde vive
+    // "Arreglo de la canción". Por eso se veían como 2 cajas separadas.
+    // Existía un camino de respaldo que sí insertaba directo en shell,
+    // pero solo se activaba si el otro fallaba con error — nunca fallaba,
+    // así que nunca se usaba. Ahora se usa SIEMPRE ese camino correcto.
+    document.getElementById("s936-compose-top-menu-wrap")?.remove();
+    const wrap = buildComposeMenuWrap();
+    shell.insertBefore(wrap, shell.firstChild || null);
+    try { scheduleMasterMapRelocation(); } catch (_) {}
   }
 
   // Cambio 354: Val pidió quitar el menú desplegable (☰ MENÚ) — tenía
