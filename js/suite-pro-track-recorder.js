@@ -40,6 +40,9 @@
     { id: 'guitarra', label: 'Guitarra' },
     { id: 'piano', label: 'Piano' },
     { id: 'bateria', label: 'Batería' },
+    // Cambio 364: Val pidió que también aparezcan como opciones de pista.
+    { id: 'tecladomidi', label: 'Teclado MIDI' },
+    { id: 'setelectronico', label: 'Set electrónico' },
     { id: 'otro', label: 'Otro instrumento' }
   ];
 
@@ -765,18 +768,25 @@
   // se usan emojis, mismo criterio que el resto de la app (🎙️, 💾, ☁️...).
   const LANE_ICONS = {
     voz: '🎤', guitarra: '🎸', piano: '🎹',
-    bateria: '🥁', otro: '🎵'
+    bateria: '🥁', tecladomidi: '🎛️', setelectronico: '💻', otro: '🎵'
   };
   const LANE_COLORS = {
     voz: '#378ADD', guitarra: '#639922', piano: '#7F77DD',
-    bateria: '#D4537E', otro: '#888780'
+    bateria: '#D4537E', tecladomidi: '#EF9F27', setelectronico: '#5DCAA5', otro: '#888780'
   };
-  // Estado de mute/solo por sección+instrumento — ajuste de SESIÓN, mismo
-  // criterio ya usado en suite-pro-channel-mixer.js (no se guarda todavía).
-  const laneMuteSolo = {}; // { [sectionKey]: { [instrumentId]: {muted, solo} } }
+  // Estado de mute/solo/pan por sección+instrumento — ajuste de SESIÓN,
+  // mismo criterio ya usado en suite-pro-channel-mixer.js (no se guarda
+  // todavía). Cambio 364: se agrega "pan" (balance izq/der, -1 a 1) al
+  // mismo nivel que mute/solo — AVISO: por ahora es solo estado visual,
+  // igual que mute/solo ya eran antes de este cambio — playInstrumentGroup
+  // reproduce con un <audio> simple, sin pasar por ningún nodo de Web
+  // Audio que respete mute/solo/pan todavía. Conectarlo a audio real de
+  // verdad es un cambio aparte (requiere AudioContext + StereoPannerNode +
+  // GainNode en vez de `new Audio()` directo).
+  const laneMuteSolo = {}; // { [sectionKey]: { [instrumentId]: {muted, solo, pan} } }
   function getLaneState(sectionKey, instrumentId) {
     if (!laneMuteSolo[sectionKey]) laneMuteSolo[sectionKey] = {};
-    if (!laneMuteSolo[sectionKey][instrumentId]) laneMuteSolo[sectionKey][instrumentId] = { muted: false, solo: false };
+    if (!laneMuteSolo[sectionKey][instrumentId]) laneMuteSolo[sectionKey][instrumentId] = { muted: false, solo: false, pan: 0 };
     return laneMuteSolo[sectionKey][instrumentId];
   }
 
@@ -851,12 +861,38 @@
       soloBtn.classList.toggle('is-active', state.solo);
       soloBtn.style.color = state.solo ? color : '';
     });
+    // Cambio 364: Pan (balance izquierda/derecha), -1 a 1. Estado visual
+    // por ahora — ver aviso arriba de getLaneState.
+    const panSlider = document.createElement('input');
+    panSlider.type = 'range';
+    panSlider.min = '-1'; panSlider.max = '1'; panSlider.step = '0.1';
+    panSlider.value = String(state.pan || 0);
+    panSlider.title = 'Balance izquierda/derecha';
+    panSlider.style.cssText = 'width:42px;height:16px;vertical-align:middle;';
+    panSlider.oninput = () => { state.pan = Number(panSlider.value); };
     const delBtn = laneMiniBtn('🗑', 'Borrar ' + info.label, null, () => {
       takes.forEach(t => removeTake(sectionKey, t.id));
       row.remove();
     });
 
-    label.append(iconSpan, playBtn, muteBtn, soloBtn, delBtn);
+    label.append(iconSpan, playBtn, muteBtn, soloBtn, panSlider, delBtn);
+
+    // Cambio 364: canal MIDI (1-16) — solo tiene sentido para la pista de
+    // Teclado MIDI, ninguna otra lo necesita.
+    if (instrumentId === 'tecladomidi') {
+      const midiSelect = document.createElement('select');
+      midiSelect.title = 'Canal MIDI';
+      midiSelect.style.cssText = 'font-size:10px;background:#1c2731;color:#e6edf3;border:1px solid #2a3844;border-radius:6px;padding:1px 3px;';
+      for (let ch = 1; ch <= 16; ch++) {
+        const opt = document.createElement('option');
+        opt.value = String(ch);
+        opt.textContent = 'Ch ' + ch;
+        midiSelect.appendChild(opt);
+      }
+      midiSelect.value = String(state.midiChannel || 1);
+      midiSelect.onchange = () => { state.midiChannel = Number(midiSelect.value); };
+      label.appendChild(midiSelect);
+    }
     row.append(label, track);
     return row;
   }

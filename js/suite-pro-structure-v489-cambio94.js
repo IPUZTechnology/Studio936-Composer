@@ -5609,6 +5609,22 @@ body.s936-chart-stage .s936-chart-main-panel{
       // Modal flotante — se monta en body, no inline
       renderPartEditor(ctx, s, parts, part, index, items);
     }
+
+    // Cambio 364: Val pidió que la vista "en línea" (esta lista de
+    // secciones) muestre también las pistas por instrumento — lo mismo
+    // que ya existe y funciona en el Chart ("visualizador en bloques").
+    // Se reutiliza directamente window.Studio936TrackRecorder.
+    // renderSectionLanes(), la MISMA función que ya usa el Chart — no se
+    // duplica nada de mute/solo/play/borrar/agregar instrumento. Solo se
+    // hace si la fila NO está en modo edición (para no amontonar el
+    // formulario de edición con las pistas encima) y si esta sección no
+    // es una repetición ("%") que reutiliza los datos de otra.
+    if (!isEditing && !isFocus) {
+      try {
+        window.Studio936TrackRecorder?.renderSectionLanes?.(row, part.section);
+      } catch (_) {}
+    }
+
     return row;
   }
 
