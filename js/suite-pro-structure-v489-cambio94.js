@@ -77,7 +77,7 @@
 
   function register() {
     window.Studio936SuiteProModules = window.Studio936SuiteProModules || {};
-    window.Studio936SuiteProStructure = { version: "structure-v4.4.8-cambio-352-secciones-activas", render, openLibraryConfig, getLibraryDirHandle, getLibraryAudioDirHandle };
+    window.Studio936SuiteProStructure = { version: "structure-v4.4.9-cambio-353-chips-linea-fija", render, openLibraryConfig, getLibraryDirHandle, getLibraryAudioDirHandle };
     window.Studio936SuiteProModules.structure = window.Studio936SuiteProStructure;
   }
 
@@ -1798,10 +1798,10 @@
   width:6px;
 }
 #s936SuitePro .s936-struct-section-heading{
-  margin:0 0 6px!important;
+  margin:0 0 3px!important;
 }
 #s936SuitePro .s936-struct-section-heading h4{
-  font-size:.76rem!important;
+  font-size:.68rem!important;
   line-height:1.1!important;
 }
 #s936SuitePro .s936-ckpt-part-row{
@@ -5174,7 +5174,7 @@ body.s936-chart-stage .s936-chart-main-panel{
     // secciones ACTIVAS/VISIBLES vs OCULTAS del todo. Se renombra el
     // badge en consecuencia.
     const accordionBadge = ctx.el("div", "", "SECCIONES ACTIVAS · CAMBIO 352");
-    accordionBadge.style.cssText = "display:inline-block;margin-top:4px;padding:2px 7px;border-radius:999px;border:1px solid rgba(0,255,204,.35);background:rgba(0,255,204,.08);color:#7dffe0;font-size:.56rem;font-weight:900;letter-spacing:.3px;text-transform:uppercase;";
+    accordionBadge.style.cssText = "display:inline-block;margin-top:2px;padding:1px 6px;border-radius:999px;border:1px solid rgba(0,255,204,.35);background:rgba(0,255,204,.08);color:#7dffe0;font-size:.5rem;font-weight:900;letter-spacing:.3px;text-transform:uppercase;";
     left.appendChild(accordionBadge);
 
     titleRow.appendChild(left);
@@ -5202,7 +5202,15 @@ body.s936-chart-stage .s936-chart-main-panel{
     // (nada de fila angosta ni número suelto — desaparece del todo).
     if (!focusedPart && parts.length) {
       const chipsRow = ctx.el("div", "s936-ckpt-chips-row");
-      chipsRow.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;padding:8px 2px 10px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:8px;";
+      // Cambio 353: Val señaló que si esta fila permite salto de línea
+      // (flex-wrap:wrap), crece de alto cada vez que se agregan más
+      // secciones — eso corre la fila de Intro hacia abajo y la
+      // desalinea del Chart de la derecha, que sí tiene una posición
+      // fija. Se cambia a UNA SOLA fila con scroll horizontal
+      // (nowrap + overflow-x:auto): sin importar cuántas secciones haya,
+      // esta franja siempre mide lo mismo de alto.
+      chipsRow.style.cssText = "display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;padding:6px 2px 8px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:6px;scrollbar-width:thin;";
+      chipsRow.querySelectorAll && (chipsRow.style.webkitOverflowScrolling = "touch");
       parts.forEach((part, i) => {
         const isOpen = i in state.expandedRows ? !!state.expandedRows[i] : i === 0;
         const type = part.type || baseType(part.section) || "verse";
@@ -5215,7 +5223,7 @@ body.s936-chart-stage .s936-chart-main-panel{
         const badgeSpan = ctx.el("span", "", badgeLabel(type));
         chip.appendChild(badgeSpan);
         chip.setAttribute("style", (chip.getAttribute("style") || "") +
-          "display:inline-flex;align-items:center;padding:4px 9px;border-radius:12px;font-size:.56rem;font-weight:900;cursor:pointer;" +
+          "display:inline-flex;align-items:center;padding:4px 9px;border-radius:12px;font-size:.56rem;font-weight:900;cursor:pointer;flex-shrink:0;white-space:nowrap;" +
           (isOpen
             ? "border:1px solid rgba(0,255,204,.5);background:rgba(0,255,204,.12);color:#7dffe0;"
             : "border:1px solid rgba(255,255,255,.14);background:transparent;color:rgba(255,255,255,.55);"));

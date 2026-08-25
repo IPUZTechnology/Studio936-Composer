@@ -780,14 +780,19 @@ function normalizeNoteName(value) {
 #${PANEL_ID} {
   position: fixed;
   left: 12px;
-  top: 112px;
+  /* Cambio 353: Val marcó que el panel invadía la franja de controles de
+     arriba (Play/metrónomo/tempo) — se baja de 112px a 132px como primer
+     ajuste. Esto probablemente necesite un segundo ajuste fino una vez
+     Val lo vea en pantalla real (los 20px son una estimación, no una
+     medición exacta del toolbar de arriba). */
+  top: 132px;
   /* Cambio 85: antes "bottom:12px" fijaba el panel entre top Y bottom a la
      vez, forzando su altura a llenar casi toda la pantalla sin importar
      cuánto contenido tuviera adentro — de ahí el hueco oscuro vacío al
      final. Ahora se ajusta con height:auto a su contenido real, con un
      tope máximo para no salirse nunca de la ventana. */
   height: auto;
-  max-height: calc(100vh - 124px);
+  max-height: calc(100vh - 144px);
   /* Cambio 87: el panel exterior NUNCA debe tener su propio scroll — solo el
      contenido interno (.s936-sp-content) debe scrollear. En pantallas más
      chicas (laptop), la combinación de height:auto + max-height podía dejar
