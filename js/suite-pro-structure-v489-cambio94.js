@@ -5175,7 +5175,7 @@ body.s936-chart-stage .s936-chart-main-panel{
     // confirmar de un vistazo, sin consola ni DevTools, si el navegador
     // está corriendo el acordeón (Cambio 346) o una copia vieja. Mismo
     // patrón que ya usa suite-pro.js con "DOCK CAMBIO 109".
-    const accordionBadge = ctx.el("div", "", "ACORDEÓN · CAMBIO 348");
+    const accordionBadge = ctx.el("div", "", "ACORDEÓN · CAMBIO 350");
     accordionBadge.style.cssText = "display:inline-block;margin-top:4px;padding:2px 7px;border-radius:999px;border:1px solid rgba(0,255,204,.35);background:rgba(0,255,204,.08);color:#7dffe0;font-size:.56rem;font-weight:900;letter-spacing:.3px;text-transform:uppercase;";
     left.appendChild(accordionBadge);
     console.log("[Studio936] Estructura — acordeón Cambio 348 CORRIENDO. expandedRows en el módulo:", typeof state.expandedRows);
@@ -5277,6 +5277,10 @@ body.s936-chart-stage .s936-chart-main-panel{
 
     const isFocus = state.focusSection && state.focusSection === part.section;
     const line = ctx.el("div", "s936-ckpt-part-row" + (isEditing ? " is-editing" : "") + (isFocus ? " is-focus" : ""));
+    // Cambio 350: line ahora vive dentro de un lineWrap flex junto al
+    // checkbox — flex:1/min-width:0 para que siga ocupando el resto del
+    // ancho, sin achicarse, exactamente como cuando era hijo único de row.
+    line.style.cssText = "flex:1 1 auto;min-width:0;";
     line.dataset.section = part.section || "";
     line.dataset.partIndex = String(index);
     line.dataset.consoleChannel = "section";
@@ -5288,12 +5292,6 @@ body.s936-chart-stage .s936-chart-main-panel{
     // display:none los bloques de info/estado/acciones cuando está
     // cerrado, y renderAgain() vuelve a dibujar todo al togglear.
     const isOpen = index in state.expandedRows ? !!state.expandedRows[index] : index === 0;
-    // Cambio 349: además del console.log, se guarda en un arreglo global
-    // fácil de leer con un simple alert(), porque la consola del
-    // navegador resultó confusa de navegar en la práctica.
-    window.__s936Debug = window.__s936Debug || [];
-    window.__s936Debug.push({ index, isOpen, expandedRows: JSON.stringify(state.expandedRows) });
-    console.log("[Studio936 Cambio 348] fila", index, "isOpen:", isOpen, "expandedRows:", JSON.stringify(state.expandedRows));
     const expandToggle = ctx.el("input", "s936-ckpt-part-expand");
     expandToggle.type = "checkbox";
     expandToggle.checked = isOpen;
@@ -5303,7 +5301,14 @@ body.s936-chart-stage .s936-chart-main-panel{
       state.expandedRows[index] = !isOpen;
       saveState(); renderAgain(ctx);
     };
-    line.appendChild(expandToggle);
+    // Cambio 350: NO se mete el checkbox dentro de "line" — line usa un
+    // CSS Grid con 4 columnas fijas (28px 54px minmax(0,1fr) auto, con
+    // !important, en 2 lugares del archivo) diseñado para exactamente
+    // num+badge+info+resto. Meter un quinto elemento al principio corría
+    // todo lo demás una columna y rompía el layout (esto era el bug real
+    // detrás de "sigue igual" — no era caché). El checkbox se agrega
+    // como HERMANO de line más abajo, envuelto en su propio contenedor,
+    // sin tocar la grilla interna de line en absoluto.
 
     // Número
     const num = ctx.el("div", "s936-ckpt-part-num", String(index + 1).padStart(2, "0"));
@@ -5478,7 +5483,11 @@ body.s936-chart-stage .s936-chart-main-panel{
     if (isFocus) {
       if (!isOpen) rowActions.style.display = "none";
       line.appendChild(rowActions);
-      row.appendChild(line);
+      const lineWrap = ctx.el("div", "s936-ckpt-line-wrap");
+      lineWrap.style.cssText = "display:flex;align-items:flex-start;gap:4px;";
+      lineWrap.appendChild(expandToggle);
+      lineWrap.appendChild(line);
+      row.appendChild(lineWrap);
       return row;
     }
 
@@ -5574,7 +5583,11 @@ body.s936-chart-stage .s936-chart-main-panel{
     rowActions.appendChild(gearWrap);
     if (!isOpen) rowActions.style.display = "none";
     line.appendChild(rowActions);
-    row.appendChild(line);
+    const lineWrap = ctx.el("div", "s936-ckpt-line-wrap");
+    lineWrap.style.cssText = "display:flex;align-items:flex-start;gap:4px;";
+    lineWrap.appendChild(expandToggle);
+    lineWrap.appendChild(line);
+    row.appendChild(lineWrap);
 
     const items = draftOrLiveItems(s, part.section);
     if (isEditing) {
