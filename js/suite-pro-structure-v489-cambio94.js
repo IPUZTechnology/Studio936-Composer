@@ -5209,7 +5209,7 @@ body.s936-chart-stage .s936-chart-main-panel{
       // fija. Se cambia a UNA SOLA fila con scroll horizontal
       // (nowrap + overflow-x:auto): sin importar cuántas secciones haya,
       // esta franja siempre mide lo mismo de alto.
-      chipsRow.style.cssText = "display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;padding:6px 2px 8px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:6px;scrollbar-width:thin;";
+      chipsRow.style.cssText = "display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;padding:4px 2px 6px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:4px;scrollbar-width:thin;";
       chipsRow.querySelectorAll && (chipsRow.style.webkitOverflowScrolling = "touch");
       parts.forEach((part, i) => {
         const isOpen = i in state.expandedRows ? !!state.expandedRows[i] : i === 0;

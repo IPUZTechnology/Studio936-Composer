@@ -1041,32 +1041,35 @@ html, body{
     // nowrap + scroll horizontal en vez de salto de línea.
     wrap.style.cssText = "display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;";
 
-    const niceBtn = (label, onClick, extraStyle = "") => {
+    const niceBtn = (icon, tooltip, onClick, extraStyle = "") => {
       const b = document.createElement("button");
       b.type = "button";
-      b.textContent = label;
-      b.style.cssText = "background:#1c2731;color:#e6edf3;border:1px solid #2a3844;border-radius:10px;padding:8px 12px;font-size:.68rem;font-weight:800;cursor:pointer;flex-shrink:0;white-space:nowrap;" + extraStyle;
+      b.title = tooltip; // Cambio 359: tooltip nativo del navegador al pasar el mouse
+      b.setAttribute("aria-label", tooltip);
+      b.textContent = icon;
+      b.style.cssText = "display:flex;align-items:center;justify-content:center;width:34px;height:34px;background:#1c2731;color:#e6edf3;border:1px solid #2a3844;border-radius:9px;font-size:15px;line-height:1;cursor:pointer;flex-shrink:0;" + extraStyle;
       b.onmouseenter = () => { b.style.borderColor = "rgba(0,255,204,.5)"; b.style.color = "#7dffe0"; };
       b.onmouseleave = () => { b.style.borderColor = "#2a3844"; b.style.color = "#e6edf3"; };
       b.onclick = (e) => { e.stopPropagation(); onClick(); };
       return b;
     };
 
-    wrap.appendChild(niceBtn("Plantillas", () => abrirPlantillasFlotante(), "background:rgba(0,255,204,.10);border-color:rgba(0,255,204,.35);color:#7dffe0;"));
+    wrap.appendChild(niceBtn("📄", "Plantillas", () => abrirPlantillasFlotante(), "background:rgba(0,255,204,.10);border-color:rgba(0,255,204,.35);color:#7dffe0;"));
 
     // Guardar: botón con mini-menú de 2 opciones (Local / Librería) —
     // mismas funciones que ya existían en el menú viejo, sin tocar su
     // lógica interna.
     const guardarWrap = document.createElement("div");
     guardarWrap.style.cssText = "position:relative;flex-shrink:0;";
-    const guardarBtn = niceBtn("Guardar ▾", () => {
+    const guardarBtn = niceBtn("💾", "Guardar", () => {
       document.querySelectorAll(".s936-cmp-save-dd.open").forEach(d => d.classList.remove("open"));
       guardarDD.classList.toggle("open");
     });
     const guardarDD = document.createElement("div");
     guardarDD.className = "s936-cmp-save-dd";
     guardarDD.style.cssText = "display:none;position:absolute;top:calc(100% + 4px);left:0;background:#141b22;border:1px solid #2a3844;border-radius:8px;padding:4px;min-width:140px;z-index:10071;box-shadow:0 8px 24px rgba(0,0,0,.4);";
-    const ddItem = (label, fn) => {      const it = document.createElement("button");
+    const ddItem = (label, fn) => {
+      const it = document.createElement("button");
       it.type = "button";
       it.textContent = label;
       it.style.cssText = "display:block;width:100%;text-align:left;background:none;border:none;color:#e6edf3;padding:7px 9px;font-size:.66rem;cursor:pointer;border-radius:6px;";
@@ -1095,17 +1098,17 @@ html, body{
     guardarWrap.append(guardarBtn, guardarDD);
     wrap.appendChild(guardarWrap);
 
-    wrap.appendChild(niceBtn("Nueva canción", () => window.S936OpenNewSongModal?.()));
+    wrap.appendChild(niceBtn("🆕", "Nueva canción", () => window.S936OpenNewSongModal?.()));
     // Cambio 355: "Abrir canción" reutiliza openSongPicker() tal cual ya
     // existía — ya es una ventana flotante centrada y ya lee las
     // composiciones guardadas en la Librería (s936_library_v2), no hacía
     // falta construir nada nuevo, solo exponer el botón.
-    wrap.appendChild(niceBtn("Abrir canción", () => window.S936OpenSongPicker?.()));
+    wrap.appendChild(niceBtn("📂", "Abrir canción", () => window.S936OpenSongPicker?.()));
 
     // Crear Sección: no duplica el formulario (tipo/nombre/compases) que
     // ya vive dentro de Estructura — solo busca ese mismo toggle en el
     // DOM y lo abre, haciendo scroll hasta él.
-    wrap.appendChild(niceBtn("+ Crear Sección", () => {
+    wrap.appendChild(niceBtn("➕", "Crear Sección", () => {
       const toggle = document.querySelector("#s936SuitePro .s936-ckpt-add-toggle");
       if (toggle) {
         if (!toggle.classList.contains("open")) toggle.click();

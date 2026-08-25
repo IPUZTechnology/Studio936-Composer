@@ -786,12 +786,11 @@ function normalizeNoteName(value) {
      del borde del panel un momento — aceptable, es el mismo patrón que
      un cajón/flyout normal. */
   left: 76px;
-  /* Cambio 353: Val marcó que el panel invadía la franja de controles de
-     arriba (Play/metrónomo/tempo) — se baja de 112px a 132px como primer
-     ajuste. Esto probablemente necesite un segundo ajuste fino una vez
-     Val lo vea en pantalla real (los 20px son una estimación, no una
-     medición exacta del toolbar de arriba). */
-  top: 132px;
+  /* Cambio 359: segundo ajuste fino (132px -> 120px) tras ver la
+     alineación real en pantalla — Val pidió que "Intro" quede a la misma
+     altura que los mini-mapas del Chart. Puede necesitar un tercer ajuste
+     todavía, es afinación visual iterativa. */
+  top: 120px;
   /* Cambio 85: antes "bottom:12px" fijaba el panel entre top Y bottom a la
      vez, forzando su altura a llenar casi toda la pantalla sin importar
      cuánto contenido tuviera adentro — de ahí el hueco oscuro vacío al
@@ -3279,7 +3278,7 @@ function normalizeNoteName(value) {
     rail.style.cssText = `
       position: fixed;
       left: 12px;
-      top: 132px;
+      top: 120px;
       width: 56px;
       z-index: 10061;
       display: none;
