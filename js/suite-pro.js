@@ -797,8 +797,7 @@ function normalizeNoteName(value) {
      final. Ahora se ajusta con height:auto a su contenido real, con un
      tope máximo para no salirse nunca de la ventana. */
   height: auto;
-  max-height: calc(100vh - 144px);
-  /* Cambio 87: el panel exterior NUNCA debe tener su propio scroll — solo el
+  max-height: calc(100vh - 144px);  /* Cambio 87: el panel exterior NUNCA debe tener su propio scroll — solo el
      contenido interno (.s936-sp-content) debe scrollear. En pantallas más
      chicas (laptop), la combinación de height:auto + max-height podía dejar
      que el navegador también le pusiera scroll al panel exterior, dando dos
@@ -824,6 +823,11 @@ function normalizeNoteName(value) {
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 #${PANEL_ID}.is-open { display: block; }
+/* Cambio 361: con is-open Y esta clase juntas, el Docker completo queda
+   oculto — solo se ve mientras el mouse está sobre la barra de íconos o
+   sobre el propio panel (ver showDockOnHover/scheduleHideDockOnHover).
+   !important porque gana sobre ".is-open{display:block}" de arriba. */
+#${PANEL_ID}.is-open.s936-dock-collapsed { display: none !important; }
 #${PANEL_ID}.is-max {
   left: 18px;
   right: 18px;
@@ -1853,6 +1857,12 @@ function normalizeNoteName(value) {
       panel.id = PANEL_ID;
       panel.setAttribute("aria-label", "Suite Pro");
       document.body.appendChild(panel);
+      // Cambio 361: el panel también debe "mantenerse abierto" mientras
+      // el mouse está sobre él — si solo escucháramos hover en la barra
+      // de íconos, mover el cursor desde la barra hacia adentro del
+      // Docker lo cerraría a mitad de camino.
+      panel.addEventListener("mouseenter", showDockOnHover);
+      panel.addEventListener("mouseleave", scheduleHideDockOnHover);
     }
     if (!panel.dataset.ready) buildShell(panel);
     applyMode(panel);
@@ -3240,6 +3250,10 @@ function normalizeNoteName(value) {
     }
     state.open = true;
     panel.classList.add("is-open");
+    // Cambio 361: por defecto arranca colapsado (solo la barra de íconos
+    // visible) — se muestra completo únicamente con el hover sobre la
+    // barra o sobre el propio panel (showDockOnHover).
+    panel.classList.add("s936-dock-collapsed");
     render();
     // Cambio 356: mostrar la barra de íconos junto con el panel — es
     // aditiva, no reemplaza las pestañas COMPOSE/Mapa Maestro de arriba
@@ -3265,6 +3279,10 @@ function normalizeNoteName(value) {
     // Cambio 356: ocultar la barra de íconos junto con el panel.
     const rail = document.getElementById("s936HoverRail");
     if (rail) rail.style.display = "none";
+    // Cambio 361: limpiar cualquier temporizador de ocultar pendiente —
+    // si no, podría dispararse después de cerrar y afectar la próxima
+    // apertura.
+    if (_hoverHideTimer) { clearTimeout(_hoverHideTimer); _hoverHideTimer = null; }
   }
 
   // Cambio 356: barra de íconos con hover-expandir — Val la pidió como
@@ -3274,6 +3292,32 @@ function normalizeNoteName(value) {
   // exactamente lo mismo que tocar la pestaña de arriba, sin lógica
   // duplicada. Vive como elemento propio en <body> (no dentro del grid
   // del panel) para no tocar en absoluto el layout existente.
+  //
+  // Cambio 361: CORRECCIÓN — antes, al pasar el mouse, solo la barrita se
+  // ensanchaba un poco y quedaba ENCIMA del panel grande (2 piezas
+  // compitiendo por espacio). Val aclaró que quería lo contrario: con el
+  // mouse afuera, se ve SOLO el ícono (todo lo demás oculto, dejando ver
+  // la canción completa detrás); al pasar el mouse sobre el ícono, se
+  // muestra el Docker COMPLETO (panel entero, no solo la barra). Se usa
+  // un pequeño retraso (250ms) al salir del hover para que mover el mouse
+  // de la barra hacia el panel grande no lo cierre de golpe.
+  let _hoverHideTimer = null;
+
+  function showDockOnHover() {
+    if (_hoverHideTimer) { clearTimeout(_hoverHideTimer); _hoverHideTimer = null; }
+    const panel = ensurePanel();
+    panel.classList.remove("s936-dock-collapsed");
+  }
+
+  function scheduleHideDockOnHover() {
+    if (_hoverHideTimer) clearTimeout(_hoverHideTimer);
+    _hoverHideTimer = setTimeout(() => {
+      const panel = byId(PANEL_ID);
+      if (panel) panel.classList.add("s936-dock-collapsed");
+      _hoverHideTimer = null;
+    }, 250);
+  }
+
   function ensureHoverRail() {
     let rail = document.getElementById("s936HoverRail");
     if (rail) return rail;
@@ -3285,7 +3329,7 @@ function normalizeNoteName(value) {
       left: 12px;
       top: 120px;
       width: 56px;
-      z-index: 10061;
+      z-index: 10062;
       display: none;
       flex-direction: column;
       align-items: stretch;
@@ -3295,7 +3339,6 @@ function normalizeNoteName(value) {
       border: 1px solid rgba(0,255,204,.34);
       border-radius: 14px;
       box-shadow: 0 20px 60px rgba(0,0,0,.5);
-      transition: width .15s ease;
       overflow: hidden;
     `;
 
@@ -3324,26 +3367,21 @@ function normalizeNoteName(value) {
       `;
       const iconSpan = el("span", "", it.icon);
       iconSpan.style.cssText = "font-size:18px;flex-shrink:0;";
-      const labelSpan = el("span", "s936-hoverrail-label", it.label);
-      labelSpan.style.cssText = "opacity:0;transition:opacity .1s ease;";
-      b.append(iconSpan, labelSpan);
+      b.appendChild(iconSpan);
+      b.title = it.label; // Cambio 361: el nombre queda como tooltip — ya no hay texto que se expande al lado, el Docker completo hace las veces de "expandir".
       b.onmouseenter = () => { b.style.background = "rgba(0,255,204,.10)"; };
       b.onmouseleave = () => { b.style.background = "transparent"; };
       b.onclick = () => {
         setArea(it.area);
         open();
+        showDockOnHover();
       };
       rail.appendChild(b);
     });
 
-    rail.addEventListener("mouseenter", () => {
-      rail.style.width = "150px";
-      rail.querySelectorAll(".s936-hoverrail-label").forEach((l) => { l.style.opacity = "1"; });
-    });
-    rail.addEventListener("mouseleave", () => {
-      rail.style.width = "56px";
-      rail.querySelectorAll(".s936-hoverrail-label").forEach((l) => { l.style.opacity = "0"; });
-    });
+    // Cambio 361: hover de la BARRA muestra el Docker completo.
+    rail.addEventListener("mouseenter", showDockOnHover);
+    rail.addEventListener("mouseleave", scheduleHideDockOnHover);
 
     document.body.appendChild(rail);
     return rail;
@@ -3377,7 +3415,7 @@ function normalizeNoteName(value) {
   }
 
   window.Studio936SuitePro = {
-    version: "professional-v3.13-cambio-356-hoverrail",
+    version: "professional-v3.14-cambio-361-dock-hover-completo",
     open,
     close,
     toggle,
