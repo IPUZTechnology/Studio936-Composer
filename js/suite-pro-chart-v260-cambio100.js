@@ -1201,6 +1201,17 @@ window.Studio936SuiteProChart = (() => {
   letter-spacing:.4px;margin-bottom:4px;white-space:nowrap}
 .s936-ch-cont-row{display:flex;gap:3px;margin-bottom:3px}
 .s936-ch-cont-headerspacer{width:160px;flex-shrink:0}
+/* Cambio 377: barra mini de sesión (Play/Loop/Zoom/Editar) en la
+   posición cero de cada bloque de sección, Vista Continua. */
+.s936-ch-mini-sesion-bar{display:flex;gap:3px;margin:2px 0 4px}
+.s936-ch-mini-sesion-btn{
+  min-width:20px;height:20px;padding:0 4px;
+  border-radius:5px;border:1px solid rgba(0,255,204,.28);
+  background:rgba(0,255,204,.07);color:#bfffee;
+  font-size:.62rem;line-height:1;cursor:pointer;
+}
+.s936-ch-mini-sesion-btn:hover{background:rgba(0,255,204,.16);border-color:rgba(0,255,204,.5)}
+.s936-ch-mini-sesion-btn.is-active{background:rgba(255,224,102,.18);border-color:rgba(255,224,102,.55);color:#ffe066}
 .s936-ch-cont-zoombtn{width:100%;background:rgba(0,255,204,.08);border:1px solid rgba(0,255,204,.3);
   border-radius:6px;color:#7dffe0;font-size:.6rem;font-weight:700;padding:5px 4px;cursor:pointer;}
 .s936-ch-cont-zoombtn:hover{background:rgba(0,255,204,.16)}
@@ -7377,6 +7388,67 @@ body.s936-chart-stage main{
     // Cambio 260 (paso 1 — vista continua, solo lectura): interruptor
     // seguro, no toca la lógica del bucle de siempre. Si la vista continua
     // NO está activa, todo sigue exactamente igual que antes.
+    // Cambio 377: barra mini de controles por sección, en la posición
+    // cero de cada bloque de Vista Continua (antes del primer acorde).
+    // Reusa la MISMA lógica que ya existe en este archivo para Play/Loop
+    // (startChartSectionPractice) y Zoom (setFocusSection/clearFocusSection
+    // /readFocusSection) — nada nuevo, solo un acceso más corto sin abrir
+    // el Docker. "Editar" sí abre el Docker (Compose/Estructura) a
+    // propósito: el listado real de secciones en formato chip, con
+    // tiempos/compases, ya vive ahí — Val pidió representarlo distinto,
+    // no reconstruirlo.
+    function buildSectionMiniBar(sectionKey, sectionLabel) {
+      const bar = document.createElement("div");
+      bar.className = "s936-ch-mini-sesion-bar";
+
+      const focus = readFocusSection();
+      const isFocused = !!(focus && focus.section === sectionKey);
+
+      const mk = (symbol, title, onClick, extraClass) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "s936-ch-mini-sesion-btn" + (extraClass ? " " + extraClass : "");
+        b.textContent = symbol;
+        b.title = title;
+        b.onclick = (e) => { e.stopPropagation(); onClick(); };
+        return b;
+      };
+
+      const playBtn = mk("▶", "Practicar esta sección", () => {
+        const panel = getActiveChartPanel();
+        const ok = startChartSectionPractice(panel, sectionKey, { withPulse: false, sourceLabel: "Sección" });
+        if (!ok) alert("El Chart todavía no está listo para practicar.");
+      });
+
+      const loopBtn = mk("↻", "Loop de esta sección", () => {
+        try {
+          window.dispatchEvent(new CustomEvent("studio936:chart-loop-current-section", {
+            detail: { section: sectionKey, part: sectionLabel }
+          }));
+        } catch(_) {}
+        const panel = getActiveChartPanel();
+        startChartSectionPractice(panel, sectionKey, { withPulse: false, sourceLabel: "Loop sección" });
+      });
+
+      const zoomBtn = mk(isFocused ? "↩" : "⛶", isFocused ? "Salir de zoom sección" : "Zoom sección", () => {
+        if (isFocused) {
+          clearFocusSection();
+        } else {
+          setFocusSection(sectionKey, { label: sectionLabel });
+        }
+      }, isFocused ? "is-active" : "");
+
+      const editBtn = mk("✎", "Editar secciones (abre Compose)", () => {
+        try {
+          if (window.Studio936SuitePro?.openArea) window.Studio936SuitePro.openArea("compose");
+          else document.getElementById("s936HoverRail")?.querySelector("[data-area='compose'],button")?.click();
+        } catch(_) {}
+      });
+
+      bar.append(playBtn, loopBtn, zoomBtn, editBtn);
+      return bar;
+    }
+
     function renderContinuousTimelineView(bodyEl) {
       bodyEl.innerHTML = "";
       const scroller = document.createElement("div");
@@ -7434,6 +7506,9 @@ body.s936-chart-stage main{
         label.style.color = color;
         label.textContent = "● " + (item.label || item.section || "");
         block.appendChild(label);
+        // Cambio 377: barra mini de sesión, justo en la posición cero,
+        // antes del primer acorde de la sección.
+        block.appendChild(buildSectionMiniBar(item.section, item.label || item.section || ""));
 
         const chordRow = document.createElement("div");
         chordRow.className = "s936-ch-cont-row";
