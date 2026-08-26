@@ -1201,6 +1201,9 @@ window.Studio936SuiteProChart = (() => {
   letter-spacing:.4px;margin-bottom:4px;white-space:nowrap}
 .s936-ch-cont-row{display:flex;gap:3px;margin-bottom:3px}
 .s936-ch-cont-headerspacer{width:160px;flex-shrink:0}
+.s936-ch-cont-zoombtn{width:100%;background:rgba(0,255,204,.08);border:1px solid rgba(0,255,204,.3);
+  border-radius:6px;color:#7dffe0;font-size:.6rem;font-weight:700;padding:5px 4px;cursor:pointer;}
+.s936-ch-cont-zoombtn:hover{background:rgba(0,255,204,.16)}
 .s936-ch-cont-cell{background:rgba(255,255,255,.05);border-radius:5px;
   padding:4px 6px;font-size:.62rem;min-width:150px;text-align:center;
   flex-shrink:0;box-sizing:border-box}
@@ -7396,19 +7399,32 @@ body.s936-chart-stage main{
 
         const chordRow = document.createElement("div");
         chordRow.className = "s936-ch-cont-row";
-        // Cambio 368: Val pidió una columna fija a la izquierda (como en
-        // cualquier DAW: encabezado de pista + línea de tiempo), no solo
-        // que el contenido de instrumentos se apile arriba/abajo. Se
-        // reserva el mismo ancho (160px) tanto aquí como en la fila de
-        // letra y en cada fila de instrumento (suite-pro-track-recorder.js)
-        // — así los 3 tipos de fila usan EXACTAMENTE la misma cuadrícula,
-        // en vez de que cada una calcule su propio punto de inicio.
+        // Cambio 368: columna fija reservada.
+        // Cambio 369: ahora con contenido real — botón de Zoom de esta
+        // sección, usando setFocusSection() que YA existe en este mismo
+        // archivo (no hace falta ir a buscar nada a otro módulo).
         const chordSpacer = document.createElement("div");
         chordSpacer.className = "s936-ch-cont-headerspacer";
+        const zoomBtnCont = document.createElement("button");
+        zoomBtnCont.type = "button";
+        zoomBtnCont.className = "s936-ch-cont-zoombtn";
+        zoomBtnCont.textContent = "⤢ Zoom";
+        zoomBtnCont.title = "Enfocar solo esta sección";
+        zoomBtnCont.onclick = (e) => {
+          e.stopPropagation();
+          setFocusSection(item.section, { label: item.label || item.section || "" });
+        };
+        chordSpacer.appendChild(zoomBtnCont);
         chordRow.appendChild(chordSpacer);
 
         const lyricRow = document.createElement("div");
         lyricRow.className = "s936-ch-cont-row";
+        // Cambio 369: el botón de letra queda pendiente a propósito — la
+        // función real (openSectionLyricsEditor) vive en
+        // suite-pro-structure-v489-cambio94.js y espera datos (ctx, s,
+        // part, parts) con una forma distinta a la que tiene este
+        // archivo (item/arrangement). Conectarlo bien necesita exponerlo
+        // con cuidado, no a las carreras — documentado en el HANDOFF.
         const lyricSpacer = document.createElement("div");
         lyricSpacer.className = "s936-ch-cont-headerspacer";
         lyricRow.appendChild(lyricSpacer);
