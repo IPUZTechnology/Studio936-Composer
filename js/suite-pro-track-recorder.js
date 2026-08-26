@@ -1010,5 +1010,5 @@
     openPanel();
   });
 
-  window.Studio936TrackRecorder = { toggle, openPanel, closePanel, renderSectionLanes };
+  window.Studio936TrackRecorder = { toggle, openPanel, closePanel, renderSectionLanes, buildAddInstrumentControl };
 })();

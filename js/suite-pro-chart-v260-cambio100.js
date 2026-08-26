@@ -1219,6 +1219,8 @@ window.Studio936SuiteProChart = (() => {
 }
 .s936-ch-mini-sesion-btn:hover{background:rgba(0,255,204,.18);border-color:rgba(0,255,204,.5)}
 .s936-ch-mini-sesion-btn.is-active{background:rgba(255,224,102,.18);border-color:rgba(255,224,102,.55);color:#ffe066}
+.s936-ch-mini-sesion-btn.is-placeholder{opacity:.4;cursor:not-allowed}
+.s936-ch-mini-sesion-channel-icon{font-size:.78rem;line-height:1;display:inline-flex;align-items:center}
 .s936-ch-cont-zoombtn{width:100%;background:rgba(0,255,204,.08);border:1px solid rgba(0,255,204,.3);
   border-radius:6px;color:#7dffe0;font-size:.6rem;font-weight:700;padding:5px 4px;cursor:pointer;}
 .s936-ch-cont-zoombtn:hover{background:rgba(0,255,204,.16)}
@@ -7456,6 +7458,60 @@ body.s936-chart-stage main{
       return bar;
     }
 
+    // Cambio 379: barra mini del canal de Lyric — mismo patrón que la de
+    // Chart (buildSectionMiniBar), pero con botones distintos: ícono de
+    // canal (por defecto Voz, reusando el mismo selector "+" ya
+    // programado en suite-pro-track-recorder.js, mismo orden/íconos de
+    // instrumento en toda la app), Abrir Lyric (editor real, vía el
+    // puente de evento hacia structure.js) y Convertir a sonido
+    // (placeholder — función nueva, todavía sin diseñar, ver handoff).
+    function buildSectionLyricMiniBar(sectionKey) {
+      const bar = document.createElement("div");
+      bar.className = "s936-ch-mini-sesion-bar";
+
+      const channelIcon = document.createElement("span");
+      channelIcon.className = "s936-ch-mini-sesion-channel-icon";
+      channelIcon.textContent = "🎤";
+      channelIcon.title = "Canal: Voz (letra)";
+      channelIcon.style.color = "#378ADD";
+      bar.appendChild(channelIcon);
+
+      // Selector de instrumento del canal — EXACTAMENTE el mismo botón
+      // "+" y la misma lista/orden de instrumentos que ya existen en
+      // "Pistas de toda esta sección" (voz, guitarra, piano, batería,
+      // teclado MIDI, set electrónico, otro) — no se duplica la lista acá.
+      if (window.Studio936TrackRecorder?.buildAddInstrumentControl) {
+        try {
+          bar.appendChild(window.Studio936TrackRecorder.buildAddInstrumentControl(sectionKey));
+        } catch(_) {}
+      }
+
+      const openLyricBtn = document.createElement("button");
+      openLyricBtn.type = "button";
+      openLyricBtn.className = "s936-ch-mini-sesion-btn";
+      openLyricBtn.textContent = "✎";
+      openLyricBtn.title = "Abrir letra de esta sección";
+      openLyricBtn.onclick = (e) => {
+        e.stopPropagation();
+        try {
+          window.dispatchEvent(new CustomEvent("studio936:chart-open-lyrics-editor", {
+            detail: { section: sectionKey }
+          }));
+        } catch(_) {}
+      };
+      bar.appendChild(openLyricBtn);
+
+      const toVoiceBtn = document.createElement("button");
+      toVoiceBtn.type = "button";
+      toVoiceBtn.className = "s936-ch-mini-sesion-btn is-placeholder";
+      toVoiceBtn.textContent = "🎷";
+      toVoiceBtn.title = "Convertir letra en sonido — próximo cambio";
+      toVoiceBtn.disabled = true;
+      bar.appendChild(toVoiceBtn);
+
+      return bar;
+    }
+
     function renderContinuousTimelineView(bodyEl) {
       bodyEl.innerHTML = "";
       const scroller = document.createElement("div");
@@ -7533,7 +7589,8 @@ body.s936-chart-stage main{
         const lyricRow = document.createElement("div");
         lyricRow.className = "s936-ch-cont-row";
         const lyricSpacer = document.createElement("div");
-        lyricSpacer.className = "s936-ch-cont-headerspacer";
+        lyricSpacer.className = "s936-ch-cont-headerspacer s936-ch-mini-sesion-spacer";
+        lyricSpacer.appendChild(buildSectionLyricMiniBar(item.section));
         lyricRow.appendChild(lyricSpacer);
 
         const beatsData = getBeatsData(item.section);

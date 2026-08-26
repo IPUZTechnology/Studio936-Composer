@@ -37,6 +37,11 @@
     ["outro", "Outro"],
     ["custom", "Personalizada"]
   ];
+  // Cambio 379: guarda el ctx de la última vez que Compose/Estructura
+  // renderizó — usado por el puente studio936:chart-open-lyrics-editor
+  // para poder abrir el editor de letra real cuando el pedido llega
+  // desde el Chart (que no tiene su propio ctx).
+  let _lastRenderCtx = null;
 
   const DEFAULT_STATE = {
     draft: null,
@@ -3783,6 +3788,31 @@ html, body{
     installStyles();
     installDockFlexGuard();
     installChartStageKeeperCambio41();
+    // Cambio 379: se guarda el ctx más reciente a nivel de módulo, para
+    // que el puente de abajo (studio936:chart-open-lyrics-editor) pueda
+    // reconstruir s/parts/part bajo demanda, cuando el evento llega desde
+    // el Chart (que no tiene acceso directo a ctx).
+    _lastRenderCtx = ctx;
+    if (!window.__s936ChartLyricsBridgeCambio379) {
+      window.__s936ChartLyricsBridgeCambio379 = true;
+      window.addEventListener("studio936:chart-open-lyrics-editor", (ev) => {
+        const section = ev?.detail?.section || "";
+        const bridgeCtx = _lastRenderCtx;
+        if (!section || !bridgeCtx) {
+          alert("Abrí Compose al menos una vez en esta sesión antes de usar este botón.");
+          return;
+        }
+        try {
+          const s = snap(bridgeCtx);
+          const parts = ensureDraft(bridgeCtx);
+          const part = parts.find(p => p.section === section);
+          if (part) openSectionLyricsEditor(bridgeCtx, s, part, parts);
+          else alert("No se encontró esa sección en el arreglo actual.");
+        } catch (error) {
+          console.warn("Cambio 379: no se pudo abrir el editor de letra desde el Chart", error);
+        }
+      });
+    }
     // Limpiar dropdown huérfano del body
     document.getElementById("s936CkptDropdown")?.remove();
 
