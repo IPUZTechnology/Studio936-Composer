@@ -1405,23 +1405,33 @@ body.s936-chart-stage #s936-chart-view-panel
 /* Cambio 40 · Chart respeta el dock flexible cuando el guard detecta invasión. */
 /* Cambio 370: se completa lo que el Cambio 40 dejó a medias — la regla de
    arriba solo definía la TRANSICIÓN (animación), pero nunca nadie definía
-   los valores reales de margen, y nadie activaba el atributo. Ahora:
-   - SIN el atributo (o "off"): el Chart usa casi toda la pantalla, solo
-     dejando espacio para la barra de íconos colapsada (56px + margen).
-   - CON data-s936-dock-flex="on": el Chart cede espacio a la izquierda
-     para el Docker expandido (ver margen real usado por #s936SuitePro:
-     76px de left + ~500px de ancho típico del panel).
-   El JS que prende/apaga esto vive en suite-pro.js (showDockOnHover /
-   scheduleHideDockOnHover), togglea el atributo directo sobre este mismo
-   panel por su id, sin necesitar tocar este archivo más que aquí. */
+   los valores reales de margen, y nadie activaba el atributo.
+   Cambio 371 (CORRECCIÓN): el Cambio 370 usaba 78px/600px "a ojo" — no
+   coincidían con la geometría real del rail/panel (medida real: rail
+   termina en 68px, panel expandido termina en 506px, no 600px) y además
+   el atributo se quedaba pegado en "on" si el Docker se cerraba sin
+   pasar por el hover-out (bug corregido en suite-pro.js, ver
+   clearChartDockFlex()).
+   Ahora el margen NO es un número fijo: se calcula con calc() como el
+   COMPLEMENTO matemático exacto de las MISMAS variables CSS que usa
+   #s936SuitePro/el rail para su propia geometría real (definidas en
+   suite-pro.js, bloque :root). Si el rail o el panel cambian de tamaño
+   algún día, este cálculo se ajusta solo — no hay dos números sueltos en
+   dos archivos que se puedan desalinear.
+   - SIN el atributo (o "off"): margen = borde derecho real del rail +
+     separación.
+   - CON data-s936-dock-flex="on": margen = borde derecho real del panel
+     expandido + separación.
+   El JS que prende/apaga el atributo vive en suite-pro.js (showDockOnHover /
+   scheduleHideDockOnHover / open / close, todos vía clearChartDockFlex()). */
 body.s936-chart-stage #s936-chart-view-panel,
 body.s936-chart-stage .s936-chart-main-panel{
-  margin-left:78px!important;
+  margin-left:calc(var(--s936-rail-left) + var(--s936-rail-w) + var(--s936-rail-gap))!important;
   transition:margin-left .18s ease!important;
 }
 body.s936-chart-stage #s936-chart-view-panel[data-s936-dock-flex="on"],
 body.s936-chart-stage .s936-chart-main-panel[data-s936-dock-flex="on"]{
-  margin-left:600px!important;
+  margin-left:calc(var(--s936-dock-left) + var(--s936-dock-w) + var(--s936-dock-gap))!important;
   transition:margin-left .18s ease!important;
 }
 

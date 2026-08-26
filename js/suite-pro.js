@@ -41,6 +41,33 @@
 
   const PANEL_ID = "s936SuitePro";
   const STYLE_ID = "s936SuiteProV3Styles";
+  const ROOT_VARS_STYLE_ID = "s936DockGeometryVars";
+
+  // Cambio 371: variables CSS — ÚNICA fuente de verdad para la geometría
+  // real del rail colapsado y del panel Docker expandido. El Chart (en
+  // suite-pro-chart-v260-cambio100.js) las usa con calc() para calcular
+  // su margen como el COMPLEMENTO exacto, en vez de números fijos
+  // adivinados. Esto se instala YA, apenas carga el archivo — NO puede
+  // esperar a installStyles()/ensurePanel() (que solo corren cuando el
+  // usuario abre Suite Pro por primera vez), porque el Chart necesita
+  // estas variables desde el primer render de la página, con Suite Pro
+  // todavía cerrado.
+  function installDockGeometryVars() {
+    if (document.getElementById(ROOT_VARS_STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = ROOT_VARS_STYLE_ID;
+    style.textContent = `
+:root{
+  --s936-rail-left: 12px;
+  --s936-rail-w: 56px;
+  --s936-rail-gap: 10px;   /* separación entre el borde del rail y el Chart, en reposo */
+  --s936-dock-left: 76px;
+  --s936-dock-w: min(430px, 92vw);  /* debe ser IDÉNTICO al width real de #s936SuitePro */
+  --s936-dock-gap: 8px;    /* separación entre el borde del panel y el Chart, expandido */
+}`;
+    document.head.appendChild(style);
+  }
+  installDockGeometryVars();
   const LIBRARY_KEY = "studio936_suitepro_library_v3";
   const IDEA_KEY = "studio936_suitepro_ideas_v3";
   const APP_STORAGE_KEY = "studio936ComposerV25SongStructure";
@@ -784,8 +811,11 @@ function normalizeNoteName(value) {
      ambas se superponían. 76px = 12 (margen) + 56 (ancho de la barra) +
      8 (separación). Al expandirse con hover, la barra flota por encima
      del borde del panel un momento — aceptable, es el mismo patrón que
-     un cajón/flyout normal. */
-  left: 76px;
+     un cajón/flyout normal.
+     Cambio 371: ahora lee de la variable --s936-dock-left en vez de un
+     78px suelto, para que sea la MISMA fuente que usa el cálculo del
+     Chart (ver bloque :root arriba). */
+  left: var(--s936-dock-left);
   /* Cambio 363: tercer ajuste fino (120px -> 108px). */
   top: 108px;
   /* Cambio 85: antes "bottom:12px" fijaba el panel entre top Y bottom a la
@@ -805,7 +835,10 @@ function normalizeNoteName(value) {
      "#s936SuitePro{ overflow-y:auto!important }", y sin !important aquí,
      esas reglas viejas seguían ganando y devolvían la segunda barra. */
   overflow: hidden !important;
-  width: min(430px, 92vw);
+  /* Cambio 371: antes "min(430px, 92vw)" suelto acá Y otro número (600px)
+     adivinado en el Chart para dejarle espacio — ahora ambos leen de
+     --s936-dock-w, así son matemáticamente imposibles de desalinear. */
+  width: var(--s936-dock-w);
   /* Cambio 95: borde derecho con brillo tipo consola (en vez de una línea
      plana/dura) — marca visualmente el límite redimensionable del panel de
      forma elegante. Solo se ve en modo normal; en modo MAX se oculta (ver
@@ -3251,6 +3284,10 @@ function normalizeNoteName(value) {
     // visible) — se muestra completo únicamente con el hover sobre la
     // barra o sobre el propio panel (showDockOnHover).
     panel.classList.add("s936-dock-collapsed");
+    // Cambio 371: defensivo — si el atributo quedó pegado en "on" de una
+    // apertura/cierre anterior, al reabrir (que siempre arranca
+    // colapsado) hay que limpiarlo, si no el Chart nace corrido.
+    clearChartDockFlex();
     render();
     // Cambio 356: mostrar la barra de íconos junto con el panel — es
     // aditiva, no reemplaza las pestañas COMPOSE/Mapa Maestro de arriba
@@ -3262,10 +3299,29 @@ function normalizeNoteName(value) {
     return panel;
   }
 
+  // Cambio 371: helper único para sacarle al Chart el atributo que lo
+  // corre a la derecha. Antes esto SOLO pasaba dentro de
+  // scheduleHideDockOnHover() (el camino "sacar el mouse despacito").
+  // Si el panel se cerraba por cualquier otro camino (ej. close() de
+  // abajo, disparado por un botón), el atributo se quedaba pegado en
+  // "on" para siempre y el Chart quedaba corrido aunque el panel ya no
+  // se viera — este era el bug real que reportó Val (captura con la
+  // barra colapsada pero el Chart lejos, como si el panel siguiera
+  // expandido). Ahora TODOS los caminos que puedan ocultar el panel
+  // pasan por acá.
+  function clearChartDockFlex() {
+    const chartPanel = document.getElementById("s936-chart-view-panel") || document.querySelector(".s936-chart-main-panel");
+    if (chartPanel) chartPanel.removeAttribute("data-s936-dock-flex");
+  }
+
   function close() {
     const panel = byId(PANEL_ID);
     state.open = false;
     if (panel) panel.classList.remove("is-open");
+    // Cambio 371: ver comentario en clearChartDockFlex() — sin esta
+    // línea, cerrar Suite Pro con el mouse todavía sobre el panel
+    // dejaba el Chart corrido para siempre.
+    clearChartDockFlex();
     // v0.8.5: desmontar chart al cerrar Suite Pro
     try { window.Studio936SuiteProChart?.unmountFromRightPanel?.(); } catch(_) {}
     // Cambio 109: restaurar el instrumento que estaba activo antes de entrar.
@@ -3316,10 +3372,9 @@ function normalizeNoteName(value) {
     _hoverHideTimer = setTimeout(() => {
       const panel = byId(PANEL_ID);
       if (panel) panel.classList.add("s936-dock-collapsed");
-      // Cambio 370: correr el Chart de vuelta hacia la izquierda al
+      // Cambio 370/371: correr el Chart de vuelta hacia la izquierda al
       // ocultarse el Docker, para ocupar el espacio que queda libre.
-      const chartPanel = document.getElementById("s936-chart-view-panel") || document.querySelector(".s936-chart-main-panel");
-      if (chartPanel) chartPanel.removeAttribute("data-s936-dock-flex");
+      clearChartDockFlex();
       _hoverHideTimer = null;
     }, 250);
   }
@@ -3332,9 +3387,9 @@ function normalizeNoteName(value) {
     rail.id = "s936HoverRail";
     rail.style.cssText = `
       position: fixed;
-      left: 12px;
+      left: var(--s936-rail-left);
       top: 108px;
-      width: 56px;
+      width: var(--s936-rail-w);
       z-index: 10062;
       display: none;
       flex-direction: column;
