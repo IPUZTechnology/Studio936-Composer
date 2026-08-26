@@ -108,6 +108,9 @@ window.Studio936SuiteProChart = (() => {
     outro: "#C99CE0"
   };
   const DEFAULT_SECTION_COLOR = "#8FA3A0";
+  // Cambio 386: lista completa de secciones (sin filtrar), para el
+  // popover de Zoom — ver dónde se llena, en renderContinuousTimelineView.
+  let _lastFullArrangementForZoomPicker = [];
 
   const FOCUS_KEY = "s936_chart_focus_section_v1";
   let _focusSection = null;
@@ -130,11 +133,14 @@ window.Studio936SuiteProChart = (() => {
   // el campo viejo .section (singular) se mantiene en el objeto SOLO para
   // no romper código externo que todavía lo lea (apunta al primero de la
   // lista), pero el filtro real usa .sections.
+  // Cambio 386: se saca el tope de 2 — Val redefinió el modelo del
+  // selector como "filtro por excepción" (todas prendidas por defecto,
+  // vas apagando las que no querés ver), sin límite de cuántas quedan
+  // encendidas a la vez.
   function setFocusSection(sectionOrList, info = {}) {
     const list = (Array.isArray(sectionOrList) ? sectionOrList : [sectionOrList])
       .map((s) => String(s || "").trim())
-      .filter(Boolean)
-      .slice(0, 2); // máximo 2, a pedido de Val
+      .filter(Boolean);
     if (!list.length) return clearFocusSection();
     _focusSection = {
       active: true,
@@ -7357,6 +7363,18 @@ body.s936-chart-stage main{
     }
     arrangement = decorateArrangementWithStructureMeta(arrangement);
 
+    // Cambio 386: se guarda la lista COMPLETA (sin filtrar) a nivel de
+    // módulo — el popover de Zoom la necesita siempre entera, para poder
+    // volver a prender secciones que ya están apagadas/filtradas. Antes
+    // el popover leía los labels ya dibujados en el DOM, que después del
+    // filtro solo tenían las secciones visibles — no había forma de
+    // volver a prender las apagadas.
+    _lastFullArrangementForZoomPicker = arrangement.map((item) => ({
+      section: item.section,
+      label: item.label || item.section || "",
+      type: item.type || item.section || ""
+    }));
+
     // Cambio 29: modo Zoom sección. El panel izquierdo decide la sección;
     // el Chart filtra la hoja electrónica sin duplicar consola.
     // Cambio 384: ahora puede ser 1 o 2 secciones (.sections, array).
@@ -7475,21 +7493,25 @@ body.s936-chart-stage main{
 
       const seen = new Set();
       const options = [];
-      document.querySelectorAll(".s936-ch-cont-label[data-section]").forEach((el) => {
-        const sec = el.dataset.section;
-        if (sec && !seen.has(sec)) {
-          seen.add(sec);
+      _lastFullArrangementForZoomPicker.forEach(({ section, label, type }) => {
+        if (section && !seen.has(section)) {
+          seen.add(section);
+          const visualType = String(type || section || "").toLowerCase();
           options.push({
-            section: sec,
-            label: el.textContent.replace(/^●\s*/, ""),
-            color: el.dataset.color || DEFAULT_SECTION_COLOR
+            section,
+            label,
+            color: SECTION_COLORS[visualType] || DEFAULT_SECTION_COLOR
           });
         }
       });
       if (!options.length) { alert("No hay secciones para elegir todavía."); return; }
 
       const focus = readFocusSection();
-      let selected = (focus?.sections?.length ? focus.sections.slice() : [currentSectionKey]).slice(0, 2);
+      // Cambio 386: modelo "filtro por excepción" — arrancan TODAS
+      // encendidas (= sin filtro, se ve todo) salvo que ya haya un Zoom
+      // aplicado antes, en cuyo caso refleja exactamente ese estado. Sin
+      // límite de cuántas quedan prendidas.
+      let selected = focus?.sections?.length ? focus.sections.slice() : options.map((o) => o.section);
 
       const pop = document.createElement("div");
       pop.id = "s936-ch-zoom-picker";
@@ -7497,7 +7519,7 @@ body.s936-chart-stage main{
 
       const title = document.createElement("div");
       title.className = "s936-ch-zoom-picker-title";
-      title.textContent = "Elegí 1 o 2 secciones";
+      title.textContent = "Apagá las que no querés ver";
       pop.appendChild(title);
 
       const chipsWrap = document.createElement("div");
@@ -7511,12 +7533,8 @@ body.s936-chart-stage main{
         chip.onclick = (e) => {
           e.stopPropagation();
           const idx = selected.indexOf(section);
-          if (idx >= 0) {
-            selected.splice(idx, 1);
-          } else {
-            if (selected.length >= 2) selected.shift(); // se sale el más viejo, entra el nuevo (máx 2)
-            selected.push(section);
-          }
+          if (idx >= 0) selected.splice(idx, 1);
+          else selected.push(section);
           chipsWrap.querySelectorAll(".s936-ch-zoom-chip").forEach((c, i) => {
             c.classList.toggle("is-selected", selected.includes(options[i].section));
           });
@@ -7530,17 +7548,28 @@ body.s936-chart-stage main{
       const clearBtn = document.createElement("button");
       clearBtn.type = "button";
       clearBtn.className = "s936-ch-zoom-picker-btn ghost";
-      clearBtn.textContent = "Quitar zoom";
-      clearBtn.onclick = (e) => { e.stopPropagation(); clearFocusSection(); pop.remove(); };
+      clearBtn.textContent = "Prender todas";
+      clearBtn.onclick = (e) => {
+        e.stopPropagation();
+        selected = options.map((o) => o.section);
+        chipsWrap.querySelectorAll(".s936-ch-zoom-chip").forEach((c) => c.classList.add("is-selected"));
+      };
       const applyBtn = document.createElement("button");
       applyBtn.type = "button";
       applyBtn.className = "s936-ch-zoom-picker-btn primary";
       applyBtn.textContent = "Aplicar";
       applyBtn.onclick = (e) => {
         e.stopPropagation();
-        if (!selected.length) { alert("Elegí al menos 1 sección."); return; }
-        const labels = selected.map((s) => options.find((o) => o.section === s)?.label || s);
-        setFocusSection(selected, { labels });
+        if (!selected.length) { alert("Dejá al menos 1 sección prendida."); return; }
+        // Cambio 386: si quedaron TODAS prendidas, es lo mismo que no
+        // filtrar nada — se limpia el foco en vez de guardar una lista
+        // igual a "todo", para no dejar un estado de zoom fantasma.
+        if (selected.length === options.length) {
+          clearFocusSection();
+        } else {
+          const labels = selected.map((s) => options.find((o) => o.section === s)?.label || s);
+          setFocusSection(selected, { labels });
+        }
         pop.remove();
       };
       actions.append(clearBtn, applyBtn);
@@ -7683,7 +7712,7 @@ body.s936-chart-stage main{
       let cursorSec = 0;
       const sectionAnchors = {}; // sectionKey -> segundo donde empieza esa sección en el reloj plano
 
-      arrangement.forEach(item => {
+      arrangement.forEach((item, arrIndex) => {
         let chords = sections[item.section] || [];
         const totalMeasures = sectionBars[item.section]
           || Number(item.bars)
@@ -7731,14 +7760,24 @@ body.s936-chart-stage main{
         // esta columna fija de 160px — antes vivía en una fila aparte,
         // arriba, desalineada con los mini-charts de acordes. Ahora queda
         // en línea, misma fila, mismo estilo de celda.
-        chordSpacer.appendChild(buildSectionMiniBar(item.section, item.label || item.section || ""));
+        // Cambio 386: la barra mini (▶↻⛶✎ y la de Lyric) SOLO se dibuja
+        // en la primera sección visible — antes se repetía en cada
+        // sección filtrada por el Zoom (ej. si filtrabas Solo + Outro,
+        // aparecían 2 barras iguales, una por sección). El control es
+        // uno solo, fijo, pensado para operar sobre "lo que se está
+        // viendo ahora" — no una copia por sección.
+        if (arrIndex === 0) {
+          chordSpacer.appendChild(buildSectionMiniBar(item.section, item.label || item.section || ""));
+        }
         chordRow.appendChild(chordSpacer);
 
         const lyricRow = document.createElement("div");
         lyricRow.className = "s936-ch-cont-row";
         const lyricSpacer = document.createElement("div");
         lyricSpacer.className = "s936-ch-cont-headerspacer s936-ch-mini-sesion-spacer";
-        lyricSpacer.appendChild(buildSectionLyricMiniBar(item.section));
+        if (arrIndex === 0) {
+          lyricSpacer.appendChild(buildSectionLyricMiniBar(item.section));
+        }
         lyricRow.appendChild(lyricSpacer);
 
         const beatsData = getBeatsData(item.section);
