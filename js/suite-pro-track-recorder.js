@@ -531,7 +531,13 @@
       .s936tr-lanewrap{padding:6px 4px 2px;display:flex;flex-direction:column;gap:5px;}
       .s936tr-laneheading{font-size:.62rem;color:#7fa8a0;text-transform:uppercase;letter-spacing:.5px;
         font-weight:700;margin-bottom:1px;}
-      .s936tr-lanerow{display:grid;grid-template-columns:92px 1fr;align-items:center;gap:6px;}
+      /* Cambio 366: BUG encontrado — antes era grid de 2 columnas
+         (92px de íconos + 1fr de barra), lo que corría la barra de
+         tiempo 92px hacia la derecha respecto al primer acorde del
+         Chart de arriba (que empieza en x=0). Ahora los íconos van
+         APILADOS arriba de la barra, no al lado — así la barra en sí
+         empieza exactamente en el mismo punto que el primer compás. */
+      .s936tr-lanerow{display:flex;flex-direction:column;gap:2px;}
       .s936tr-lanelabel{display:flex;align-items:center;gap:2px;}
       .s936tr-laneicon{display:flex;align-items:center;justify-content:center;width:18px;height:18px;
         margin-right:2px;cursor:default;font-size:12px;}
@@ -540,7 +546,7 @@
         color:rgba(255,255,255,.65);font-size:8px;line-height:1;}
       .s936tr-lanebtn:hover{background:rgba(255,255,255,.08);}
       .s936tr-lanebtn.is-active{background:rgba(255,120,120,.22);color:#ff9d9d;}
-      .s936tr-lanetrack{height:7px;border-radius:4px;cursor:default;}
+      .s936tr-lanetrack{height:7px;border-radius:4px;cursor:default;width:100%;}
       .s936tr-laneadd{position:relative;padding-left:0;margin-top:2px;}
       .s936tr-laneaddbtn{width:20px;height:20px;padding:0;border-radius:50%;
         border:1px solid rgba(91,232,201,.35);background:rgba(91,232,201,.1);color:#5be8c9;
