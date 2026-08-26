@@ -1426,23 +1426,20 @@ body.s936-chart-stage .s936-chart-main-panel{
   margin-left:0!important;
   width:100%!important;
 }
-/* Cambio 374: el panel en sí NO se toca (sigue en margin-left:0/width:100%,
-   igual en Play y en Compose — eso ya quedó bien en el Cambio 373 y no
-   hay que volver a tocarlo). El problema real, verificado en vivo con
-   getBoundingClientRect(), era otro: en Compose, la barra de íconos
-   colapsada (rail, siempre visible mientras Suite Pro está abierto,
-   aunque el panel grande esté colapsado) queda FLOTANDO ENCIMA del
-   Chart por z-index — y como el primer acorde nacía a solo ~18px del
-   borde, quedaba tapado debajo de la barra (que ocupa hasta ~68px).
-   Esto NO pasaba en Play porque ahí la barra ni existe (Suite Pro
-   cerrado del todo).
-   Solución: un padding-left interno al contenido, SOLO cuando la barra
-   está realmente visible (clase puesta/sacada en suite-pro.js, en
-   open()/close()) — el panel sigue midiendo lo mismo, solo su contenido
-   se corre hacia adentro lo justo para no nacer tapado. */
+/* Cambio 374 (REVERTIDO en el Cambio 375, a pedido explícito de Val,
+   confirmado): se había agregado acá un padding-left al contenido,
+   solo cuando la barra de íconos está visible, para que el primer
+   acorde no naciera tapado debajo de la barra (que flota encima por
+   z-index). Val confirmó que prefiere que el contenido arranque
+   siempre en 0, aunque eso implique que el primer acorde/compás quede
+   tapado debajo de la barra mientras está colapsada. Se deja la regla
+   comentada (no borrada) con el porqué, por si se decide revertir esta
+   decisión más adelante. */
+/*
 body.s936-rail-visible.s936-chart-stage #s936-chart-view-panel{
   padding-left:calc(var(--s936-rail-left) + var(--s936-rail-w) + var(--s936-rail-gap))!important;
 }
+*/
 
 
 
