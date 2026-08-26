@@ -4337,8 +4337,21 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
   const q=(s,r=document)=>r.querySelector(s), qa=(s,r=document)=>Array.from(r.querySelectorAll(s));
   function syncPanelState(){
     const ed=q('.editor');
-    const suite=document.getElementById('s936SuitePro');
-    const open=!!(ed&&ed.classList.contains('ux-open')) || !!(suite&&suite.classList.contains('is-open'));
+    // Cambio 376: se saca la condición de Suite Pro (#s936SuitePro.is-open)
+    // de acá. Esta función es del cajón viejo (.editor, previo a Suite
+    // Pro) — en algún momento se le agregó también Suite Pro, asumiendo
+    // que necesitaba el mismo trato (reservar espacio en .main vía
+    // v25ux-panel-open, en css/styles.css). Desde el Cambio 373, Suite
+    // Pro/el Chart NUNCA deben reservar espacio entre sí — Suite Pro
+    // flota con z-index propio, sin importar su estado (abierto,
+    // colapsado a la barra, o expandido con hover). Dejar la condición
+    // vieja causaba que, apenas Suite Pro quedaba "is-open" (incluso
+    // colapsado a solo la barra angosta), esta función reservara ~439px
+    // en .main "para el cajón viejo" — un padding que el Chart heredaba
+    // por ser hijo directo de .main, aunque su propio margin-left
+    // estuviera en 0. No se toca la línea de abajo (el cajón .editor
+    // sigue funcionando igual que siempre, es un tema aparte).
+    const open=!!(ed&&ed.classList.contains('ux-open'));
     document.body.classList.toggle('v25ux-panel-open',open);
   }
   function relabel(){
