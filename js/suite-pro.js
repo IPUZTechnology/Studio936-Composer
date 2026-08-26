@@ -3296,6 +3296,12 @@ function normalizeNoteName(value) {
     ensureHoverRail();
     const rail = document.getElementById("s936HoverRail");
     if (rail) rail.style.display = "flex";
+    // Cambio 374: marcar en el body que la barra de íconos está
+    // realmente visible — el Chart la usa para agregarle un padding
+    // interno al contenido (SIN mover ni redimensionar el panel en sí,
+    // que ya quedó bien e igual en Play y en Compose) y así el primer
+    // acorde/compás no nazca tapado debajo de la barra.
+    document.body.classList.add("s936-rail-visible");
     return panel;
   }
 
@@ -3332,6 +3338,10 @@ function normalizeNoteName(value) {
     // Cambio 356: ocultar la barra de íconos junto con el panel.
     const rail = document.getElementById("s936HoverRail");
     if (rail) rail.style.display = "none";
+    // Cambio 374: sacar la marca del padding — con Suite Pro cerrado del
+    // todo (ej. al entrar por "Play Score"), no hay barra tapando nada,
+    // así que el contenido no necesita el padding extra.
+    document.body.classList.remove("s936-rail-visible");
     // Cambio 361: limpiar cualquier temporizador de ocultar pendiente —
     // si no, podría dispararse después de cerrar y afectar la próxima
     // apertura.
