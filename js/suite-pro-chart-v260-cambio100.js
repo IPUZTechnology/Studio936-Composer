@@ -1422,17 +1422,26 @@ body.s936-chart-stage #s936-chart-view-panel
      separación.
    - CON data-s936-dock-flex="on": margen = borde derecho real del panel
      expandido + separación.
-   El JS que prende/apaga el atributo vive en suite-pro.js (showDockOnHover /
-   scheduleHideDockOnHover / open / close, todos vía clearChartDockFlex()). */
+   Cambio 372: además del margen, esta regla ahora TAMBIÉN define el
+   width con calc() (100% menos el mismo margen) — antes el width lo
+   ponía una regla vieja del Cambio 27/28 más abajo en este mismo
+   archivo (width:100%), que sumado al margin-left se pasaba del ancho
+   real disponible (por eso la Vista Continua mostraba ese segundo
+   hueco vacío grande a la derecha, con su scroller estirado a
+   min-width:100% de un panel ya de por sí más ancho de la cuenta).
+   Ahora margin-left + width SIEMPRE suman exactamente 100%, sin dejar
+   sobra ni pasarse. */
 body.s936-chart-stage #s936-chart-view-panel,
 body.s936-chart-stage .s936-chart-main-panel{
   margin-left:calc(var(--s936-rail-left) + var(--s936-rail-w) + var(--s936-rail-gap))!important;
-  transition:margin-left .18s ease!important;
+  width:calc(100% - (var(--s936-rail-left) + var(--s936-rail-w) + var(--s936-rail-gap)))!important;
+  transition:margin-left .18s ease, width .18s ease!important;
 }
 body.s936-chart-stage #s936-chart-view-panel[data-s936-dock-flex="on"],
 body.s936-chart-stage .s936-chart-main-panel[data-s936-dock-flex="on"]{
   margin-left:calc(var(--s936-dock-left) + var(--s936-dock-w) + var(--s936-dock-gap))!important;
-  transition:margin-left .18s ease!important;
+  width:calc(100% - (var(--s936-dock-left) + var(--s936-dock-w) + var(--s936-dock-gap)))!important;
+  transition:margin-left .18s ease, width .18s ease!important;
 }
 
 
@@ -1453,9 +1462,13 @@ body.s936-chart-stage .s936-chart-main-panel{
   opacity:1!important;
   position:relative!important;
   z-index:4!important;
-  margin-left:0!important;
-  width:100%!important;
-  max-width:100%!important;
+  /* Cambio 372: margin-left/width/max-width SACADOS de acá — esta regla
+     (Cambio 27/28, vieja) venía DESPUÉS de la regla del Cambio 371 en
+     este mismo archivo, así que le ganaba en la cascada y anulaba por
+     completo el cálculo del complemento. Ahora margin-left Y width se
+     definen juntos, una sola vez, en el bloque del Cambio 371/372 más
+     arriba en este archivo — no toques margin-left/width acá de nuevo,
+     o volvés a romper la alineación. */
   overflow-x:hidden!important;
   background:#090b11!important;
 }

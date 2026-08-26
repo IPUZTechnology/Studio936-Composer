@@ -83,6 +83,21 @@
 
 
   function installDockFlexGuard() {
+    // Cambio 372: DESACTIVADA por completo. Esta función viene del
+    // Cambio 40/41, de la época en que el Docker (#s936SuitePro) NO era
+    // retráctil — corría sola cada tanto (timers al cargar, resize,
+    // eventos de práctica) y le pisaba a #s936-chart-view-panel el
+    // atributo data-s936-dock-flex poniéndolo en "balanced" (un tercer
+    // valor que no es "on" ni "sin atributo"), además de borrar
+    // cualquier margin-left/width en línea. Eso neutralizaba en
+    // silencio el sistema nuevo de la barra con hover (Cambios 356-371),
+    // que solo sabe manejar "on"/sin atributo — cada vez que este
+    // guardián corría, pisaba el valor real sin que se notara en el
+    // código, solo en pantalla. Se deja el cuerpo entero comentado (en
+    // vez de borrarlo) para no perder el historial de qué hacía y por
+    // qué, por si hace falta revisarlo en el futuro.
+    return;
+    /*
     if (window.__s936DockFlexGuardCambio41) return;
     window.__s936DockFlexGuardCambio41 = true;
 
@@ -111,6 +126,7 @@
     setTimeout(sync, 60);
     setTimeout(sync, 420);
     setTimeout(sync, 1100);
+    */
   }
 
   function installChartStageKeeperCambio41() {
@@ -2546,12 +2562,16 @@ html, body{
   min-width:23px!important;
   max-width:23px!important;
 }
-body.s936-chart-stage #s936-chart-view-panel,
-body.s936-chart-stage .s936-chart-main-panel{
-  margin-left:0!important;
-  width:100%!important;
-  max-width:100%!important;
-}
+/* Cambio 372: esta regla (margin-left:0 / width:100% / max-width:100%,
+   sin condición de atributo) se ELIMINÓ de acá — venía de la época del
+   Docker no retráctil (Cambio 40/41/48) y, como este archivo carga
+   DESPUÉS que suite-pro-chart-v260-cambio100.js, le ganaba SIEMPRE a la
+   regla nueva del Cambio 371/372 (el cálculo del complemento vía
+   calc()), sin importar qué tan bien estuviera ese cálculo. Ahora el
+   margin-left Y el width del Chart se definen en un solo lugar: el
+   bloque calc() de suite-pro-chart-v260-cambio100.js. Ver también
+   installDockFlexGuard() más arriba en este archivo — se desactivó por
+   la misma razón (pisaba el atributo data-s936-dock-flex a "balanced"). */
 @media(max-width:1280px){
   #s936SuitePro:not(.is-max){
     width:360px!important;
