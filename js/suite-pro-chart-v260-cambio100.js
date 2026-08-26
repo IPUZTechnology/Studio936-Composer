@@ -96,6 +96,19 @@ window.Studio936SuiteProChart = (() => {
   let _playbackInterval = null;
   let _currentPlaybackPos = null;
 
+  // Cambio 384 (color de chips): subido a nivel de módulo — antes vivía
+  // solo adentro de renderContinuousTimelineView(); ahora también lo usa
+  // openZoomSectionPicker() para pintar cada chip del color real de su
+  // sección, en vez de un solo color genérico.
+  const SECTION_COLORS = {
+    intro: "#5DCAA5", verso: "#AFA9EC", verse: "#AFA9EC",
+    prechorus: "#E8C468", "pre-ch": "#E8C468",
+    chorus: "#F0997B", coro: "#F0997B",
+    bridge: "#7BC3E8", intrl: "#7BC3E8", interlude: "#7BC3E8",
+    outro: "#C99CE0"
+  };
+  const DEFAULT_SECTION_COLOR = "#8FA3A0";
+
   const FOCUS_KEY = "s936_chart_focus_section_v1";
   let _focusSection = null;
 
@@ -1253,11 +1266,12 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-zoom-picker-title{font-size:.66rem;font-weight:800;color:#bfffee;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px}
 .s936-ch-zoom-picker-chips{display:flex;flex-wrap:wrap;gap:5px;max-height:160px;overflow-y:auto;margin-bottom:10px}
 .s936-ch-zoom-chip{
-  border-radius:14px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.05);
+  border-radius:14px;border:1px solid var(--chip-color, rgba(255,255,255,.3));
+  background:rgba(255,255,255,.05);
   color:#d8f4ee;font-size:.62rem;padding:4px 10px;cursor:pointer;
 }
-.s936-ch-zoom-chip:hover{border-color:rgba(0,255,204,.5)}
-.s936-ch-zoom-chip.is-selected{background:rgba(0,255,204,.18);border-color:#00ffcc;color:#00ffcc;font-weight:700}
+.s936-ch-zoom-chip:hover{filter:brightness(1.3)}
+.s936-ch-zoom-chip.is-selected{background:var(--chip-color, #00ffcc);border-color:var(--chip-color, #00ffcc);color:#00201c;font-weight:700}
 .s936-ch-zoom-picker-actions{display:flex;justify-content:space-between;gap:8px}
 .s936-ch-zoom-picker-btn{border-radius:6px;padding:5px 10px;font-size:.62rem;font-weight:700;cursor:pointer;border:1px solid transparent}
 .s936-ch-zoom-picker-btn.ghost{background:transparent;border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.6)}
@@ -7465,7 +7479,11 @@ body.s936-chart-stage main{
         const sec = el.dataset.section;
         if (sec && !seen.has(sec)) {
           seen.add(sec);
-          options.push({ section: sec, label: el.textContent.replace(/^●\s*/, "") });
+          options.push({
+            section: sec,
+            label: el.textContent.replace(/^●\s*/, ""),
+            color: el.dataset.color || DEFAULT_SECTION_COLOR
+          });
         }
       });
       if (!options.length) { alert("No hay secciones para elegir todavía."); return; }
@@ -7484,11 +7502,12 @@ body.s936-chart-stage main{
 
       const chipsWrap = document.createElement("div");
       chipsWrap.className = "s936-ch-zoom-picker-chips";
-      options.forEach(({ section, label }) => {
+      options.forEach(({ section, label, color }) => {
         const chip = document.createElement("button");
         chip.type = "button";
         chip.className = "s936-ch-zoom-chip" + (selected.includes(section) ? " is-selected" : "");
         chip.textContent = label;
+        chip.style.setProperty("--chip-color", color);
         chip.onclick = (e) => {
           e.stopPropagation();
           const idx = selected.indexOf(section);
@@ -7651,14 +7670,8 @@ body.s936-chart-stage main{
       scroller.className = "s936-ch-cont-scroller";
       scroller.style.position = "relative";
 
-      const SECTION_COLORS = {
-        intro: "#5DCAA5", verso: "#AFA9EC", verse: "#AFA9EC",
-        prechorus: "#E8C468", "pre-ch": "#E8C468",
-        chorus: "#F0997B", coro: "#F0997B",
-        bridge: "#7BC3E8", intrl: "#7BC3E8", interlude: "#7BC3E8",
-        outro: "#C99CE0"
-      };
-      const DEFAULT_COLOR = "#8FA3A0";
+      // Cambio 384: SECTION_COLORS/DEFAULT_COLOR ahora viven a nivel de
+      // módulo (ver arriba), compartidos con openZoomSectionPicker().
 
       // Cambio 261: reloj plano de toda la canción (concatenando todas
       // las secciones en orden) — cada compás guarda su inicio/fin en
@@ -7690,7 +7703,7 @@ body.s936-chart-stage main{
         });
 
         const sectionVisualType = String(item.type || item.section || "").toLowerCase();
-        const color = SECTION_COLORS[sectionVisualType] || DEFAULT_COLOR;
+        const color = SECTION_COLORS[sectionVisualType] || DEFAULT_SECTION_COLOR;
         sectionAnchors[item.section] = cursorSec;
 
         const block = document.createElement("div");
@@ -7702,6 +7715,7 @@ body.s936-chart-stage main{
         label.style.color = color;
         label.textContent = "● " + (item.label || item.section || "");
         label.dataset.section = item.section || "";
+        label.dataset.color = color;
         block.appendChild(label);
 
         const chordRow = document.createElement("div");
