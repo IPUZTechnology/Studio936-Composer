@@ -958,14 +958,15 @@
       installStyles();
       const wrap = document.createElement('div');
       wrap.className = 's936tr-lanewrap';
-      // Cambio 379: nuevo parámetro opcional opts.hideHeaderAndAdd — el
-      // Chart (Vista Continua) ya tiene su propio título/ícono de canal +
-      // botón "+" en la barra mini de Lyric (Cambio 379), así que acá se
-      // pueden ocultar para no repetirlos. Arreglo de la Canción (que
-      // llama a esta misma función sin ese parámetro) NO cambia — sigue
-      // mostrando el título y el "+" como siempre.
-      const hideHeaderAndAdd = !!(opts && opts.hideHeaderAndAdd);
-      if (!hideHeaderAndAdd) {
+      // Cambio 379/381: opts.hideHeader oculta SOLO el título de texto
+      // ("🎙️ Pistas de toda esta sección") — las filas de instrumento y
+      // el "+" para agregar uno más siguen apareciendo igual que siempre,
+      // como su propia fila al final. El Chart (Vista Continua) usa esto
+      // porque ya tiene sus propios íconos fijos de Chart/Lyric arriba;
+      // Arreglo de la Canción sigue llamando esta función sin opts, sin
+      // cambios.
+      const hideHeader = !!(opts && opts.hideHeader);
+      if (!hideHeader) {
         // Cambio 258 (arreglo): sin esta etiqueta, cuando una sección tiene
         // más de 4 compases (se dibuja en varias filas), la línea de pistas
         // parece pertenecer solo a la última fila — aunque en realidad
@@ -979,9 +980,7 @@
       Object.keys(groups).forEach(instrumentId => {
         wrap.appendChild(buildLaneRow(sectionKey, instrumentId, groups[instrumentId]));
       });
-      if (!hideHeaderAndAdd) {
-        wrap.appendChild(buildAddInstrumentControl(sectionKey, wrap));
-      }
+      wrap.appendChild(buildAddInstrumentControl(sectionKey, wrap));
       sectionEl.appendChild(wrap);
     } catch (e) {
       // Cambio 258 (diagnóstico): si algo falla aquí, antes quedaba mudo

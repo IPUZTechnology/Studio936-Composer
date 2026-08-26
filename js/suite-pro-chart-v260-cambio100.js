@@ -7416,6 +7416,17 @@ body.s936-chart-stage main{
       const bar = document.createElement("div");
       bar.className = "s936-ch-mini-sesion-bar";
 
+      // Cambio 381: ícono fijo de esta fila (Chart) — igual criterio que
+      // el 🎤 fijo de la fila de Lyric. Estas dos filas son siempre fijas;
+      // las de instrumento (agregadas con el "+" de más abajo) son las
+      // que varían.
+      const channelIcon = document.createElement("span");
+      channelIcon.className = "s936-ch-mini-sesion-channel-icon";
+      channelIcon.textContent = "🎼";
+      channelIcon.title = "Canal: Chart (acordes)";
+      channelIcon.style.color = "#00ffcc";
+      bar.appendChild(channelIcon);
+
       const focus = readFocusSection();
       const isFocused = !!(focus && focus.section === sectionKey);
 
@@ -7481,16 +7492,6 @@ body.s936-chart-stage main{
       channelIcon.title = "Canal: Voz (letra)";
       channelIcon.style.color = "#378ADD";
       bar.appendChild(channelIcon);
-
-      // Selector de instrumento del canal — EXACTAMENTE el mismo botón
-      // "+" y la misma lista/orden de instrumentos que ya existen en
-      // "Pistas de toda esta sección" (voz, guitarra, piano, batería,
-      // teclado MIDI, set electrónico, otro) — no se duplica la lista acá.
-      if (window.Studio936TrackRecorder?.buildAddInstrumentControl) {
-        try {
-          bar.appendChild(window.Studio936TrackRecorder.buildAddInstrumentControl(sectionKey));
-        } catch(_) {}
-      }
 
       const openLyricBtn = document.createElement("button");
       openLyricBtn.type = "button";
@@ -7804,7 +7805,7 @@ body.s936-chart-stage main{
         // pero no en el otro — no era un problema de datos compartidos
         // (esos sí se comparten bien, ya verificado), era que esta vista
         // simplemente nunca llamaba a la función que los dibuja.
-        try { window.Studio936TrackRecorder?.renderSectionLanes?.(block, item.section, { hideHeaderAndAdd: true }); } catch(_) {}
+        try { window.Studio936TrackRecorder?.renderSectionLanes?.(block, item.section, { hideHeader: true }); } catch(_) {}
         scroller.appendChild(block);
       });
 
