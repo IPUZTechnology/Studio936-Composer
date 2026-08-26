@@ -848,6 +848,14 @@
     iconSpan.title = info.label;
     iconSpan.textContent = icon;
 
+    // Cambio 367: el nombre del instrumento ahora se ve escrito, no solo
+    // como tooltip del ícono — Val no reconocía qué instrumento era cada
+    // fila porque antes solo había un emoji, sin texto.
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 's936tr-lanename';
+    nameSpan.textContent = info.label;
+    nameSpan.style.cssText = 'font-size:.62rem;font-weight:700;color:' + color + ';margin-right:4px;white-space:nowrap;';
+
     const track = document.createElement('div');
     track.className = 's936tr-lanetrack';
     track.title = info.label;
@@ -881,7 +889,7 @@
       row.remove();
     });
 
-    label.append(iconSpan, playBtn, muteBtn, soloBtn, panSlider, delBtn);
+    label.append(iconSpan, nameSpan, playBtn, muteBtn, soloBtn, panSlider, delBtn);
 
     // Cambio 364: canal MIDI (1-16) — solo tiene sentido para la pista de
     // Teclado MIDI, ninguna otra lo necesita.
