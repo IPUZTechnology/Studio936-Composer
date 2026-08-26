@@ -7796,10 +7796,17 @@ body.s936-chart-stage main{
 
           chordRow.appendChild(chordCell);
 
-          const lyricData = lyricForBar(item.section, idx);
           const lyricCell = document.createElement("div");
           lyricCell.className = "s936-ch-cont-cell lyric";
-          lyricCell.textContent = lyricData?.text || "";
+          // Cambio 383: se reemplaza el texto plano por buildLyricElement()
+          // — la MISMA función que ya usa Vista Bloques para dibujar la
+          // letra dividida en los 4 tiempos reales del compás. Antes acá
+          // se juntaba todo en un solo texto (lyricData.text), perdiendo
+          // la posición por tiempo y desalineando esta fila respecto a
+          // los acordes de arriba (que sí están divididos por tiempo
+          // cuando el compás tiene más de un acorde).
+          const lyricEl = buildLyricElement(item.section, idx);
+          if (lyricEl) lyricCell.appendChild(lyricEl);
           lyricRow.appendChild(lyricCell);
 
           // Cambio 261: registrar este compás en el reloj plano de toda
