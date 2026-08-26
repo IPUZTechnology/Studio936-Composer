@@ -7601,10 +7601,30 @@ body.s936-chart-stage main{
         lyricRow.appendChild(lyricSpacer);
 
         const beatsData = getBeatsData(item.section);
+        // Cambio 382: se agrega rhythmData acá — Vista Bloques ya lo
+        // usaba para decidir si un compás sigue siendo "%" o si ya tiene
+        // un dato propio guardado (ver hasExplicitBeatInBar más abajo).
+        // Vista Continua no lo traía, por eso el bug: bastaba con
+        // `isFirst===false` para mostrar "%" para siempre, sin importar
+        // si el usuario ya había guardado un acorde nuevo ahí.
+        const rhythmData = getRhythmData(item.section);
 
         for (let idx = 0; idx < totalMeasures; idx++) {
           const info = barMap[idx];
-          const baseChordVal = info?.isFirst === false ? "" : (info?.chord?.name || "");
+          // Cambio 382: MISMA condición que ya usa Vista Bloques
+          // (hasExplicitBeatInBar) — si el usuario ya guardó un acorde o
+          // un ritmo propio en cualquier tiempo de este compás, deja de
+          // tratarse como repetición ("%"), aunque isFirst siga en false
+          // (isFirst viene del arreglo original y nunca cambia solo por
+          // editar; antes esto hacía que la edición pareciera "no
+          // funcionar" — el dato se guardaba bien, pero la pantalla
+          // seguía mostrando "%" de todas formas).
+          const hasExplicitBeatInBar = [0, 1, 2, 3].some((b) => {
+            const key = idx + "_" + b;
+            return !!beatsData[key] || !!rhythmData[key];
+          });
+          const isRepeatBar = info?.isFirst === false && !hasExplicitBeatInBar;
+          const baseChordVal = isRepeatBar ? "" : (info?.chord?.name || "");
 
           // Cambio 263: un compás puede tener MÁS de un acorde (uno por
           // tiempo, hasta 4) — antes esta vista solo leía el acorde a
@@ -7629,7 +7649,7 @@ body.s936-chart-stage main{
           chordCell.className = "s936-ch-cont-cell chord";
           chordCell.title = "Clic para editar este acorde";
 
-          if (info?.isFirst === false) {
+          if (isRepeatBar) {
             const nameEl = document.createElement("div");
             nameEl.className = "s936-ch-cont-chordname";
             nameEl.textContent = "%";
