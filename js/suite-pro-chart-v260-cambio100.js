@@ -7595,6 +7595,15 @@ body.s936-chart-stage main{
         }
 
         block.append(chordRow, lyricRow);
+        // Cambio 365: BUG encontrado — la vista "Continua" (Vista:
+        // Continua/Bloques) es una función de dibujo completamente
+        // aparte de la vista normal de bloques, y nunca tuvo esta llamada
+        // (la vista de bloques sí la tiene desde el Cambio 258). Por eso
+        // los instrumentos (mute/solo/pan/agregar) se veían en un lado
+        // pero no en el otro — no era un problema de datos compartidos
+        // (esos sí se comparten bien, ya verificado), era que esta vista
+        // simplemente nunca llamaba a la función que los dibuja.
+        try { window.Studio936TrackRecorder?.renderSectionLanes?.(block, item.section); } catch(_) {}
         scroller.appendChild(block);
       });
 
