@@ -106,13 +106,31 @@ window.Studio936SuiteProChart = (() => {
     // lista completa (Cambio 94 en structure.js). Ahora ambos son
     // consistentes: cada recarga empieza sin ninguna sección enfocada:
     // solo la variable en memoria de la sesión ACTUAL del navegador cuenta.
-    if (_focusSection && _focusSection.section) return _focusSection;
+    if (_focusSection && Array.isArray(_focusSection.sections) && _focusSection.sections.length) return _focusSection;
     return null;
   }
 
-  function setFocusSection(section, info = {}) {
-    if (!section) return clearFocusSection();
-    _focusSection = { active:true, section:String(section), label:info.label || "", at:Date.now() };
+  // Cambio 384: setFocusSection ahora acepta UNA sección (string, como
+  // siempre) O una LISTA de hasta 2 secciones (array) — Val pidió poder
+  // hacer Zoom a una o dos secciones a la vez, vía un selector de chips.
+  // Se guarda siempre como array internamente (_focusSection.sections);
+  // el campo viejo .section (singular) se mantiene en el objeto SOLO para
+  // no romper código externo que todavía lo lea (apunta al primero de la
+  // lista), pero el filtro real usa .sections.
+  function setFocusSection(sectionOrList, info = {}) {
+    const list = (Array.isArray(sectionOrList) ? sectionOrList : [sectionOrList])
+      .map((s) => String(s || "").trim())
+      .filter(Boolean)
+      .slice(0, 2); // máximo 2, a pedido de Val
+    if (!list.length) return clearFocusSection();
+    _focusSection = {
+      active: true,
+      sections: list,
+      section: list[0], // compatibilidad hacia atrás (código viejo que lea .section)
+      label: info.label || "",
+      labels: info.labels || null,
+      at: Date.now()
+    };
     try { localStorage.setItem(FOCUS_KEY, JSON.stringify(_focusSection)); } catch(_) {}
     const panel = getActiveChartPanel?.();
     if (panel) render({ container: panel, instrument: _chartInstrument });
@@ -129,7 +147,7 @@ window.Studio936SuiteProChart = (() => {
 
   window.addEventListener("studio936:chart-focus-section", (ev) => {
     const detail = ev.detail || {};
-    if (detail.section) setFocusSection(detail.section, detail);
+    if (detail.section) setFocusSection(detail.sections || detail.section, detail);
   });
   window.addEventListener("studio936:chart-clear-focus-section", () => clearFocusSection());
 
@@ -1227,6 +1245,25 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-mini-sesion-btn.is-active{background:rgba(255,224,102,.18);border-color:rgba(255,224,102,.55);color:#ffe066}
 .s936-ch-mini-sesion-btn.is-placeholder{opacity:.4;cursor:not-allowed}
 .s936-ch-mini-sesion-channel-icon{font-size:.78rem;line-height:1;display:inline-flex;align-items:center}
+/* Cambio 384: popover de selección de secciones para el Zoom (1 o 2). */
+.s936-ch-zoom-picker{
+  z-index:10070;background:#0c1017;border:1px solid rgba(0,255,204,.3);
+  border-radius:8px;padding:10px;width:240px;box-shadow:0 8px 24px rgba(0,0,0,.5);
+}
+.s936-ch-zoom-picker-title{font-size:.66rem;font-weight:800;color:#bfffee;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px}
+.s936-ch-zoom-picker-chips{display:flex;flex-wrap:wrap;gap:5px;max-height:160px;overflow-y:auto;margin-bottom:10px}
+.s936-ch-zoom-chip{
+  border-radius:14px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.05);
+  color:#d8f4ee;font-size:.62rem;padding:4px 10px;cursor:pointer;
+}
+.s936-ch-zoom-chip:hover{border-color:rgba(0,255,204,.5)}
+.s936-ch-zoom-chip.is-selected{background:rgba(0,255,204,.18);border-color:#00ffcc;color:#00ffcc;font-weight:700}
+.s936-ch-zoom-picker-actions{display:flex;justify-content:space-between;gap:8px}
+.s936-ch-zoom-picker-btn{border-radius:6px;padding:5px 10px;font-size:.62rem;font-weight:700;cursor:pointer;border:1px solid transparent}
+.s936-ch-zoom-picker-btn.ghost{background:transparent;border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.6)}
+.s936-ch-zoom-picker-btn.ghost:hover{border-color:rgba(255,255,255,.4);color:#fff}
+.s936-ch-zoom-picker-btn.primary{background:#00ffcc;color:#00201c}
+.s936-ch-zoom-picker-btn.primary:hover{background:#3dffdb}
 .s936-ch-cont-zoombtn{width:100%;background:rgba(0,255,204,.08);border:1px solid rgba(0,255,204,.3);
   border-radius:6px;color:#7dffe0;font-size:.6rem;font-weight:700;padding:5px 4px;cursor:pointer;}
 .s936-ch-cont-zoombtn:hover{background:rgba(0,255,204,.16)}
@@ -7308,9 +7345,10 @@ body.s936-chart-stage main{
 
     // Cambio 29: modo Zoom sección. El panel izquierdo decide la sección;
     // el Chart filtra la hoja electrónica sin duplicar consola.
+    // Cambio 384: ahora puede ser 1 o 2 secciones (.sections, array).
     const focus = readFocusSection();
-    if (focus?.section && Array.isArray(arrangement) && arrangement.length) {
-      arrangement = arrangement.filter((item) => item && item.section === focus.section);
+    if (focus?.sections?.length && Array.isArray(arrangement) && arrangement.length) {
+      arrangement = arrangement.filter((item) => item && focus.sections.includes(item.section));
     }
 
     if (!edState || typeof edState !== "object") edState = {};
@@ -7349,10 +7387,11 @@ body.s936-chart-stage main{
     // un vistazo si el navegador corre esta versión o una anterior en caché.
     metaEl.textContent = (edState.style || "") + (edState.bpm ? " · " + edState.bpm + " BPM" : "") + " · " + totalBars + " comp. · CHART CAMBIO 105";
     const focusNow = readFocusSection();
-    if (focusNow?.section) {
+    if (focusNow?.sections?.length) {
       const focusEl = document.createElement("div");
       focusEl.className = "s936-ch-meta focus";
-      focusEl.textContent = "Zoom sección: " + (focusNow.label || focusNow.section);
+      const names = focusNow.sections.map((s, i) => (focusNow.labels && focusNow.labels[i]) || (i === 0 ? focusNow.label : "") || s).filter(Boolean);
+      focusEl.textContent = "Zoom sección" + (focusNow.sections.length > 1 ? "es" : "") + ": " + names.join(" + ");
       info.append(titleEl, metaEl, focusEl);
     } else {
       info.append(titleEl, metaEl);
@@ -7412,6 +7451,97 @@ body.s936-chart-stage main{
     // propósito: el listado real de secciones en formato chip, con
     // tiempos/compases, ya vive ahí — Val pidió representarlo distinto,
     // no reconstruirlo.
+    // Cambio 384: selector de chips para el Zoom — Val pidió poder elegir
+    // 1 o 2 secciones (no solo la actual) para verlas juntas en el Chart.
+    // Junta la lista de secciones reales desde los labels ya dibujados en
+    // pantalla (dataset.section), arma un popover con chips
+    // seleccionables (máximo 2) y aplica con setFocusSection([...]).
+    function openZoomSectionPicker(anchorEl, currentSectionKey) {
+      document.getElementById("s936-ch-zoom-picker")?.remove();
+
+      const seen = new Set();
+      const options = [];
+      document.querySelectorAll(".s936-ch-cont-label[data-section]").forEach((el) => {
+        const sec = el.dataset.section;
+        if (sec && !seen.has(sec)) {
+          seen.add(sec);
+          options.push({ section: sec, label: el.textContent.replace(/^●\s*/, "") });
+        }
+      });
+      if (!options.length) { alert("No hay secciones para elegir todavía."); return; }
+
+      const focus = readFocusSection();
+      let selected = (focus?.sections?.length ? focus.sections.slice() : [currentSectionKey]).slice(0, 2);
+
+      const pop = document.createElement("div");
+      pop.id = "s936-ch-zoom-picker";
+      pop.className = "s936-ch-zoom-picker";
+
+      const title = document.createElement("div");
+      title.className = "s936-ch-zoom-picker-title";
+      title.textContent = "Elegí 1 o 2 secciones";
+      pop.appendChild(title);
+
+      const chipsWrap = document.createElement("div");
+      chipsWrap.className = "s936-ch-zoom-picker-chips";
+      options.forEach(({ section, label }) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "s936-ch-zoom-chip" + (selected.includes(section) ? " is-selected" : "");
+        chip.textContent = label;
+        chip.onclick = (e) => {
+          e.stopPropagation();
+          const idx = selected.indexOf(section);
+          if (idx >= 0) {
+            selected.splice(idx, 1);
+          } else {
+            if (selected.length >= 2) selected.shift(); // se sale el más viejo, entra el nuevo (máx 2)
+            selected.push(section);
+          }
+          chipsWrap.querySelectorAll(".s936-ch-zoom-chip").forEach((c, i) => {
+            c.classList.toggle("is-selected", selected.includes(options[i].section));
+          });
+        };
+        chipsWrap.appendChild(chip);
+      });
+      pop.appendChild(chipsWrap);
+
+      const actions = document.createElement("div");
+      actions.className = "s936-ch-zoom-picker-actions";
+      const clearBtn = document.createElement("button");
+      clearBtn.type = "button";
+      clearBtn.className = "s936-ch-zoom-picker-btn ghost";
+      clearBtn.textContent = "Quitar zoom";
+      clearBtn.onclick = (e) => { e.stopPropagation(); clearFocusSection(); pop.remove(); };
+      const applyBtn = document.createElement("button");
+      applyBtn.type = "button";
+      applyBtn.className = "s936-ch-zoom-picker-btn primary";
+      applyBtn.textContent = "Aplicar";
+      applyBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (!selected.length) { alert("Elegí al menos 1 sección."); return; }
+        const labels = selected.map((s) => options.find((o) => o.section === s)?.label || s);
+        setFocusSection(selected, { labels });
+        pop.remove();
+      };
+      actions.append(clearBtn, applyBtn);
+      pop.appendChild(actions);
+
+      document.body.appendChild(pop);
+      const rect = anchorEl.getBoundingClientRect();
+      pop.style.position = "fixed";
+      pop.style.top = (rect.bottom + 6) + "px";
+      pop.style.left = Math.max(6, Math.min(rect.left, window.innerWidth - 260)) + "px";
+
+      const closeOnOutside = (e) => {
+        if (!pop.contains(e.target) && e.target !== anchorEl) {
+          pop.remove();
+          document.removeEventListener("click", closeOnOutside, true);
+        }
+      };
+      setTimeout(() => document.addEventListener("click", closeOnOutside, true), 0);
+    }
+
     function buildSectionMiniBar(sectionKey, sectionLabel) {
       const bar = document.createElement("div");
       bar.className = "s936-ch-mini-sesion-bar";
@@ -7428,7 +7558,7 @@ body.s936-chart-stage main{
       bar.appendChild(channelIcon);
 
       const focus = readFocusSection();
-      const isFocused = !!(focus && focus.section === sectionKey);
+      const isFocused = !!(focus && focus.sections?.includes(sectionKey));
 
       const mk = (symbol, title, onClick, extraClass) => {
         const b = document.createElement("button");
@@ -7456,12 +7586,8 @@ body.s936-chart-stage main{
         startChartSectionPractice(panel, sectionKey, { withPulse: false, sourceLabel: "Loop sección" });
       });
 
-      const zoomBtn = mk(isFocused ? "↩" : "⛶", isFocused ? "Salir de zoom sección" : "Zoom sección", () => {
-        if (isFocused) {
-          clearFocusSection();
-        } else {
-          setFocusSection(sectionKey, { label: sectionLabel });
-        }
+      const zoomBtn = mk(isFocused ? "↩" : "⛶", isFocused ? "Salir de zoom sección" : "Zoom sección — elegir 1 o 2", () => {
+        openZoomSectionPicker(zoomBtn, sectionKey);
       }, isFocused ? "is-active" : "");
 
       const editBtn = mk("✎", "Editar secciones (abre Compose)", () => {
@@ -7575,6 +7701,7 @@ body.s936-chart-stage main{
         label.className = "s936-ch-cont-label";
         label.style.color = color;
         label.textContent = "● " + (item.label || item.section || "");
+        label.dataset.section = item.section || "";
         block.appendChild(label);
 
         const chordRow = document.createElement("div");
