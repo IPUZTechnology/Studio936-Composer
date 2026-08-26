@@ -1200,6 +1200,7 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-cont-label{font-size:.55rem;font-weight:800;text-transform:uppercase;
   letter-spacing:.4px;margin-bottom:4px;white-space:nowrap}
 .s936-ch-cont-row{display:flex;gap:3px;margin-bottom:3px}
+.s936-ch-cont-headerspacer{width:160px;flex-shrink:0}
 .s936-ch-cont-cell{background:rgba(255,255,255,.05);border-radius:5px;
   padding:4px 6px;font-size:.62rem;min-width:150px;text-align:center;
   flex-shrink:0;box-sizing:border-box}
@@ -7395,8 +7396,22 @@ body.s936-chart-stage main{
 
         const chordRow = document.createElement("div");
         chordRow.className = "s936-ch-cont-row";
+        // Cambio 368: Val pidió una columna fija a la izquierda (como en
+        // cualquier DAW: encabezado de pista + línea de tiempo), no solo
+        // que el contenido de instrumentos se apile arriba/abajo. Se
+        // reserva el mismo ancho (160px) tanto aquí como en la fila de
+        // letra y en cada fila de instrumento (suite-pro-track-recorder.js)
+        // — así los 3 tipos de fila usan EXACTAMENTE la misma cuadrícula,
+        // en vez de que cada una calcule su propio punto de inicio.
+        const chordSpacer = document.createElement("div");
+        chordSpacer.className = "s936-ch-cont-headerspacer";
+        chordRow.appendChild(chordSpacer);
+
         const lyricRow = document.createElement("div");
         lyricRow.className = "s936-ch-cont-row";
+        const lyricSpacer = document.createElement("div");
+        lyricSpacer.className = "s936-ch-cont-headerspacer";
+        lyricRow.appendChild(lyricSpacer);
 
         const beatsData = getBeatsData(item.section);
 

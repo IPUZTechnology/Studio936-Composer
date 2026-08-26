@@ -531,16 +531,17 @@
       .s936tr-lanewrap{padding:6px 4px 2px;display:flex;flex-direction:column;gap:5px;}
       .s936tr-laneheading{font-size:.62rem;color:#7fa8a0;text-transform:uppercase;letter-spacing:.5px;
         font-weight:700;margin-bottom:1px;}
-      /* Cambio 366: BUG encontrado — antes era grid de 2 columnas
-         (92px de íconos + 1fr de barra), lo que corría la barra de
-         tiempo 92px hacia la derecha respecto al primer acorde del
-         Chart de arriba (que empieza en x=0). Ahora los íconos van
-         APILADOS arriba de la barra, no al lado — así la barra en sí
-         empieza exactamente en el mismo punto que el primer compás. */
-      .s936tr-lanerow{display:flex;flex-direction:column;gap:2px;}
-      .s936tr-lanelabel{display:flex;align-items:center;gap:2px;}
+      /* Cambio 368: Val aclaró que quería una columna FIJA real (como en
+         cualquier DAW: encabezado de pista a la izquierda, línea de
+         tiempo a la derecha) — no apilar el nombre arriba de la barra
+         (eso fue el intento del Cambio 366, que resultó no ser lo que
+         pedía). El ancho (96px) es el MISMO que .s936-ch-cont-headerspacer
+         en suite-pro-chart-v260-cambio100.js — si alguno de los dos
+         cambia, hay que cambiar el otro para que sigan alineados. */
+      .s936tr-lanerow{display:grid;grid-template-columns:160px 1fr;align-items:center;gap:3px;}
+      .s936tr-lanelabel{display:flex;align-items:center;gap:2px;overflow:hidden;}
       .s936tr-laneicon{display:flex;align-items:center;justify-content:center;width:18px;height:18px;
-        margin-right:2px;cursor:default;font-size:12px;}
+        margin-right:2px;cursor:default;font-size:12px;flex-shrink:0;}
       .s936tr-lanebtn{width:16px;height:16px;padding:0;border:none;background:none;border-radius:3px;
         display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;
         color:rgba(255,255,255,.65);font-size:8px;line-height:1;}
@@ -854,7 +855,7 @@
     const nameSpan = document.createElement('span');
     nameSpan.className = 's936tr-lanename';
     nameSpan.textContent = info.label;
-    nameSpan.style.cssText = 'font-size:.62rem;font-weight:700;color:' + color + ';margin-right:4px;white-space:nowrap;';
+    nameSpan.style.cssText = 'font-size:.62rem;font-weight:700;color:' + color + ';margin-right:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52px;';
 
     const track = document.createElement('div');
     track.className = 's936tr-lanetrack';
