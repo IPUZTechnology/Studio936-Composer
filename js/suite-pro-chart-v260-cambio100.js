@@ -1294,8 +1294,21 @@ window.Studio936SuiteProChart = (() => {
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .s936-ch-cont-cell.chord:hover{background:rgba(0,255,204,.1)}
 .s936-ch-cont-chordname{overflow:hidden;text-overflow:ellipsis;font-size:.6rem}
-.s936-ch-cont-segwrap{display:flex;gap:2px;margin-top:2px}
-.s936-ch-cont-seg{min-width:110px;flex:none}
+.s936-ch-cont-segwrap{
+  display:grid;
+  /* Cambio 387: MISMA grilla de 4 columnas iguales que ya usa la letra
+     (.s936-ch-lyric-beats) — antes acá era flex con reparto equitativo
+     entre "cuántos segmentos hay" (1 a 4), sin relación con EN QUÉ
+     tiempo real empieza cada uno. Un acorde que dura 3 tiempos y otro
+     que dura 1 quedaban 50/50 (mitad y mitad), en vez de 75%/25% — por
+     eso no coincidía con la letra de abajo, que sí respeta los 4
+     tiempos reales. Ahora cada segmento ocupa tantas columnas como
+     tiempos dura de verdad (ver grid-column puesto en JS).
+  */
+  grid-template-columns:repeat(4,1fr);
+  gap:2px;margin-top:2px;
+}
+.s936-ch-cont-seg{min-width:0}
 .s936-ch-cont-minireal{transform:scale(.85);transform-origin:top left;
   width:129px;margin-top:1px;pointer-events:none;overflow:visible}
 .s936-ch-cont-cell.lyric{color:#9fd8cc;white-space:normal;word-break:break-word;
@@ -7847,10 +7860,19 @@ body.s936-chart-stage main{
             // abajo con CSS, no se redibuja nada distinto.
             const segWrap = document.createElement("div");
             segWrap.className = "s936-ch-cont-segwrap";
-            realSegments.forEach(seg => {
+            realSegments.forEach((seg, segIdx) => {
               const segBox = document.createElement("div");
               segBox.className = "s936-ch-cont-seg";
-              segBox.style.flex = "1";
+              // Cambio 387: el segmento ocupa tantas columnas (de las 4
+              // reales del compás) como tiempos dura de verdad — desde su
+              // propio tiempo de inicio hasta el del siguiente segmento
+              // (o hasta el tiempo 4 si es el último). Esto es lo que
+              // hace que ahora coincida con la letra de abajo, tiempo por
+              // tiempo, en vez de repartirse en partes iguales entre
+              // "cuántos segmentos hay".
+              const nextBeat = realSegments[segIdx + 1]?.beat ?? 4;
+              const durBeats = Math.max(1, nextBeat - seg.beat);
+              segBox.style.gridColumn = "span " + durBeats;
               const nameEl = document.createElement("div");
               nameEl.className = "s936-ch-cont-chordname";
               nameEl.textContent = seg.name;
