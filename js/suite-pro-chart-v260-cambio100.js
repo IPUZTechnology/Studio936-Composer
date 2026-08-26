@@ -1403,9 +1403,26 @@ body.s936-chart-stage .s936-chart-main-panel{
 }
 body.s936-chart-stage #s936-chart-view-panel 
 /* Cambio 40 · Chart respeta el dock flexible cuando el guard detecta invasión. */
+/* Cambio 370: se completa lo que el Cambio 40 dejó a medias — la regla de
+   arriba solo definía la TRANSICIÓN (animación), pero nunca nadie definía
+   los valores reales de margen, y nadie activaba el atributo. Ahora:
+   - SIN el atributo (o "off"): el Chart usa casi toda la pantalla, solo
+     dejando espacio para la barra de íconos colapsada (56px + margen).
+   - CON data-s936-dock-flex="on": el Chart cede espacio a la izquierda
+     para el Docker expandido (ver margen real usado por #s936SuitePro:
+     76px de left + ~500px de ancho típico del panel).
+   El JS que prende/apaga esto vive en suite-pro.js (showDockOnHover /
+   scheduleHideDockOnHover), togglea el atributo directo sobre este mismo
+   panel por su id, sin necesitar tocar este archivo más que aquí. */
+body.s936-chart-stage #s936-chart-view-panel,
+body.s936-chart-stage .s936-chart-main-panel{
+  margin-left:78px!important;
+  transition:margin-left .18s ease!important;
+}
 body.s936-chart-stage #s936-chart-view-panel[data-s936-dock-flex="on"],
 body.s936-chart-stage .s936-chart-main-panel[data-s936-dock-flex="on"]{
-  transition:margin-left .12s ease,width .12s ease!important;
+  margin-left:600px!important;
+  transition:margin-left .18s ease!important;
 }
 
 
@@ -7400,31 +7417,16 @@ body.s936-chart-stage main{
         const chordRow = document.createElement("div");
         chordRow.className = "s936-ch-cont-row";
         // Cambio 368: columna fija reservada.
-        // Cambio 369: ahora con contenido real — botón de Zoom de esta
-        // sección, usando setFocusSection() que YA existe en este mismo
-        // archivo (no hace falta ir a buscar nada a otro módulo).
+        // Cambio 370: se revierte el botón de Zoom del Cambio 369 — Val lo
+        // rechazó explícitamente ("eso no es así, queda muy feo"). El
+        // espaciador queda vacío otra vez hasta definir bien qué control
+        // va aquí.
         const chordSpacer = document.createElement("div");
         chordSpacer.className = "s936-ch-cont-headerspacer";
-        const zoomBtnCont = document.createElement("button");
-        zoomBtnCont.type = "button";
-        zoomBtnCont.className = "s936-ch-cont-zoombtn";
-        zoomBtnCont.textContent = "⤢ Zoom";
-        zoomBtnCont.title = "Enfocar solo esta sección";
-        zoomBtnCont.onclick = (e) => {
-          e.stopPropagation();
-          setFocusSection(item.section, { label: item.label || item.section || "" });
-        };
-        chordSpacer.appendChild(zoomBtnCont);
         chordRow.appendChild(chordSpacer);
 
         const lyricRow = document.createElement("div");
         lyricRow.className = "s936-ch-cont-row";
-        // Cambio 369: el botón de letra queda pendiente a propósito — la
-        // función real (openSectionLyricsEditor) vive en
-        // suite-pro-structure-v489-cambio94.js y espera datos (ctx, s,
-        // part, parts) con una forma distinta a la que tiene este
-        // archivo (item/arrangement). Conectarlo bien necesita exponerlo
-        // con cuidado, no a las carreras — documentado en el HANDOFF.
         const lyricSpacer = document.createElement("div");
         lyricSpacer.className = "s936-ch-cont-headerspacer";
         lyricRow.appendChild(lyricSpacer);

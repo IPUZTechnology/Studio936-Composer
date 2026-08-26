@@ -3304,6 +3304,11 @@ function normalizeNoteName(value) {
     if (_hoverHideTimer) { clearTimeout(_hoverHideTimer); _hoverHideTimer = null; }
     const panel = ensurePanel();
     panel.classList.remove("s936-dock-collapsed");
+    // Cambio 370: correr el Chart hacia la derecha para dejarle espacio
+    // real al Docker — completa la pieza que el Cambio 40 dejó a medias
+    // (la regla CSS ya existía, pero nadie la activaba nunca).
+    const chartPanel = document.getElementById("s936-chart-view-panel") || document.querySelector(".s936-chart-main-panel");
+    if (chartPanel) chartPanel.setAttribute("data-s936-dock-flex", "on");
   }
 
   function scheduleHideDockOnHover() {
@@ -3311,6 +3316,10 @@ function normalizeNoteName(value) {
     _hoverHideTimer = setTimeout(() => {
       const panel = byId(PANEL_ID);
       if (panel) panel.classList.add("s936-dock-collapsed");
+      // Cambio 370: correr el Chart de vuelta hacia la izquierda al
+      // ocultarse el Docker, para ocupar el espacio que queda libre.
+      const chartPanel = document.getElementById("s936-chart-view-panel") || document.querySelector(".s936-chart-main-panel");
+      if (chartPanel) chartPanel.removeAttribute("data-s936-dock-flex");
       _hoverHideTimer = null;
     }, 250);
   }
