@@ -952,25 +952,36 @@
   }
 
   let _laneDiagnosticShown = false;
-  function renderSectionLanes(sectionEl, sectionKey) {
+  function renderSectionLanes(sectionEl, sectionKey, opts) {
     try {
       if (!sectionEl || !sectionKey) return;
       installStyles();
       const wrap = document.createElement('div');
       wrap.className = 's936tr-lanewrap';
-      // Cambio 258 (arreglo): sin esta etiqueta, cuando una sección tiene
-      // más de 4 compases (se dibuja en varias filas), la línea de pistas
-      // parece pertenecer solo a la última fila — aunque en realidad
-      // representa TODA la sección (se graba de corrido, no por compás).
-      const heading = document.createElement('div');
-      heading.className = 's936tr-laneheading';
-      heading.textContent = '🎙️ Pistas de toda esta sección';
-      wrap.appendChild(heading);
+      // Cambio 379: nuevo parámetro opcional opts.hideHeaderAndAdd — el
+      // Chart (Vista Continua) ya tiene su propio título/ícono de canal +
+      // botón "+" en la barra mini de Lyric (Cambio 379), así que acá se
+      // pueden ocultar para no repetirlos. Arreglo de la Canción (que
+      // llama a esta misma función sin ese parámetro) NO cambia — sigue
+      // mostrando el título y el "+" como siempre.
+      const hideHeaderAndAdd = !!(opts && opts.hideHeaderAndAdd);
+      if (!hideHeaderAndAdd) {
+        // Cambio 258 (arreglo): sin esta etiqueta, cuando una sección tiene
+        // más de 4 compases (se dibuja en varias filas), la línea de pistas
+        // parece pertenecer solo a la última fila — aunque en realidad
+        // representa TODA la sección (se graba de corrido, no por compás).
+        const heading = document.createElement('div');
+        heading.className = 's936tr-laneheading';
+        heading.textContent = '🎙️ Pistas de toda esta sección';
+        wrap.appendChild(heading);
+      }
       const groups = groupTakesByInstrument(sectionKey);
       Object.keys(groups).forEach(instrumentId => {
         wrap.appendChild(buildLaneRow(sectionKey, instrumentId, groups[instrumentId]));
       });
-      wrap.appendChild(buildAddInstrumentControl(sectionKey, wrap));
+      if (!hideHeaderAndAdd) {
+        wrap.appendChild(buildAddInstrumentControl(sectionKey, wrap));
+      }
       sectionEl.appendChild(wrap);
     } catch (e) {
       // Cambio 258 (diagnóstico): si algo falla aquí, antes quedaba mudo

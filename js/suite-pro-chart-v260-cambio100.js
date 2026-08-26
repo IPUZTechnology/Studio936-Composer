@@ -1209,8 +1209,14 @@ window.Studio936SuiteProChart = (() => {
   display:flex;align-items:center;justify-content:center;
   background:rgba(255,255,255,.05);border-radius:5px;
   box-sizing:border-box;
+  align-self:stretch;
 }
-.s936-ch-mini-sesion-bar{display:flex;gap:4px;margin:0}
+.s936-ch-mini-sesion-bar{display:flex;align-items:center;gap:4px;margin:0}
+/* Cambio 379 (ajuste): el control "+" reusado de track-recorder.js trae
+   su propio margin-top pensado para la lista vertical de pistas — acá,
+   en línea con el ícono de canal, hay que resetearlo para que no quede
+   descolgado. */
+.s936-ch-mini-sesion-bar .s936tr-laneadd{margin-top:0}
 .s936-ch-mini-sesion-btn{
   min-width:22px;height:22px;padding:0 5px;
   border-radius:5px;border:1px solid rgba(0,255,204,.28);
@@ -7798,7 +7804,7 @@ body.s936-chart-stage main{
         // pero no en el otro — no era un problema de datos compartidos
         // (esos sí se comparten bien, ya verificado), era que esta vista
         // simplemente nunca llamaba a la función que los dibuja.
-        try { window.Studio936TrackRecorder?.renderSectionLanes?.(block, item.section); } catch(_) {}
+        try { window.Studio936TrackRecorder?.renderSectionLanes?.(block, item.section, { hideHeaderAndAdd: true }); } catch(_) {}
         scroller.appendChild(block);
       });
 
