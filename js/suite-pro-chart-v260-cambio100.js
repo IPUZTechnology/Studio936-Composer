@@ -1403,46 +1403,30 @@ body.s936-chart-stage .s936-chart-main-panel{
 }
 body.s936-chart-stage #s936-chart-view-panel 
 /* Cambio 40 · Chart respeta el dock flexible cuando el guard detecta invasión. */
-/* Cambio 370: se completa lo que el Cambio 40 dejó a medias — la regla de
-   arriba solo definía la TRANSICIÓN (animación), pero nunca nadie definía
-   los valores reales de margen, y nadie activaba el atributo.
-   Cambio 371 (CORRECCIÓN): el Cambio 370 usaba 78px/600px "a ojo" — no
-   coincidían con la geometría real del rail/panel (medida real: rail
-   termina en 68px, panel expandido termina en 506px, no 600px) y además
-   el atributo se quedaba pegado en "on" si el Docker se cerraba sin
-   pasar por el hover-out (bug corregido en suite-pro.js, ver
-   clearChartDockFlex()).
-   Ahora el margen NO es un número fijo: se calcula con calc() como el
-   COMPLEMENTO matemático exacto de las MISMAS variables CSS que usa
-   #s936SuitePro/el rail para su propia geometría real (definidas en
-   suite-pro.js, bloque :root). Si el rail o el panel cambian de tamaño
-   algún día, este cálculo se ajusta solo — no hay dos números sueltos en
-   dos archivos que se puedan desalinear.
-   - SIN el atributo (o "off"): margen = borde derecho real del rail +
-     separación.
-   - CON data-s936-dock-flex="on": margen = borde derecho real del panel
-     expandido + separación.
-   Cambio 372: además del margen, esta regla ahora TAMBIÉN define el
-   width con calc() (100% menos el mismo margen) — antes el width lo
-   ponía una regla vieja del Cambio 27/28 más abajo en este mismo
-   archivo (width:100%), que sumado al margin-left se pasaba del ancho
-   real disponible (por eso la Vista Continua mostraba ese segundo
-   hueco vacío grande a la derecha, con su scroller estirado a
-   min-width:100% de un panel ya de por sí más ancho de la cuenta).
-   Ahora margin-left + width SIEMPRE suman exactamente 100%, sin dejar
-   sobra ni pasarse. */
+/* Cambio 370/371/372: toda esta historia (margin-left/width dinámicos
+   calculados con calc(), sincronizados con la geometría real del rail y
+   el Docker) se REVIERTE en el Cambio 373. Val aclaró el diseño real:
+   el Chart NUNCA debe moverse ni cambiar de ancho — ni en "Play"
+   (pantalla completa siempre) ni en "Compose" (mismo estado de pantalla
+   completa; la barra/Docker son overlays que flotan POR ENCIMA con
+   z-index, sin reservarles espacio nunca). Todo el sistema de
+   "complemento matemático" de los Cambios 371/372 estaba resolviendo
+   bien un problema que no debía existir — por eso ningún ajuste de
+   números se notaba: el margen de reposo nunca cambió de ~78px en
+   ningún cambio anterior. Ahora el Chart es simplemente 100% de ancho,
+   sin margen, siempre — el atributo data-s936-dock-flex ya no controla
+   nada acá (puede seguir poniéndose/sacándose en suite-pro.js sin
+   efecto, es inofensivo, no se tocó por separado). El rail
+   (#s936HoverRail, z-index:10062) y el Docker (#s936SuitePro,
+   z-index:10060) ya flotan muy por encima del Chart (z-index:4) — el
+   solapamiento visual ya estaba resuelto por el z-index, nunca hizo
+   falta correr el Chart. */
 body.s936-chart-stage #s936-chart-view-panel,
 body.s936-chart-stage .s936-chart-main-panel{
-  margin-left:calc(var(--s936-rail-left) + var(--s936-rail-w) + var(--s936-rail-gap))!important;
-  width:calc(100% - (var(--s936-rail-left) + var(--s936-rail-w) + var(--s936-rail-gap)))!important;
-  transition:margin-left .18s ease, width .18s ease!important;
+  margin-left:0!important;
+  width:100%!important;
 }
-body.s936-chart-stage #s936-chart-view-panel[data-s936-dock-flex="on"],
-body.s936-chart-stage .s936-chart-main-panel[data-s936-dock-flex="on"]{
-  margin-left:calc(var(--s936-dock-left) + var(--s936-dock-w) + var(--s936-dock-gap))!important;
-  width:calc(100% - (var(--s936-dock-left) + var(--s936-dock-w) + var(--s936-dock-gap)))!important;
-  transition:margin-left .18s ease, width .18s ease!important;
-}
+
 
 
 /* Cambio 44 · escenario derecho estable: Chart siempre gana sobre piano/main, sin scroll horizontal global */
