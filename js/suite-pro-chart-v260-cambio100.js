@@ -1201,16 +1201,23 @@ window.Studio936SuiteProChart = (() => {
   letter-spacing:.4px;margin-bottom:4px;white-space:nowrap}
 .s936-ch-cont-row{display:flex;gap:3px;margin-bottom:3px}
 .s936-ch-cont-headerspacer{width:160px;flex-shrink:0}
-/* Cambio 377: barra mini de sesión (Play/Loop/Zoom/Editar) en la
-   posición cero de cada bloque de sección, Vista Continua. */
-.s936-ch-mini-sesion-bar{display:flex;gap:3px;margin:2px 0 4px}
-.s936-ch-mini-sesion-btn{
-  min-width:20px;height:20px;padding:0 4px;
-  border-radius:5px;border:1px solid rgba(0,255,204,.28);
-  background:rgba(0,255,204,.07);color:#bfffee;
-  font-size:.62rem;line-height:1;cursor:pointer;
+/* Cambio 377/378: barra mini de sesión (Play/Loop/Zoom/Editar), ahora
+   DENTRO de la columna fija de 160px (chordSpacer), en la misma fila
+   que los mini-charts de acordes — mismo look de celda (fondo, radio,
+   alineación vertical) para que se vea unánime con el resto de la fila. */
+.s936-ch-mini-sesion-spacer{
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.05);border-radius:5px;
+  box-sizing:border-box;
 }
-.s936-ch-mini-sesion-btn:hover{background:rgba(0,255,204,.16);border-color:rgba(0,255,204,.5)}
+.s936-ch-mini-sesion-bar{display:flex;gap:4px;margin:0}
+.s936-ch-mini-sesion-btn{
+  min-width:22px;height:22px;padding:0 5px;
+  border-radius:5px;border:1px solid rgba(0,255,204,.28);
+  background:rgba(0,255,204,.08);color:#bfffee;
+  font-size:.66rem;line-height:1;cursor:pointer;
+}
+.s936-ch-mini-sesion-btn:hover{background:rgba(0,255,204,.18);border-color:rgba(0,255,204,.5)}
 .s936-ch-mini-sesion-btn.is-active{background:rgba(255,224,102,.18);border-color:rgba(255,224,102,.55);color:#ffe066}
 .s936-ch-cont-zoombtn{width:100%;background:rgba(0,255,204,.08);border:1px solid rgba(0,255,204,.3);
   border-radius:6px;color:#7dffe0;font-size:.6rem;font-weight:700;padding:5px 4px;cursor:pointer;}
@@ -7506,9 +7513,6 @@ body.s936-chart-stage main{
         label.style.color = color;
         label.textContent = "● " + (item.label || item.section || "");
         block.appendChild(label);
-        // Cambio 377: barra mini de sesión, justo en la posición cero,
-        // antes del primer acorde de la sección.
-        block.appendChild(buildSectionMiniBar(item.section, item.label || item.section || ""));
 
         const chordRow = document.createElement("div");
         chordRow.className = "s936-ch-cont-row";
@@ -7518,7 +7522,12 @@ body.s936-chart-stage main{
         // espaciador queda vacío otra vez hasta definir bien qué control
         // va aquí.
         const chordSpacer = document.createElement("div");
-        chordSpacer.className = "s936-ch-cont-headerspacer";
+        chordSpacer.className = "s936-ch-cont-headerspacer s936-ch-mini-sesion-spacer";
+        // Cambio 378: la barra mini (Play/Loop/Zoom/Editar) vive DENTRO de
+        // esta columna fija de 160px — antes vivía en una fila aparte,
+        // arriba, desalineada con los mini-charts de acordes. Ahora queda
+        // en línea, misma fila, mismo estilo de celda.
+        chordSpacer.appendChild(buildSectionMiniBar(item.section, item.label || item.section || ""));
         chordRow.appendChild(chordSpacer);
 
         const lyricRow = document.createElement("div");
