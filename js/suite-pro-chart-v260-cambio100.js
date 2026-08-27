@@ -1233,6 +1233,21 @@ window.Studio936SuiteProChart = (() => {
 }
 .s936-ch-continuous-toggle:hover{background:rgba(0,255,204,.16)}
 .s936-ch-cont-scroller{display:inline-flex;min-width:100%;overflow-x:auto;padding:10px}
+/* Cambio 389: se oculta la barra de scroll NATIVA del navegador (fea,
+   pesada, abajo del todo) — el scroll sigue funcionando igual (rueda,
+   touch, arrastre), solo no se dibuja la barra del sistema. Se reemplaza
+   por la barrita propia de arriba (.s936-ch-cont-progress-track). */
+.s936-ch-cont-scroller::-webkit-scrollbar{display:none}
+.s936-ch-cont-scroller{scrollbar-width:none;-ms-overflow-style:none}
+.s936-ch-cont-progress-track{
+  position:relative;height:3px;margin:0 10px 6px;
+  background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;
+}
+.s936-ch-cont-progress-thumb{
+  position:absolute;top:0;bottom:0;left:0;
+  background:rgba(0,255,204,.4);border-radius:3px;
+  transition:left .12s linear;
+}
 .s936-ch-cont-block{flex-shrink:0;padding:0 10px 0 0;min-width:220px}
 .s936-ch-cont-label{font-size:.55rem;font-weight:800;text-transform:uppercase;
   letter-spacing:.4px;margin-bottom:4px;white-space:nowrap}
@@ -1288,7 +1303,14 @@ window.Studio936SuiteProChart = (() => {
   border-radius:6px;color:#7dffe0;font-size:.6rem;font-weight:700;padding:5px 4px;cursor:pointer;}
 .s936-ch-cont-zoombtn:hover{background:rgba(0,255,204,.16)}
 .s936-ch-cont-cell{background:rgba(255,255,255,.05);border-radius:5px;
-  padding:4px 6px;font-size:.62rem;min-width:150px;text-align:center;
+  padding:4px 6px;font-size:.62rem;text-align:center;
+  /* Cambio 389: ancho FIJO (no solo mínimo) — antes con min-width:150px,
+     una letra larga ("hola hola hala hola") empujaba la celda más ancha
+     que el compás de acorde correspondiente, desalineando las dos filas.
+     Ahora el compás de letra NUNCA puede ser más ancho que el de acorde
+     de al lado — si el texto no entra, se parte en más de una línea
+     (ver word-break en .s936-ch-lyric-beat), la celda no crece. */
+  width:150px;max-width:150px;
   flex-shrink:0;box-sizing:border-box}
 .s936-ch-cont-cell.chord{font-weight:700;color:#e8f4f2;cursor:pointer;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -8078,6 +8100,32 @@ body.s936-chart-stage main{
       });
 
       bodyEl.appendChild(scroller);
+
+      // Cambio 389: barra de progreso propia, arriba del scroller, tenue
+      // y sincronizada con el scroll real — reemplaza la barra de scroll
+      // nativa del navegador (que Val pidió sacar, "muy fea"). La nativa
+      // se oculta por CSS (.s936-ch-cont-scroller::-webkit-scrollbar) sin
+      // perder la función de scroll (sigue andando con touch/rueda/drag,
+      // solo no se ve la barra fea de abajo).
+      const progressTrack = document.createElement("div");
+      progressTrack.className = "s936-ch-cont-progress-track";
+      const progressThumb = document.createElement("div");
+      progressThumb.className = "s936-ch-cont-progress-thumb";
+      progressTrack.appendChild(progressThumb);
+      bodyEl.insertBefore(progressTrack, scroller);
+
+      const syncProgressThumb = () => {
+        const max = scroller.scrollWidth - scroller.clientWidth;
+        const ratio = max > 0 ? scroller.scrollLeft / max : 0;
+        const thumbWidthPct = Math.max(8, (scroller.clientWidth / scroller.scrollWidth) * 100);
+        progressThumb.style.width = thumbWidthPct + "%";
+        progressThumb.style.left = (ratio * (100 - thumbWidthPct)) + "%";
+      };
+      scroller.addEventListener("scroll", syncProgressThumb, { passive: true });
+      // Cambio 389: recalcular también si la ventana cambia de tamaño —
+      // el ancho disponible (y por lo tanto el %) puede cambiar.
+      window.addEventListener("resize", syncProgressThumb, { passive: true });
+      setTimeout(syncProgressThumb, 0);
 
       // Cambio 261: péndulo + karaoke (a nivel de compás, no de palabra —
       // esta vista muestra un cuadro por compás, no por tiempo/palabra
