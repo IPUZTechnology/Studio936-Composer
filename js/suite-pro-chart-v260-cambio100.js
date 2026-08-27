@@ -1439,6 +1439,26 @@ window.Studio936SuiteProChart = (() => {
 }
 .s936-ch-zoom-chip-del:hover{background:rgba(255,90,90,.3);color:#ffb3b3}
 .s936-ch-zoom-picker-draghint{font-size:.55rem;color:rgba(255,255,255,.4);margin-bottom:8px;font-style:italic}
+/* Cambio 417: mini-menú de mantener presionado el chip, y el "+" chico
+   de adicionar sección debajo de la lista. */
+.s936-ch-chip-menu{
+  z-index:10080;background:#111720;border:1px solid rgba(0,255,204,.35);
+  border-radius:6px;padding:4px;box-shadow:0 6px 16px rgba(0,0,0,.5);
+  display:flex;flex-direction:column;min-width:110px;
+}
+.s936-ch-chip-menu-item{
+  background:none;border:none;color:#e8fffb;text-align:left;
+  padding:6px 8px;font-size:.62rem;font-weight:700;border-radius:4px;cursor:pointer;
+}
+.s936-ch-chip-menu-item:hover{background:rgba(0,255,204,.14)}
+.s936-ch-chip-menu-item.danger{color:#ff8080}
+.s936-ch-chip-menu-item.danger:hover{background:rgba(255,90,90,.14)}
+.s936-ch-zoom-add-chip{
+  width:24px;height:24px;border-radius:50%;
+  border:1px dashed rgba(0,255,204,.4);background:rgba(0,255,204,.06);
+  color:#7dffe0;font-size:.85rem;line-height:1;cursor:pointer;margin-bottom:8px;
+}
+.s936-ch-zoom-add-chip:hover{background:rgba(0,255,204,.16);border-style:solid}
 .s936-ch-zoom-chip{
   border-radius:14px;border:1px solid var(--chip-color, rgba(255,255,255,.3));
   background:rgba(255,255,255,.05);
@@ -7882,26 +7902,99 @@ body.s936-chart-stage main{
         };
         chip.appendChild(chipBtn);
 
-        // Cambio 416: botón chico de borrar (✕) — reusa
-        // deleteFromArrangement() de structure.js (con su propio
-        // confirm() incluido), vía el mismo puente de eventos.
-        const delBtn = document.createElement("button");
-        delBtn.type = "button";
-        delBtn.className = "s936-ch-zoom-chip-del";
-        delBtn.textContent = "✕";
-        delBtn.title = "Borrar \"" + label + "\" del arreglo";
-        delBtn.onclick = (e) => {
-          e.stopPropagation();
-          try {
-            window.dispatchEvent(new CustomEvent("studio936:delete-section-request", { detail: { section } }));
-          } catch(_) {}
-          pop.remove();
+        // Cambio 417: se saca la ✕ fija — a Val no le gustaba ahí. Ahora
+        // mantener presionado el chip (long-press, ~500ms) abre un
+        // mini-menú con Editar/Eliminar pegado al chip mismo. El clic
+        // normal (corto) sigue siendo el de siempre (prender/apagar el
+        // filtro) — no se pisan entre sí.
+        let pressTimer = null;
+        let longPressFired = false;
+        const openChipMenu = () => {
+          document.getElementById("s936-ch-chip-menu")?.remove();
+          const menu = document.createElement("div");
+          menu.id = "s936-ch-chip-menu";
+          menu.className = "s936-ch-chip-menu";
+
+          const editItem = document.createElement("button");
+          editItem.type = "button";
+          editItem.className = "s936-ch-chip-menu-item";
+          editItem.textContent = "✎ Editar";
+          editItem.onclick = (e) => {
+            e.stopPropagation();
+            try {
+              if (window.Studio936SuitePro?.openArea) window.Studio936SuitePro.openArea("compose");
+              window.dispatchEvent(new CustomEvent("studio936:edit-section-request", { detail: { section } }));
+            } catch(_) {}
+            menu.remove();
+            pop.remove();
+          };
+
+          const delItem = document.createElement("button");
+          delItem.type = "button";
+          delItem.className = "s936-ch-chip-menu-item danger";
+          delItem.textContent = "✕ Eliminar";
+          delItem.onclick = (e) => {
+            e.stopPropagation();
+            try {
+              window.dispatchEvent(new CustomEvent("studio936:delete-section-request", { detail: { section } }));
+            } catch(_) {}
+            menu.remove();
+            pop.remove();
+          };
+
+          menu.append(editItem, delItem);
+          document.body.appendChild(menu);
+          const r = chip.getBoundingClientRect();
+          menu.style.position = "fixed";
+          menu.style.top = (r.bottom + 4) + "px";
+          menu.style.left = r.left + "px";
+          const closeMenu = (e) => {
+            if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener("click", closeMenu, true); }
+          };
+          setTimeout(() => document.addEventListener("click", closeMenu, true), 0);
         };
-        chip.appendChild(delBtn);
+        const startPress = () => {
+          longPressFired = false;
+          pressTimer = setTimeout(() => { longPressFired = true; openChipMenu(); }, 500);
+        };
+        const cancelPress = () => { clearTimeout(pressTimer); };
+        chip.addEventListener("mousedown", startPress);
+        chip.addEventListener("mouseup", cancelPress);
+        chip.addEventListener("mouseleave", cancelPress);
+        chip.addEventListener("touchstart", startPress, { passive: true });
+        chip.addEventListener("touchend", cancelPress);
+        // Si el long-press ya abrió el menú, el click normal que sigue
+        // (al soltar) no debe togglear el filtro por encima.
+        chip.addEventListener("click", (e) => { if (longPressFired) e.stopPropagation(); }, true);
 
         chipsWrap.appendChild(chip);
       });
       pop.appendChild(chipsWrap);
+
+      // Cambio 417: "Adicionar sección" baja de ser un botón grande de
+      // abajo a un "+" chico, debajo de la lista de chips — mismo
+      // criterio visual que ya usa el resto de la app (ej. el "+" para
+      // agregar instrumentos debajo de "Pistas de toda esta sección").
+      const addChipBtn = document.createElement("button");
+      addChipBtn.type = "button";
+      addChipBtn.className = "s936-ch-zoom-add-chip";
+      addChipBtn.textContent = "+";
+      addChipBtn.title = "Adicionar sección — abre el formulario real de crear sección";
+      addChipBtn.onclick = (e) => {
+        e.stopPropagation();
+        try {
+          if (window.Studio936SuitePro?.openArea) window.Studio936SuitePro.openArea("compose");
+        } catch(_) {}
+        setTimeout(() => {
+          const toggle = document.querySelector("#s936SuitePro .s936-ckpt-add-toggle");
+          if (toggle) {
+            if (!toggle.classList.contains("open")) toggle.click();
+            toggle.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }, 150);
+        pop.remove();
+      };
+      pop.appendChild(addChipBtn);
 
       const dragHint = document.createElement("div");
       dragHint.className = "s936-ch-zoom-picker-draghint";
@@ -7931,45 +8024,11 @@ body.s936-chart-stage main{
         chipsWrap.querySelectorAll(".s936-ch-zoom-chip").forEach((c) => c.classList.add("is-selected"));
       }, "ghost");
 
-      const editBtn = mkActionBtn("✎", "Editar Sección", "Marcá 1 sola sección arriba y editála", () => {
-        // Cambio 413 (corrección real): la barra solo existe en la
-        // PRIMERA sección visible (Cambio 386), así que currentSectionKey
-        // siempre es esa misma — no sirve para saber cuál sección querés
-        // editar de verdad. En cambio, se exige que hayas marcado
-        // exactamente 1 chip en la lista de arriba — así el usuario elige
-        // a propósito, sin ambigüedad.
-        if (selected.length !== 1) {
-          showNotice("Marcá (dejá prendida) exactamente 1 sección arriba, y volvé a tocar Editar Sección.");
-          return;
-        }
-        const target = selected[0];
-        try {
-          if (window.Studio936SuitePro?.openArea) window.Studio936SuitePro.openArea("compose");
-          window.dispatchEvent(new CustomEvent("studio936:edit-section-request", { detail: { section: target } }));
-        } catch(_) {}
-        pop.remove();
-      }, "ghost");
-
-      const addBtn = mkActionBtn("+", "Adicionar sección", "Abre el formulario real de crear sección", () => {
-        // Cambio 413: mismo mecanismo EXACTO que ya usa el botón "Crear
-        // Sección" de Compose (compose.js) — no duplica el formulario,
-        // busca el interruptor real que ya vive dentro de Arreglo de la
-        // Canción (.s936-ckpt-add-toggle) y le hace clic. Se espera un
-        // toque (setTimeout) porque openArea("compose") puede tardar un
-        // instante en montar el DOM de Estructura antes de que el
-        // interruptor exista para buscarlo.
-        try {
-          if (window.Studio936SuitePro?.openArea) window.Studio936SuitePro.openArea("compose");
-        } catch(_) {}
-        setTimeout(() => {
-          const toggle = document.querySelector("#s936SuitePro .s936-ckpt-add-toggle");
-          if (toggle) {
-            if (!toggle.classList.contains("open")) toggle.click();
-            toggle.scrollIntoView({ behavior: "smooth", block: "center" });
-          }
-        }, 150);
-        pop.remove();
-      }, "ghost");
+      // Cambio 417: "Editar Sección" y "Adicionar sección" se sacan de
+      // esta fila — Editar ahora vive en el mini-menú de mantener
+      // presionado el chip; Adicionar bajó a un "+" chico debajo de la
+      // lista (ver arriba, junto a chipsWrap). Abajo queda solo Ver
+      // todas + Aplicar, como pidió Val.
 
       const applyBtn = mkActionBtn("✓", "Aplicar", "Aplicar el filtro elegido", () => {
         if (!selected.length) { showNotice("Dejá al menos 1 sección prendida."); return; }
@@ -7984,7 +8043,7 @@ body.s936-chart-stage main{
         }
         pop.remove();
       }, "primary");
-      actions.append(clearBtn, editBtn, addBtn, applyBtn);
+      actions.append(clearBtn, applyBtn);
       pop.appendChild(actions);
 
       document.body.appendChild(pop);
