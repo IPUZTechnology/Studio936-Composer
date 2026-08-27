@@ -1420,6 +1420,16 @@ window.Studio936SuiteProChart = (() => {
      nunca invade al de al lado. */
   width:100%;margin-top:1px;pointer-events:none;overflow:hidden;
 }
+/* Cambio 394: Val pidió sacar la línea vertical (el borde del diagrama de
+   guitarra/piano) que marca el inicio de cada compás — ya se distingue
+   bien un compás de otro por el acorde y la letra, no hace falta el
+   borde también. Se saca SOLO acá (dentro de Vista Continua); el
+   editor principal, donde este mismo diagrama también se usa, no se
+   toca — ahí el borde sigue como siempre. */
+.s936-ch-cont-minireal .s936-ch-fret-mini,
+.s936-ch-cont-minireal .s936-ch-piano-mini{
+  border:none;
+}
 .s936-ch-cont-cell.lyric{color:#9fd8cc;white-space:normal;word-break:break-word;
   line-height:1.25;min-height:2.4em}
 .s936-ch-cont-playhead{position:absolute;top:0;bottom:0;left:0;width:2px;
@@ -8243,6 +8253,7 @@ body.s936-chart-stage main{
 
       let activeChordEl = null;
       let activeLyricEl = null;
+      let activeBarEl = null; // Cambio 393: rastrea el COMPÁS (no el tiempo/segmento) para el auto-scroll
       function clearHighlight() {
         if (activeChordEl) { activeChordEl.classList.remove("is-playing"); activeChordEl = null; }
         if (activeLyricEl) { activeLyricEl.classList.remove("active-word"); activeLyricEl = null; }
@@ -8271,12 +8282,17 @@ body.s936-chart-stage main{
             activeLyricEl = nextLyricEl;
             if (activeChordEl) activeChordEl.classList.add("is-playing");
             if (activeLyricEl) activeLyricEl.classList.add("active-word");
-            // Mantener el péndulo visible dentro del scroll horizontal.
-            const scRect = scroller.getBoundingClientRect();
-            const cellRect = bar.chordCellEl.getBoundingClientRect();
-            if (cellRect.left < scRect.left || cellRect.right > scRect.right) {
-              scroller.scrollTo({ left: left - 40, behavior: "smooth" });
-            }
+          }
+          // Cambio 393: auto-scroll — antes solo reaccionaba si la celda
+          // YA se había salido de la pantalla (y a veces nunca llegaba a
+          // disparar bien). Ahora, cada vez que el compás activo CAMBIA
+          // (no en cada tiempo, en cada compás nuevo), se lleva ese
+          // compás a una posición fija cómoda (60px del borde izquierdo),
+          // de forma proactiva — efecto karaoke que se desplaza solo, sin
+          // depender de que el usuario nunca haya scrolleado antes.
+          if (bar.chordCellEl !== activeBarEl) {
+            activeBarEl = bar.chordCellEl;
+            scroller.scrollTo({ left: Math.max(0, left - 60), behavior: "smooth" });
           }
           _contPlayheadRAF = requestAnimationFrame(() => tick(anchorSec, wallStart));
         } else {
@@ -8284,6 +8300,7 @@ body.s936-chart-stage main{
           // detiene solo, sin esperar el evento de stop.
           playhead.style.display = "none";
           clearHighlight();
+          activeBarEl = null;
           _contPlayheadRAF = null;
         }
       }
