@@ -1552,6 +1552,12 @@ window.Studio936SuiteProChart = (() => {
   line-height:1.25;min-height:2.4em}
 .s936-ch-cont-playhead{position:absolute;top:0;bottom:0;left:0;width:2px;
   background:#00ffcc;box-shadow:0 0 8px rgba(0,255,204,.7);
+  /* Cambio 424: display:none por defecto — antes solo se ocultaba
+     DENTRO de tick() (Cambio 395), que solo corre mientras el Play está
+     activo. Antes de la primera vez que se le da Play, no había nada
+     que lo escondiera, así que se veía en su posición inicial (una
+     línea vertical sin motivo aparente, sin filtro ni nada activo). */
+  display:none;
   transition:transform .12s linear;pointer-events:none;z-index:5}
 .s936-ch-cont-cell.chord.is-playing{background:rgba(0,255,204,.22);outline:1px solid #00ffcc}
 /* Cambio 388: mismo resaltado, pero a nivel de SEGMENTO (un tiempo
