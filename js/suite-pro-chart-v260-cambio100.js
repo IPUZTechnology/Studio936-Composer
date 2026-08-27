@@ -1459,6 +1459,22 @@ window.Studio936SuiteProChart = (() => {
   color:#7dffe0;font-size:.85rem;line-height:1;cursor:pointer;margin-bottom:8px;
 }
 .s936-ch-zoom-add-chip:hover{background:rgba(0,255,204,.16);border-style:solid}
+.s936-ch-zoom-addform{
+  display:none;flex-direction:column;gap:6px;margin-bottom:10px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(0,255,204,.2);
+  border-radius:6px;padding:8px;
+}
+.s936-ch-zoom-addform-select,
+.s936-ch-zoom-addform-input,
+.s936-ch-zoom-addform-bars{
+  background:#0c1017;border:1px solid rgba(255,255,255,.18);color:#e8fffb;
+  border-radius:5px;padding:5px 7px;font-size:.62rem;width:100%;box-sizing:border-box;
+}
+.s936-ch-zoom-addform-submit{
+  background:#00ffcc;color:#00201c;border:none;border-radius:5px;
+  padding:6px;font-size:.62rem;font-weight:800;cursor:pointer;
+}
+.s936-ch-zoom-addform-submit:hover{background:#3dffdb}
 .s936-ch-zoom-chip{
   border-radius:14px;border:1px solid var(--chip-color, rgba(255,255,255,.3));
   background:rgba(255,255,255,.05);
@@ -8006,7 +8022,7 @@ body.s936-chart-stage main{
         // al mismo tiempo resultaba incómodo.
         let hoverTimer = null;
         chip.addEventListener("mouseenter", () => {
-          hoverTimer = setTimeout(() => { longPressFired = true; openChipMenu(); }, 2000);
+          hoverTimer = setTimeout(() => { longPressFired = true; openChipMenu(); }, 900);
         });
         chip.addEventListener("mouseleave", () => { clearTimeout(hoverTimer); });
         chip.addEventListener("mousedown", () => { clearTimeout(hoverTimer); }); // si empieza a arrastrar, se cancela el hover
@@ -8018,22 +8034,70 @@ body.s936-chart-stage main{
       });
       pop.appendChild(chipsWrap);
 
-      // Cambio 417: "Adicionar sección" baja de ser un botón grande de
-      // abajo a un "+" chico, debajo de la lista de chips — mismo
-      // criterio visual que ya usa el resto de la app (ej. el "+" para
-      // agregar instrumentos debajo de "Pistas de toda esta sección").
+      // Cambio 420: "+" ahora abre un MINI-FORMULARIO ahí mismo, inline
+      // en el popover — Val pidió que no salte al panel viejo, sino que
+      // los mismos 3 campos (Tipo/Nombre/Compases) aparezcan en esta
+      // misma ventanita. Usa el puente studio936:create-section-request
+      // para guardar de verdad — misma lógica real que ya usaba "+
+      // Añadir" en Arreglo de la Canción, solo con esta entrada nueva.
+      const PART_TYPE_OPTIONS = [
+        ["intro", "Intro"], ["verse", "Verso"], ["verse1", "Verso 1"],
+        ["verse2", "Verso 2"], ["verse3", "Verso 3"], ["verse4", "Verso 4"],
+        ["prechorus", "Pre-coro"], ["chorus", "Coro"], ["bridge", "Puente"],
+        ["interlude", "Interludio"], ["solo", "Solo"], ["outro", "Outro"],
+        ["custom", "Personalizada"]
+      ];
+      const addForm = document.createElement("div");
+      addForm.className = "s936-ch-zoom-addform";
+      addForm.style.display = "none";
+
+      const typeSelect = document.createElement("select");
+      typeSelect.className = "s936-ch-zoom-addform-select";
+      PART_TYPE_OPTIONS.forEach(([value, lbl]) => {
+        const opt = document.createElement("option");
+        opt.value = value; opt.textContent = lbl;
+        typeSelect.appendChild(opt);
+      });
+
+      const nameInput = document.createElement("input");
+      nameInput.type = "text";
+      nameInput.className = "s936-ch-zoom-addform-input";
+      nameInput.placeholder = "Nombre (ej. Coro final)";
+
+      const barsInput = document.createElement("input");
+      barsInput.type = "number";
+      barsInput.min = "1"; barsInput.max = "64";
+      barsInput.value = "8";
+      barsInput.className = "s936-ch-zoom-addform-bars";
+      barsInput.title = "Compases";
+
+      const addFormSubmit = document.createElement("button");
+      addFormSubmit.type = "button";
+      addFormSubmit.className = "s936-ch-zoom-addform-submit";
+      addFormSubmit.textContent = "+ Añadir";
+      addFormSubmit.onclick = (e) => {
+        e.stopPropagation();
+        try {
+          window.dispatchEvent(new CustomEvent("studio936:create-section-request", {
+            detail: { type: typeSelect.value, name: nameInput.value, bars: barsInput.value }
+          }));
+        } catch(_) {}
+        pop.remove();
+      };
+
+      addForm.append(typeSelect, nameInput, barsInput, addFormSubmit);
+
       const addChipBtn = document.createElement("button");
       addChipBtn.type = "button";
       addChipBtn.className = "s936-ch-zoom-add-chip";
       addChipBtn.textContent = "+";
-      addChipBtn.title = "Adicionar sección — abre el formulario real de crear sección";
+      addChipBtn.title = "Adicionar sección";
       addChipBtn.onclick = (e) => {
         e.stopPropagation();
-        openComposeExpanded();
-        clickAddSectionToggleWhenReady(20); // Cambio 418: hasta 20 × 100ms = 2s
-        pop.remove();
+        addForm.style.display = addForm.style.display === "none" ? "flex" : "none";
       };
       pop.appendChild(addChipBtn);
+      pop.appendChild(addForm);
 
       const dragHint = document.createElement("div");
       dragHint.className = "s936-ch-zoom-picker-draghint";

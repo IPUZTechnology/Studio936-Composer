@@ -3888,6 +3888,38 @@ html, body{
           console.warn("Cambio 416: no se pudo borrar desde el Chart", error);
         }
       });
+      // Cambio 420: puente para CREAR una sección nueva directo desde el
+      // mini-formulario del Chart, sin saltar al Docker viejo — Val
+      // pidió que el "+ Adicionar sección" se resuelva ahí mismo, en su
+      // propia ventanita, no abriendo el panel completo. Reusa EXACTAMENTE
+      // la misma lógica de guardado que ya usaba "+ Añadir" en Arreglo
+      // de la Canción (uniqueSectionKey, defaultChordsFor, suggestedBars)
+      // — no se reinventa cómo se arma una sección nueva, solo se le da
+      // una entrada distinta (un evento en vez de un clic en ese botón).
+      window.addEventListener("studio936:create-section-request", (ev) => {
+        const { type, name, bars } = ev?.detail || {};
+        const bridgeCtx = _lastRenderCtx;
+        if (!bridgeCtx) return;
+        try {
+          const s = snap(bridgeCtx);
+          const parts = ensureDraft(bridgeCtx);
+          const finalType = type || "verse";
+          const visible = (name || (finalType === "custom" ? "Parte nueva" : labelFor(finalType))).trim();
+          const section = uniqueSectionKey(s, parts, finalType === "custom" ? visible : finalType);
+          const finalBars = Math.max(1, Number(bars) || suggestedBars(finalType));
+          parts.push({ section, label: visible, bars: finalBars, independent: true, type: finalType });
+          state.draft.parts = parts;
+          state.draft.clones[section] = {
+            source: "",
+            items: defaultChordsFor(finalType, projectKey(s), finalBars),
+            createdAt: new Date().toISOString()
+          };
+          saveState();
+          renderAgain(bridgeCtx);
+        } catch (error) {
+          console.warn("Cambio 420: no se pudo crear la sección desde el Chart", error);
+        }
+      });
     }
     // Limpiar dropdown huérfano del body
     document.getElementById("s936CkptDropdown")?.remove();
