@@ -1317,6 +1317,10 @@ window.Studio936SuiteProChart = (() => {
   background:#00ffcc;box-shadow:0 0 8px rgba(0,255,204,.7);
   transition:transform .12s linear;pointer-events:none;z-index:5}
 .s936-ch-cont-cell.chord.is-playing{background:rgba(0,255,204,.22);outline:1px solid #00ffcc}
+/* Cambio 388: mismo resaltado, pero a nivel de SEGMENTO (un tiempo
+   puntual dentro de un compás con varios acordes) — antes solo existía
+   para la celda completa del compás. */
+.s936-ch-cont-seg.is-playing{background:rgba(0,255,204,.22);outline:1px solid #00ffcc;border-radius:4px}
 .s936-ch-cont-cell.lyric.is-playing{background:rgba(0,255,204,.16);color:#e8fffb;font-weight:700}
 #s936-chart-view-panel{font-family:system-ui,sans-serif;color:#fff;isolation:isolate}
 .s936-ch-change-banner{
@@ -7842,16 +7846,25 @@ body.s936-chart-stage main{
           chordCell.className = "s936-ch-cont-cell chord";
           chordCell.title = "Clic para editar este acorde";
 
+          // Cambio 388: mapa tiempo→elemento real (1 de los 4 tiempos del
+          // compás → el segBox de acorde que lo cubre). Se llena en la
+          // rama de abajo (cuando hay segmentos) y se usa después, junto
+          // con el mapa de letra, para armar el reloj del Play POR TIEMPO
+          // en vez de por compás completo (ver flatTimeline más abajo).
+          const beatChordEls = [null, null, null, null];
+
           if (isRepeatBar) {
             const nameEl = document.createElement("div");
             nameEl.className = "s936-ch-cont-chordname";
             nameEl.textContent = "%";
             chordCell.appendChild(nameEl);
+            for (let bb = 0; bb < 4; bb++) beatChordEls[bb] = chordCell;
           } else if (!realSegments.length) {
             const nameEl = document.createElement("div");
             nameEl.className = "s936-ch-cont-chordname";
             nameEl.textContent = "—";
             chordCell.appendChild(nameEl);
+            for (let bb = 0; bb < 4; bb++) beatChordEls[bb] = chordCell;
           } else {
             // Cambio 263: reutiliza miniPiano()/miniFret() — las MISMAS
             // funciones que dibujan el piano/diapasón chico en la vista
@@ -7873,6 +7886,8 @@ body.s936-chart-stage main{
               const nextBeat = realSegments[segIdx + 1]?.beat ?? 4;
               const durBeats = Math.max(1, nextBeat - seg.beat);
               segBox.style.gridColumn = "span " + durBeats;
+              // Cambio 388: este segBox cubre los tiempos [seg.beat, nextBeat).
+              for (let bb = seg.beat; bb < nextBeat && bb < 4; bb++) beatChordEls[bb] = segBox;
               const nameEl = document.createElement("div");
               nameEl.className = "s936-ch-cont-chordname";
               nameEl.textContent = seg.name;
@@ -8011,17 +8026,41 @@ body.s936-chart-stage main{
           if (lyricEl) lyricCell.appendChild(lyricEl);
           lyricRow.appendChild(lyricCell);
 
-          // Cambio 261: registrar este compás en el reloj plano de toda
-          // la canción — con esto el péndulo sabe, en cualquier segundo
-          // dado, qué celdas resaltar.
-          flatTimeline.push({
-            sectionKey: item.section,
-            barIndex: idx,
-            startSec: cursorSec,
-            endSec: cursorSec + secondsPerBar,
-            chordCellEl: chordCell,
-            lyricCellEl: lyricCell
-          });
+          // Cambio 388: mapa tiempo→span real de letra. buildLyricElement
+          // ya le pone data-beat (su propio tiempo) y data-owner (el
+          // tiempo "dueño" de la palabra, para el caso de una palabra
+          // sostenida en varios tiempos — Cambio 52). Para resaltar bien,
+          // hay que resaltar el span DUEÑO, no cualquier span vacío que
+          // esté de paso dentro del sostenido.
+          const beatLyricEls = [null, null, null, null];
+          if (lyricEl) {
+            for (let bb = 0; bb < 4; bb++) {
+              const ownerSpan = lyricEl.querySelector(`.s936-ch-lyric-beat[data-beat="${bb}"]`);
+              const ownerBeat = ownerSpan ? Number(ownerSpan.dataset.owner ?? bb) : bb;
+              beatLyricEls[bb] = lyricEl.querySelector(`.s936-ch-lyric-beat[data-beat="${ownerBeat}"]`) || ownerSpan || null;
+            }
+          }
+
+          // Cambio 261/388: registrar CADA TIEMPO (no cada compás) en el
+          // reloj plano de toda la canción — antes solo había 1 entrada
+          // por compás y se resaltaba la celda entera; ahora hay 4
+          // entradas por compás (una por tiempo real), cada una con el
+          // segmento de acorde y la palabra de letra que le corresponden
+          // de verdad, para un resaltado tipo karaoke preciso.
+          const secondsPerBeat = secondsPerBar / 4;
+          for (let bb = 0; bb < 4; bb++) {
+            flatTimeline.push({
+              sectionKey: item.section,
+              barIndex: idx,
+              beatIndex: bb,
+              startSec: cursorSec + bb * secondsPerBeat,
+              endSec: cursorSec + (bb + 1) * secondsPerBeat,
+              chordCellEl: chordCell,
+              chordSegEl: beatChordEls[bb] || chordCell,
+              lyricCellEl: lyricCell,
+              lyricWordEl: beatLyricEls[bb] || null
+            });
+          }
           cursorSec += secondsPerBar;
         }
 
@@ -8059,7 +8098,7 @@ body.s936-chart-stage main{
       let activeLyricEl = null;
       function clearHighlight() {
         if (activeChordEl) { activeChordEl.classList.remove("is-playing"); activeChordEl = null; }
-        if (activeLyricEl) { activeLyricEl.classList.remove("is-playing"); activeLyricEl = null; }
+        if (activeLyricEl) { activeLyricEl.classList.remove("active-word"); activeLyricEl = null; }
       }
 
       function tick(anchorSec, wallStart) {
@@ -8072,12 +8111,19 @@ body.s936-chart-stage main{
           playhead.style.display = "block";
           const left = bar.chordCellEl.offsetLeft;
           playhead.style.transform = "translateX(" + left + "px)";
-          if (bar.chordCellEl !== activeChordEl) {
+          // Cambio 388: resalta el SEGMENTO de acorde y la PALABRA de
+          // letra del tiempo exacto (bar.chordSegEl / bar.lyricWordEl),
+          // no la celda entera del compás — así, en un compás con varios
+          // acordes/palabras, el resaltado avanza tiempo por tiempo
+          // (karaoke real), en vez de iluminar los 4 de una sola vez.
+          const nextChordEl = bar.chordSegEl || bar.chordCellEl;
+          const nextLyricEl = bar.lyricWordEl;
+          if (nextChordEl !== activeChordEl || nextLyricEl !== activeLyricEl) {
             clearHighlight();
-            activeChordEl = bar.chordCellEl;
-            activeLyricEl = bar.lyricCellEl;
-            activeChordEl.classList.add("is-playing");
-            activeLyricEl.classList.add("is-playing");
+            activeChordEl = nextChordEl;
+            activeLyricEl = nextLyricEl;
+            if (activeChordEl) activeChordEl.classList.add("is-playing");
+            if (activeLyricEl) activeLyricEl.classList.add("active-word");
             // Mantener el péndulo visible dentro del scroll horizontal.
             const scRect = scroller.getBoundingClientRect();
             const cellRect = bar.chordCellEl.getBoundingClientRect();
