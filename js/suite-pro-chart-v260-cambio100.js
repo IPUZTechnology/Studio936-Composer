@@ -1370,10 +1370,10 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-cont-label{font-size:.55rem;font-weight:800;text-transform:uppercase;
   letter-spacing:.4px;margin-bottom:4px;white-space:nowrap}
 .s936-ch-cont-row{display:flex;gap:3px;margin-bottom:3px}
-/* Cambio 409: la barra ahora es del MISMO ancho que los mini-charts
-   (320px), no un ancho fijo aparte (160px) — Val la quiere "continuación
-   del instrumento", visualmente del mismo tamaño que cualquier compás. */
-.s936-ch-cont-headerspacer{width:320px;flex-shrink:0}
+/* Cambio 413: la barra pasa a ser el DOBLE del ancho de un compás
+   (640px, antes 320px) — Val pidió más espacio, con los botones
+   centrados adentro de esa caja más ancha. */
+.s936-ch-cont-headerspacer{width:640px;flex-shrink:0}
 /* Cambio 377/378: barra mini de sesión (Play/Loop/Zoom/Editar), ahora
    DENTRO de la columna fija de 160px (chordSpacer), en la misma fila
    que los mini-charts de acordes — mismo look de celda (fondo, radio,
@@ -7824,9 +7824,18 @@ body.s936-chart-stage main{
         chipsWrap.querySelectorAll(".s936-ch-zoom-chip").forEach((c) => c.classList.add("is-selected"));
       }, "ghost");
 
-      const editBtn = mkActionBtn("✎", "Editar Sección", "Editar la primera sección marcada (nombre, compases, tipo)", () => {
-        const target = selected[0] || options[0]?.section;
-        if (!target) return;
+      const editBtn = mkActionBtn("✎", "Editar Sección", "Marcá 1 sola sección arriba y editála", () => {
+        // Cambio 413 (corrección real): la barra solo existe en la
+        // PRIMERA sección visible (Cambio 386), así que currentSectionKey
+        // siempre es esa misma — no sirve para saber cuál sección querés
+        // editar de verdad. En cambio, se exige que hayas marcado
+        // exactamente 1 chip en la lista de arriba — así el usuario elige
+        // a propósito, sin ambigüedad.
+        if (selected.length !== 1) {
+          alert("Marcá (dejá prendida) exactamente 1 sección en la lista de arriba, y volvé a tocar Editar Sección.");
+          return;
+        }
+        const target = selected[0];
         try {
           if (window.Studio936SuitePro?.openArea) window.Studio936SuitePro.openArea("compose");
           window.dispatchEvent(new CustomEvent("studio936:edit-section-request", { detail: { section: target } }));
@@ -7834,10 +7843,24 @@ body.s936-chart-stage main{
         pop.remove();
       }, "ghost");
 
-      const addBtn = mkActionBtn("+", "Adicionar sección", "Abre Compose para crear una sección nueva", () => {
+      const addBtn = mkActionBtn("+", "Adicionar sección", "Abre el formulario real de crear sección", () => {
+        // Cambio 413: mismo mecanismo EXACTO que ya usa el botón "Crear
+        // Sección" de Compose (compose.js) — no duplica el formulario,
+        // busca el interruptor real que ya vive dentro de Arreglo de la
+        // Canción (.s936-ckpt-add-toggle) y le hace clic. Se espera un
+        // toque (setTimeout) porque openArea("compose") puede tardar un
+        // instante en montar el DOM de Estructura antes de que el
+        // interruptor exista para buscarlo.
         try {
           if (window.Studio936SuitePro?.openArea) window.Studio936SuitePro.openArea("compose");
         } catch(_) {}
+        setTimeout(() => {
+          const toggle = document.querySelector("#s936SuitePro .s936-ckpt-add-toggle");
+          if (toggle) {
+            if (!toggle.classList.contains("open")) toggle.click();
+            toggle.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }, 150);
         pop.remove();
       }, "ghost");
 
