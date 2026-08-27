@@ -1415,7 +1415,12 @@ window.Studio936SuiteProChart = (() => {
   grid-template-columns:repeat(4,1fr);
   gap:2px;margin-top:2px;
 }
+/* Cambio 399: separador sutil ENTRE acordes agrupados en el mismo
+   compás (solo aparece cuando hay más de 1 — un compás de 1 solo acorde
+   no lleva nada). Es una línea fina a la izquierda de cada segmento,
+   salvo el primero — no un cambio de fondo/color, tal como pidió Val. */
 .s936-ch-cont-seg{min-width:0}
+.s936-ch-cont-seg + .s936-ch-cont-seg{border-left:1px solid rgba(255,255,255,.14)}
 .s936-ch-cont-minireal{
   /* Cambio 392: BUG real encontrado — este mini-mapa tenía un ancho FIJO
      de 129px pegado, sin importar el espacio real disponible. Con 1 solo
@@ -5541,7 +5546,7 @@ body.s936-chart-stage main{
   }
 
   // ─── MINI FRETBOARD ──────────────────────────────────────────────────────
-  function miniFret(voicingFret) {
+  function miniFret(voicingFret, opts) {
     // Cambio 275: la etiqueta de traste vive en un contenedor APARTE,
     // fuera de la caja del diapasón (que tiene overflow:hidden y por eso
     // cualquier cosa "afuera" de ella se recorta). Antes la etiqueta
@@ -5578,7 +5583,16 @@ body.s936-chart-stage main{
     // ventana si el acorde no cabe en la vista por defecto (4 trastes),
     // no apenas la nota más baja sea mayor a 1.
     const start = capo > 0 ? capo : (maxF > 4 ? minF - 1 : 0);
-    const span = Math.max(4, maxF - start + 1);
+    // Cambio 399: opts.minSpan permite forzar MÁS trastes de los
+    // estrictamente necesarios para el acorde — Val pidió esto para
+    // Vista Continua: cuando el compás es ancho (320px, un solo acorde),
+    // mostrar solo 4-5 trastes los estira demasiado (se ve "separado",
+    // poco natural). Con más trastes de los necesarios en ese mismo
+    // ancho, cada traste queda más angosto — el acorde se ve más
+    // compacto/unido, más parecido a como se ve una guitarra real. El
+    // editor principal y Vista Bloques NO pasan este parámetro, así que
+    // siguen exactamente igual que siempre (span mínimo real, 4).
+    const span = Math.max(opts?.minSpan || 4, maxF - start + 1);
 
     // Cambio 274: se reserva una franja aparte (88%-100%) para el
     // clavijero/cejuela — el "0" (al aire) y "X" (mudo) viven ahí, con
@@ -8044,7 +8058,7 @@ body.s936-chart-stage main{
                 } else {
                   let savedVoicing = getBeatVoicing(item.section, idx, seg.beat, inst) || voicingLibrary?.[inst]?.[nameUpper];
                   const fretVoicing = savedVoicing || calcFretVoicing(seg.name, inst);
-                  miniEl = miniFret(fretVoicing);
+                  miniEl = miniFret(fretVoicing, { minSpan: 8 });
                 }
                 miniHolder.appendChild(miniEl);
               } catch(_) {}
