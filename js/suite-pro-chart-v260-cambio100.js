@@ -1310,6 +1310,11 @@ window.Studio936SuiteProChart = (() => {
 }
 .s936-ch-continuous-toggle:hover{background:rgba(0,255,204,.16)}
 .s936-ch-cont-scroller{display:inline-flex;min-width:100%;overflow-x:auto;padding:10px}
+/* Cambio 396: ventana de ancho fijo — solo ~4 compases visibles a la vez
+   (160px de la columna de controles + 4 compases de 150px con su gap de
+   3px = ~772px). El scroller de arriba sigue igual (todo el contenido
+   adentro, scrollea normal) — esto solo recorta cuánto se ve de una. */
+.s936-ch-cont-viewport{max-width:780px;overflow:hidden}
 /* Cambio 389: se oculta la barra de scroll NATIVA del navegador (fea,
    pesada, abajo del todo) — el scroll sigue funcionando igual (rueda,
    touch, arrastre), solo no se dibuja la barra del sistema. Se reemplaza
@@ -8208,7 +8213,17 @@ body.s936-chart-stage main{
         scroller.appendChild(block);
       });
 
-      bodyEl.appendChild(scroller);
+      // Cambio 396: la línea de tiempo es "infinita" (toda la canción de
+      // corrido) — Val pidió que la PANTALLA solo muestre ~4 compases a
+      // la vez, como una ventanita de karaoke, en vez de todo el ancho
+      // disponible. El scroller sigue siendo el mismo (con todo el
+      // contenido adentro); lo que se agrega es un contenedor que lo
+      // recorta a un ancho fijo — el scroll interno de siempre sigue
+      // funcionando igual, solo que ahora se ve una porción a la vez.
+      const viewportWrap = document.createElement("div");
+      viewportWrap.className = "s936-ch-cont-viewport";
+      bodyEl.appendChild(viewportWrap);
+      viewportWrap.appendChild(scroller);
 
       // Cambio 389: barra de progreso propia, arriba del scroller, tenue
       // y sincronizada con el scroll real — reemplaza la barra de scroll
@@ -8221,7 +8236,7 @@ body.s936-chart-stage main{
       const progressThumb = document.createElement("div");
       progressThumb.className = "s936-ch-cont-progress-thumb";
       progressTrack.appendChild(progressThumb);
-      bodyEl.insertBefore(progressTrack, scroller);
+      bodyEl.insertBefore(progressTrack, viewportWrap);
 
       const syncProgressThumb = () => {
         const max = scroller.scrollWidth - scroller.clientWidth;
@@ -8288,16 +8303,30 @@ body.s936-chart-stage main{
             if (activeChordEl) activeChordEl.classList.add("is-playing");
             if (activeLyricEl) activeLyricEl.classList.add("active-word");
           }
-          // Cambio 393: auto-scroll — antes solo reaccionaba si la celda
-          // YA se había salido de la pantalla (y a veces nunca llegaba a
-          // disparar bien). Ahora, cada vez que el compás activo CAMBIA
-          // (no en cada tiempo, en cada compás nuevo), se lleva ese
-          // compás a una posición fija cómoda (60px del borde izquierdo),
-          // de forma proactiva — efecto karaoke que se desplaza solo, sin
-          // depender de que el usuario nunca haya scrolleado antes.
+          // Cambio 396: scroll CONTINUO y sincronizado con el tempo real
+          // — antes (Cambio 393) saltaba de golpe cada vez que arrancaba
+          // un compás nuevo. Ahora se interpola pixel a pixel entre el
+          // compás actual y el siguiente, según cuánto tiempo real pasó
+          // dentro del compás — se mueve igual de parejo que el tempo,
+          // no a los saltos.
+          const secondsPerBeatLocal = secondsPerBar / 4;
+          const barStartSec = bar.startSec - bar.beatIndex * secondsPerBeatLocal;
+          const idxInTimeline = flatTimeline.indexOf(bar);
+          let nextDiffEntry = null;
+          for (let i = idxInTimeline + 1; i < flatTimeline.length; i++) {
+            if (flatTimeline[i].chordCellEl !== bar.chordCellEl) { nextDiffEntry = flatTimeline[i]; break; }
+          }
+          let targetLeft = left;
+          if (nextDiffEntry) {
+            const nextBarStartSec = nextDiffEntry.startSec - nextDiffEntry.beatIndex * secondsPerBeatLocal;
+            const nextLeft = nextDiffEntry.chordCellEl.offsetLeft;
+            const span = nextBarStartSec - barStartSec;
+            const frac = span > 0 ? Math.min(1, Math.max(0, (posSec - barStartSec) / span)) : 0;
+            targetLeft = left + frac * (nextLeft - left);
+          }
+          scroller.scrollLeft = Math.max(0, targetLeft - 40);
           if (bar.chordCellEl !== activeBarEl) {
             activeBarEl = bar.chordCellEl;
-            scroller.scrollTo({ left: Math.max(0, left - 60), behavior: "smooth" });
           }
           _contPlayheadRAF = requestAnimationFrame(() => tick(anchorSec, wallStart));
         } else {
