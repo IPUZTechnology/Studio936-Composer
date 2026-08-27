@@ -1346,7 +1346,12 @@ window.Studio936SuiteProChart = (() => {
   display:flex;align-items:center;justify-content:center;
   background:rgba(255,255,255,.05);border-radius:5px;
   box-sizing:border-box;
-  align-self:stretch;
+  /* Cambio 408: revierte el Cambio 407 — Val aclaró que NO quiere que se
+     centre respecto a toda la celda (nombre del acorde + diagrama
+     juntos, más alta) — quiere que quede a la altura del DIAGRAMA
+     nomás, alineada abajo, en línea con el mini-mapa, ignorando el
+     renglón del nombre del acorde que está arriba. */
+  align-self:flex-end;
 }
 .s936-ch-mini-sesion-bar{display:flex;align-items:center;gap:4px;margin:0}
 /* Cambio 379 (ajuste): el control "+" reusado de track-recorder.js trae
@@ -1367,9 +1372,10 @@ window.Studio936SuiteProChart = (() => {
 /* Cambio 384: popover de selección de secciones para el Zoom (1 o 2). */
 .s936-ch-zoom-picker{
   z-index:10070;background:#0c1017;border:1px solid rgba(0,255,204,.3);
-  border-radius:8px;padding:10px;width:240px;box-shadow:0 8px 24px rgba(0,0,0,.5);
+  border-radius:8px;padding:10px;width:300px;box-shadow:0 8px 24px rgba(0,0,0,.5);
 }
-.s936-ch-zoom-picker-title{font-size:.66rem;font-weight:800;color:#bfffee;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px}
+.s936-ch-zoom-picker-title{font-size:.7rem;font-weight:800;color:#e8fffb;margin-bottom:2px;text-transform:none;letter-spacing:.2px}
+.s936-ch-zoom-picker-subtitle{font-size:.6rem;font-weight:700;color:#bfffee;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px}
 .s936-ch-zoom-picker-chips{display:flex;flex-wrap:wrap;gap:5px;max-height:160px;overflow-y:auto;margin-bottom:10px}
 .s936-ch-zoom-chip{
   border-radius:14px;border:1px solid var(--chip-color, rgba(255,255,255,.3));
@@ -1378,8 +1384,9 @@ window.Studio936SuiteProChart = (() => {
 }
 .s936-ch-zoom-chip:hover{filter:brightness(1.3)}
 .s936-ch-zoom-chip.is-selected{background:var(--chip-color, #00ffcc);border-color:var(--chip-color, #00ffcc);color:#00201c;font-weight:700}
-.s936-ch-zoom-picker-actions{display:flex;justify-content:space-between;gap:8px}
-.s936-ch-zoom-picker-btn{border-radius:6px;padding:5px 10px;font-size:.62rem;font-weight:700;cursor:pointer;border:1px solid transparent}
+.s936-ch-zoom-picker-actions{display:flex;flex-wrap:wrap;justify-content:space-between;gap:5px}
+.s936-ch-zoom-picker-btn{border-radius:6px;padding:5px 8px;font-size:.58rem;font-weight:700;cursor:pointer;border:1px solid transparent;display:flex;align-items:center;gap:3px;flex:1;justify-content:center;white-space:nowrap}
+.s936-ch-zoom-picker-btn-icon{font-size:.72rem;line-height:1}
 .s936-ch-zoom-picker-btn.ghost{background:transparent;border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.6)}
 .s936-ch-zoom-picker-btn.ghost:hover{border-color:rgba(255,255,255,.4);color:#fff}
 .s936-ch-zoom-picker-btn.primary{background:#00ffcc;color:#00201c}
@@ -7727,8 +7734,15 @@ body.s936-chart-stage main{
 
       const title = document.createElement("div");
       title.className = "s936-ch-zoom-picker-title";
-      title.textContent = "Apagá las que no querés ver";
+      // Cambio 408: Val aclaró que esto no es un "Zoom" — es un filtro de
+      // secciones. Se renombra el título para reflejar eso.
+      title.textContent = "Secciones de la canción";
       pop.appendChild(title);
+
+      const subtitle = document.createElement("div");
+      subtitle.className = "s936-ch-zoom-picker-subtitle";
+      subtitle.textContent = "Apagá las que no querés ver";
+      pop.appendChild(subtitle);
 
       const chipsWrap = document.createElement("div");
       chipsWrap.className = "s936-ch-zoom-picker-chips";
@@ -7753,21 +7767,45 @@ body.s936-chart-stage main{
 
       const actions = document.createElement("div");
       actions.className = "s936-ch-zoom-picker-actions";
-      const clearBtn = document.createElement("button");
-      clearBtn.type = "button";
-      clearBtn.className = "s936-ch-zoom-picker-btn ghost";
-      clearBtn.textContent = "Prender todas";
-      clearBtn.onclick = (e) => {
-        e.stopPropagation();
+
+      // Cambio 408: 4 botones — "Ver todas" (antes "Prender todas",
+      // mismo comportamiento, solo rediseñado con ícono), "Editar
+      // Sección" y "Adicionar sección" (NUEVOS — reusan funciones que ya
+      // existen en Arreglo de la Canción, vía el puente de eventos, sin
+      // duplicar esa lógica acá), y "Aplicar" (el de siempre).
+      const mkActionBtn = (icon, label, title2, onClick, extraClass) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "s936-ch-zoom-picker-btn" + (extraClass ? " " + extraClass : "");
+        b.innerHTML = `<span class="s936-ch-zoom-picker-btn-icon">${icon}</span>${label}`;
+        b.title = title2;
+        b.onclick = (e) => { e.stopPropagation(); onClick(); };
+        return b;
+      };
+
+      const clearBtn = mkActionBtn("👁", "Ver todas", "Mostrar todas las secciones", () => {
         selected = options.map((o) => o.section);
         chipsWrap.querySelectorAll(".s936-ch-zoom-chip").forEach((c) => c.classList.add("is-selected"));
-      };
-      const applyBtn = document.createElement("button");
-      applyBtn.type = "button";
-      applyBtn.className = "s936-ch-zoom-picker-btn primary";
-      applyBtn.textContent = "Aplicar";
-      applyBtn.onclick = (e) => {
-        e.stopPropagation();
+      }, "ghost");
+
+      const editBtn = mkActionBtn("✎", "Editar Sección", "Editar la primera sección marcada (nombre, compases, tipo)", () => {
+        const target = selected[0] || options[0]?.section;
+        if (!target) return;
+        try {
+          if (window.Studio936SuitePro?.openArea) window.Studio936SuitePro.openArea("compose");
+          window.dispatchEvent(new CustomEvent("studio936:edit-section-request", { detail: { section: target } }));
+        } catch(_) {}
+        pop.remove();
+      }, "ghost");
+
+      const addBtn = mkActionBtn("+", "Adicionar sección", "Abre Compose para crear una sección nueva", () => {
+        try {
+          if (window.Studio936SuitePro?.openArea) window.Studio936SuitePro.openArea("compose");
+        } catch(_) {}
+        pop.remove();
+      }, "ghost");
+
+      const applyBtn = mkActionBtn("✓", "Aplicar", "Aplicar el filtro elegido", () => {
         if (!selected.length) { alert("Dejá al menos 1 sección prendida."); return; }
         // Cambio 386: si quedaron TODAS prendidas, es lo mismo que no
         // filtrar nada — se limpia el foco en vez de guardar una lista
@@ -7779,15 +7817,15 @@ body.s936-chart-stage main{
           setFocusSection(selected, { labels });
         }
         pop.remove();
-      };
-      actions.append(clearBtn, applyBtn);
+      }, "primary");
+      actions.append(clearBtn, editBtn, addBtn, applyBtn);
       pop.appendChild(actions);
 
       document.body.appendChild(pop);
       const rect = anchorEl.getBoundingClientRect();
       pop.style.position = "fixed";
       pop.style.top = (rect.bottom + 6) + "px";
-      pop.style.left = Math.max(6, Math.min(rect.left, window.innerWidth - 260)) + "px";
+      pop.style.left = Math.max(6, Math.min(rect.left, window.innerWidth - 320)) + "px";
 
       const closeOnOutside = (e) => {
         if (!pop.contains(e.target) && e.target !== anchorEl) {
@@ -7842,7 +7880,7 @@ body.s936-chart-stage main{
         startChartSectionPractice(panel, sectionKey, { withPulse: false, sourceLabel: "Loop sección" });
       });
 
-      const zoomBtn = mk(isFocused ? "↩" : "⛶", isFocused ? "Salir de zoom sección" : "Zoom sección — elegir 1 o 2", () => {
+      const zoomBtn = mk(isFocused ? "↩" : "☰", isFocused ? "Salir del filtro de secciones" : "Secciones — elegir cuáles ver", () => {
         openZoomSectionPicker(zoomBtn, sectionKey);
       }, isFocused ? "is-active" : "");
 

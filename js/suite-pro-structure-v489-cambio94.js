@@ -3812,6 +3812,29 @@ html, body{
           console.warn("Cambio 379: no se pudo abrir el editor de letra desde el Chart", error);
         }
       });
+      // Cambio 408: mismo patrón que el puente de letra de arriba, para
+      // el botón "Editar Sección" del popover de filtro de secciones del
+      // Chart — abre el formulario real de edición (nombre/compases/tipo)
+      // de esa sección puntual, reusando exactamente la misma lógica que
+      // ya usa el botón ✎ de Arreglo de la Canción (state.editingIndex).
+      window.addEventListener("studio936:edit-section-request", (ev) => {
+        const section = ev?.detail?.section || "";
+        const bridgeCtx = _lastRenderCtx;
+        if (!section || !bridgeCtx) {
+          alert("Abrí Compose al menos una vez en esta sesión antes de usar este botón.");
+          return;
+        }
+        try {
+          const parts = ensureDraft(bridgeCtx);
+          const idx = parts.findIndex(p => p.section === section);
+          if (idx < 0) { alert("No se encontró esa sección en el arreglo actual."); return; }
+          state.editingIndex = idx;
+          saveState();
+          renderAgain(bridgeCtx);
+        } catch (error) {
+          console.warn("Cambio 408: no se pudo abrir el editor de sección desde el Chart", error);
+        }
+      });
     }
     // Limpiar dropdown huérfano del body
     document.getElementById("s936CkptDropdown")?.remove();
