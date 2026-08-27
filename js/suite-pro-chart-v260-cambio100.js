@@ -1408,8 +1408,18 @@ window.Studio936SuiteProChart = (() => {
   gap:2px;margin-top:2px;
 }
 .s936-ch-cont-seg{min-width:0}
-.s936-ch-cont-minireal{transform:scale(.85);transform-origin:top left;
-  width:129px;margin-top:1px;pointer-events:none;overflow:visible}
+.s936-ch-cont-minireal{
+  /* Cambio 392: BUG real encontrado — este mini-mapa tenía un ancho FIJO
+     de 129px pegado, sin importar el espacio real disponible. Con 1 solo
+     acorde por compás (150px libres) casi entraba y no se notaba; con 2,
+     3 o 4 acordes en el mismo compás (cada uno con una fracción chica de
+     esos 150px), el mini-mapa de 129px se salía de su propio segmento y
+     se montaba encima del vecino — eso era la "mezcla" que se veía. Con
+     width:100% + overflow:hidden, cada mini-mapa ahora se ajusta SIEMPRE
+     al espacio real de su propio segmento, sea 1, 2, 3 o 4 por compás —
+     nunca invade al de al lado. */
+  width:100%;margin-top:1px;pointer-events:none;overflow:hidden;
+}
 .s936-ch-cont-cell.lyric{color:#9fd8cc;white-space:normal;word-break:break-word;
   line-height:1.25;min-height:2.4em}
 .s936-ch-cont-playhead{position:absolute;top:0;bottom:0;left:0;width:2px;
