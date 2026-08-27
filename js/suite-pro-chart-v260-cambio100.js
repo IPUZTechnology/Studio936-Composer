@@ -222,6 +222,23 @@ window.Studio936SuiteProChart = (() => {
   let _chartRhythmTimer = null;
   let _chartRhythmSteps = [];
   let _chartRhythmIndex = 0;
+  // Cambio 411: true = se repite para siempre (comportamiento de
+  // "Loop"); false = suena una vez y para al llegar al final
+  // (comportamiento de "Play"). Antes no existía esta distinción — todo
+  // usaba módulo, así que siempre se repetía sin parar.
+  let _chartRhythmLoop = true;
+  // Cambio 412: mute/solo por canal — Chart (acordes) y Lyric (letra),
+  // cada uno independiente. Con un canal en Solo, los demás quedan
+  // silenciados automáticamente (aunque no estén muteados a mano).
+  let _chartChannelMuted = false;
+  let _chartChannelSolo = false;
+  let _lyricChannelMuted = false;
+  let _lyricChannelSolo = false;
+  function isChartChannelAudible() {
+    const anySolo = _chartChannelSolo || _lyricChannelSolo;
+    if (anySolo) return _chartChannelSolo;
+    return !_chartChannelMuted;
+  }
   let _chartRhythmPulse = false;
   let _chartActiveStepEl = null;
   let _chartActiveRepeatEl = null;
@@ -446,6 +463,12 @@ window.Studio936SuiteProChart = (() => {
   }
 
   function scheduleChartPracticeGroove(step, mode, bridgeState) {
+    // Cambio 412: si el canal Chart está muteado (o hay Solo activo en
+    // Lyric, silenciando a todos los demás), no se programa ningún
+    // sonido — pero se devuelve true (como si hubiera sonado) para no
+    // romper la cuenta de pasos ni el resaltado visual, que sigue
+    // andando igual con o sin sonido real.
+    if (!isChartChannelAudible()) return true;
     const normalizedMode = normalizeRhythmMode(mode || step?.rhythm || "hit");
     if (normalizedMode === "rest") {
       if (_chartRhythmPulse) playEngineClick(Number(step?.beat || 0) === 0, 0);
@@ -1090,7 +1113,8 @@ window.Studio936SuiteProChart = (() => {
     return expandSectionRepeatsInSteps(list);
   }
 
-  function startChartRhythmConsole(container, { withPulse = false, scope = "auto", section = "", sourceLabel = "" } = {}) {
+  function startChartRhythmConsole(container, { withPulse = false, scope = "auto", section = "", sourceLabel = "", loop = true } = {}) {
+    _chartRhythmLoop = !!loop;
     stopChartRhythmConsole({ stopAudio: true, stopBridge: true });
     // Cambio 101: el Chart y el Main son dos relojes de reproducción
     // independientes (cada uno con su propio setInterval/rAF). Si Main ya
@@ -1150,6 +1174,15 @@ window.Studio936SuiteProChart = (() => {
 
     const runStep = () => {
       if (!_chartRhythmSteps.length) return;
+      // Cambio 411: cuando _chartRhythmLoop es false (Play, a diferencia
+      // de Loop), al llegar al último paso NO vuelve a empezar — suena
+      // una vez y para solo. Antes esto siempre usaba módulo, así que
+      // Play y Loop hacían exactamente lo mismo (repetir para siempre) —
+      // no había ninguna diferencia real entre los dos botones.
+      if (!_chartRhythmLoop && _chartRhythmIndex >= _chartRhythmSteps.length) {
+        stopChartRhythmConsole({});
+        return;
+      }
       const step = _chartRhythmSteps[_chartRhythmIndex % _chartRhythmSteps.length];
       _chartRhythmIndex += 1;
 
@@ -1337,7 +1370,10 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-cont-label{font-size:.55rem;font-weight:800;text-transform:uppercase;
   letter-spacing:.4px;margin-bottom:4px;white-space:nowrap}
 .s936-ch-cont-row{display:flex;gap:3px;margin-bottom:3px}
-.s936-ch-cont-headerspacer{width:160px;flex-shrink:0}
+/* Cambio 409: la barra ahora es del MISMO ancho que los mini-charts
+   (320px), no un ancho fijo aparte (160px) — Val la quiere "continuación
+   del instrumento", visualmente del mismo tamaño que cualquier compás. */
+.s936-ch-cont-headerspacer{width:320px;flex-shrink:0}
 /* Cambio 377/378: barra mini de sesión (Play/Loop/Zoom/Editar), ahora
    DENTRO de la columna fija de 160px (chordSpacer), en la misma fila
    que los mini-charts de acordes — mismo look de celda (fondo, radio,
@@ -1375,7 +1411,7 @@ window.Studio936SuiteProChart = (() => {
   border-radius:8px;padding:10px;width:300px;box-shadow:0 8px 24px rgba(0,0,0,.5);
 }
 .s936-ch-zoom-picker-title{font-size:.7rem;font-weight:800;color:#e8fffb;margin-bottom:2px;text-transform:none;letter-spacing:.2px}
-.s936-ch-zoom-picker-subtitle{font-size:.6rem;font-weight:700;color:#bfffee;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px}
+.s936-ch-zoom-picker-subtitle{font-size:.6rem;font-weight:700;color:#bfffee;margin-bottom:8px;text-transform:none;letter-spacing:.2px}
 .s936-ch-zoom-picker-chips{display:flex;flex-wrap:wrap;gap:5px;max-height:160px;overflow-y:auto;margin-bottom:10px}
 .s936-ch-zoom-chip{
   border-radius:14px;border:1px solid var(--chip-color, rgba(255,255,255,.3));
@@ -7866,7 +7902,7 @@ body.s936-chart-stage main{
 
       const playBtn = mk("▶", "Practicar esta sección", () => {
         const panel = getActiveChartPanel();
-        const ok = startChartSectionPractice(panel, sectionKey, { withPulse: false, sourceLabel: "Sección" });
+        const ok = startChartSectionPractice(panel, sectionKey, { withPulse: false, sourceLabel: "Sección", loop: false });
         if (!ok) alert("El Chart todavía no está listo para practicar.");
       });
 
@@ -7877,12 +7913,26 @@ body.s936-chart-stage main{
           }));
         } catch(_) {}
         const panel = getActiveChartPanel();
-        startChartSectionPractice(panel, sectionKey, { withPulse: false, sourceLabel: "Loop sección" });
+        startChartSectionPractice(panel, sectionKey, { withPulse: false, sourceLabel: "Loop sección", loop: true });
       });
 
       const zoomBtn = mk(isFocused ? "↩" : "☰", isFocused ? "Salir del filtro de secciones" : "Secciones — elegir cuáles ver", () => {
         openZoomSectionPicker(zoomBtn, sectionKey);
       }, isFocused ? "is-active" : "");
+
+      // Cambio 412: Mute/Solo del canal Chart (acordes) — independiente
+      // del canal Lyric. Con Solo activo en cualquiera de los dos, el
+      // otro queda silenciado automáticamente.
+      const muteBtn = mk(_chartChannelMuted ? "🔇" : "🔊", _chartChannelMuted ? "Activar sonido (Chart)" : "Silenciar (Chart)", () => {
+        _chartChannelMuted = !_chartChannelMuted;
+        muteBtn.textContent = _chartChannelMuted ? "🔇" : "🔊";
+        muteBtn.classList.toggle("is-active", _chartChannelMuted);
+      }, _chartChannelMuted ? "is-active" : "");
+
+      const soloBtn = mk("S", _chartChannelSolo ? "Quitar Solo (Chart)" : "Solo (Chart) — silencia los demás canales", () => {
+        _chartChannelSolo = !_chartChannelSolo;
+        soloBtn.classList.toggle("is-active", _chartChannelSolo);
+      }, _chartChannelSolo ? "is-active" : "");
 
       const editBtn = mk("✎", "Editar secciones (abre Compose)", () => {
         try {
@@ -7891,7 +7941,7 @@ body.s936-chart-stage main{
         } catch(_) {}
       });
 
-      bar.append(playBtn, loopBtn, zoomBtn, editBtn);
+      bar.append(playBtn, loopBtn, zoomBtn, editBtn, muteBtn, soloBtn);
       return bar;
     }
 
@@ -7935,6 +7985,36 @@ body.s936-chart-stage main{
       toVoiceBtn.title = "Convertir letra en sonido — próximo cambio";
       toVoiceBtn.disabled = true;
       bar.appendChild(toVoiceBtn);
+
+      // Cambio 412: Mute/Solo del canal Lyric — hoy este canal todavía
+      // no produce sonido real (el botón 🎷 de arriba es un placeholder),
+      // así que mutear/solear acá no cambia nada audible TODAVÍA, pero
+      // deja el control ya construido y funcionando para cuando ese
+      // botón se conecte a una voz real.
+      const lyricMuteBtn = document.createElement("button");
+      lyricMuteBtn.type = "button";
+      lyricMuteBtn.className = "s936-ch-mini-sesion-btn" + (_lyricChannelMuted ? " is-active" : "");
+      lyricMuteBtn.textContent = _lyricChannelMuted ? "🔇" : "🔊";
+      lyricMuteBtn.title = _lyricChannelMuted ? "Activar sonido (Lyric)" : "Silenciar (Lyric)";
+      lyricMuteBtn.onclick = (e) => {
+        e.stopPropagation();
+        _lyricChannelMuted = !_lyricChannelMuted;
+        lyricMuteBtn.textContent = _lyricChannelMuted ? "🔇" : "🔊";
+        lyricMuteBtn.classList.toggle("is-active", _lyricChannelMuted);
+      };
+      bar.appendChild(lyricMuteBtn);
+
+      const lyricSoloBtn = document.createElement("button");
+      lyricSoloBtn.type = "button";
+      lyricSoloBtn.className = "s936-ch-mini-sesion-btn" + (_lyricChannelSolo ? " is-active" : "");
+      lyricSoloBtn.textContent = "S";
+      lyricSoloBtn.title = _lyricChannelSolo ? "Quitar Solo (Lyric)" : "Solo (Lyric) — silencia los demás canales";
+      lyricSoloBtn.onclick = (e) => {
+        e.stopPropagation();
+        _lyricChannelSolo = !_lyricChannelSolo;
+        lyricSoloBtn.classList.toggle("is-active", _lyricChannelSolo);
+      };
+      bar.appendChild(lyricSoloBtn);
 
       return bar;
     }
