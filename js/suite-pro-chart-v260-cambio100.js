@@ -1370,10 +1370,9 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-cont-label{font-size:.55rem;font-weight:800;text-transform:uppercase;
   letter-spacing:.4px;margin-bottom:4px;white-space:nowrap}
 .s936-ch-cont-row{display:flex;gap:3px;margin-bottom:3px}
-/* Cambio 413: la barra pasa a ser el DOBLE del ancho de un compás
-   (640px, antes 320px) — Val pidió más espacio, con los botones
-   centrados adentro de esa caja más ancha. */
-.s936-ch-cont-headerspacer{width:640px;flex-shrink:0}
+/* Cambio 414: Val aclaró que había pedido duplicar el ALTO, no el ancho
+   — se revierte a 320px (posición cero, como antes del Cambio 413). */
+.s936-ch-cont-headerspacer{width:320px;flex-shrink:0}
 /* Cambio 377/378: barra mini de sesión (Play/Loop/Zoom/Editar), ahora
    DENTRO de la columna fija de 160px (chordSpacer), en la misma fila
    que los mini-charts de acordes — mismo look de celda (fondo, radio,
@@ -1388,6 +1387,12 @@ window.Studio936SuiteProChart = (() => {
      nomás, alineada abajo, en línea con el mini-mapa, ignorando el
      renglón del nombre del acorde que está arriba. */
   align-self:flex-end;
+  /* Cambio 414: se duplica el ALTO de la caja (antes ~24px de contenido
+     natural, ahora 48px mínimo) — Val aclaró que había pedido esto, no
+     el ancho (que se revirtió a 320px). Los botones (centrados con
+     align-items:center, ya presente) quedan en el medio de esta caja
+     más alta. */
+  min-height:48px;
 }
 .s936-ch-mini-sesion-bar{display:flex;align-items:center;gap:4px;margin:0}
 /* Cambio 379 (ajuste): el control "+" reusado de track-recorder.js trae
@@ -1412,6 +1417,11 @@ window.Studio936SuiteProChart = (() => {
 }
 .s936-ch-zoom-picker-title{font-size:.7rem;font-weight:800;color:#e8fffb;margin-bottom:2px;text-transform:none;letter-spacing:.2px}
 .s936-ch-zoom-picker-subtitle{font-size:.6rem;font-weight:700;color:#bfffee;margin-bottom:8px;text-transform:none;letter-spacing:.2px}
+.s936-ch-zoom-picker-notice{
+  font-size:.6rem;font-weight:700;color:#ffb020;
+  background:rgba(255,176,32,.12);border:1px solid rgba(255,176,32,.4);
+  border-radius:5px;padding:5px 7px;margin-bottom:8px;
+}
 .s936-ch-zoom-picker-chips{display:flex;flex-wrap:wrap;gap:5px;max-height:160px;overflow-y:auto;margin-bottom:10px}
 .s936-ch-zoom-chip{
   border-radius:14px;border:1px solid var(--chip-color, rgba(255,255,255,.3));
@@ -7780,6 +7790,19 @@ body.s936-chart-stage main{
       subtitle.textContent = "Apagá las que no querés ver";
       pop.appendChild(subtitle);
 
+      // Cambio 414: mensaje inline, pegado a la caja del popover, en vez
+      // de un alert() nativo del navegador — Val pidió que los avisos
+      // aparezcan cerca de donde está pasando la acción, no en un cartel
+      // aparte arriba de la pantalla.
+      const inlineNotice = document.createElement("div");
+      inlineNotice.className = "s936-ch-zoom-picker-notice";
+      inlineNotice.style.display = "none";
+      pop.appendChild(inlineNotice);
+      const showNotice = (msg) => {
+        inlineNotice.textContent = msg;
+        inlineNotice.style.display = "block";
+      };
+
       const chipsWrap = document.createElement("div");
       chipsWrap.className = "s936-ch-zoom-picker-chips";
       options.forEach(({ section, label, color }) => {
@@ -7796,6 +7819,7 @@ body.s936-chart-stage main{
           chipsWrap.querySelectorAll(".s936-ch-zoom-chip").forEach((c, i) => {
             c.classList.toggle("is-selected", selected.includes(options[i].section));
           });
+          inlineNotice.style.display = "none";
         };
         chipsWrap.appendChild(chip);
       });
@@ -7832,7 +7856,7 @@ body.s936-chart-stage main{
         // exactamente 1 chip en la lista de arriba — así el usuario elige
         // a propósito, sin ambigüedad.
         if (selected.length !== 1) {
-          alert("Marcá (dejá prendida) exactamente 1 sección en la lista de arriba, y volvé a tocar Editar Sección.");
+          showNotice("Marcá (dejá prendida) exactamente 1 sección arriba, y volvé a tocar Editar Sección.");
           return;
         }
         const target = selected[0];
@@ -7865,7 +7889,7 @@ body.s936-chart-stage main{
       }, "ghost");
 
       const applyBtn = mkActionBtn("✓", "Aplicar", "Aplicar el filtro elegido", () => {
-        if (!selected.length) { alert("Dejá al menos 1 sección prendida."); return; }
+        if (!selected.length) { showNotice("Dejá al menos 1 sección prendida."); return; }
         // Cambio 386: si quedaron TODAS prendidas, es lo mismo que no
         // filtrar nada — se limpia el foco en vez de guardar una lista
         // igual a "todo", para no dejar un estado de zoom fantasma.
