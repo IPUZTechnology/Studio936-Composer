@@ -538,8 +538,27 @@
          pedía). El ancho (96px) es el MISMO que .s936-ch-cont-headerspacer
          en suite-pro-chart-v260-cambio100.js — si alguno de los dos
          cambia, hay que cambiar el otro para que sigan alineados. */
-      .s936tr-lanerow{display:grid;grid-template-columns:160px 1fr;align-items:center;gap:3px;}
-      .s936tr-lanelabel{display:flex;align-items:center;gap:2px;overflow:hidden;}
+      /* Cambio 423: 160px → 320px — esta medida está pensada para
+         coincidir EXACTO con el ancho de la barra de Chart/Lyric en
+         suite-pro-chart-v260-cambio100.js (.s936-ch-cont-headerspacer).
+         Si se vuelve a cambiar uno de los dos, hay que cambiar el otro
+         también, o se pierde la alineación entre filas — ya pasó una
+         vez (esta corrección) porque el ancho del Chart se actualizó
+         varias veces sin acordarse de este archivo. */
+      .s936tr-lanerow{display:grid;grid-template-columns:320px 1fr;align-items:center;gap:3px;}
+      /* Cambio 426: variante "continuación" — sin columna de nombre, la
+         tira de color ocupa el 100% desde el borde, para conectar sin
+         corte con la tira de la sección anterior. */
+      .s936tr-lanerow-continuation{grid-template-columns:0 1fr;gap:0}
+      .s936tr-lanerow-continuation .s936tr-lanelabel{display:none}
+      /* Cambio 423: mismo estilo visual (fondo oscuro redondeado, alto
+         mínimo) que .s936-ch-mini-sesion-spacer del Chart — Val pidió
+         que la barra de instrumentos se vea igual, no distinta. */
+      .s936tr-lanelabel{
+        display:flex;align-items:center;gap:2px;overflow:hidden;
+        background:rgba(255,255,255,.05);border-radius:5px;
+        box-sizing:border-box;min-height:56px;padding:0 6px;
+      }
       .s936tr-laneicon{display:flex;align-items:center;justify-content:center;width:18px;height:18px;
         margin-right:2px;cursor:default;font-size:12px;flex-shrink:0;}
       .s936tr-lanebtn{width:16px;height:16px;padding:0;border:none;background:none;border-radius:3px;
@@ -977,10 +996,27 @@
         wrap.appendChild(heading);
       }
       const groups = groupTakesByInstrument(sectionKey);
+      // Cambio 426: opts.hideLabelColumn — para Vista Continua, donde el
+      // Chart pidió que la tira de color de cada instrumento sea UNA
+      // sola, corrida de punta a punta de toda la canción (no una por
+      // sección). Como renderSectionLanes se llama UNA VEZ POR SECCIÓN
+      // (bloque), sin esto cada sección volvía a reservar sus propios
+      // 320px para el nombre del instrumento — eso cortaba la tira
+      // continua, viéndose como una línea/corte al empezar cada sección
+      // nueva. Con hideLabelColumn, esa sección solo dibuja la
+      // continuación de la tira de color, sin repetir la columna del
+      // nombre.
+      const hideLabelColumn = !!(opts && opts.hideLabelColumn);
       Object.keys(groups).forEach(instrumentId => {
-        wrap.appendChild(buildLaneRow(sectionKey, instrumentId, groups[instrumentId]));
+        const row = buildLaneRow(sectionKey, instrumentId, groups[instrumentId]);
+        if (hideLabelColumn) {
+          row.classList.add("s936tr-lanerow-continuation");
+        }
+        wrap.appendChild(row);
       });
-      wrap.appendChild(buildAddInstrumentControl(sectionKey, wrap));
+      if (!hideLabelColumn) {
+        wrap.appendChild(buildAddInstrumentControl(sectionKey, wrap));
+      }
       sectionEl.appendChild(wrap);
     } catch (e) {
       // Cambio 258 (diagnóstico): si algo falla aquí, antes quedaba mudo

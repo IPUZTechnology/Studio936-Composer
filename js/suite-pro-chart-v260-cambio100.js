@@ -8704,7 +8704,13 @@ body.s936-chart-stage main{
         // pero no en el otro — no era un problema de datos compartidos
         // (esos sí se comparten bien, ya verificado), era que esta vista
         // simplemente nunca llamaba a la función que los dibuja.
-        try { window.Studio936TrackRecorder?.renderSectionLanes?.(block, item.section, { hideHeader: true }); } catch(_) {}
+        // Cambio 426: hideLabelColumn se activa para toda sección que
+        // NO sea la primera visible — así la tira de color de cada
+        // instrumento se ve corrida sin cortes de sección en sección
+        // (mismo criterio que ya usa la barra mini de Chart/Lyric desde
+        // el Cambio 386: un solo control/nombre, no uno repetido por
+        // sección).
+        try { window.Studio936TrackRecorder?.renderSectionLanes?.(block, item.section, { hideHeader: true, hideLabelColumn: arrIndex !== 0 }); } catch(_) {}
         scroller.appendChild(block);
       });
 
