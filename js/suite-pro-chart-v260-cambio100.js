@@ -7665,12 +7665,32 @@ body.s936-chart-stage main{
 
     let arrangement = [];
     let edState = {};
-    if (bridge) {
+    // Cambio 422: BUG DE RAÍZ encontrado — bridge.getArrangement() (que
+    // se probaba PRIMERO) en realidad llama a Arrangement.getArrangementState(),
+    // un sistema viejo y completamente separado (v25, previo a todo Suite
+    // Pro / Arreglo de la Canción). Como esa función vieja casi siempre
+    // devuelve ALGO (aunque sea data vieja/de prueba), el chequeo de
+    // abajo ("si está vacío, usar el borrador de Estructura") nunca se
+    // disparaba — el Chart terminaba usando SIEMPRE los datos viejos del
+    // v25, nunca los reales de Arreglo de la Canción. Por eso el Chart
+    // mostraba una lista de secciones distinta (más corta, con
+    // "fantasmas" como "Coro final") a la real. Se invierte la
+    // prioridad: ahora se usa PRIMERO el borrador real de Estructura
+    // (readStructureDraftSnapshot, la única fuente de verdad real que
+    // usa Val) — el bridge viejo queda como último recurso, solo para
+    // el caso borde de una canción recién empezada sin ningún dato
+    // guardado todavía en Estructura.
+    if (draftFallback?.arrangement?.length) {
+      arrangement = draftFallback.arrangement;
+      edState = draftFallback.edState || {};
+    } else if (bridge) {
       arrangement = bridge.getArrangement?.() || [];
       edState = bridge.getEditorState?.() || {};
     }
 
-    // Cambio 3: si el bridge todavía no entrega arreglo, usar el borrador vivo de Estructura.
+    // Cambio 3 (ya no hace falta el fallback de acá — se resolvió arriba,
+    // se deja el chequeo por las dudas de que arrangement quede vacío
+    // igual en algún caso borde).
     if (!Array.isArray(arrangement) || !arrangement.length) {
       arrangement = draftFallback?.arrangement || [];
     }
@@ -8082,7 +8102,18 @@ body.s936-chart-stage main{
             detail: { type: typeSelect.value, name: nameInput.value, bars: barsInput.value }
           }));
         } catch(_) {}
+        // Cambio 421: antes esto cerraba el popover de una (pop.remove())
+        // sin refrescar nada — como el Chart no se vuelve a dibujar
+        // solo, la sección recién creada no aparecía en ningún lado hasta
+        // recargar. Ahora se refresca el Chart (mismo patrón que ya usan
+        // setFocusSection/clearFocusSection) y se vuelve a abrir el
+        // mismo popover, ya con la sección nueva en la lista.
         pop.remove();
+        setTimeout(() => {
+          const panel = getActiveChartPanel?.();
+          if (panel) render({ container: panel, instrument: _chartInstrument });
+          setTimeout(() => openZoomSectionPicker(anchorEl, currentSectionKey), 60);
+        }, 150);
       };
 
       addForm.append(typeSelect, nameInput, barsInput, addFormSubmit);
