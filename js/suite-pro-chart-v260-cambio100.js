@@ -2161,8 +2161,14 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
    editor principal sigue con su 12% de siempre (ver regla base arriba,
    sin tocar). */
 .s936-ch-cont-minireal .s936-ch-headstock-zone{
-  width:8%;
+  width:14%;
   clip-path:polygon(0% 30%, 55% 0%, 100% 8%, 100% 92%, 55% 100%, 0% 70%);
+  /* Cambio 406: borde propio en el contorno de la silueta — antes solo
+     dependía del contraste de color contra la madera del diapasón, que a
+     este tamaño chico no siempre alcanzaba para notarse. Con un borde
+     definido, el contorno de la forma se ve aunque sea chica. */
+  border:1px solid rgba(0,255,204,.35);
+  background:rgba(15,15,20,.85);
 }
 .s936-ch-ff{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.35)}
 .s936-ch-ff.nut{width:3px;background:#00ffcc;box-shadow:0 0 4px rgba(0,255,204,.6)}
