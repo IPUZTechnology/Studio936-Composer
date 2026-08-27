@@ -5618,7 +5618,13 @@ body.s936-chart-stage main{
     // el borde real del clavijero sea cual sea su ancho.
     const hsPct = opts?.headstockPct ?? 12;
     const boardEnd = 100 - hsPct;      // antes: 88 (fijo)
-    const boardSpanPct = boardEnd - 8; // antes: 80 (fijo) — deja el mismo margen izquierdo de 8%
+    // Cambio 404: opts.leftMarginPct — antes había un margen izquierdo
+    // fijo de 8% SIN USAR (espacio vacío antes del primer traste), que
+    // Val señaló con flechas en la captura. El editor principal lo
+    // mantiene (default 8, sin cambios); Vista Continua ahora pasa 0
+    // para aprovechar TODO el ancho real en los trastes.
+    const leftMarginPct = opts?.leftMarginPct ?? 8;
+    const boardSpanPct = boardEnd - leftMarginPct; // antes: 80 (fijo)
 
     // Cambio 274: se reserva una franja aparte (88%-100%) para el
     // clavijero/cejuela — el "0" (al aire) y "X" (mudo) viven ahí, con
@@ -8084,7 +8090,7 @@ body.s936-chart-stage main{
                 } else {
                   let savedVoicing = getBeatVoicing(item.section, idx, seg.beat, inst) || voicingLibrary?.[inst]?.[nameUpper];
                   const fretVoicing = savedVoicing || calcFretVoicing(seg.name, inst);
-                  miniEl = miniFret(fretVoicing, { minSpan: 8, headstockPct: 8 });
+                  miniEl = miniFret(fretVoicing, { minSpan: 8, headstockPct: 8, leftMarginPct: 0 });
                 }
                 miniHolder.appendChild(miniEl);
               } catch(_) {}
