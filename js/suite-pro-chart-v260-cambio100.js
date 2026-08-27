@@ -7785,6 +7785,41 @@ body.s936-chart-stage main{
     // Junta la lista de secciones reales desde los labels ya dibujados en
     // pantalla (dataset.section), arma un popover con chips
     // seleccionables (máximo 2) y aplica con setFocusSection([...]).
+    // Cambio 418: reintento robusto — antes esperaba un único setTimeout
+    // de 150ms para que existiera el interruptor "+ Crear Sección"
+    // dentro de Compose/Estructura, pero abrir el Docker + montar
+    // Compose + montar Estructura puede tardar más que eso (hay
+    // transiciones CSS de por medio) — el clic llegaba antes de que el
+    // elemento existiera, y no pasaba nada. Ahora reintenta cada 100ms
+    // hasta 2 segundos, en vez de un solo intento a ciegas.
+    // Cambio 419: BUG real encontrado — openArea("compose") deja el
+    // Docker en estado "is-open" pero VISUALMENTE COLAPSADO (solo la
+    // barra angosta, ver Cambio 361: "arranca colapsado"). El formulario
+    // SÍ se crea en el DOM (por eso el clic al interruptor funcionaba
+    // "en teoría"), pero el panel entero queda escondido — nadie lo
+    // llega a ver. Se fuerza a expandirse quitándole la clase de
+    // colapsado directamente, en vez de depender del hover real (que acá
+    // no existe, porque esto se dispara por clic, no por mouse encima).
+    function openComposeExpanded() {
+      try {
+        if (window.Studio936SuitePro?.openArea) window.Studio936SuitePro.openArea("compose");
+      } catch(_) {}
+      setTimeout(() => {
+        document.getElementById("s936SuitePro")?.classList.remove("s936-dock-collapsed");
+      }, 30);
+    }
+
+    function clickAddSectionToggleWhenReady(triesLeft) {
+      if (triesLeft <= 0) return;
+      const toggle = document.querySelector("#s936SuitePro .s936-ckpt-add-toggle");
+      if (toggle) {
+        if (!toggle.classList.contains("open")) toggle.click();
+        toggle.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+      setTimeout(() => clickAddSectionToggleWhenReady(triesLeft - 1), 100);
+    }
+
     function openZoomSectionPicker(anchorEl, currentSectionKey) {
       document.getElementById("s936-ch-zoom-picker")?.remove();
 
@@ -7922,7 +7957,7 @@ body.s936-chart-stage main{
           editItem.onclick = (e) => {
             e.stopPropagation();
             try {
-              if (window.Studio936SuitePro?.openArea) window.Studio936SuitePro.openArea("compose");
+              openComposeExpanded();
               window.dispatchEvent(new CustomEvent("studio936:edit-section-request", { detail: { section } }));
             } catch(_) {}
             menu.remove();
@@ -7963,6 +7998,18 @@ body.s936-chart-stage main{
         chip.addEventListener("mouseleave", cancelPress);
         chip.addEventListener("touchstart", startPress, { passive: true });
         chip.addEventListener("touchend", cancelPress);
+
+        // Cambio 418: además de mantener presionado, dejar el mouse
+        // QUIETO encima del chip por 2 segundos (sin clic, sin arrastrar)
+        // también abre el mismo menú — Val pidió esto como alternativa
+        // más fácil, porque sostener y evitar que se dispare el arrastre
+        // al mismo tiempo resultaba incómodo.
+        let hoverTimer = null;
+        chip.addEventListener("mouseenter", () => {
+          hoverTimer = setTimeout(() => { longPressFired = true; openChipMenu(); }, 2000);
+        });
+        chip.addEventListener("mouseleave", () => { clearTimeout(hoverTimer); });
+        chip.addEventListener("mousedown", () => { clearTimeout(hoverTimer); }); // si empieza a arrastrar, se cancela el hover
         // Si el long-press ya abrió el menú, el click normal que sigue
         // (al soltar) no debe togglear el filtro por encima.
         chip.addEventListener("click", (e) => { if (longPressFired) e.stopPropagation(); }, true);
@@ -7982,16 +8029,8 @@ body.s936-chart-stage main{
       addChipBtn.title = "Adicionar sección — abre el formulario real de crear sección";
       addChipBtn.onclick = (e) => {
         e.stopPropagation();
-        try {
-          if (window.Studio936SuitePro?.openArea) window.Studio936SuitePro.openArea("compose");
-        } catch(_) {}
-        setTimeout(() => {
-          const toggle = document.querySelector("#s936SuitePro .s936-ckpt-add-toggle");
-          if (toggle) {
-            if (!toggle.classList.contains("open")) toggle.click();
-            toggle.scrollIntoView({ behavior: "smooth", block: "center" });
-          }
-        }, 150);
+        openComposeExpanded();
+        clickAddSectionToggleWhenReady(20); // Cambio 418: hasta 20 × 100ms = 2s
         pop.remove();
       };
       pop.appendChild(addChipBtn);
@@ -8124,10 +8163,7 @@ body.s936-chart-stage main{
       }, _chartChannelSolo ? "is-active" : "");
 
       const editBtn = mk("✎", "Editar secciones (abre Compose)", () => {
-        try {
-          if (window.Studio936SuitePro?.openArea) window.Studio936SuitePro.openArea("compose");
-          else document.getElementById("s936HoverRail")?.querySelector("[data-area='compose'],button")?.click();
-        } catch(_) {}
+        openComposeExpanded();
       });
 
       bar.append(playBtn, loopBtn, zoomBtn, editBtn, muteBtn, soloBtn);
