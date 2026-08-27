@@ -8266,7 +8266,12 @@ body.s936-chart-stage main{
         const posSec = anchorSec + elapsed;
         const bar = flatTimeline.find(b => posSec >= b.startSec && posSec < b.endSec);
         if (bar) {
-          playhead.style.display = "block";
+          // Cambio 395: Val pidió sacar la línea larga del playhead — el
+          // resaltado de acorde+letra, junto con el auto-scroll del
+          // Cambio 393, ya alcanza para saber dónde va la reproducción.
+          // Se deja el resto de la lógica intacta (por si se quiere
+          // reactivar más adelante) — solo se saca la línea "display:block".
+          playhead.style.display = "none";
           const left = bar.chordCellEl.offsetLeft;
           playhead.style.transform = "translateX(" + left + "px)";
           // Cambio 388: resalta el SEGMENTO de acorde y la PALABRA de
