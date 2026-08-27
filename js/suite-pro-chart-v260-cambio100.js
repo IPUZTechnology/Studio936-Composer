@@ -1395,7 +1395,7 @@ window.Studio936SuiteProChart = (() => {
      Ahora el compás de letra NUNCA puede ser más ancho que el de acorde
      de al lado — si el texto no entra, se parte en más de una línea
      (ver word-break en .s936-ch-lyric-beat), la celda no crece. */
-  width:200px;max-width:200px;
+  width:320px;max-width:320px;
   flex-shrink:0;box-sizing:border-box}
 .s936-ch-cont-cell.chord{font-weight:700;color:#e8f4f2;cursor:pointer;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
