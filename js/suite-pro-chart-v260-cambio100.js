@@ -8090,7 +8090,7 @@ body.s936-chart-stage main{
                 } else {
                   let savedVoicing = getBeatVoicing(item.section, idx, seg.beat, inst) || voicingLibrary?.[inst]?.[nameUpper];
                   const fretVoicing = savedVoicing || calcFretVoicing(seg.name, inst);
-                  miniEl = miniFret(fretVoicing, { minSpan: 8, headstockPct: 8, leftMarginPct: 0 });
+                  miniEl = miniFret(fretVoicing, { minSpan: 5, headstockPct: 14, leftMarginPct: 0 });
                 }
                 miniHolder.appendChild(miniEl);
               } catch(_) {}
