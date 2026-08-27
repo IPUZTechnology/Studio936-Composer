@@ -2155,7 +2155,13 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
    rectángulo recto. No es un dibujo realista completo, es una insinuación
    de la forma, como pidió Val ("no necesariamente toda prolongada, pero
    sí que inicie"). */
+/* Cambio 403: SOLO Vista Continua — se achica la franja del clavijero
+   (de 12% a 8%) para liberar más espacio real para los trastes, a
+   pedido de Val ("pierdo trastes" por el ancho del clavijero). El
+   editor principal sigue con su 12% de siempre (ver regla base arriba,
+   sin tocar). */
 .s936-ch-cont-minireal .s936-ch-headstock-zone{
+  width:8%;
   clip-path:polygon(0% 30%, 55% 0%, 100% 8%, 100% 92%, 55% 100%, 0% 70%);
 }
 .s936-ch-ff{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.35)}
@@ -5603,6 +5609,16 @@ body.s936-chart-stage main{
     // editor principal y Vista Bloques NO pasan este parámetro, así que
     // siguen exactamente igual que siempre (span mínimo real, 4).
     const span = Math.max(opts?.minSpan || 4, maxF - start + 1);
+    // Cambio 403: opts.headstockPct permite achicar la franja del
+    // clavijero (default 12%, igual que siempre en el editor) para
+    // liberar más espacio real de trastes en Vista Continua. TODAS las
+    // posiciones que antes tenían el 12%/88% pegado a mano (línea de
+    // trastes, cuerda al aire, cuerda muda) ahora se calculan
+    // proporcionales a este valor, para que se mantengan alineadas con
+    // el borde real del clavijero sea cual sea su ancho.
+    const hsPct = opts?.headstockPct ?? 12;
+    const boardEnd = 100 - hsPct;      // antes: 88 (fijo)
+    const boardSpanPct = boardEnd - 8; // antes: 80 (fijo) — deja el mismo margen izquierdo de 8%
 
     // Cambio 274: se reserva una franja aparte (88%-100%) para el
     // clavijero/cejuela — el "0" (al aire) y "X" (mudo) viven ahí, con
@@ -5623,7 +5639,7 @@ body.s936-chart-stage main{
     const fretLabel = document.createElement("div");
     fretLabel.className = "s936-ch-fret-label-outer";
     fretLabel.textContent = String(start + 1);
-    const labelLeftPct = 88 - ((1 - 0.5) / span) * 80;
+    const labelLeftPct = boardEnd - ((1 - 0.5) / span) * boardSpanPct;
     fretLabel.style.position = "relative";
     fretLabel.style.display = "inline-block";
     fretLabel.style.alignSelf = "flex-start";
@@ -5669,7 +5685,7 @@ body.s936-chart-stage main{
     for (let f = 0; f <= span; f++) {
       const el = document.createElement("div");
       el.className = "s936-ch-ff" + (f === 0 ? " nut" : "");
-      el.style.cssText = `left:${88 - f / span * 80}%;z-index:1`;
+      el.style.cssText = `left:${boardEnd - f / span * boardSpanPct}%;z-index:1`;
       wrap.appendChild(el);
     }
 
@@ -5695,7 +5711,7 @@ body.s936-chart-stage main{
         // "salieran" del mástil. Ahora cada una tiene su propia columna
         // dentro del clavijero: cuerda al aire un poco más adentro
         // (93%), mudas más afuera (97%).
-        m.style.cssText = `top:${top}%;left:97%;z-index:2`;
+        m.style.cssText = `top:${top}%;left:${boardEnd + hsPct * 0.75}%;z-index:2`;
         wrap.appendChild(m);
       } else {
         const f0 = Number(fret);
@@ -5709,7 +5725,7 @@ body.s936-chart-stage main{
         // Cambio 274: la cuerda al aire (f0===0) vive en la franja de
         // clavijero, separada de los trastes numerados.
         // Cambio 275: cuerda al aire también separada de 94% a 96%.
-        const leftPct = f0 === 0 ? 93 : 88 - ((f0 - start - 0.5) / span) * 80;
+        const leftPct = f0 === 0 ? (boardEnd + hsPct * (5 / 12)) : boardEnd - ((f0 - start - 0.5) / span) * boardSpanPct;
         const dot = document.createElement("div");
         dot.className = "s936-ch-fd";
         dot.style.cssText = `top:${top}%;left:${leftPct}%;z-index:3`;
@@ -8068,7 +8084,7 @@ body.s936-chart-stage main{
                 } else {
                   let savedVoicing = getBeatVoicing(item.section, idx, seg.beat, inst) || voicingLibrary?.[inst]?.[nameUpper];
                   const fretVoicing = savedVoicing || calcFretVoicing(seg.name, inst);
-                  miniEl = miniFret(fretVoicing, { minSpan: 8 });
+                  miniEl = miniFret(fretVoicing, { minSpan: 8, headstockPct: 8 });
                 }
                 miniHolder.appendChild(miniEl);
               } catch(_) {}
