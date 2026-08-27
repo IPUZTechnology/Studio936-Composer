@@ -8389,7 +8389,14 @@ body.s936-chart-stage main{
 
         const block = document.createElement("div");
         block.className = "s936-ch-cont-block";
-        block.style.borderRight = "2px solid " + color;
+        // Cambio 427: se saca el borderRight coloreado por sección — Val
+        // confirmó que no quiere ninguna línea/corte visual entre
+        // secciones, ni siquiera una sutil del color de la sección. Este
+        // era el "hilo suelto" real detrás de la línea dorada que se
+        // veía junto a Pre-coro (su color, #E8C468) — no tenía nada que
+        // ver con el playhead, la caja vacía, ni la tira de instrumentos
+        // (esos otros 3 sí eran bugs reales y quedaron bien arreglados,
+        // pero esta línea puntual era este borde, aparte).
 
         const label = document.createElement("div");
         label.className = "s936-ch-cont-label";
@@ -8804,6 +8811,19 @@ body.s936-chart-stage main{
       }
 
       function tick(anchorSec, wallStart) {
+        // Cambio 428: toda la función envuelta en try/catch — Val
+        // reportó que el auto-scroll se corta después de la primera
+        // pantalla mientras el audio sigue sonando. Eso encaja
+        // perfectamente con un error silencioso acá adentro: si tick()
+        // tira una excepción en cualquier punto (por ejemplo, un
+        // elemento que quedó "viejo" tras un re-render a mitad de
+        // reproducción), el encadenado de requestAnimationFrame se corta
+        // para siempre sin avisar — pero el audio (que corre aparte, con
+        // su propio setInterval en startChartRhythmConsole) sigue de
+        // largo, sin depender de esto. Ahora, si algo falla, se loguea y
+        // se sigue programando el siguiente frame de todas formas, en
+        // vez de morir en silencio.
+        try {
         const ctx = window.__studio936AudioCtx;
         const nowSec = ctx ? ctx.currentTime : (Date.now() / 1000);
         const elapsed = nowSec - wallStart;
@@ -8865,6 +8885,10 @@ body.s936-chart-stage main{
           clearHighlight();
           activeBarEl = null;
           _contPlayheadRAF = null;
+        }
+        } catch (tickError) {
+          console.warn("Cambio 428: tick() falló, se reintenta en el próximo frame en vez de cortar el auto-scroll", tickError);
+          _contPlayheadRAF = requestAnimationFrame(() => tick(anchorSec, wallStart));
         }
       }
 
