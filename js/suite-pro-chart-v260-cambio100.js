@@ -1392,7 +1392,12 @@ window.Studio936SuiteProChart = (() => {
      el ancho (que se revirtió a 320px). Los botones (centrados con
      align-items:center, ya presente) quedan en el medio de esta caja
      más alta. */
-  min-height:48px;
+  /* Cambio 415: se sube un poco más (48px → 56px) y queda como el
+     ESTÁNDAR — TODAS las barras de canal (Chart, Lyric, y las que se
+     agreguen a futuro con instrumentos) usan esta misma clase, así que
+     comparten automáticamente la misma altura, sin tener que repetir el
+     valor en cada una. */
+  min-height:56px;
 }
 .s936-ch-mini-sesion-bar{display:flex;align-items:center;gap:4px;margin:0}
 /* Cambio 379 (ajuste): el control "+" reusado de track-recorder.js trae
@@ -1423,6 +1428,17 @@ window.Studio936SuiteProChart = (() => {
   border-radius:5px;padding:5px 7px;margin-bottom:8px;
 }
 .s936-ch-zoom-picker-chips{display:flex;flex-wrap:wrap;gap:5px;max-height:160px;overflow-y:auto;margin-bottom:10px}
+/* Cambio 416: envoltura arrastrable de cada chip (chip + botón ✕ de
+   borrar juntos), y su estado mientras se está arrastrando. */
+.s936-ch-zoom-chip-wrap{display:flex;align-items:center;gap:2px;cursor:grab}
+.s936-ch-zoom-chip-wrap.is-dragging{opacity:.4}
+.s936-ch-zoom-chip-del{
+  border:none;background:rgba(255,90,90,.12);color:rgba(255,140,140,.8);
+  border-radius:50%;width:16px;height:16px;font-size:.55rem;line-height:1;
+  cursor:pointer;flex-shrink:0;
+}
+.s936-ch-zoom-chip-del:hover{background:rgba(255,90,90,.3);color:#ffb3b3}
+.s936-ch-zoom-picker-draghint{font-size:.55rem;color:rgba(255,255,255,.4);margin-bottom:8px;font-style:italic}
 .s936-ch-zoom-chip{
   border-radius:14px;border:1px solid var(--chip-color, rgba(255,255,255,.3));
   background:rgba(255,255,255,.05);
@@ -7782,7 +7798,7 @@ body.s936-chart-stage main{
       title.className = "s936-ch-zoom-picker-title";
       // Cambio 408: Val aclaró que esto no es un "Zoom" — es un filtro de
       // secciones. Se renombra el título para reflejar eso.
-      title.textContent = "Secciones de la canción";
+      title.textContent = "SECCIONES DE LA CANCIÓN";
       pop.appendChild(title);
 
       const subtitle = document.createElement("div");
@@ -7805,25 +7821,92 @@ body.s936-chart-stage main{
 
       const chipsWrap = document.createElement("div");
       chipsWrap.className = "s936-ch-zoom-picker-chips";
+      // Cambio 416: reordenar arrastrando — se guarda acá el elemento
+      // que se está arrastrando, para saber dónde soltarlo.
+      let draggedChip = null;
       options.forEach(({ section, label, color }) => {
-        const chip = document.createElement("button");
-        chip.type = "button";
-        chip.className = "s936-ch-zoom-chip" + (selected.includes(section) ? " is-selected" : "");
-        chip.textContent = label;
-        chip.style.setProperty("--chip-color", color);
-        chip.onclick = (e) => {
+        const chip = document.createElement("div");
+        chip.className = "s936-ch-zoom-chip-wrap";
+        chip.draggable = true;
+        chip.dataset.section = section;
+
+        chip.addEventListener("dragstart", (e) => {
+          draggedChip = chip;
+          chip.classList.add("is-dragging");
+          e.dataTransfer.effectAllowed = "move";
+        });
+        chip.addEventListener("dragend", () => {
+          chip.classList.remove("is-dragging");
+          draggedChip = null;
+        });
+        chip.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          if (!draggedChip || draggedChip === chip) return;
+          const rect = chip.getBoundingClientRect();
+          const after = (e.clientX - rect.left) > rect.width / 2;
+          chipsWrap.insertBefore(draggedChip, after ? chip.nextSibling : chip);
+        });
+        chip.addEventListener("drop", (e) => {
+          e.preventDefault();
+          // Cambio 416: al soltar, el orden VISUAL actual de los chips ya
+          // es el orden final — se manda tal cual al puente, que reusa
+          // move() (la misma función de las flechitas ˄˅ de Arreglo de la
+          // Canción) para aplicarlo de verdad al arreglo real.
+          const newOrder = Array.from(chipsWrap.children).map((c) => c.dataset.section);
+          try {
+            window.dispatchEvent(new CustomEvent("studio936:reorder-sections-request", {
+              detail: { orderedSections: newOrder }
+            }));
+          } catch(_) {}
+        });
+
+        const chipBtn = document.createElement("button");
+        chipBtn.type = "button";
+        chipBtn.className = "s936-ch-zoom-chip" + (selected.includes(section) ? " is-selected" : "");
+        chipBtn.textContent = label;
+        chipBtn.style.setProperty("--chip-color", color);
+        chipBtn.onclick = (e) => {
           e.stopPropagation();
           const idx = selected.indexOf(section);
           if (idx >= 0) selected.splice(idx, 1);
           else selected.push(section);
-          chipsWrap.querySelectorAll(".s936-ch-zoom-chip").forEach((c, i) => {
-            c.classList.toggle("is-selected", selected.includes(options[i].section));
+          // Cambio 416: antes esto indexaba por posición contra
+          // options[i] — se rompía apenas se reordenaba con el arrastre
+          // (el DOM ya no coincide con el orden original de options).
+          // Ahora lee el section real de cada chip directo de su propio
+          // dataset, sin depender del orden.
+          chipsWrap.querySelectorAll(".s936-ch-zoom-chip-wrap").forEach((wrapEl) => {
+            wrapEl.querySelector(".s936-ch-zoom-chip").classList.toggle("is-selected", selected.includes(wrapEl.dataset.section));
           });
           inlineNotice.style.display = "none";
         };
+        chip.appendChild(chipBtn);
+
+        // Cambio 416: botón chico de borrar (✕) — reusa
+        // deleteFromArrangement() de structure.js (con su propio
+        // confirm() incluido), vía el mismo puente de eventos.
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "s936-ch-zoom-chip-del";
+        delBtn.textContent = "✕";
+        delBtn.title = "Borrar \"" + label + "\" del arreglo";
+        delBtn.onclick = (e) => {
+          e.stopPropagation();
+          try {
+            window.dispatchEvent(new CustomEvent("studio936:delete-section-request", { detail: { section } }));
+          } catch(_) {}
+          pop.remove();
+        };
+        chip.appendChild(delBtn);
+
         chipsWrap.appendChild(chip);
       });
       pop.appendChild(chipsWrap);
+
+      const dragHint = document.createElement("div");
+      dragHint.className = "s936-ch-zoom-picker-draghint";
+      dragHint.textContent = "Arrastrá los chips para reordenar la canción";
+      pop.appendChild(dragHint);
 
       const actions = document.createElement("div");
       actions.className = "s936-ch-zoom-picker-actions";
@@ -7963,7 +8046,7 @@ body.s936-chart-stage main{
         startChartSectionPractice(panel, sectionKey, { withPulse: false, sourceLabel: "Loop sección", loop: true });
       });
 
-      const zoomBtn = mk(isFocused ? "↩" : "☰", isFocused ? "Salir del filtro de secciones" : "Secciones — elegir cuáles ver", () => {
+      const zoomBtn = mk(isFocused ? "↩" : "☰", isFocused ? "Salir de Estructura de la canción" : "Estructura de la canción", () => {
         openZoomSectionPicker(zoomBtn, sectionKey);
       }, isFocused ? "is-active" : "");
 

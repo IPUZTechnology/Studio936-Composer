@@ -37,11 +37,20 @@
     ["outro", "Outro"],
     ["custom", "Personalizada"]
   ];
-  // Cambio 379: guarda el ctx de la última vez que Compose/Estructura
+  // Cambio 410: guarda el ctx de la última vez que Compose/Estructura
   // renderizó — usado por el puente studio936:chart-open-lyrics-editor
   // para poder abrir el editor de letra real cuando el pedido llega
   // desde el Chart (que no tiene su propio ctx).
   let _lastRenderCtx = null;
+  // Cambio 410: cuando "Editar Sección" se abre DESDE el puente del
+  // Chart (no desde el botón ✎ normal de Arreglo de la Canción), se
+  // oculta el bloque "Marcas de navegación" del formulario — Val
+  // confirmó que en el Chart (Vista Continua) no tiene sentido, porque
+  // ahí cada compás ya se dibuja en orden, uno detrás del otro; no hay
+  // "saltos" que una marca de navegación pudiera activar, así que
+  // mostrarlas ahí podría hacer pensar que sí funcionan cuando no.
+  // Arreglo de la Canción sigue mostrando el formulario completo.
+  let _editFromChartBridge = false;
 
   const DEFAULT_STATE = {
     draft: null,
@@ -3828,11 +3837,55 @@ html, body{
           const parts = ensureDraft(bridgeCtx);
           const idx = parts.findIndex(p => p.section === section);
           if (idx < 0) { alert("No se encontró esa sección en el arreglo actual."); return; }
+          _editFromChartBridge = true; // Cambio 410: esconde "Marcas de navegación" en este open puntual
           state.editingIndex = idx;
           saveState();
           renderAgain(bridgeCtx);
         } catch (error) {
           console.warn("Cambio 408: no se pudo abrir el editor de sección desde el Chart", error);
+        }
+      });
+      // Cambio 416: puente para reordenar secciones arrastrando los
+      // chips en el popover del Chart. Reusa move() — que ya hace
+      // splice+saveState+renderAgain sola — llamándola paso a paso
+      // (siempre moviendo la sección de a un lugar) hasta llegar a la
+      // posición final pedida. No se reinventa la lógica de mover: es la
+      // MISMA función que ya usaban las flechitas ˄˅ de Arreglo de la
+      // Canción.
+      window.addEventListener("studio936:reorder-sections-request", (ev) => {
+        const orderedSections = ev?.detail?.orderedSections;
+        const bridgeCtx = _lastRenderCtx;
+        if (!Array.isArray(orderedSections) || !bridgeCtx) return;
+        try {
+          let parts = ensureDraft(bridgeCtx);
+          orderedSections.forEach((section, targetIndex) => {
+            const currentIndex = parts.findIndex(p => p.section === section);
+            if (currentIndex < 0 || currentIndex === targetIndex) return;
+            const [item] = parts.splice(currentIndex, 1);
+            parts.splice(targetIndex, 0, item);
+          });
+          state.draft.parts = parts;
+          saveState();
+          renderAgain(bridgeCtx);
+        } catch (error) {
+          console.warn("Cambio 416: no se pudo reordenar desde el Chart", error);
+        }
+      });
+      // Cambio 416: puente para "Borrar" desde el Chart — reusa
+      // deleteFromArrangement() tal cual (con su propio confirm()
+      // incluido), la misma función que ya usaba "✕ Quitar" en el menú
+      // ⋯ de Arreglo de la Canción.
+      window.addEventListener("studio936:delete-section-request", (ev) => {
+        const section = ev?.detail?.section || "";
+        const bridgeCtx = _lastRenderCtx;
+        if (!section || !bridgeCtx) return;
+        try {
+          const parts = ensureDraft(bridgeCtx);
+          const idx = parts.findIndex(p => p.section === section);
+          if (idx < 0) { alert("No se encontró esa sección en el arreglo actual."); return; }
+          deleteFromArrangement(bridgeCtx, parts, idx);
+        } catch (error) {
+          console.warn("Cambio 416: no se pudo borrar desde el Chart", error);
         }
       });
     }
@@ -5904,7 +5957,14 @@ html, body{
     });
     marksWrap._active = activeMark;
     b4body.appendChild(marksWrap);
-    body.appendChild(b4);
+    // Cambio 410: ver comentario junto a _editFromChartBridge (arriba en
+    // el archivo) — se oculta este bloque completo cuando el formulario
+    // se abrió desde el Chart, se muestra normal desde Arreglo de la
+    // Canción.
+    if (!_editFromChartBridge) {
+      body.appendChild(b4);
+    }
+    _editFromChartBridge = false; // se consume una sola vez, por apertura
 
     // -- Bloque 5: Nota de producción --
     const b5 = modalBlock("Nota de producción");
