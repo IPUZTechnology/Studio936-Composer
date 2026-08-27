@@ -2148,6 +2148,16 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
   position:absolute;top:0;bottom:0;right:0;width:12%;
   background:rgba(20,20,25,.75);z-index:0;
 }
+/* Cambio 401: SOLO dentro de Vista Continua (no toca el editor principal
+   ni Vista Bloques, que siguen con el rectángulo plano de siempre) — se
+   le da una silueta que insinúa la forma real de un clavijero de
+   guitarra (se ensancha desde el mástil hacia la punta), en vez de un
+   rectángulo recto. No es un dibujo realista completo, es una insinuación
+   de la forma, como pidió Val ("no necesariamente toda prolongada, pero
+   sí que inicie"). */
+.s936-ch-cont-minireal .s936-ch-headstock-zone{
+  clip-path:polygon(0% 30%, 55% 0%, 100% 8%, 100% 92%, 55% 100%, 0% 70%);
+}
 .s936-ch-ff{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.35)}
 .s936-ch-ff.nut{width:3px;background:#00ffcc;box-shadow:0 0 4px rgba(0,255,204,.6)}
 .s936-ch-fd{
