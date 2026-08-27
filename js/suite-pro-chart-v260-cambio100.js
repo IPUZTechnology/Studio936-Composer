@@ -8402,35 +8402,31 @@ body.s936-chart-stage main{
         const chordRow = document.createElement("div");
         chordRow.className = "s936-ch-cont-row";
         // Cambio 368: columna fija reservada.
-        // Cambio 370: se revierte el botón de Zoom del Cambio 369 — Val lo
-        // rechazó explícitamente ("eso no es así, queda muy feo"). El
-        // espaciador queda vacío otra vez hasta definir bien qué control
-        // va aquí.
-        const chordSpacer = document.createElement("div");
-        chordSpacer.className = "s936-ch-cont-headerspacer s936-ch-mini-sesion-spacer";
-        // Cambio 378: la barra mini (Play/Loop/Zoom/Editar) vive DENTRO de
-        // esta columna fija de 160px — antes vivía en una fila aparte,
-        // arriba, desalineada con los mini-charts de acordes. Ahora queda
-        // en línea, misma fila, mismo estilo de celda.
-        // Cambio 386: la barra mini (▶↻⛶✎ y la de Lyric) SOLO se dibuja
-        // en la primera sección visible — antes se repetía en cada
-        // sección filtrada por el Zoom (ej. si filtrabas Solo + Outro,
-        // aparecían 2 barras iguales, una por sección). El control es
-        // uno solo, fijo, pensado para operar sobre "lo que se está
-        // viendo ahora" — no una copia por sección.
+        // Cambio 425: BUG real encontrado — la caja del espaciador
+        // (320px, con su fondo redondeado) se creaba y agregaba SIEMPRE,
+        // para todas las secciones, aunque la barra de control (que
+        // desde el Cambio 386 solo vive en la primera sección) nunca se
+        // metía adentro para arrIndex > 0. Eso dejaba una caja vacía
+        // reservando 320px en CADA sección — apenas se veía como una
+        // rayita en el borde de la pantalla (un pedacito de esa caja
+        // vacía asomando), pero era espacio real desperdiciado en cada
+        // sección. Ahora la caja entera (no solo su contenido) solo se
+        // crea para la primera sección — las demás no reservan nada.
         if (arrIndex === 0) {
+          const chordSpacer = document.createElement("div");
+          chordSpacer.className = "s936-ch-cont-headerspacer s936-ch-mini-sesion-spacer";
           chordSpacer.appendChild(buildSectionMiniBar(item.section, item.label || item.section || ""));
+          chordRow.appendChild(chordSpacer);
         }
-        chordRow.appendChild(chordSpacer);
 
         const lyricRow = document.createElement("div");
         lyricRow.className = "s936-ch-cont-row";
-        const lyricSpacer = document.createElement("div");
-        lyricSpacer.className = "s936-ch-cont-headerspacer s936-ch-mini-sesion-spacer";
         if (arrIndex === 0) {
+          const lyricSpacer = document.createElement("div");
+          lyricSpacer.className = "s936-ch-cont-headerspacer s936-ch-mini-sesion-spacer";
           lyricSpacer.appendChild(buildSectionLyricMiniBar(item.section));
+          lyricRow.appendChild(lyricSpacer);
         }
-        lyricRow.appendChild(lyricSpacer);
 
         const beatsData = getBeatsData(item.section);
         // Cambio 382: se agrega rhythmData acá — Vista Bloques ya lo
