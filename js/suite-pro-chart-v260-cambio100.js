@@ -1310,11 +1310,12 @@ window.Studio936SuiteProChart = (() => {
 }
 .s936-ch-continuous-toggle:hover{background:rgba(0,255,204,.16)}
 .s936-ch-cont-scroller{display:inline-flex;min-width:100%;overflow-x:auto;padding:10px}
-/* Cambio 396: ventana de ancho fijo — solo ~4 compases visibles a la vez
-   (160px de la columna de controles + 4 compases de 150px con su gap de
-   3px = ~772px). El scroller de arriba sigue igual (todo el contenido
-   adentro, scrollea normal) — esto solo recorta cuánto se ve de una. */
-.s936-ch-cont-viewport{max-width:780px;overflow:hidden}
+/* Cambio 397: Val pidió sacar el límite de "4 compases" — ahora la
+   ventana usa todo el ancho disponible de la pantalla (los compases que
+   entren, entran; no se fuerza un número fijo). También se agrandó el
+   compás en sí (ver .s936-ch-cont-cell, de 150px a 200px) para que los
+   mini-mapas se vean más grandes y claros. */
+.s936-ch-cont-viewport{width:100%;overflow:hidden}
 /* Cambio 389: se oculta la barra de scroll NATIVA del navegador (fea,
    pesada, abajo del todo) — el scroll sigue funcionando igual (rueda,
    touch, arrastre), solo no se dibuja la barra del sistema. Se reemplaza
@@ -1322,13 +1323,15 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-cont-scroller::-webkit-scrollbar{display:none}
 .s936-ch-cont-scroller{scrollbar-width:none;-ms-overflow-style:none}
 .s936-ch-cont-progress-track{
-  position:relative;height:3px;margin:0 10px 6px;
+  position:relative;height:6px;margin:0 10px 6px;
   background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;
+  cursor:pointer;
 }
 .s936-ch-cont-progress-thumb{
   position:absolute;top:0;bottom:0;left:0;
-  background:rgba(0,255,204,.4);border-radius:3px;
+  background:rgba(0,255,204,.45);border-radius:3px;
   transition:left .12s linear;
+  pointer-events:none;
 }
 .s936-ch-cont-block{flex-shrink:0;padding:0 10px 0 0;min-width:220px}
 .s936-ch-cont-label{font-size:.55rem;font-weight:800;text-transform:uppercase;
@@ -1392,7 +1395,7 @@ window.Studio936SuiteProChart = (() => {
      Ahora el compás de letra NUNCA puede ser más ancho que el de acorde
      de al lado — si el texto no entra, se parte en más de una línea
      (ver word-break en .s936-ch-lyric-beat), la celda no crece. */
-  width:150px;max-width:150px;
+  width:200px;max-width:200px;
   flex-shrink:0;box-sizing:border-box}
 .s936-ch-cont-cell.chord{font-weight:700;color:#e8f4f2;cursor:pointer;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -8250,6 +8253,34 @@ body.s936-chart-stage main{
       // el ancho disponible (y por lo tanto el %) puede cambiar.
       window.addEventListener("resize", syncProgressThumb, { passive: true });
       setTimeout(syncProgressThumb, 0);
+
+      // Cambio 397: la barra de progreso ahora se puede ARRASTRAR (clic y
+      // mover, o clic directo en cualquier punto de la barra) para mover
+      // el scroll manualmente hacia adelante o atrás — antes era solo un
+      // indicador visual, sin ninguna interacción.
+      const seekFromClientX = (clientX) => {
+        const rect = progressTrack.getBoundingClientRect();
+        const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+        const max = scroller.scrollWidth - scroller.clientWidth;
+        scroller.scrollLeft = ratio * max;
+      };
+      let draggingProgress = false;
+      progressTrack.addEventListener("mousedown", (e) => {
+        draggingProgress = true;
+        seekFromClientX(e.clientX);
+      });
+      window.addEventListener("mousemove", (e) => {
+        if (draggingProgress) seekFromClientX(e.clientX);
+      });
+      window.addEventListener("mouseup", () => { draggingProgress = false; });
+      progressTrack.addEventListener("touchstart", (e) => {
+        draggingProgress = true;
+        seekFromClientX(e.touches[0].clientX);
+      }, { passive: true });
+      window.addEventListener("touchmove", (e) => {
+        if (draggingProgress && e.touches[0]) seekFromClientX(e.touches[0].clientX);
+      }, { passive: true });
+      window.addEventListener("touchend", () => { draggingProgress = false; });
 
       // Cambio 261: péndulo + karaoke (a nivel de compás, no de palabra —
       // esta vista muestra un cuadro por compás, no por tiempo/palabra
