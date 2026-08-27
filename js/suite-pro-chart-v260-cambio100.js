@@ -902,9 +902,86 @@ window.Studio936SuiteProChart = (() => {
 
   }
 
+  // Cambio 390: BUG grande encontrado — collectChartRhythmSteps() solo
+  // sabe leer pasos desde el HTML de Vista Bloques (".s936-ch-beat",
+  // ".s936-ch-repeat-bar"). Vista Continua tiene su PROPIO HTML
+  // (".s936-ch-cont-*"), así que esa búsqueda siempre devolvía una lista
+  // vacía ahí — y startChartRhythmConsole() corta con
+  // "if (!_chartRhythmSteps.length) return false" ANTES de arrancar el
+  // motor de audio real (startChartCentralPracticeBridge). Por eso el
+  // Play nunca sonaba estando en Vista Continua: ni el principal, ni el
+  // de la barra mini de sesión — los dos pasan por esta misma función.
+  //
+  // Arreglo: si no se encuentra NINGÚN elemento de Vista Bloques (porque
+  // esa vista no está montada), se arman los mismos "pasos" directo
+  // desde los DATOS guardados (acordes + overrides de tiempo/ritmo por
+  // sección) — los mismos datos que usan las dos vistas para dibujarse,
+  // no HTML. Así el audio funciona sin importar cuál vista está activa.
+  function collectChartRhythmStepsFromData() {
+    try {
+      let arrangement = [];
+      let sections = {};
+      try {
+        const bridge = window.Studio936AppBridge;
+        const edState = bridge?.getEditorState?.() || {};
+        arrangement = Array.isArray(edState.arrangement) ? edState.arrangement : [];
+        sections = edState.sections || {};
+      } catch(_) {}
+      if (!arrangement.length) {
+        const draftFallback = readStructureDraftSnapshot();
+        arrangement = draftFallback?.arrangement || [];
+        sections = draftFallback?.edState?.sections || {};
+      }
+      const steps = [];
+      arrangement.forEach((item) => {
+        const sectionKey = item.section;
+        const chords = sections[sectionKey] || [];
+        const totalMeasures = chords.reduce((s, c) => s + (Number(c.bars) || 1), 0) || Number(item.bars) || 4;
+        const barMap = {};
+        let bi = 0;
+        chords.forEach((chord) => {
+          const bars = Math.max(1, Number(chord.bars) || 1);
+          for (let k = 0; k < bars; k++) barMap[bi + k] = { chord, isFirst: k === 0 };
+          bi += bars;
+        });
+        const beatsData = getBeatsData(sectionKey);
+        const rhythmData = getRhythmData(sectionKey);
+        for (let bar = 0; bar < totalMeasures; bar++) {
+          const info = barMap[bar];
+          const hasExplicitBeatInBar = [0, 1, 2, 3].some((b) => !!beatsData[bar + "_" + b] || !!rhythmData[bar + "_" + b]);
+          const isRepeatBar = info?.isFirst === false && !hasExplicitBeatInBar;
+          let activeChord = beatsData[bar + "_0"] || (isRepeatBar ? "" : (info?.chord?.name || ""));
+          for (let beat = 0; beat < 4; beat++) {
+            const explicit = beatsData[bar + "_" + beat];
+            if (explicit !== undefined) activeChord = explicit;
+            const mode = normalizeRhythmMode(rhythmData[bar + "_" + beat] || (beat === 0 ? (isRepeatBar ? "repeat" : "hit") : (activeChord ? "hold" : "rest")));
+            steps.push({
+              el: null,
+              section: sectionKey,
+              bar,
+              beat,
+              chord: activeChord,
+              rhythm: mode,
+              label: (item.label || sectionKey) + " · c" + (bar + 1) + " t" + (beat + 1)
+            });
+          }
+        }
+      });
+      return steps;
+    } catch (error) {
+      console.warn("Cambio 390: no se pudo armar los pasos desde datos", error);
+      return [];
+    }
+  }
+
   function collectChartRhythmSteps(container) {
     const root = container || document;
     const nodes = Array.from(root.querySelectorAll(".s936-ch-beat, .s936-ch-repeat-bar"));
+    if (!nodes.length) {
+      // Cambio 390: no hay Vista Bloques montada (ej. estamos en Vista
+      // Continua) — se arma desde datos en vez de devolver vacío.
+      return collectChartRhythmStepsFromData();
+    }
     const steps = [];
     let lastChord = "";
     let activeBarChord = "";
@@ -3474,6 +3551,18 @@ body.s936-chart-stage main{
   overflow-wrap:break-word;
   word-break:break-word;
   hyphens:auto;
+}
+/* Cambio 391: SOLO dentro de Vista Continua (compás fijo de 150px, cada
+   tiempo ~37px) — ahí partir la palabra en varias líneas la volvía
+   ilegible (letra por letra, salteada). Acá se fuerza una sola línea,
+   truncada con "..." si no entra, y letra más chica para que entren más
+   caracteres. Vista Bloques (celda mucho más ancha) sigue con el
+   comportamiento de siempre, sin tocar — no hace falta ahí.  */
+.s936-ch-cont-cell .s936-ch-lyric-beat{
+  font-size:.85rem;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 .s936-ch-lyric-beat.has-text{
   color:rgba(234,255,251,.82);
