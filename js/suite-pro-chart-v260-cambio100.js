@@ -1329,7 +1329,25 @@ window.Studio936SuiteProChart = (() => {
   }
 
   // ─── ESTILOS ──────────────────────────────────────────────────────────────
+  // Cambio 433: se instala UNA sola vez (bandera propia, separada de
+  // installStyles) — escucha el evento que dispara track-recorder.js
+  // cuando el usuario colapsa/expande el panel de pistas, y aplica esa
+  // misma clase a TODAS las columnas de Chart/Lyric ya dibujadas en
+  // pantalla en ese momento (puede haber varias vistas montadas).
+  let _lanesCollapseSyncInstalled = false;
+  function installLanesCollapseSync() {
+    if (_lanesCollapseSyncInstalled) return;
+    _lanesCollapseSyncInstalled = true;
+    window.addEventListener('studio936:lanes-collapse-changed', (ev) => {
+      const collapsed = !!(ev && ev.detail && ev.detail.collapsed);
+      document.querySelectorAll('.s936-ch-cont-headerspacer').forEach(el => {
+        el.classList.toggle('is-collapsed', collapsed);
+      });
+    });
+  }
+
   function installStyles() {
+    installLanesCollapseSync();
     if (document.getElementById(STYLE_ID)) return;
     const s = document.createElement("style");
     s.id = STYLE_ID;
@@ -1383,7 +1401,15 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-cont-row{display:flex;gap:3px;margin-bottom:3px}
 /* Cambio 414: Val aclaró que había pedido duplicar el ALTO, no el ancho
    — se revierte a 320px (posición cero, como antes del Cambio 413). */
-.s936-ch-cont-headerspacer{width:320px;flex-shrink:0}
+.s936-ch-cont-headerspacer{width:320px;flex-shrink:0;transition:width .15s ease}
+/* Cambio 433: cuando el botón único de track-recorder.js colapsa TODAS
+   las columnas de nombre a la vez (incluida esta, la de Chart/Lyric),
+   320px → 56px — mismo ancho que la columna colapsada de instrumento,
+   para que quede una tira pareja de arriba a abajo, como pidió Val
+   viendo GarageBand. Este archivo no tiene el botón en sí (vive en
+   track-recorder.js) — se entera por el evento
+   'studio936:lanes-collapse-changed' (ver abajo, installLanesCollapseSync). */
+.s936-ch-cont-headerspacer.is-collapsed{width:56px}
 /* Cambio 377/378: barra mini de sesión (Play/Loop/Zoom/Editar), ahora
    DENTRO de la columna fija de 160px (chordSpacer), en la misma fila
    que los mini-charts de acordes — mismo look de celda (fondo, radio,
@@ -1408,7 +1434,12 @@ window.Studio936SuiteProChart = (() => {
      agreguen a futuro con instrumentos) usan esta misma clase, así que
      comparten automáticamente la misma altura, sin tener que repetir el
      valor en cada una. */
-  min-height:56px;
+  /* Cambio 433: 56px → 68px — sube junto con .s936tr-lanelabel en
+     track-recorder.js (Cambio 431), que ahora mide 68px para igualar el
+     chip de acorde (.s936-ch-fret-mini). Como esta clase es el ESTÁNDAR
+     compartido (comentario de arriba), este único cambio ya empareja
+     Chart, Lyric e instrumentos de una vez. */
+  min-height:68px;
 }
 .s936-ch-mini-sesion-bar{display:flex;align-items:center;gap:4px;margin:0}
 /* Cambio 379 (ajuste): el control "+" reusado de track-recorder.js trae
@@ -1503,6 +1534,18 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-cont-zoombtn{width:100%;background:rgba(0,255,204,.08);border:1px solid rgba(0,255,204,.3);
   border-radius:6px;color:#7dffe0;font-size:.6rem;font-weight:700;padding:5px 4px;cursor:pointer;}
 .s936-ch-cont-zoombtn:hover{background:rgba(0,255,204,.16)}
+/* Cambio 434: fila de regla (número de compás + mm:ss real) — mismo
+   ancho fijo (320px) que .s936-ch-cont-cell para quedar SIEMPRE alineada
+   verticalmente con el acorde de abajo, sin cálculo de sincronización
+   aparte (se mueve con el mismo scroll horizontal porque es parte del
+   mismo bloque de sección). */
+.s936-ch-cont-rulerrow{margin-bottom:5px;opacity:.75}
+.s936-ch-cont-rulercell{
+  width:320px;max-width:320px;flex-shrink:0;box-sizing:border-box;
+  font-size:.55rem;font-weight:700;color:#7fa8a0;text-align:center;
+  letter-spacing:.3px;font-variant-numeric:tabular-nums;
+  border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:2px;
+}
 .s936-ch-cont-cell{background:rgba(255,255,255,.05);border-radius:5px;
   padding:4px 6px;font-size:.62rem;text-align:center;
   /* Cambio 389: ancho FIJO (no solo mínimo) — antes con min-width:150px,
@@ -8374,6 +8417,17 @@ body.s936-chart-stage main{
       const flatTimeline = [];
       let cursorSec = 0;
       const sectionAnchors = {}; // sectionKey -> segundo donde empieza esa sección en el reloj plano
+      // Cambio 434: contador de compás REAL, de punta a punta de toda la
+      // canción (no se reinicia por sección) — usado por la regla nueva
+      // de arriba (número de compás + mm:ss real, calculado con el BPM
+      // real, igual que ya hacía flatTimeline para el karaoke).
+      let globalBarCounter = 1;
+      function formatMMSS(totalSeconds) {
+        const s = Math.max(0, Math.round(totalSeconds));
+        const m = Math.floor(s / 60);
+        const rem = s % 60;
+        return m + ":" + (rem < 10 ? "0" : "") + rem;
+      }
 
       arrangement.forEach((item, arrIndex) => {
         let chords = sections[item.section] || [];
@@ -8417,6 +8471,24 @@ body.s936-chart-stage main{
         label.dataset.color = color;
         block.appendChild(label);
 
+        // Cambio 434: regla de compases/tiempo (como pidió Val viendo
+        // GarageBand) — una fila más, arriba del acorde, con el mismo
+        // ancho fijo de 320px por compás que ya usan chordRow/lyricRow,
+        // así que queda alineada automáticamente sin cálculo extra. El
+        // número de compás y el mm:ss salen del reloj REAL (BPM real,
+        // mismo cursorSec que ya usa el karaoke) — no son decorativos.
+        const rulerRow = document.createElement("div");
+        rulerRow.className = "s936-ch-cont-row s936-ch-cont-rulerrow";
+        if (arrIndex === 0) {
+          const rulerSpacer = document.createElement("div");
+          rulerSpacer.className = "s936-ch-cont-headerspacer";
+          if (window.Studio936TrackRecorder && window.Studio936TrackRecorder.isLanesCollapsed && window.Studio936TrackRecorder.isLanesCollapsed()) {
+            rulerSpacer.classList.add("is-collapsed");
+          }
+          rulerRow.appendChild(rulerSpacer);
+        }
+        block.appendChild(rulerRow);
+
         const chordRow = document.createElement("div");
         chordRow.className = "s936-ch-cont-row";
         // Cambio 368: columna fija reservada.
@@ -8433,6 +8505,13 @@ body.s936-chart-stage main{
         if (arrIndex === 0) {
           const chordSpacer = document.createElement("div");
           chordSpacer.className = "s936-ch-cont-headerspacer s936-ch-mini-sesion-spacer";
+          // Cambio 433: si el panel de instrumentos ya estaba colapsado
+          // (el usuario lo colapsó antes de entrar/repintar esta vista),
+          // esta columna nace ya colapsada — sin esto, quedaría 320px
+          // hasta el próximo clic en el botón de track-recorder.js.
+          if (window.Studio936TrackRecorder && window.Studio936TrackRecorder.isLanesCollapsed && window.Studio936TrackRecorder.isLanesCollapsed()) {
+            chordSpacer.classList.add("is-collapsed");
+          }
           chordSpacer.appendChild(buildSectionMiniBar(item.section, item.label || item.section || ""));
           chordRow.appendChild(chordSpacer);
         }
@@ -8442,6 +8521,9 @@ body.s936-chart-stage main{
         if (arrIndex === 0) {
           const lyricSpacer = document.createElement("div");
           lyricSpacer.className = "s936-ch-cont-headerspacer s936-ch-mini-sesion-spacer";
+          if (window.Studio936TrackRecorder && window.Studio936TrackRecorder.isLanesCollapsed && window.Studio936TrackRecorder.isLanesCollapsed()) {
+            lyricSpacer.classList.add("is-collapsed");
+          }
           lyricSpacer.appendChild(buildSectionLyricMiniBar(item.section));
           lyricRow.appendChild(lyricSpacer);
         }
@@ -8471,6 +8553,17 @@ body.s936-chart-stage main{
           });
           const isRepeatBar = info?.isFirst === false && !hasExplicitBeatInBar;
           const baseChordVal = isRepeatBar ? "" : (info?.chord?.name || "");
+
+          // Cambio 434: celda de regla para ESTE compás — cursorSec en
+          // este punto todavía es el segundo real donde empieza (recién
+          // se suma secondsPerBar al final del loop, como ya hacía
+          // flatTimeline), así que el mm:ss mostrado es el real.
+          const rulerCell = document.createElement("div");
+          rulerCell.className = "s936-ch-cont-rulercell";
+          rulerCell.textContent = globalBarCounter + " · " + formatMMSS(cursorSec);
+          rulerCell.dataset.bar = String(globalBarCounter);
+          rulerRow.appendChild(rulerCell);
+          globalBarCounter++;
 
           // Cambio 263: un compás puede tener MÁS de un acorde (uno por
           // tiempo, hasta 4) — antes esta vista solo leía el acorde a
@@ -8728,7 +8821,11 @@ body.s936-chart-stage main{
         // (mismo criterio que ya usa la barra mini de Chart/Lyric desde
         // el Cambio 386: un solo control/nombre, no uno repetido por
         // sección).
-        try { window.Studio936TrackRecorder?.renderSectionLanes?.(block, item.section, { hideHeader: true, hideLabelColumn: arrIndex !== 0 }); } catch(_) {}
+        // Cambio 434: se manda secondsPerBar (ya calculado arriba con el
+        // BPM real de la canción) — track-recorder.js lo usa para dibujar
+        // el ancho REAL de cada grabación (duración real / secondsPerBar
+        // * 320px), alineado a la misma regla de compases de esta vista.
+        try { window.Studio936TrackRecorder?.renderSectionLanes?.(block, item.section, { hideHeader: true, hideLabelColumn: arrIndex !== 0, secondsPerBar: secondsPerBar }); } catch(_) {}
         scroller.appendChild(block);
       });
 
