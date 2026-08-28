@@ -595,8 +595,31 @@
       .s936tr-lanebtn-lg:hover{background:rgba(255,255,255,.1);}
       .s936tr-lanebtn-lg.is-active{background:rgba(255,120,120,.22);border-color:rgba(255,120,120,.4);color:#ff9d9d;}
       .s936tr-lanebtn-lg.is-active.is-solo{background:rgba(0,255,204,.2);border-color:rgba(0,255,204,.45);color:#7dffe0;}
-      .s936tr-lanevol{display:flex;align-items:center;gap:3px;flex:1;min-width:0;}
-      .s936tr-lanevol input[type=range]{width:100%;accent-color:#5be8c9;height:14px;}
+      /* Cambio 441: slider de volumen rediseñado — Val: "muy grande y
+         muy tosco". El slider nativo del navegador dibuja una pista y
+         una perilla gruesas por defecto; con -webkit-appearance:none +
+         los pseudo-elementos de thumb/track se controla el tamaño real
+         (pista de 3px, perilla de 10px), mucho más fino/elegante. */
+      .s936tr-lanevol{display:flex;align-items:center;flex:1;min-width:20px;}
+      .s936tr-lanevol input[type=range]{
+        -webkit-appearance:none;appearance:none;width:100%;height:16px;
+        background:transparent;cursor:pointer;margin:0;
+      }
+      .s936tr-lanevol input[type=range]::-webkit-slider-runnable-track{
+        height:3px;border-radius:2px;background:rgba(255,255,255,.15);
+      }
+      .s936tr-lanevol input[type=range]::-webkit-slider-thumb{
+        -webkit-appearance:none;appearance:none;width:10px;height:10px;
+        border-radius:50%;background:#5be8c9;margin-top:-3.5px;
+        box-shadow:0 0 4px rgba(91,232,201,.5);
+      }
+      .s936tr-lanevol input[type=range]::-moz-range-track{
+        height:3px;border-radius:2px;background:rgba(255,255,255,.15);
+      }
+      .s936tr-lanevol input[type=range]::-moz-range-thumb{
+        width:10px;height:10px;border-radius:50%;background:#5be8c9;
+        border:none;box-shadow:0 0 4px rgba(91,232,201,.5);
+      }
       /* Cambio 431: botón "⋮" — abre el menú con ▶ Escuchar, balance
          izq/der y 🗑 Borrar, para no repetir esos tres en la fila
          siempre visible. */
@@ -999,14 +1022,15 @@
     track.title = info.label;
     track.style.backgroundColor = color;
     track.style.backgroundImage = tickBackgroundStyle();
-    // Cambio 440: Val decidió sacar Mute (no tocaba audio real igual, y
-    // el volumen ya cumple esa función: "si lo pongo en cero, ya está
-    // en mute"). La opacidad ahora sigue al VOLUMEN real en vez de a un
-    // flag de mute aparte — en 0 se ve bien apagada (0.15), a full se ve
-    // igual que antes (0.55). Puramente visual, coherente con que el
-    // volumen en sí también es cosmético todavía.
+    // Cambio 441: Val volvió a pedir Mute en todos lados (revierte el
+    // Cambio 440) — la opacidad ahora combina volumen Y mute: el
+    // volumen da la base (0.15 a 0.55), y muteado fuerza 0.12 sin
+    // importar el volumen.
     const vol0 = state.volume != null ? state.volume : 0.8;
-    track.style.opacity = String(0.15 + vol0 * 0.4);
+    function updateTrackOpacity() {
+      track.style.opacity = state.muted ? '0.12' : String(0.15 + (state.volume != null ? state.volume : 0.8) * 0.4);
+    }
+    updateTrackOpacity();
     // Cambio 434: ancho REAL según la duración grabada — Val fue claro
     // en que esto tiene que salir de BPM+compases, no ser decorativo.
     // takes[].durationSec ya se guarda al terminar de grabar (Cambio
@@ -1026,13 +1050,10 @@
       }
     }
 
-    // Cambio 431: solo (headphone) — botón grande (26x26, clase
-    // .s936tr-lanebtn-lg) siempre visible. ▶ Escuchar, balance y 🗑
-    // Borrar se movieron al menú "⋮" para no amontonar la fila.
-    // Cambio 440: se saca el botón de Mute — Val decidió que el
-    // control de volumen ya cumple esa función ("si lo pongo en cero,
-    // ya está en mute"); no tocaba audio real de todas formas.
-
+    // Cambio 431: solo (headphone) — botón grande, siempre visible.
+    // Cambio 441: Mute vuelve (Val lo confirmó otra vez, en todos
+    // lados) — orden final: Solo, Volumen, Mute, ⋮ (con L/R Balance,
+    // ▶ Escuchar y 🗑 Borrar adentro).
     const soloBtn = document.createElement('button');
     soloBtn.type = 'button';
     soloBtn.className = 's936tr-lanebtn-lg';
@@ -1047,14 +1068,11 @@
       soloBtn.classList.toggle('is-active', state.solo);
     };
 
-    // Cambio 431: slider de VOLUMEN real (0-100%), reemplaza al de pan
-    // en la fila visible — pan sigue existiendo, pero ahora vive en el
-    // menú "⋮" de abajo, junto con Escuchar y Borrar.
+    // Cambio 441: slider de volumen más angosto/suave (Val: "muy grande
+    // y muy tosco") — ver CSS .s936tr-lanevol para el thumb chico y la
+    // pista delgada nuevos.
     const volWrap = document.createElement('div');
     volWrap.className = 's936tr-lanevol';
-    const volIcon = document.createElement('span');
-    volIcon.textContent = '🔉';
-    volIcon.style.cssText = 'font-size:11px;flex-shrink:0;';
     const volSlider = document.createElement('input');
     volSlider.type = 'range';
     volSlider.min = '0'; volSlider.max = '1'; volSlider.step = '0.01';
@@ -1062,9 +1080,25 @@
     volSlider.title = 'Volumen de ' + info.label;
     volSlider.oninput = () => {
       state.volume = Number(volSlider.value);
-      track.style.opacity = String(0.15 + state.volume * 0.4);
+      updateTrackOpacity();
     };
-    volWrap.append(volIcon, volSlider);
+    volWrap.appendChild(volSlider);
+
+    const muteBtn = document.createElement('button');
+    muteBtn.type = 'button';
+    muteBtn.className = 's936tr-lanebtn-lg';
+    muteBtn.title = state.muted ? 'Activar sonido de ' + info.label : 'Silenciar ' + info.label;
+    muteBtn.setAttribute('aria-label', 'Silenciar ' + info.label);
+    muteBtn.textContent = state.muted ? '🔇' : '🔊';
+    muteBtn.classList.toggle('is-active', state.muted);
+    muteBtn.onclick = (e) => {
+      e.stopPropagation();
+      state.muted = !state.muted;
+      muteBtn.textContent = state.muted ? '🔇' : '🔊';
+      muteBtn.title = state.muted ? 'Activar sonido de ' + info.label : 'Silenciar ' + info.label;
+      muteBtn.classList.toggle('is-active', state.muted);
+      updateTrackOpacity();
+    };
 
     const moreWrap = document.createElement('div');
     moreWrap.className = 's936tr-lanemore-wrap';
@@ -1151,7 +1185,7 @@
       if (menu.classList.contains('is-open') && e.target !== moreBtn) closeLaneMenu();
     });
 
-    label.append(iconSpan, nameSpan, soloBtn, volWrap, moreWrap);
+    label.append(iconSpan, nameSpan, soloBtn, volWrap, muteBtn, moreWrap);
 
     // Cambio 436: el <select> nativo de canal MIDI (Ch 1-16) se veía
     // "expuesto" — distinto tamaño y estilo que el resto de los

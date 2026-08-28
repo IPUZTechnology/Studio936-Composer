@@ -227,28 +227,27 @@ window.Studio936SuiteProChart = (() => {
   // (comportamiento de "Play"). Antes no existía esta distinción — todo
   // usaba módulo, así que siempre se repetía sin parar.
   let _chartRhythmLoop = true;
-  // Cambio 412: solo por canal — Chart (acordes) y Lyric (letra), cada
-  // uno independiente. Con un canal en Solo, los demás quedan
+  // Cambio 412: Mute/Solo por canal — Chart (acordes) y Lyric (letra),
+  // cada uno independiente. Con un canal en Solo, los demás quedan
   // silenciados automáticamente.
-  // Cambio 440: Val decidió sacar Mute de TODOS lados (incluido Chart)
-  // — el volumen ya cumple esa función ("en cero, ya está en mute").
-  // A diferencia de instrumentos/Lyric (donde el volumen es cosmético),
-  // acá SÍ hace falta conectar el volumen a algo real: isChartChannelAudible()
-  // corta sonido de verdad en scheduleChartPracticeGroove(), y antes
-  // dependía de _chartChannelMuted (que ya no existe). Ahora depende de
-  // _chartChannelVolume <= umbral chico — "bajarlo a cero" sigue
-  // teniendo el mismo efecto real que tenía el botón de Mute viejo.
+  // Cambio 441: Mute vuelve (Val lo pidió de nuevo, en todos lados,
+  // revirtiendo el Cambio 440) — combinado con volumen: el canal está
+  // audible si NO está muteado Y el volumen no está en cero. Solo sigue
+  // siendo el gate de más arriba (si hay Solo activo en cualquier
+  // canal, los demás quedan afuera salvo que sean el que está en Solo).
+  let _chartChannelMuted = false;
   let _chartChannelSolo = false;
   let _lyricChannelSolo = false;
-  // Cambio 439/440: volumen de Chart SÍ es real (ver isChartChannelAudible
+  // Cambio 439: volumen de Chart SÍ es real (ver isChartChannelAudible
   // abajo); el de Lyric sigue siendo cosmético (ese canal todavía no
   // produce sonido propio).
   let _chartChannelVolume = 0.8;
   let _lyricChannelVolume = 0.8;
   function isChartChannelAudible() {
+    const locallyAudible = !_chartChannelMuted && _chartChannelVolume > 0.02;
     const anySolo = _chartChannelSolo || _lyricChannelSolo;
-    if (anySolo) return _chartChannelSolo;
-    return _chartChannelVolume > 0.02;
+    if (anySolo) return _chartChannelSolo && locallyAudible;
+    return locallyAudible;
   }
   let _chartRhythmPulse = false;
   let _chartActiveStepEl = null;
@@ -1556,10 +1555,31 @@ window.Studio936SuiteProChart = (() => {
   font-size:.62rem;font-weight:700;color:#c9d8d5;margin-right:2px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:44px;flex-shrink:0;
 }
-/* Cambio 439: slider de volumen — mismo criterio que .s936tr-lanevol en
-   track-recorder.js, versión propia para no depender de ese archivo. */
-.s936-ch-mini-vol{display:flex;align-items:center;flex:1;min-width:24px;}
-.s936-ch-mini-vol input[type=range]{width:100%;accent-color:#5be8c9;height:14px;}
+/* Cambio 441: mismo slider fino/elegante que .s936tr-lanevol en
+   track-recorder.js — antes usaba accent-color, que en muchos
+   navegadores sigue dibujando una pista y perilla gruesas (Val: "muy
+   grande y muy tosco"). Con -webkit-appearance:none + pseudo-elementos
+   se controla el tamaño real. */
+.s936-ch-mini-vol{display:flex;align-items:center;flex:1;min-width:16px;}
+.s936-ch-mini-vol input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:16px;
+  background:transparent;cursor:pointer;margin:0;
+}
+.s936-ch-mini-vol input[type=range]::-webkit-slider-runnable-track{
+  height:3px;border-radius:2px;background:rgba(255,255,255,.15);
+}
+.s936-ch-mini-vol input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:10px;height:10px;
+  border-radius:50%;background:#5be8c9;margin-top:-3.5px;
+  box-shadow:0 0 4px rgba(91,232,201,.5);
+}
+.s936-ch-mini-vol input[type=range]::-moz-range-track{
+  height:3px;border-radius:2px;background:rgba(255,255,255,.15);
+}
+.s936-ch-mini-vol input[type=range]::-moz-range-thumb{
+  width:10px;height:10px;border-radius:50%;background:#5be8c9;
+  border:none;box-shadow:0 0 4px rgba(91,232,201,.5);
+}
 /* Cambio 438: cuando el riel colapsa la columna (56px), TODO adentro de
    la barra de Chart/Lyric se oculta EXCEPTO el ícono de canal (🎼/🎤) —
    antes no había ninguna regla acá, así que los botones simplemente se
@@ -2026,6 +2046,18 @@ body.s936-chart-stage #s936-chart-view-panel .s936-ch-sec{
 }
 .s936-ch-title{font-size:.72rem;font-weight:900;color:#00ffcc;text-transform:uppercase;letter-spacing:.8px}
 .s936-ch-meta{font-size:.5rem;color:rgba(255,255,255,.35);margin-top:1px}
+/* Cambio 441: fila que envuelve metaEl + el ícono de "Editar secciones"
+   (mudado acá desde la barra de Chart) — flex row simple, deja lugar
+   para agregar más íconos a este sector más adelante. */
+.s936-ch-meta-row{display:flex;align-items:center;gap:6px;margin-top:1px}
+.s936-ch-meta-row .s936-ch-meta{margin-top:0}
+.s936-ch-meta-icon-btn{
+  width:18px;height:18px;padding:0;border-radius:4px;
+  border:1px solid rgba(0,255,204,.25);background:rgba(0,255,204,.06);
+  color:#7dffe0;font-size:.6rem;cursor:pointer;line-height:1;
+  display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.s936-ch-meta-icon-btn:hover{background:rgba(0,255,204,.16)}
 .s936-ch-meta.focus{color:#ffe066;font-weight:900;text-transform:uppercase;letter-spacing:.45px}
 
 .s936-ch-inst-wrap{position:relative}
@@ -7937,15 +7969,32 @@ body.s936-chart-stage main{
     // Cambio 71 (via Structure): versión visible del Chart, para confirmar de
     // un vistazo si el navegador corre esta versión o una anterior en caché.
     metaEl.textContent = (edState.style || "") + (edState.bpm ? " · " + edState.bpm + " BPM" : "") + " · " + totalBars + " comp. · CHART CAMBIO 105";
+
+    // Cambio 441: "✎ Editar secciones" se mudó acá desde el menú "⋮" de
+    // la barra de Chart (Val: "no va allí, la pones en el Header de
+    // Bloque debajo del título de la canción"). metaRow envuelve el
+    // texto de metadatos + este ícono, para poder agregar más íconos a
+    // este sector en el futuro sin reestructurar de nuevo (Val: "vamos
+    // a poner más íconos en ese sector").
+    const metaRow = document.createElement("div");
+    metaRow.className = "s936-ch-meta-row";
+    const editSectionsBtn = document.createElement("button");
+    editSectionsBtn.type = "button";
+    editSectionsBtn.className = "s936-ch-meta-icon-btn";
+    editSectionsBtn.textContent = "✎";
+    editSectionsBtn.title = "Editar secciones (abre Compose)";
+    editSectionsBtn.onclick = (e) => { e.stopPropagation(); openComposeExpanded(); };
+    metaRow.append(metaEl, editSectionsBtn);
+
     const focusNow = readFocusSection();
     if (focusNow?.sections?.length) {
       const focusEl = document.createElement("div");
       focusEl.className = "s936-ch-meta focus";
       const names = focusNow.sections.map((s, i) => (focusNow.labels && focusNow.labels[i]) || (i === 0 ? focusNow.label : "") || s).filter(Boolean);
       focusEl.textContent = "Zoom sección" + (focusNow.sections.length > 1 ? "es" : "") + ": " + names.join(" + ");
-      info.append(titleEl, metaEl, focusEl);
+      info.append(titleEl, metaRow, focusEl);
     } else {
-      info.append(titleEl, metaEl);
+      info.append(titleEl, metaRow);
     }
 
     const instWrap = document.createElement("div");
@@ -8472,19 +8521,15 @@ body.s936-chart-stage main{
       // Cambio 412: Solo del canal Chart (acordes) — independiente del
       // canal Lyric. Con Solo activo en cualquiera de los dos, el otro
       // queda silenciado automáticamente.
-      // Cambio 440: se saca Mute (Val decidió que ninguna barra lo
-      // tenga) — el volumen de abajo ya cumple esa función Y quedó
-      // conectado al audio real (ver isChartChannelAudible arriba), así
-      // que "bajarlo a cero" sigue cortando el groove de práctica igual
-      // que hacía el botón de Mute viejo.
       const soloBtn = mk("🎧", _chartChannelSolo ? "Quitar Solo (Chart)" : "Solo (Chart) — silencia los demás canales", () => {
         _chartChannelSolo = !_chartChannelSolo;
         soloBtn.classList.toggle("is-active", _chartChannelSolo);
       }, _chartChannelSolo ? "is-active" : "");
 
-      // Cambio 439: slider de volumen, mismo criterio visual que
-      // .s936tr-lanevol en track-recorder.js. Cambio 440: en Chart este
-      // volumen SÍ es real — updateea isChartChannelAudible() en vivo.
+      // Cambio 439/441: slider de volumen — en Chart es real, conectado
+      // a isChartChannelAudible(). Cambio 441: también actualiza el
+      // estado visual de muteBtn (abajo) si el volumen sube desde 0 con
+      // mute activo, para que no queden dos controles contradictorios.
       const volWrap = document.createElement("div");
       volWrap.className = "s936-ch-mini-vol";
       const volSlider = document.createElement("input");
@@ -8495,14 +8540,27 @@ body.s936-chart-stage main{
       volSlider.oninput = () => { _chartChannelVolume = Number(volSlider.value); };
       volWrap.appendChild(volSlider);
 
-      const editBtn = () => openComposeExpanded();
+      // Cambio 441: ☰ Estructura de la canción pasa de estar escondida
+      // en el "⋮" a ser un botón siempre visible — Val la quiere
+      // expuesta ("es muy importante ahí").
+      const estructuraBtn = mk(isFocused ? "↩" : "☰", isFocused ? "Salir de Estructura de la canción" : "Estructura de la canción", () => {
+        openZoomSectionPicker(estructuraBtn, sectionKey);
+      }, isFocused ? "is-active" : "");
 
-      // Cambio 438: antes los 6 controles (▶ ↻ ☰ ✎ 🔊 S) estaban SIEMPRE
-      // visibles, amontonados en una sola fila — Val pidió el mismo
-      // criterio que ya tienen los instrumentos desde el Cambio 431:
-      // dejar Mute/Solo (los más usados, y los que dan un estado
-      // permanente que conviene ver de un vistazo) siempre a la vista,
-      // y mover Practicar/Loop/Estructura/Editar a un menú "⋮".
+      // Cambio 441: Mute vuelve (Val lo confirmó otra vez, en todos
+      // lados) — CONFIRMADO real: corta sonido de verdad en
+      // scheduleChartPracticeGroove() vía isChartChannelAudible().
+      const muteBtn = mk(_chartChannelMuted ? "🔇" : "🔊", _chartChannelMuted ? "Activar sonido (Chart)" : "Silenciar (Chart)", () => {
+        _chartChannelMuted = !_chartChannelMuted;
+        muteBtn.textContent = _chartChannelMuted ? "🔇" : "🔊";
+        muteBtn.classList.toggle("is-active", _chartChannelMuted);
+      }, _chartChannelMuted ? "is-active" : "");
+
+      // Cambio 441: "✎ Editar secciones" se saca de acá — Val pidió que
+      // viva en el header de la canción (título/BPM), no en esta barra.
+      // Ver el nuevo botón junto a metaEl en la función render() de más
+      // arriba. "Detectar instrumento" es una función NUEVA, todavía sin
+      // construir (placeholder) — Val la pidió acá, adentro del "⋮".
       const moreWrap = buildMiniMoreMenu([
         { label: "▶ Practicar esta sección", onClick: () => {
           const panel = getActiveChartPanel();
@@ -8518,13 +8576,12 @@ body.s936-chart-stage main{
           const panel = getActiveChartPanel();
           startChartSectionPractice(panel, sectionKey, { withPulse: false, sourceLabel: "Loop sección", loop: true });
         } },
-        { label: isFocused ? "↩ Salir de Estructura de la canción" : "☰ Estructura de la canción", isActive: isFocused, onClick: () => {
-          openZoomSectionPicker(moreWrap.querySelector(".s936-ch-mini-sesion-btn"), sectionKey);
-        } },
-        { label: "✎ Editar secciones", onClick: editBtn }
+        { label: "🔍 Detectar instrumento (próximo cambio)", onClick: () => {
+          alert("Detectar instrumento — todavía no está construido, es la próxima función a diseñar.");
+        } }
       ]);
 
-      bar.append(soloBtn, volWrap, moreWrap);
+      bar.append(soloBtn, volWrap, estructuraBtn, muteBtn, moreWrap);
       return bar;
     }
 
@@ -8553,6 +8610,19 @@ body.s936-chart-stage main{
       nameSpan.textContent = "Lyric";
       bar.appendChild(nameSpan);
 
+      // Cambio 441: mismo helper "mk" que ya usa buildSectionMiniBar
+      // (Chart), versión local acá — antes esta función no lo tenía
+      // porque solo armaba botones sueltos con document.createElement.
+      const mkLyricBtn = (symbol, title, onClick) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "s936-ch-mini-sesion-btn";
+        b.textContent = symbol;
+        b.title = title;
+        b.onclick = (e) => { e.stopPropagation(); onClick(); };
+        return b;
+      };
+
       const openLyricBtn = () => {
         try {
           window.dispatchEvent(new CustomEvent("studio936:chart-open-lyrics-editor", {
@@ -8561,29 +8631,14 @@ body.s936-chart-stage main{
         } catch(_) {}
       };
 
-      // Cambio 412: Solo del canal Lyric — el solo sí tiene efecto real
-      // (silencia a Chart vía isChartChannelAudible), aunque el canal
-      // Lyric en sí todavía no produce sonido propio (el 🎷 de abajo es
-      // un placeholder).
-      // Cambio 440: se saca Mute (Val decidió que ninguna barra lo
-      // tenga) — acá no se pierde nada real, mutear Lyric nunca calló
-      // nada en este canal.
-      const lyricSoloBtn = document.createElement("button");
-      lyricSoloBtn.type = "button";
-      lyricSoloBtn.className = "s936-ch-mini-sesion-btn" + (_lyricChannelSolo ? " is-active" : "");
-      // Cambio 439: 🎧 en vez de "S" — mismo ícono que el resto.
-      lyricSoloBtn.textContent = "🎧";
-      lyricSoloBtn.title = _lyricChannelSolo ? "Quitar Solo (Lyric)" : "Solo (Lyric) — silencia los demás canales";
-      lyricSoloBtn.onclick = (e) => {
-        e.stopPropagation();
-        _lyricChannelSolo = !_lyricChannelSolo;
-        lyricSoloBtn.classList.toggle("is-active", _lyricChannelSolo);
-      };
-      bar.appendChild(lyricSoloBtn);
+      // Cambio 441: rediseño completo de esta barra — Val sacó Solo y
+      // Mute de Lyric (no aportaban mucho: mutear nunca calló nada real
+      // acá, y Solo era el único con efecto real pero indirecto sobre
+      // Chart). En su lugar quedan expuestas las 3 acciones que sí
+      // importan en este canal: Abrir Editor, Volumen, Convertir a
+      // sonido — antes las dos últimas estaban escondidas en el "⋮".
+      const openEditorBtn = mkLyricBtn("✎", "Abrir editor de letra de esta sección", openLyricBtn);
 
-      // Cambio 439: slider de volumen — mismo motivo que en Chart, para
-      // igualar la cantidad de controles visibles con una fila de
-      // instrumento. Cosmético por ahora.
       const lyricVolWrap = document.createElement("div");
       lyricVolWrap.className = "s936-ch-mini-vol";
       const lyricVolSlider = document.createElement("input");
@@ -8593,22 +8648,29 @@ body.s936-chart-stage main{
       lyricVolSlider.title = "Volumen de Lyric";
       lyricVolSlider.oninput = () => { _lyricChannelVolume = Number(lyricVolSlider.value); };
       lyricVolWrap.appendChild(lyricVolSlider);
-      bar.appendChild(lyricVolWrap);
 
-      // Cambio 438/440: mismo criterio que la barra de Chart — Abrir
-      // letra y Convertir a sonido (todavía placeholder) se mueven al
-      // "⋮", Solo queda siempre a la vista (Mute se sacó del todo).
+      // Cambio 441: "Convertir letra en sonido" pasa de estar escondido
+      // en el "⋮" a visible siempre — sigue siendo placeholder (todavía
+      // no está construido, ver handoff: conecta con el pentagrama de
+      // pitch que ya existe en structure.js pero que el Chart no lee
+      // todavía).
+      const convertBtn = mkLyricBtn("🎷", "Convertir letra en sonido (próximo cambio)", () => {
+        alert("Convertir letra en sonido — todavía no está construido.");
+      });
+      convertBtn.classList.add("is-placeholder");
+
+      // Cambio 441: "Crear sonido en pentagrama" — función NUEVA
+      // (todavía sin diseñar) que Val pidió escondida en el "⋮". Se dejó
+      // como placeholder, igual que "Detectar instrumento" en la barra
+      // de Chart — no se inventa una conexión real sin que Val la
+      // confirme primero.
       const moreWrap = buildMiniMoreMenu([
-        { label: "✎ Abrir letra de esta sección", onClick: openLyricBtn },
-        { label: "🎷 Convertir letra en sonido (próximo cambio)", onClick: () => {} }
+        { label: "🎼 Crear sonido en pentagrama (próximo cambio)", onClick: () => {
+          alert("Crear sonido en pentagrama — todavía no está construido, es la próxima función a diseñar.");
+        } }
       ]);
-      // Cambio 438: la opción "Convertir a sonido" sigue siendo un
-      // placeholder — se deja visible en el menú (para que no desaparezca
-      // de la vista, Val la quiere ahí como recordatorio) pero deshabilitada.
-      const toVoiceMenuBtn = moreWrap.querySelector(".s936-ch-mini-more-menu button:last-child");
-      if (toVoiceMenuBtn) { toVoiceMenuBtn.disabled = true; toVoiceMenuBtn.style.opacity = ".4"; toVoiceMenuBtn.style.cursor = "not-allowed"; }
-      bar.appendChild(moreWrap);
 
+      bar.append(openEditorBtn, lyricVolWrap, convertBtn, moreWrap);
       return bar;
     }
 
