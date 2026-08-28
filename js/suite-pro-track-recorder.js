@@ -44,7 +44,11 @@
     // Cambio 442: nombres más cortos — Val notó que "Teclado MIDI" y
     // "Set electrónico" se truncaban ("Teclado ...", "Set elect...")
     // por el ancho fijo de la columna de nombre.
-    { id: 'tecladomidi', label: 'Solo MIDI' },
+    // Cambio 443: "Solo MIDI" → "MIDI" — Val notó que "Solo" ya es el
+    // nombre de un botón (Solo instrumento) y podía confundir con el
+    // nombre del canal; "MIDI" a secas entra sin truncarse en los 50px
+    // fijos del nombre.
+    { id: 'tecladomidi', label: 'MIDI' },
     { id: 'setelectronico', label: 'Electro' },
     { id: 'otro', label: 'Otro instrumento' }
   ];
@@ -531,7 +535,14 @@
       .s936tr-btn.small{padding:5px 8px;font-size:.72rem;flex:none;}
       .s936tr-hint{font-size:.72rem;color:#7fa8a0;margin-top:10px;line-height:1.4;}
       .s936tr-empty{font-size:.78rem;color:#7fa8a0;font-style:italic;}
-      .s936tr-lanewrap{padding:6px 4px 2px;display:flex;flex-direction:column;gap:5px;}
+      /* Cambio 443: padding-top 6px → 2px — Val notó un espacio más
+         grande entre Lyric y el primer instrumento que entre
+         instrumento e instrumento. Causa real: la fila de Lyric
+         (.s936-ch-cont-row en suite-pro-chart-v260-cambio100.js) ya
+         trae margin-bottom:3px propio; sumado a este padding-top:6px
+         daba 9px total, contra los 5px del gap normal entre filas
+         (gap:5px, abajo). Con 2px acá, 2+3=5px — igual que el resto. */
+      .s936tr-lanewrap{padding:2px 4px 2px;display:flex;flex-direction:column;gap:5px;}
       /* Cambio 431: botón único que colapsa/expande TODA la columna de
          320px de una vez (todas las filas de instrumento a la vez) —
          Val mostró GarageBand: la columna se achica a solo el ícono del
@@ -1014,6 +1025,14 @@
     iconSpan.className = 's936tr-laneicon';
     iconSpan.title = info.label;
     iconSpan.textContent = icon;
+    // Cambio 443: chip con fondo tenue del color del instrumento — Val
+    // notó que el ícono de Chart/Lyric SÍ tiene una caja de fondo
+    // (Cambio 439) y este quedaba como emoji suelto, sin ese peso
+    // visual. Mismo criterio, con el color propio de cada instrumento
+    // (el mismo que ya usa la franja de la pista) en vez de uno fijo.
+    iconSpan.style.background = color + '24'; // 24 hex ≈ 14% opacidad
+    iconSpan.style.border = '1px solid ' + color + '4d'; // 4d hex ≈ 30% opacidad
+    iconSpan.style.borderRadius = '6px';
 
     // Cambio 367: el nombre del instrumento ahora se ve escrito, no solo
     // como tooltip del ícono — Val no reconocía qué instrumento era cada
@@ -1204,26 +1223,24 @@
     // criterio de que "⋮" sea siempre el último elemento de la fila.
     label.append(iconSpan, nameSpan, soloBtn, volWrap, muteBtn);
 
-    // Cambio 436: el <select> nativo de canal MIDI (Ch 1-16) se veía
-    // "expuesto" — distinto tamaño y estilo que el resto de los
-    // controles, y podía desalinear la fila hacia la derecha. Ahora es
-    // un botón del MISMO tamaño (26px alto, como muteBtn/soloBtn/⋮) que
-    // abre un popover con los 16 canales — mismo patrón de portal a
-    // document.body que ya usa el menú "⋮" (Cambio 435), para no
-    // repetir el mismo problema de isolation:isolate si esta fila
-    // termina apareciendo dentro del panel del Chart en el futuro.
+    // Cambio 443: el botón "Ch N" deja de ser un botón siempre visible
+    // en la fila — Val simplificó el criterio a Solo+Volumen+Mute
+    // visibles nomás, en TODOS los instrumentos por igual (incluido
+    // MIDI). "Canal MIDI" ahora vive como una fila más adentro del "⋮",
+    // igual que Balance L/R o Borrar pista. Abre el mismo popover de
+    // grilla de 16 canales de siempre (portado a document.body), solo
+    // que ahora el gatillo es una fila de texto dentro del menú en vez
+    // de un botón cuadrado aparte.
     if (instrumentId === 'tecladomidi') {
-      const midiWrap = document.createElement('div');
-      midiWrap.className = 's936tr-lanemore-wrap';
-      const midiBtn = document.createElement('button');
-      midiBtn.type = 'button';
-      midiBtn.className = 's936tr-lanebtn-lg is-wide';
-      midiBtn.title = 'Canal MIDI';
-      const setMidiBtnLabel = () => { midiBtn.textContent = 'Ch ' + (state.midiChannel || 1); };
-      setMidiBtnLabel();
-
       const midiMenu = document.createElement('div');
       midiMenu.className = 's936tr-lanemenu s936tr-midi-menu';
+
+      const midiRow = document.createElement('button');
+      midiRow.type = 'button';
+      midiRow.className = 's936tr-lanemenubtn';
+      const setMidiRowLabel = () => { midiRow.textContent = '🎚 Canal MIDI: Ch ' + (state.midiChannel || 1); };
+      setMidiRowLabel();
+
       for (let ch = 1; ch <= 16; ch++) {
         const chBtn = document.createElement('button');
         chBtn.type = 'button';
@@ -1233,7 +1250,7 @@
         chBtn.onclick = (e) => {
           e.stopPropagation();
           state.midiChannel = ch;
-          setMidiBtnLabel();
+          setMidiRowLabel();
           midiMenu.querySelectorAll('.s936tr-lanemenubtn').forEach(b => b.classList.remove('is-active'));
           chBtn.classList.add('is-active');
           closeMidiMenu();
@@ -1243,33 +1260,34 @@
 
       function closeMidiMenu() {
         midiMenu.classList.remove('is-open');
-        if (midiMenu.parentNode !== midiWrap) midiWrap.appendChild(midiMenu);
+        if (midiMenu.parentNode !== moreWrap) moreWrap.appendChild(midiMenu);
       }
       midiMenu._closeSelf = closeMidiMenu;
-      function openMidiMenu() {
+      midiRow.onclick = (e) => {
+        e.stopPropagation();
+        // Cambio 443: se toma la posición ANTES de cerrar el "⋮" de
+        // afuera (closeLaneMenu lo devuelve a su reposo, donde ya no
+        // sirve para calcular dónde abrir la grilla de canales).
+        const r = midiRow.getBoundingClientRect();
+        closeLaneMenu();
         document.querySelectorAll('.s936tr-lanemenu.is-open').forEach(m => {
           if (m !== midiMenu && typeof m._closeSelf === 'function') m._closeSelf();
         });
-        const r = midiBtn.getBoundingClientRect();
         document.body.appendChild(midiMenu);
         midiMenu.style.top = (r.bottom + 4) + 'px';
         midiMenu.style.left = Math.max(6, r.right - 150) + 'px';
         midiMenu.classList.add('is-open');
-      }
-      midiBtn.onclick = (e) => {
-        e.stopPropagation();
-        if (midiMenu.classList.contains('is-open')) closeMidiMenu();
-        else openMidiMenu();
       };
       document.addEventListener('click', (e) => {
-        if (midiMenu.classList.contains('is-open') && e.target !== midiBtn) closeMidiMenu();
+        if (midiMenu.classList.contains('is-open') && e.target !== midiRow) closeMidiMenu();
       });
 
-      midiWrap.append(midiBtn, midiMenu);
-      label.appendChild(midiWrap);
+      // Cambio 443: se inserta ANTES de delRow (Balance, Canal MIDI,
+      // Borrar — mismo orden que antes: acciones primero, borrar al
+      // final).
+      menu.insertBefore(midiRow, delRow);
+      moreWrap.appendChild(midiMenu); // reposo normal, oculto
     }
-    // Cambio 442: "⋮" siempre al final — después del botón de canal MIDI
-    // si esta fila es Teclado MIDI, o inmediatamente si no lo es.
     label.appendChild(moreWrap);
     row.append(label, track);
     return row;

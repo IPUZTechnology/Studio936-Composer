@@ -8562,7 +8562,19 @@ body.s936-chart-stage main{
       // Ver el nuevo botón junto a metaEl en la función render() de más
       // arriba. "Detectar instrumento" es una función NUEVA, todavía sin
       // construir (placeholder) — Val la pidió acá, adentro del "⋮".
+      // Cambio 443: Mute se esconde acá (Val simplificó a Solo+Volumen+
+      // Estructura visibles) — como buildMiniMoreMenu no da una
+      // referencia al botón creado, se guarda la función de la etiqueta
+      // para poder actualizar el texto/estado desde el propio onClick,
+      // buscándolo por posición (primer botón del menú) igual que ya se
+      // hace más abajo con moreWrap.querySelector(...) para Estructura.
+      const chartMuteLabel = () => (_chartChannelMuted ? "🔇 Activar sonido (Chart)" : "🔊 Silenciar (Chart)");
       const moreWrap = buildMiniMoreMenu([
+        { label: chartMuteLabel(), isActive: _chartChannelMuted, onClick: () => {
+          _chartChannelMuted = !_chartChannelMuted;
+          const btn = moreWrap.querySelector(".s936-ch-mini-more-menu button:first-child");
+          if (btn) { btn.textContent = chartMuteLabel(); btn.classList.toggle("is-active", _chartChannelMuted); }
+        } },
         { label: "▶ Practicar esta sección", onClick: () => {
           const panel = getActiveChartPanel();
           const ok = startChartSectionPractice(panel, sectionKey, { withPulse: false, sourceLabel: "Sección", loop: false });
@@ -8582,7 +8594,11 @@ body.s936-chart-stage main{
         } }
       ]);
 
-      bar.append(soloBtn, volWrap, estructuraBtn, muteBtn, moreWrap);
+      // Cambio 443: Val simplificó el criterio — SOLO 3 controles
+      // visibles por barra (Solo, Volumen, y el tercero propio de cada
+      // canal), todo lo demás al "⋮". En Chart, Mute pasa a esconderse
+      // (antes estaba visible desde el Cambio 441).
+      bar.append(soloBtn, volWrap, estructuraBtn, moreWrap);
       return bar;
     }
 
@@ -8624,16 +8640,16 @@ body.s936-chart-stage main{
         return b;
       };
 
-      // Cambio 442: Mute vuelve a Lyric (Val lo pidió de nuevo) — igual
-      // que en instrumentos/Chart, cosmético por ahora (este canal
-      // todavía no produce sonido propio), pero visible para
-      // consistencia. Solo sigue sin volver — Val solo mencionó Mute.
-      const lyricMuteBtn = mkLyricBtn(_lyricChannelMuted ? "🔇" : "🔊", _lyricChannelMuted ? "Activar sonido (Lyric)" : "Silenciar (Lyric)", () => {
-        _lyricChannelMuted = !_lyricChannelMuted;
-        lyricMuteBtn.textContent = _lyricChannelMuted ? "🔇" : "🔊";
-        lyricMuteBtn.classList.toggle("is-active", _lyricChannelMuted);
+      // Cambio 443: Val simplificó el criterio otra vez — Solo, Volumen
+      // y Edit Letra visibles; Mute, Convertir a sonido y Crear sonido
+      // en pentagrama se esconden en un "⋮" nuevo (esta barra no tenía
+      // uno desde el Cambio 442, cuando se sacó por no quedar nada para
+      // esconder — ahora vuelve a hacer falta).
+      const lyricSoloBtn = mkLyricBtn("🎧", _lyricChannelSolo ? "Quitar Solo (Lyric)" : "Solo (Lyric) — silencia los demás canales", () => {
+        _lyricChannelSolo = !_lyricChannelSolo;
+        lyricSoloBtn.classList.toggle("is-active", _lyricChannelSolo);
       });
-      lyricMuteBtn.classList.toggle("is-active", _lyricChannelMuted);
+      lyricSoloBtn.classList.toggle("is-active", _lyricChannelSolo);
 
       const openLyricBtn = () => {
         try {
@@ -8643,8 +8659,6 @@ body.s936-chart-stage main{
         } catch(_) {}
       };
 
-      // Cambio 441/442: quedan expuestas las acciones que importan en
-      // este canal: Mute, Abrir Editor, Volumen, Convertir a sonido.
       const openEditorBtn = mkLyricBtn("✎", "Abrir editor de letra de esta sección", openLyricBtn);
 
       const lyricVolWrap = document.createElement("div");
@@ -8657,27 +8671,26 @@ body.s936-chart-stage main{
       lyricVolSlider.oninput = () => { _lyricChannelVolume = Number(lyricVolSlider.value); };
       lyricVolWrap.appendChild(lyricVolSlider);
 
-      // Cambio 441: "Convertir letra en sonido" — sigue siendo
-      // placeholder (todavía no está construido, ver handoff: conecta
-      // con el pentagrama de pitch que ya existe en structure.js pero
-      // que el Chart no lee todavía).
-      const convertBtn = mkLyricBtn("🎷", "Convertir letra en sonido (próximo cambio)", () => {
-        alert("Convertir letra en sonido — todavía no está construido.");
-      });
-      convertBtn.classList.add("is-placeholder");
+      // Cambio 443: Mute, Convertir a sonido y Crear sonido en
+      // pentagrama se esconden en un "⋮" nuevo — mismo patrón de mute
+      // con referencia por posición que ya se usa en buildSectionMiniBar
+      // (Chart) más arriba.
+      const lyricMuteLabel = () => (_lyricChannelMuted ? "🔇 Activar sonido (Lyric)" : "🔊 Silenciar (Lyric)");
+      const moreWrap = buildMiniMoreMenu([
+        { label: lyricMuteLabel(), isActive: _lyricChannelMuted, onClick: () => {
+          _lyricChannelMuted = !_lyricChannelMuted;
+          const btn = moreWrap.querySelector(".s936-ch-mini-more-menu button:first-child");
+          if (btn) { btn.textContent = lyricMuteLabel(); btn.classList.toggle("is-active", _lyricChannelMuted); }
+        } },
+        { label: "🎷 Convertir letra en sonido (próximo cambio)", onClick: () => {
+          alert("Convertir letra en sonido — todavía no está construido.");
+        } },
+        { label: "🎼 Crear sonido en pentagrama (próximo cambio)", onClick: () => {
+          alert("Crear sonido en pentagrama — todavía no está construido, es la próxima función a diseñar.");
+        } }
+      ]);
 
-      // Cambio 442: "Crear sonido en pentagrama" pasa de estar escondido
-      // en el "⋮" a visible siempre — Val lo pidió como 4to botón a la
-      // vista. Sigue siendo placeholder (función nueva sin diseñar
-      // todavía) — no se inventa una conexión real sin que Val la
-      // confirme primero. Como ya no queda nada para esconder, se saca
-      // el "⋮" de esta barra por completo.
-      const pentagramaBtn = mkLyricBtn("🎼", "Crear sonido en pentagrama (próximo cambio)", () => {
-        alert("Crear sonido en pentagrama — todavía no está construido, es la próxima función a diseñar.");
-      });
-      pentagramaBtn.classList.add("is-placeholder");
-
-      bar.append(lyricMuteBtn, openEditorBtn, lyricVolWrap, convertBtn, pentagramaBtn);
+      bar.append(lyricSoloBtn, lyricVolWrap, openEditorBtn, moreWrap);
       return bar;
     }
 
