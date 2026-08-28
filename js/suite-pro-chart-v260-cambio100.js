@@ -1501,22 +1501,31 @@ window.Studio936SuiteProChart = (() => {
      Chart, Lyric e instrumentos de una vez. */
   min-height:68px;
 }
-.s936-ch-mini-sesion-bar{display:flex;align-items:center;gap:4px;margin:0}
+.s936-ch-mini-sesion-bar{display:flex;align-items:center;gap:5px;margin:0}
 /* Cambio 379 (ajuste): el control "+" reusado de track-recorder.js trae
    su propio margin-top pensado para la lista vertical de pistas — acá,
    en línea con el ícono de canal, hay que resetearlo para que no quede
    descolgado. */
 .s936-ch-mini-sesion-bar .s936tr-laneadd{margin-top:0}
+/* Cambio 436 (ajuste): Val notó que estos botones (Chart/Lyric) se
+   veían "afuera" del rediseño — seguían con el tamaño viejo (22px)
+   mientras los de instrumento ya usaban 26px, borde y fondo distintos
+   desde el Cambio 431. Mismas medidas acá (no es la misma clase CSS
+   porque vive en otro archivo, pero se mantienen IGUALES a propósito —
+   si .s936tr-lanebtn-lg cambia de tamaño en track-recorder.js, este
+   bloque hay que actualizarlo también para que seguir pareciendo una
+   sola familia de controles). */
 .s936-ch-mini-sesion-btn{
-  min-width:22px;height:22px;padding:0 5px;
-  border-radius:5px;border:1px solid rgba(0,255,204,.28);
-  background:rgba(0,255,204,.08);color:#bfffee;
-  font-size:.66rem;line-height:1;cursor:pointer;
+  min-width:26px;height:26px;padding:0 6px;
+  border-radius:6px;border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.04);color:rgba(255,255,255,.75);
+  font-size:.7rem;line-height:1;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
 }
-.s936-ch-mini-sesion-btn:hover{background:rgba(0,255,204,.18);border-color:rgba(0,255,204,.5)}
-.s936-ch-mini-sesion-btn.is-active{background:rgba(255,224,102,.18);border-color:rgba(255,224,102,.55);color:#ffe066}
+.s936-ch-mini-sesion-btn:hover{background:rgba(255,255,255,.1)}
+.s936-ch-mini-sesion-btn.is-active{background:rgba(0,255,204,.2);border-color:rgba(0,255,204,.45);color:#7dffe0}
 .s936-ch-mini-sesion-btn.is-placeholder{opacity:.4;cursor:not-allowed}
-.s936-ch-mini-sesion-channel-icon{font-size:.78rem;line-height:1;display:inline-flex;align-items:center}
+.s936-ch-mini-sesion-channel-icon{font-size:.95rem;line-height:1;display:inline-flex;align-items:center;width:26px;justify-content:center}
 /* Cambio 384: popover de selección de secciones para el Zoom (1 o 2). */
 .s936-ch-zoom-picker{
   z-index:10070;background:#0c1017;border:1px solid rgba(0,255,204,.3);

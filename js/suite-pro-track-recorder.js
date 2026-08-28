@@ -626,6 +626,20 @@
         background:rgba(255,255,255,.04);color:#c9d8d5;font-size:.68rem;cursor:pointer;text-align:left;}
       .s936tr-lanemenubtn:hover{background:rgba(255,255,255,.1);}
       .s936tr-lanemenubtn.danger{color:#ff9d9d;border-color:rgba(255,120,120,.3);}
+      /* Cambio 436: botón "Ch N" (canal MIDI) — mismo alto que
+         mute/solo/⋮ (26px) pero ancho automático, porque el texto
+         ("Ch 16") no entra en un cuadrado de 26px como esos. */
+      .s936tr-lanebtn-lg.is-wide{width:auto;padding:0 8px;font-size:.62rem;font-weight:700;}
+      /* Cambio 436: popover de canales — grilla de 4x4 en vez de una
+         lista larga vertical de 16 filas (mismo popover .s936tr-lanemenu
+         ya usado por "⋮", solo cambia el layout interno acá). Se usa
+         .s936tr-lanemenu.s936tr-midi-menu.is-open (3 clases) para ganarle
+         en especificidad a .s936tr-lanemenu.is-open (2 clases) SIN
+         !important — con !important, el display quedaría forzado
+         incluso en estado cerrado (rompe el display:none de base). */
+      .s936tr-lanemenu.s936tr-midi-menu.is-open{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;min-width:150px;}
+      .s936tr-midi-menu .s936tr-lanemenubtn{text-align:center;padding:5px 2px;}
+      .s936tr-midi-menu .s936tr-lanemenubtn.is-active{background:rgba(0,255,204,.2);border-color:rgba(0,255,204,.45);color:#7dffe0;}
       .s936tr-lanemore-wrap{position:relative;flex-shrink:0;}
       /* Cambio 429/431: la barra de color de cada canal sube un poco
          más (26px → 30px) para acompañar la fila más alta (68px) sin
@@ -1141,21 +1155,69 @@
 
     label.append(iconSpan, nameSpan, muteBtn, soloBtn, volWrap, moreWrap);
 
-    // Cambio 364: canal MIDI (1-16) — solo tiene sentido para la pista de
-    // Teclado MIDI, ninguna otra lo necesita.
+    // Cambio 436: el <select> nativo de canal MIDI (Ch 1-16) se veía
+    // "expuesto" — distinto tamaño y estilo que el resto de los
+    // controles, y podía desalinear la fila hacia la derecha. Ahora es
+    // un botón del MISMO tamaño (26px alto, como muteBtn/soloBtn/⋮) que
+    // abre un popover con los 16 canales — mismo patrón de portal a
+    // document.body que ya usa el menú "⋮" (Cambio 435), para no
+    // repetir el mismo problema de isolation:isolate si esta fila
+    // termina apareciendo dentro del panel del Chart en el futuro.
     if (instrumentId === 'tecladomidi') {
-      const midiSelect = document.createElement('select');
-      midiSelect.title = 'Canal MIDI';
-      midiSelect.style.cssText = 'font-size:10px;background:#1c2731;color:#e6edf3;border:1px solid #2a3844;border-radius:6px;padding:1px 3px;';
+      const midiWrap = document.createElement('div');
+      midiWrap.className = 's936tr-lanemore-wrap';
+      const midiBtn = document.createElement('button');
+      midiBtn.type = 'button';
+      midiBtn.className = 's936tr-lanebtn-lg is-wide';
+      midiBtn.title = 'Canal MIDI';
+      const setMidiBtnLabel = () => { midiBtn.textContent = 'Ch ' + (state.midiChannel || 1); };
+      setMidiBtnLabel();
+
+      const midiMenu = document.createElement('div');
+      midiMenu.className = 's936tr-lanemenu s936tr-midi-menu';
       for (let ch = 1; ch <= 16; ch++) {
-        const opt = document.createElement('option');
-        opt.value = String(ch);
-        opt.textContent = 'Ch ' + ch;
-        midiSelect.appendChild(opt);
+        const chBtn = document.createElement('button');
+        chBtn.type = 'button';
+        chBtn.className = 's936tr-lanemenubtn';
+        chBtn.textContent = 'Ch ' + ch;
+        if ((state.midiChannel || 1) === ch) chBtn.classList.add('is-active');
+        chBtn.onclick = (e) => {
+          e.stopPropagation();
+          state.midiChannel = ch;
+          setMidiBtnLabel();
+          midiMenu.querySelectorAll('.s936tr-lanemenubtn').forEach(b => b.classList.remove('is-active'));
+          chBtn.classList.add('is-active');
+          closeMidiMenu();
+        };
+        midiMenu.appendChild(chBtn);
       }
-      midiSelect.value = String(state.midiChannel || 1);
-      midiSelect.onchange = () => { state.midiChannel = Number(midiSelect.value); };
-      label.appendChild(midiSelect);
+
+      function closeMidiMenu() {
+        midiMenu.classList.remove('is-open');
+        if (midiMenu.parentNode !== midiWrap) midiWrap.appendChild(midiMenu);
+      }
+      midiMenu._closeSelf = closeMidiMenu;
+      function openMidiMenu() {
+        document.querySelectorAll('.s936tr-lanemenu.is-open').forEach(m => {
+          if (m !== midiMenu && typeof m._closeSelf === 'function') m._closeSelf();
+        });
+        const r = midiBtn.getBoundingClientRect();
+        document.body.appendChild(midiMenu);
+        midiMenu.style.top = (r.bottom + 4) + 'px';
+        midiMenu.style.left = Math.max(6, r.right - 150) + 'px';
+        midiMenu.classList.add('is-open');
+      }
+      midiBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (midiMenu.classList.contains('is-open')) closeMidiMenu();
+        else openMidiMenu();
+      };
+      document.addEventListener('click', (e) => {
+        if (midiMenu.classList.contains('is-open') && e.target !== midiBtn) closeMidiMenu();
+      });
+
+      midiWrap.append(midiBtn, midiMenu);
+      label.appendChild(midiWrap);
     }
     row.append(label, track);
     return row;
