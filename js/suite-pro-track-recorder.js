@@ -540,13 +540,9 @@
       .s936tr-lanewrap.is-collapsed .s936tr-lanename,
       .s936tr-lanewrap.is-collapsed .s936tr-lanevol,
       .s936tr-lanewrap.is-collapsed .s936tr-lanebtn-lg{display:none;}
-      .s936tr-collapsetoggle{
-        align-self:flex-start;width:20px;height:20px;padding:0;margin-bottom:2px;
-        border:1px solid rgba(91,232,201,.3);background:rgba(91,232,201,.08);
-        border-radius:5px;color:#5be8c9;cursor:pointer;font-size:10px;line-height:1;
-        display:flex;align-items:center;justify-content:center;
-      }
-      .s936tr-collapsetoggle:hover{background:rgba(91,232,201,.18);}
+      /* Cambio 436: .s936tr-collapsetoggle (el botón ◀/▶ viejo) se sacó
+         de acá — el riel nuevo vive en suite-pro-chart-v260-cambio100.js
+         (installLanesCollapseRail). */
       .s936tr-laneheading{font-size:.62rem;color:#7fa8a0;text-transform:uppercase;letter-spacing:.5px;
         font-weight:700;margin-bottom:1px;}
       /* Cambio 368: Val aclaró que quería una columna FIJA real (como en
@@ -826,19 +822,22 @@
   const playingTrackEls = [];
 
   // Cambio 432: estado global (no por sección) de si el panel de pistas
-  // está colapsado — un solo botón cambia TODAS las filas visibles a la
-  // vez (todas las secciones montadas comparten esta variable), como
+  // está colapsado — un solo control cambia TODAS las filas visibles a
+  // la vez (todas las secciones montadas comparten esta variable), como
   // pidió Val viendo el comportamiento de GarageBand (barra abierta vs.
   // barra angosta con solo el ícono).
   let lanesCollapsed = false;
-  function toggleAllLaneWraps() {
-    lanesCollapsed = !lanesCollapsed;
+  // Cambio 436: setLanesCollapsed(bool) — versión EXPLÍCITA (no toggle),
+  // idempotente (no dispara nada si ya está en ese estado). Se necesita
+  // porque el riel nuevo se abre con HOVER (repetido muchas veces sin
+  // querer togglear cada vez) y se cierra con CLICK — dos gestos
+  // distintos, no un solo toggle como antes con el botón ◀.
+  function setLanesCollapsed(collapsed) {
+    collapsed = !!collapsed;
+    if (collapsed === lanesCollapsed) return; // ya está así, no hacer nada
+    lanesCollapsed = collapsed;
     document.querySelectorAll('.s936tr-lanewrap').forEach(w => {
       w.classList.toggle('is-collapsed', lanesCollapsed);
-    });
-    document.querySelectorAll('.s936tr-collapsetoggle').forEach(b => {
-      b.textContent = lanesCollapsed ? '▶' : '◀';
-      b.title = lanesCollapsed ? 'Expandir pistas' : 'Colapsar pistas';
     });
     // Cambio 433: aviso por evento — el Chart (Vista Continua) tiene su
     // propia columna de 320px para Chart/Lyric (.s936-ch-cont-headerspacer,
@@ -849,6 +848,7 @@
     // studio936:create-section-request).
     window.dispatchEvent(new CustomEvent('studio936:lanes-collapse-changed', { detail: { collapsed: lanesCollapsed } }));
   }
+  function toggleAllLaneWraps() { setLanesCollapsed(!lanesCollapsed); }
   function isLanesCollapsed() { return lanesCollapsed; }
 
   function stopSyncedPlayback() {
@@ -1245,20 +1245,16 @@
       // no manda este opt), se usa el ancho de siempre (100%, sin
       // relación a duración real) — no rompe ningún llamador existente.
       const secondsPerBar = Number(opts && opts.secondsPerBar) > 0 ? Number(opts.secondsPerBar) : 0;
-      // Cambio 432: el botón de colapsar/expandir solo se dibuja donde
-      // hay columna de nombre real (no en las filas "continuación" de
-      // Vista Continua, que ya vienen sin columna) — clic en CUALQUIER
-      // instancia de este botón (puede haber varias, una por sección en
-      // Arreglo de la Canción) colapsa/expande TODAS a la vez.
-      if (!hideLabelColumn) {
-        const collapseBtn = document.createElement('button');
-        collapseBtn.type = 'button';
-        collapseBtn.className = 's936tr-collapsetoggle';
-        collapseBtn.textContent = lanesCollapsed ? '▶' : '◀';
-        collapseBtn.title = lanesCollapsed ? 'Expandir pistas' : 'Colapsar pistas';
-        collapseBtn.onclick = (e) => { e.stopPropagation(); toggleAllLaneWraps(); };
-        wrap.appendChild(collapseBtn);
-      }
+      // Cambio 436: se saca el botón ◀/▶ que vivía acá — a Val no le
+      // gustó (flecha fea en estado cerrado) y además quedaba
+      // visualmente separado de las barras de Chart/Lyric (arriba, en
+      // otro archivo), como si fueran controles distintos aunque
+      // colapsaban juntos. Lo reemplaza un riel único que dibuja
+      // suite-pro-chart-v260-cambio100.js, de punta a punta de las tres
+      // barras (Chart+Lyric+instrumentos) — ver installLanesCollapseRail
+      // en ese archivo. Este archivo (track-recorder.js) ya no dibuja
+      // ningún control de colapso, solo REACCIONA al estado (clase
+      // .is-collapsed en .s936tr-lanewrap, ver setLanesCollapsed arriba).
       if (lanesCollapsed) wrap.classList.add('is-collapsed');
       Object.keys(groups).forEach(instrumentId => {
         const row = buildLaneRow(sectionKey, instrumentId, groups[instrumentId], secondsPerBar);
@@ -1309,5 +1305,5 @@
     openPanel();
   });
 
-  window.Studio936TrackRecorder = { toggle, openPanel, closePanel, renderSectionLanes, buildAddInstrumentControl, isLanesCollapsed, toggleAllLaneWraps };
+  window.Studio936TrackRecorder = { toggle, openPanel, closePanel, renderSectionLanes, buildAddInstrumentControl, isLanesCollapsed, toggleAllLaneWraps, setLanesCollapsed };
 })();

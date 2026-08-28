@@ -1343,7 +1343,50 @@ window.Studio936SuiteProChart = (() => {
       document.querySelectorAll('.s936-ch-cont-headerspacer').forEach(el => {
         el.classList.toggle('is-collapsed', collapsed);
       });
+      // Cambio 436: el riel también reacciona — se corre de 320px a
+      // 56px (o al revés) junto con las columnas, y cambia su estado
+      // visual (is-collapsed) para el hover.
+      document.querySelectorAll('.s936-lanes-collapse-rail').forEach(el => {
+        el.classList.toggle('is-collapsed', collapsed);
+        el.style.left = (collapsed ? 56 : 320) + 'px';
+      });
     });
+  }
+
+  // Cambio 436: riel único de colapso, al estilo "jalar" de Apple —
+  // corre de punta a punta del bloque (Chart+Lyric+instrumentos), pegado
+  // al borde derecho de la columna de 320px. Sin flecha (a Val no le
+  // gustaba, sobre todo cerrada) — el ícono es siempre el mismo, tres
+  // puntitos, tanto abierto como cerrado. Se ABRE con click O con hover
+  // (para "espiar" sin comprometerse a dejarlo abierto); se CIERRA con
+  // click (arrastrar los puntitos hacia adentro queda pendiente para
+  // más adelante, es una interacción más difícil de armar bien).
+  function installLanesCollapseRail(block) {
+    if (!block) return;
+    block.style.position = 'relative';
+    const rail = document.createElement('div');
+    rail.className = 's936-lanes-collapse-rail';
+    if (window.Studio936TrackRecorder && window.Studio936TrackRecorder.isLanesCollapsed && window.Studio936TrackRecorder.isLanesCollapsed()) {
+      rail.classList.add('is-collapsed');
+      rail.style.left = '56px';
+    } else {
+      rail.style.left = '320px';
+    }
+    rail.title = 'Colapsar/expandir controles';
+    const dots = document.createElement('div');
+    dots.className = 's936-lanes-collapse-rail-dots';
+    for (let i = 0; i < 3; i++) dots.appendChild(document.createElement('span'));
+    rail.appendChild(dots);
+    rail.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.Studio936TrackRecorder?.toggleAllLaneWraps?.();
+    });
+    rail.addEventListener('mouseenter', () => {
+      // Cambio 436: hover solo ABRE (nunca cierra solo) — cerrar es
+      // siempre una acción explícita (click), como pidió Val.
+      window.Studio936TrackRecorder?.setLanesCollapsed?.(false);
+    });
+    block.appendChild(rail);
   }
 
   function installStyles() {
@@ -1410,6 +1453,23 @@ window.Studio936SuiteProChart = (() => {
    track-recorder.js) — se entera por el evento
    'studio936:lanes-collapse-changed' (ver abajo, installLanesCollapseSync). */
 .s936-ch-cont-headerspacer.is-collapsed{width:56px}
+/* Cambio 436: riel de colapso — línea delgada de punta a punta del
+   bloque, pegada al borde de la columna de 320px (o 56px colapsada).
+   position:absolute sobre el bloque completo (Chart+Lyric+instrumentos,
+   ver installLanesCollapseRail) — "left" lo mueve el listener del
+   Cambio 433/436 cuando cambia el estado. */
+.s936-lanes-collapse-rail{
+  position:absolute;top:0;bottom:0;width:14px;margin-left:-7px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  z-index:6;transition:left .15s ease;
+}
+.s936-lanes-collapse-rail:hover{background:rgba(0,255,204,.06)}
+.s936-lanes-collapse-rail-dots{display:flex;flex-direction:column;gap:3px;pointer-events:none}
+.s936-lanes-collapse-rail-dots span{
+  width:3px;height:3px;border-radius:50%;
+  background:rgba(200,255,240,.35);transition:background .15s ease;
+}
+.s936-lanes-collapse-rail:hover .s936-lanes-collapse-rail-dots span{background:#7dffe0}
 /* Cambio 377/378: barra mini de sesión (Play/Loop/Zoom/Editar), ahora
    DENTRO de la columna fija de 160px (chordSpacer), en la misma fila
    que los mini-charts de acordes — mismo look de celda (fondo, radio,
@@ -8826,6 +8886,15 @@ body.s936-chart-stage main{
         // el ancho REAL de cada grabación (duración real / secondsPerBar
         // * 320px), alineado a la misma regla de compases de esta vista.
         try { window.Studio936TrackRecorder?.renderSectionLanes?.(block, item.section, { hideHeader: true, hideLabelColumn: arrIndex !== 0, secondsPerBar: secondsPerBar }); } catch(_) {}
+        // Cambio 436: riel único de colapso — Val pidió sacar el botón
+        // ◀/▶ (le parecía feo, sobre todo la flecha en estado cerrado) y
+        // reemplazarlo por un riel angosto de punta a punta, al estilo
+        // "jalar" de Apple/GarageBand — un solo control para las TRES
+        // barras juntas (Chart+Lyric+instrumentos), no uno separado por
+        // cada una. Solo tiene sentido dibujarlo en la sección que
+        // realmente tiene la columna de 320px real (arrIndex === 0); las
+        // demás secciones no tienen columna propia (hideLabelColumn).
+        if (arrIndex === 0) installLanesCollapseRail(block);
         scroller.appendChild(block);
       });
 
