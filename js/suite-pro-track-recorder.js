@@ -609,9 +609,20 @@
         color:rgba(255,255,255,.65);font-size:8px;line-height:1;}
       .s936tr-lanebtn:hover{background:rgba(255,255,255,.08);}
       .s936tr-lanebtn.is-active{background:rgba(255,120,120,.22);color:#ff9d9d;}
-      .s936tr-lanemenu{display:none;position:absolute;right:0;top:100%;margin-top:2px;
+      /* Cambio 435: BUG real encontrado — #s936-chart-view-panel tiene
+         isolation:isolate (suite-pro-chart-v260-cambio100.js), que crea
+         su PROPIO contexto de apilamiento. Cualquier z-index puesto acá
+         adentro, por alto que sea, queda atrapado por debajo de paneles
+         que viven FUERA de ese panel (Docker z-index:10060, mixer
+         z-index:10000, confirmados en el código) — por eso el menú se
+         veía tapado sin importar el número. position:fixed + z-index
+         altísimo NO alcanza mientras siga siendo hijo de ese árbol; la
+         solución real es moverlo a document.body al abrirlo (ver
+         openLaneMenu más abajo) — position:fixed calculado desde el
+         botón, y position:absolute normal ya no sirve una vez portado. */
+      .s936tr-lanemenu{display:none;position:fixed;margin-top:2px;
         background:#0d1a1a;border:1px solid rgba(91,232,201,.3);border-radius:8px;
-        padding:8px;z-index:30;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:150px;}
+        padding:8px;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:150px;}
       .s936tr-lanemenu.is-open{display:flex;flex-direction:column;gap:6px;}
       .s936tr-lanemenu-row{display:flex;align-items:center;gap:6px;font-size:.68rem;color:#c9d8d5;}
       .s936tr-lanemenu-row input[type=range]{flex:1;accent-color:#5be8c9;}
@@ -623,7 +634,13 @@
       /* Cambio 429/431: la barra de color de cada canal sube un poco
          más (26px → 30px) para acompañar la fila más alta (68px) sin
          verse chica dentro de tanto espacio nuevo. */
-      .s936tr-lanetrack{height:30px;border-radius:4px;cursor:default;width:100%;}
+      /* Cambio 435: 30px → 54px — Val comparó contra el chip de acorde
+         (mini-diagrama de guitarra, que llena casi toda su caja de
+         68px) y esta franja se veía flaca/con mucho aire arriba y abajo
+         adentro de su fila de 68px. Ahora ocupa casi todo el alto de la
+         fila (deja ~7px arriba/abajo), leyéndose como un "chip" sólido
+         igual de lleno que el del acorde. */
+      .s936tr-lanetrack{height:54px;border-radius:4px;cursor:default;width:100%;}
       .s936tr-laneadd{position:relative;padding-left:0;margin-top:2px;}
       .s936tr-laneaddbtn{width:20px;height:20px;padding:0;border-radius:50%;
         border:1px solid rgba(91,232,201,.35);background:rgba(91,232,201,.1);color:#5be8c9;
@@ -1074,16 +1091,53 @@
       e.stopPropagation();
       takes.forEach(t => removeTake(sectionKey, t.id));
       row.remove();
+      // Cambio 435: si el menú estaba portado a document.body en el
+      // momento de borrar la pista, row.remove() no lo alcanza (ya no
+      // es hijo de row) — se saca a mano para no dejarlo flotando.
+      if (menu.parentNode) menu.parentNode.removeChild(menu);
     };
 
     menu.append(playRow, panRow, delRow);
+    moreWrap.append(moreBtn, menu); // reposo normal: adentro de moreWrap, oculto (sin .is-open)
+
+    // Cambio 435: portal a document.body SOLO mientras está abierto —
+    // moreBtn.getBoundingClientRect() da la posición real en pantalla
+    // (fixed, no depende de ningún padre), así el menú queda SIEMPRE
+    // arriba de cualquier otro panel, sin importar el isolation:isolate
+    // del Chart. Al cerrar, vuelve a moreWrap (su lugar de reposo) para
+    // no dejar nodos sueltos acumulándose en document.body.
+    function closeLaneMenu() {
+      menu.classList.remove('is-open');
+      if (menu.parentNode !== moreWrap) moreWrap.appendChild(menu);
+    }
+    menu._closeSelf = closeLaneMenu; // permite que OTRAS filas cierren esta si abren la suya
+    function openLaneMenu() {
+      // Cambio 435: cerrar cualquier otro menú abierto usando SU PROPIA
+      // función de cierre (guardada en _closeSelf) — así cada uno
+      // vuelve a SU moreWrap correcto, no solo se le saca la clase
+      // .is-open dejándolo huérfano en document.body.
+      document.querySelectorAll('.s936tr-lanemenu.is-open').forEach(m => {
+        if (m !== menu && typeof m._closeSelf === 'function') m._closeSelf();
+      });
+      const r = moreBtn.getBoundingClientRect();
+      document.body.appendChild(menu);
+      menu.style.top = (r.bottom + 4) + 'px';
+      // Alineado por la derecha del botón, pero sin salirse de pantalla
+      // por la izquierda si la fila está cerca del borde.
+      const left = Math.max(6, r.right - 150);
+      menu.style.left = left + 'px';
+      menu.classList.add('is-open');
+    }
     moreBtn.onclick = (e) => {
       e.stopPropagation();
-      document.querySelectorAll('.s936tr-lanemenu.is-open').forEach(m => { if (m !== menu) m.classList.remove('is-open'); });
-      menu.classList.toggle('is-open');
+      if (menu.classList.contains('is-open')) closeLaneMenu();
+      else openLaneMenu();
     };
-    document.addEventListener('click', () => menu.classList.remove('is-open'));
-    moreWrap.append(moreBtn, menu);
+    playRow.addEventListener('click', closeLaneMenu);
+    delRow.addEventListener('click', closeLaneMenu);
+    document.addEventListener('click', (e) => {
+      if (menu.classList.contains('is-open') && e.target !== moreBtn) closeLaneMenu();
+    });
 
     label.append(iconSpan, nameSpan, muteBtn, soloBtn, volWrap, moreWrap);
 
