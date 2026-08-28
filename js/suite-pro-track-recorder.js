@@ -999,7 +999,14 @@
     track.title = info.label;
     track.style.backgroundColor = color;
     track.style.backgroundImage = tickBackgroundStyle();
-    track.style.opacity = state.muted ? '0.2' : '0.55';
+    // Cambio 440: Val decidió sacar Mute (no tocaba audio real igual, y
+    // el volumen ya cumple esa función: "si lo pongo en cero, ya está
+    // en mute"). La opacidad ahora sigue al VOLUMEN real en vez de a un
+    // flag de mute aparte — en 0 se ve bien apagada (0.15), a full se ve
+    // igual que antes (0.55). Puramente visual, coherente con que el
+    // volumen en sí también es cosmético todavía.
+    const vol0 = state.volume != null ? state.volume : 0.8;
+    track.style.opacity = String(0.15 + vol0 * 0.4);
     // Cambio 434: ancho REAL según la duración grabada — Val fue claro
     // en que esto tiene que salir de BPM+compases, no ser decorativo.
     // takes[].durationSec ya se guarda al terminar de grabar (Cambio
@@ -1019,24 +1026,12 @@
       }
     }
 
-    // Cambio 431: mute y solo (headphone) ahora son botones grandes
-    // (26x26, clase .s936tr-lanebtn-lg) siempre visibles — antes eran
-    // parte de 5 controles chicos en línea. ▶ Escuchar, balance y 🗑
-    // Borrar se movieron al menú "⋮" para no volver a amontonar la fila.
-    const muteBtn = document.createElement('button');
-    muteBtn.type = 'button';
-    muteBtn.className = 's936tr-lanebtn-lg';
-    muteBtn.title = 'Silenciar ' + info.label;
-    muteBtn.setAttribute('aria-label', 'Silenciar ' + info.label);
-    muteBtn.textContent = state.muted ? '🔇' : '🔊';
-    muteBtn.classList.toggle('is-active', state.muted);
-    muteBtn.onclick = (e) => {
-      e.stopPropagation();
-      state.muted = !state.muted;
-      track.style.opacity = state.muted ? '0.2' : '0.55';
-      muteBtn.textContent = state.muted ? '🔇' : '🔊';
-      muteBtn.classList.toggle('is-active', state.muted);
-    };
+    // Cambio 431: solo (headphone) — botón grande (26x26, clase
+    // .s936tr-lanebtn-lg) siempre visible. ▶ Escuchar, balance y 🗑
+    // Borrar se movieron al menú "⋮" para no amontonar la fila.
+    // Cambio 440: se saca el botón de Mute — Val decidió que el
+    // control de volumen ya cumple esa función ("si lo pongo en cero,
+    // ya está en mute"); no tocaba audio real de todas formas.
 
     const soloBtn = document.createElement('button');
     soloBtn.type = 'button';
@@ -1065,7 +1060,10 @@
     volSlider.min = '0'; volSlider.max = '1'; volSlider.step = '0.01';
     volSlider.value = String(state.volume != null ? state.volume : 0.8);
     volSlider.title = 'Volumen de ' + info.label;
-    volSlider.oninput = () => { state.volume = Number(volSlider.value); };
+    volSlider.oninput = () => {
+      state.volume = Number(volSlider.value);
+      track.style.opacity = String(0.15 + state.volume * 0.4);
+    };
     volWrap.append(volIcon, volSlider);
 
     const moreWrap = document.createElement('div');
@@ -1153,7 +1151,7 @@
       if (menu.classList.contains('is-open') && e.target !== moreBtn) closeLaneMenu();
     });
 
-    label.append(iconSpan, nameSpan, muteBtn, soloBtn, volWrap, moreWrap);
+    label.append(iconSpan, nameSpan, soloBtn, volWrap, moreWrap);
 
     // Cambio 436: el <select> nativo de canal MIDI (Ch 1-16) se veía
     // "expuesto" — distinto tamaño y estilo que el resto de los

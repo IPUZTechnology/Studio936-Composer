@@ -227,17 +227,28 @@ window.Studio936SuiteProChart = (() => {
   // (comportamiento de "Play"). Antes no existía esta distinción — todo
   // usaba módulo, así que siempre se repetía sin parar.
   let _chartRhythmLoop = true;
-  // Cambio 412: mute/solo por canal — Chart (acordes) y Lyric (letra),
-  // cada uno independiente. Con un canal en Solo, los demás quedan
-  // silenciados automáticamente (aunque no estén muteados a mano).
-  let _chartChannelMuted = false;
+  // Cambio 412: solo por canal — Chart (acordes) y Lyric (letra), cada
+  // uno independiente. Con un canal en Solo, los demás quedan
+  // silenciados automáticamente.
+  // Cambio 440: Val decidió sacar Mute de TODOS lados (incluido Chart)
+  // — el volumen ya cumple esa función ("en cero, ya está en mute").
+  // A diferencia de instrumentos/Lyric (donde el volumen es cosmético),
+  // acá SÍ hace falta conectar el volumen a algo real: isChartChannelAudible()
+  // corta sonido de verdad en scheduleChartPracticeGroove(), y antes
+  // dependía de _chartChannelMuted (que ya no existe). Ahora depende de
+  // _chartChannelVolume <= umbral chico — "bajarlo a cero" sigue
+  // teniendo el mismo efecto real que tenía el botón de Mute viejo.
   let _chartChannelSolo = false;
-  let _lyricChannelMuted = false;
   let _lyricChannelSolo = false;
+  // Cambio 439/440: volumen de Chart SÍ es real (ver isChartChannelAudible
+  // abajo); el de Lyric sigue siendo cosmético (ese canal todavía no
+  // produce sonido propio).
+  let _chartChannelVolume = 0.8;
+  let _lyricChannelVolume = 0.8;
   function isChartChannelAudible() {
     const anySolo = _chartChannelSolo || _lyricChannelSolo;
     if (anySolo) return _chartChannelSolo;
-    return !_chartChannelMuted;
+    return _chartChannelVolume > 0.02;
   }
   let _chartRhythmPulse = false;
   let _chartActiveStepEl = null;
@@ -1525,7 +1536,30 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-mini-sesion-btn:hover{background:rgba(255,255,255,.1)}
 .s936-ch-mini-sesion-btn.is-active{background:rgba(0,255,204,.2);border-color:rgba(0,255,204,.45);color:#7dffe0}
 .s936-ch-mini-sesion-btn.is-placeholder{opacity:.4;cursor:not-allowed}
-.s936-ch-mini-sesion-channel-icon{font-size:.95rem;line-height:1;display:inline-flex;align-items:center;width:26px;justify-content:center}
+/* Cambio 439: el ícono de canal (🎼/🎤) pasa de texto plano a un chip
+   redondeado con fondo tenue del color del canal — Val dijo que "no
+   está bonito", y comparado con el ícono de instrumento (que al menos
+   tiene tamaño consistente) este quedaba como un emoji suelto sin peso
+   visual. .is-chart y .is-lyric dan el color — antes era un
+   channelIcon.style.color puesto a mano en JS, ahora es CSS, más fácil
+   de ajustar. */
+.s936-ch-mini-sesion-channel-icon{
+  font-size:.85rem;line-height:1;display:inline-flex;align-items:center;
+  justify-content:center;width:26px;height:26px;border-radius:6px;flex-shrink:0;
+}
+.s936-ch-mini-sesion-channel-icon.is-chart{background:rgba(0,255,204,.14);border:1px solid rgba(0,255,204,.3)}
+.s936-ch-mini-sesion-channel-icon.is-lyric{background:rgba(55,138,221,.14);border:1px solid rgba(55,138,221,.35)}
+/* Cambio 439: nombre del canal ("Chart"/"Lyric") — mismo criterio visual
+   que .s936tr-lanename en track-recorder.js (Cambio 367), para que esta
+   barra tenga tantos elementos como una fila de instrumento. */
+.s936-ch-mini-sesion-name{
+  font-size:.62rem;font-weight:700;color:#c9d8d5;margin-right:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:44px;flex-shrink:0;
+}
+/* Cambio 439: slider de volumen — mismo criterio que .s936tr-lanevol en
+   track-recorder.js, versión propia para no depender de ese archivo. */
+.s936-ch-mini-vol{display:flex;align-items:center;flex:1;min-width:24px;}
+.s936-ch-mini-vol input[type=range]{width:100%;accent-color:#5be8c9;height:14px;}
 /* Cambio 438: cuando el riel colapsa la columna (56px), TODO adentro de
    la barra de Chart/Lyric se oculta EXCEPTO el ícono de canal (🎼/🎤) —
    antes no había ninguna regla acá, así que los botones simplemente se
@@ -8407,11 +8441,20 @@ body.s936-chart-stage main{
       // las de instrumento (agregadas con el "+" de más abajo) son las
       // que varían.
       const channelIcon = document.createElement("span");
-      channelIcon.className = "s936-ch-mini-sesion-channel-icon";
+      channelIcon.className = "s936-ch-mini-sesion-channel-icon is-chart";
       channelIcon.textContent = "🎼";
       channelIcon.title = "Canal: Chart (acordes)";
-      channelIcon.style.color = "#00ffcc";
       bar.appendChild(channelIcon);
+
+      // Cambio 439: nombre del canal escrito, mismo criterio que
+      // .s936tr-lanename en track-recorder.js (Cambio 367) — antes esta
+      // barra solo tenía el ícono, sin texto, mientras las filas de
+      // instrumento sí lo tienen desde hace rato. Val lo pidió para que
+      // todas las barras se vean con la misma cantidad de elementos.
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "s936-ch-mini-sesion-name";
+      nameSpan.textContent = "Chart";
+      bar.appendChild(nameSpan);
 
       const focus = readFocusSection();
       const isFocused = !!(focus && focus.sections?.includes(sectionKey));
@@ -8426,19 +8469,31 @@ body.s936-chart-stage main{
         return b;
       };
 
-      // Cambio 412: Mute/Solo del canal Chart (acordes) — independiente
-      // del canal Lyric. Con Solo activo en cualquiera de los dos, el
-      // otro queda silenciado automáticamente.
-      const muteBtn = mk(_chartChannelMuted ? "🔇" : "🔊", _chartChannelMuted ? "Activar sonido (Chart)" : "Silenciar (Chart)", () => {
-        _chartChannelMuted = !_chartChannelMuted;
-        muteBtn.textContent = _chartChannelMuted ? "🔇" : "🔊";
-        muteBtn.classList.toggle("is-active", _chartChannelMuted);
-      }, _chartChannelMuted ? "is-active" : "");
-
-      const soloBtn = mk("S", _chartChannelSolo ? "Quitar Solo (Chart)" : "Solo (Chart) — silencia los demás canales", () => {
+      // Cambio 412: Solo del canal Chart (acordes) — independiente del
+      // canal Lyric. Con Solo activo en cualquiera de los dos, el otro
+      // queda silenciado automáticamente.
+      // Cambio 440: se saca Mute (Val decidió que ninguna barra lo
+      // tenga) — el volumen de abajo ya cumple esa función Y quedó
+      // conectado al audio real (ver isChartChannelAudible arriba), así
+      // que "bajarlo a cero" sigue cortando el groove de práctica igual
+      // que hacía el botón de Mute viejo.
+      const soloBtn = mk("🎧", _chartChannelSolo ? "Quitar Solo (Chart)" : "Solo (Chart) — silencia los demás canales", () => {
         _chartChannelSolo = !_chartChannelSolo;
         soloBtn.classList.toggle("is-active", _chartChannelSolo);
       }, _chartChannelSolo ? "is-active" : "");
+
+      // Cambio 439: slider de volumen, mismo criterio visual que
+      // .s936tr-lanevol en track-recorder.js. Cambio 440: en Chart este
+      // volumen SÍ es real — updateea isChartChannelAudible() en vivo.
+      const volWrap = document.createElement("div");
+      volWrap.className = "s936-ch-mini-vol";
+      const volSlider = document.createElement("input");
+      volSlider.type = "range";
+      volSlider.min = "0"; volSlider.max = "1"; volSlider.step = "0.01";
+      volSlider.value = String(_chartChannelVolume);
+      volSlider.title = "Volumen de Chart";
+      volSlider.oninput = () => { _chartChannelVolume = Number(volSlider.value); };
+      volWrap.appendChild(volSlider);
 
       const editBtn = () => openComposeExpanded();
 
@@ -8469,7 +8524,7 @@ body.s936-chart-stage main{
         { label: "✎ Editar secciones", onClick: editBtn }
       ]);
 
-      bar.append(muteBtn, soloBtn, moreWrap);
+      bar.append(soloBtn, volWrap, moreWrap);
       return bar;
     }
 
@@ -8485,11 +8540,18 @@ body.s936-chart-stage main{
       bar.className = "s936-ch-mini-sesion-bar";
 
       const channelIcon = document.createElement("span");
-      channelIcon.className = "s936-ch-mini-sesion-channel-icon";
+      channelIcon.className = "s936-ch-mini-sesion-channel-icon is-lyric";
       channelIcon.textContent = "🎤";
       channelIcon.title = "Canal: Voz (letra)";
-      channelIcon.style.color = "#378ADD";
       bar.appendChild(channelIcon);
+
+      // Cambio 439: nombre del canal escrito — mismo criterio que en
+      // buildSectionMiniBar (Chart) y que .s936tr-lanename en
+      // track-recorder.js.
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "s936-ch-mini-sesion-name";
+      nameSpan.textContent = "Lyric";
+      bar.appendChild(nameSpan);
 
       const openLyricBtn = () => {
         try {
@@ -8499,28 +8561,18 @@ body.s936-chart-stage main{
         } catch(_) {}
       };
 
-      // Cambio 412: Mute/Solo del canal Lyric — hoy este canal todavía
-      // no produce sonido real (el botón 🎷 de abajo es un placeholder),
-      // así que mutear/solear acá no cambia nada audible TODAVÍA, pero
-      // deja el control ya construido y funcionando para cuando ese
-      // botón se conecte a una voz real.
-      const lyricMuteBtn = document.createElement("button");
-      lyricMuteBtn.type = "button";
-      lyricMuteBtn.className = "s936-ch-mini-sesion-btn" + (_lyricChannelMuted ? " is-active" : "");
-      lyricMuteBtn.textContent = _lyricChannelMuted ? "🔇" : "🔊";
-      lyricMuteBtn.title = _lyricChannelMuted ? "Activar sonido (Lyric)" : "Silenciar (Lyric)";
-      lyricMuteBtn.onclick = (e) => {
-        e.stopPropagation();
-        _lyricChannelMuted = !_lyricChannelMuted;
-        lyricMuteBtn.textContent = _lyricChannelMuted ? "🔇" : "🔊";
-        lyricMuteBtn.classList.toggle("is-active", _lyricChannelMuted);
-      };
-      bar.appendChild(lyricMuteBtn);
-
+      // Cambio 412: Solo del canal Lyric — el solo sí tiene efecto real
+      // (silencia a Chart vía isChartChannelAudible), aunque el canal
+      // Lyric en sí todavía no produce sonido propio (el 🎷 de abajo es
+      // un placeholder).
+      // Cambio 440: se saca Mute (Val decidió que ninguna barra lo
+      // tenga) — acá no se pierde nada real, mutear Lyric nunca calló
+      // nada en este canal.
       const lyricSoloBtn = document.createElement("button");
       lyricSoloBtn.type = "button";
       lyricSoloBtn.className = "s936-ch-mini-sesion-btn" + (_lyricChannelSolo ? " is-active" : "");
-      lyricSoloBtn.textContent = "S";
+      // Cambio 439: 🎧 en vez de "S" — mismo ícono que el resto.
+      lyricSoloBtn.textContent = "🎧";
       lyricSoloBtn.title = _lyricChannelSolo ? "Quitar Solo (Lyric)" : "Solo (Lyric) — silencia los demás canales";
       lyricSoloBtn.onclick = (e) => {
         e.stopPropagation();
@@ -8529,9 +8581,23 @@ body.s936-chart-stage main{
       };
       bar.appendChild(lyricSoloBtn);
 
-      // Cambio 438: mismo criterio que la barra de Chart — Abrir letra y
-      // Convertir a sonido (todavía placeholder) se mueven al "⋮", Mute
-      // y Solo quedan siempre a la vista.
+      // Cambio 439: slider de volumen — mismo motivo que en Chart, para
+      // igualar la cantidad de controles visibles con una fila de
+      // instrumento. Cosmético por ahora.
+      const lyricVolWrap = document.createElement("div");
+      lyricVolWrap.className = "s936-ch-mini-vol";
+      const lyricVolSlider = document.createElement("input");
+      lyricVolSlider.type = "range";
+      lyricVolSlider.min = "0"; lyricVolSlider.max = "1"; lyricVolSlider.step = "0.01";
+      lyricVolSlider.value = String(_lyricChannelVolume);
+      lyricVolSlider.title = "Volumen de Lyric";
+      lyricVolSlider.oninput = () => { _lyricChannelVolume = Number(lyricVolSlider.value); };
+      lyricVolWrap.appendChild(lyricVolSlider);
+      bar.appendChild(lyricVolWrap);
+
+      // Cambio 438/440: mismo criterio que la barra de Chart — Abrir
+      // letra y Convertir a sonido (todavía placeholder) se mueven al
+      // "⋮", Solo queda siempre a la vista (Mute se sacó del todo).
       const moreWrap = buildMiniMoreMenu([
         { label: "✎ Abrir letra de esta sección", onClick: openLyricBtn },
         { label: "🎷 Convertir letra en sonido (próximo cambio)", onClick: () => {} }
