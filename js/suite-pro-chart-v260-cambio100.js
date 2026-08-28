@@ -1342,7 +1342,18 @@ window.Studio936SuiteProChart = (() => {
   letter-spacing:.4px;cursor:pointer;
 }
 .s936-ch-continuous-toggle:hover{background:rgba(0,255,204,.16)}
-.s936-ch-cont-scroller{display:inline-flex;min-width:100%;overflow-x:auto;padding:10px}
+/* Cambio 430: BUG real encontrado — display:inline-flex + min-width:100%
+   dejaba que el scroller creciera hasta el ancho de TODO su contenido
+   (18487px en una canción larga), no solo el 100% visible. El
+   contenedor de afuera (.s936-ch-cont-viewport) sí recortaba la vista,
+   pero el scroller en sí nunca quedaba angosto de verdad — scrollWidth
+   y clientWidth terminaban siendo IGUALES (nada para scrollear), por
+   eso scrollLeft no tenía ningún efecto durante el Play. Con
+   display:flex + width:100% (fijo, no mínimo), el scroller ahora sí
+   queda limitado a lo visible, y su contenido interno (los bloques de
+   sección) es lo que se desborda — ahí sí funciona overflow-x:auto de
+   verdad. */
+.s936-ch-cont-scroller{display:flex;width:100%;overflow-x:auto;padding:10px;box-sizing:border-box}
 /* Cambio 397: Val pidió sacar el límite de "4 compases" — ahora la
    ventana usa todo el ancho disponible de la pantalla (los compases que
    entren, entran; no se fuerza un número fijo). También se agrandó el
@@ -8873,7 +8884,13 @@ body.s936-chart-stage main{
             const frac = span > 0 ? Math.min(1, Math.max(0, (posSec - barStartSec) / span)) : 0;
             targetLeft = left + frac * (nextLeft - left);
           }
-          scroller.scrollLeft = Math.max(0, targetLeft - 40);
+          // Cambio 429: el scroll ahora mantiene la posición actual
+          // SIEMPRE en el centro de la pantalla (no a 40px del borde
+          // izquierdo) — Val lo describió como un "caminador": el que
+          // practica mira fijo el centro, y la letra/acorde se van
+          // corriendo por debajo de ese punto fijo, escondiendo lo ya
+          // leído y trayendo lo que sigue.
+          scroller.scrollLeft = Math.max(0, targetLeft - scroller.clientWidth / 2);
           if (bar.chordCellEl !== activeBarEl) {
             activeBarEl = bar.chordCellEl;
           }
