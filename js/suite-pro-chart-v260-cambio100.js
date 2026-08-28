@@ -1526,6 +1526,29 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-mini-sesion-btn.is-active{background:rgba(0,255,204,.2);border-color:rgba(0,255,204,.45);color:#7dffe0}
 .s936-ch-mini-sesion-btn.is-placeholder{opacity:.4;cursor:not-allowed}
 .s936-ch-mini-sesion-channel-icon{font-size:.95rem;line-height:1;display:inline-flex;align-items:center;width:26px;justify-content:center}
+/* Cambio 438: cuando el riel colapsa la columna (56px), TODO adentro de
+   la barra de Chart/Lyric se oculta EXCEPTO el ícono de canal (🎼/🎤) —
+   antes no había ninguna regla acá, así que los botones simplemente se
+   apretaban/desbordaban dentro de los 56px en vez de reducirse a un
+   solo ícono, como sí hacían las filas de instrumento desde el Cambio
+   431. */
+.s936-ch-cont-headerspacer.is-collapsed .s936-ch-mini-sesion-bar > *:not(.s936-ch-mini-sesion-channel-icon){
+  display:none;
+}
+/* Cambio 438: menú "⋮" de las barras de Chart/Lyric — mismo patrón de
+   portal a document.body que .s936tr-lanemenu en track-recorder.js
+   (Cambio 435), pero con su propia clase para no depender de que ese
+   archivo haya cargado su <style> primero. */
+.s936-ch-mini-more-wrap{position:relative;flex-shrink:0}
+.s936-ch-mini-more-menu{display:none;position:fixed;margin-top:2px;
+  background:#0d1a1a;border:1px solid rgba(91,232,201,.3);border-radius:8px;
+  padding:8px;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:190px;}
+.s936-ch-mini-more-menu.is-open{display:flex;flex-direction:column;gap:6px;}
+.s936-ch-mini-more-menu button{padding:6px 8px;border-radius:6px;
+  border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);
+  color:#c9d8d5;font-size:.68rem;cursor:pointer;text-align:left;}
+.s936-ch-mini-more-menu button:hover{background:rgba(255,255,255,.1)}
+.s936-ch-mini-more-menu button.is-active{background:rgba(0,255,204,.2);border-color:rgba(0,255,204,.45);color:#7dffe0;}
 /* Cambio 384: popover de selección de secciones para el Zoom (1 o 2). */
 .s936-ch-zoom-picker{
   z-index:10070;background:#0c1017;border:1px solid rgba(0,255,204,.3);
@@ -8324,6 +8347,57 @@ body.s936-chart-stage main{
       setTimeout(() => document.addEventListener("click", closeOnOutside, true), 0);
     }
 
+    // Cambio 438: helper compartido para el menú "⋮" de las barras de
+    // Chart y Lyric — mismo patrón de portal a document.body que ya usa
+    // track-recorder.js (Cambio 435), pero con su propia clase CSS
+    // (.s936-ch-mini-more-menu) en vez de reusar .s936tr-lanemenu — así
+    // este archivo no depende de que track-recorder.js haya cargado su
+    // <style> primero. entries: [{label, title, onClick, isActive}].
+    function buildMiniMoreMenu(entries) {
+      const wrap = document.createElement("div");
+      wrap.className = "s936-ch-mini-more-wrap";
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "s936-ch-mini-sesion-btn";
+      btn.textContent = "⋮";
+      btn.title = "Más opciones";
+      const menu = document.createElement("div");
+      menu.className = "s936-ch-mini-more-menu";
+      entries.forEach(entry => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = entry.label;
+        b.title = entry.title || entry.label;
+        if (entry.isActive) b.classList.add("is-active");
+        b.onclick = (e) => { e.stopPropagation(); entry.onClick(); close(); };
+        menu.appendChild(b);
+      });
+      function close() {
+        menu.classList.remove("is-open");
+        if (menu.parentNode !== wrap) wrap.appendChild(menu);
+      }
+      menu._closeSelf = close;
+      function open() {
+        // Cambio 438: cierra cualquier otro popover abierto (los de este
+        // helper Y los "⋮"/canal MIDI de track-recorder.js) usando SU
+        // PROPIA función de cierre — mismo criterio que ya usa
+        // track-recorder.js (Cambio 435), para que nunca queden dos
+        // menús abiertos ni uno huérfano en document.body.
+        document.querySelectorAll(".s936-ch-mini-more-menu.is-open, .s936tr-lanemenu.is-open").forEach(m => {
+          if (m !== menu && typeof m._closeSelf === "function") m._closeSelf();
+        });
+        const r = btn.getBoundingClientRect();
+        document.body.appendChild(menu);
+        menu.style.top = (r.bottom + 4) + "px";
+        menu.style.left = Math.max(6, r.right - 170) + "px";
+        menu.classList.add("is-open");
+      }
+      btn.onclick = (e) => { e.stopPropagation(); menu.classList.contains("is-open") ? close() : open(); };
+      document.addEventListener("click", (e) => { if (menu.classList.contains("is-open") && e.target !== btn) close(); });
+      wrap.append(btn, menu);
+      return wrap;
+    }
+
     function buildSectionMiniBar(sectionKey, sectionLabel) {
       const bar = document.createElement("div");
       bar.className = "s936-ch-mini-sesion-bar";
@@ -8352,26 +8426,6 @@ body.s936-chart-stage main{
         return b;
       };
 
-      const playBtn = mk("▶", "Practicar esta sección", () => {
-        const panel = getActiveChartPanel();
-        const ok = startChartSectionPractice(panel, sectionKey, { withPulse: false, sourceLabel: "Sección", loop: false });
-        if (!ok) alert("El Chart todavía no está listo para practicar.");
-      });
-
-      const loopBtn = mk("↻", "Loop de esta sección", () => {
-        try {
-          window.dispatchEvent(new CustomEvent("studio936:chart-loop-current-section", {
-            detail: { section: sectionKey, part: sectionLabel }
-          }));
-        } catch(_) {}
-        const panel = getActiveChartPanel();
-        startChartSectionPractice(panel, sectionKey, { withPulse: false, sourceLabel: "Loop sección", loop: true });
-      });
-
-      const zoomBtn = mk(isFocused ? "↩" : "☰", isFocused ? "Salir de Estructura de la canción" : "Estructura de la canción", () => {
-        openZoomSectionPicker(zoomBtn, sectionKey);
-      }, isFocused ? "is-active" : "");
-
       // Cambio 412: Mute/Solo del canal Chart (acordes) — independiente
       // del canal Lyric. Con Solo activo en cualquiera de los dos, el
       // otro queda silenciado automáticamente.
@@ -8386,11 +8440,36 @@ body.s936-chart-stage main{
         soloBtn.classList.toggle("is-active", _chartChannelSolo);
       }, _chartChannelSolo ? "is-active" : "");
 
-      const editBtn = mk("✎", "Editar secciones (abre Compose)", () => {
-        openComposeExpanded();
-      });
+      const editBtn = () => openComposeExpanded();
 
-      bar.append(playBtn, loopBtn, zoomBtn, editBtn, muteBtn, soloBtn);
+      // Cambio 438: antes los 6 controles (▶ ↻ ☰ ✎ 🔊 S) estaban SIEMPRE
+      // visibles, amontonados en una sola fila — Val pidió el mismo
+      // criterio que ya tienen los instrumentos desde el Cambio 431:
+      // dejar Mute/Solo (los más usados, y los que dan un estado
+      // permanente que conviene ver de un vistazo) siempre a la vista,
+      // y mover Practicar/Loop/Estructura/Editar a un menú "⋮".
+      const moreWrap = buildMiniMoreMenu([
+        { label: "▶ Practicar esta sección", onClick: () => {
+          const panel = getActiveChartPanel();
+          const ok = startChartSectionPractice(panel, sectionKey, { withPulse: false, sourceLabel: "Sección", loop: false });
+          if (!ok) alert("El Chart todavía no está listo para practicar.");
+        } },
+        { label: "↻ Loop de esta sección", onClick: () => {
+          try {
+            window.dispatchEvent(new CustomEvent("studio936:chart-loop-current-section", {
+              detail: { section: sectionKey, part: sectionLabel }
+            }));
+          } catch(_) {}
+          const panel = getActiveChartPanel();
+          startChartSectionPractice(panel, sectionKey, { withPulse: false, sourceLabel: "Loop sección", loop: true });
+        } },
+        { label: isFocused ? "↩ Salir de Estructura de la canción" : "☰ Estructura de la canción", isActive: isFocused, onClick: () => {
+          openZoomSectionPicker(moreWrap.querySelector(".s936-ch-mini-sesion-btn"), sectionKey);
+        } },
+        { label: "✎ Editar secciones", onClick: editBtn }
+      ]);
+
+      bar.append(muteBtn, soloBtn, moreWrap);
       return bar;
     }
 
@@ -8412,31 +8491,16 @@ body.s936-chart-stage main{
       channelIcon.style.color = "#378ADD";
       bar.appendChild(channelIcon);
 
-      const openLyricBtn = document.createElement("button");
-      openLyricBtn.type = "button";
-      openLyricBtn.className = "s936-ch-mini-sesion-btn";
-      openLyricBtn.textContent = "✎";
-      openLyricBtn.title = "Abrir letra de esta sección";
-      openLyricBtn.onclick = (e) => {
-        e.stopPropagation();
+      const openLyricBtn = () => {
         try {
           window.dispatchEvent(new CustomEvent("studio936:chart-open-lyrics-editor", {
             detail: { section: sectionKey }
           }));
         } catch(_) {}
       };
-      bar.appendChild(openLyricBtn);
-
-      const toVoiceBtn = document.createElement("button");
-      toVoiceBtn.type = "button";
-      toVoiceBtn.className = "s936-ch-mini-sesion-btn is-placeholder";
-      toVoiceBtn.textContent = "🎷";
-      toVoiceBtn.title = "Convertir letra en sonido — próximo cambio";
-      toVoiceBtn.disabled = true;
-      bar.appendChild(toVoiceBtn);
 
       // Cambio 412: Mute/Solo del canal Lyric — hoy este canal todavía
-      // no produce sonido real (el botón 🎷 de arriba es un placeholder),
+      // no produce sonido real (el botón 🎷 de abajo es un placeholder),
       // así que mutear/solear acá no cambia nada audible TODAVÍA, pero
       // deja el control ya construido y funcionando para cuando ese
       // botón se conecte a una voz real.
@@ -8464,6 +8528,20 @@ body.s936-chart-stage main{
         lyricSoloBtn.classList.toggle("is-active", _lyricChannelSolo);
       };
       bar.appendChild(lyricSoloBtn);
+
+      // Cambio 438: mismo criterio que la barra de Chart — Abrir letra y
+      // Convertir a sonido (todavía placeholder) se mueven al "⋮", Mute
+      // y Solo quedan siempre a la vista.
+      const moreWrap = buildMiniMoreMenu([
+        { label: "✎ Abrir letra de esta sección", onClick: openLyricBtn },
+        { label: "🎷 Convertir letra en sonido (próximo cambio)", onClick: () => {} }
+      ]);
+      // Cambio 438: la opción "Convertir a sonido" sigue siendo un
+      // placeholder — se deja visible en el menú (para que no desaparezca
+      // de la vista, Val la quiere ahí como recordatorio) pero deshabilitada.
+      const toVoiceMenuBtn = moreWrap.querySelector(".s936-ch-mini-more-menu button:last-child");
+      if (toVoiceMenuBtn) { toVoiceMenuBtn.disabled = true; toVoiceMenuBtn.style.opacity = ".4"; toVoiceMenuBtn.style.cursor = "not-allowed"; }
+      bar.appendChild(moreWrap);
 
       return bar;
     }
