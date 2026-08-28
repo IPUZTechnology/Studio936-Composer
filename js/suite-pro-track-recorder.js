@@ -566,7 +566,11 @@
         color:rgba(255,255,255,.65);font-size:8px;line-height:1;}
       .s936tr-lanebtn:hover{background:rgba(255,255,255,.08);}
       .s936tr-lanebtn.is-active{background:rgba(255,120,120,.22);color:#ff9d9d;}
-      .s936tr-lanetrack{height:7px;border-radius:4px;cursor:default;width:100%;}
+      /* Cambio 429: de 7px a 26px — Val pidió que la barra de color de
+         cada canal sea más gruesa, para llenar mejor el alto de su
+         fila (56px, desde el Cambio 423), en vez de verse como una
+         rayita fina. */
+      .s936tr-lanetrack{height:26px;border-radius:4px;cursor:default;width:100%;}
       .s936tr-laneadd{position:relative;padding-left:0;margin-top:2px;}
       .s936tr-laneaddbtn{width:20px;height:20px;padding:0;border-radius:50%;
         border:1px solid rgba(91,232,201,.35);background:rgba(91,232,201,.1);color:#5be8c9;
