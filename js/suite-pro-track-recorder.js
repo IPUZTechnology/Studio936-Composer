@@ -41,8 +41,11 @@
     { id: 'piano', label: 'Piano' },
     { id: 'bateria', label: 'Batería' },
     // Cambio 364: Val pidió que también aparezcan como opciones de pista.
-    { id: 'tecladomidi', label: 'Teclado MIDI' },
-    { id: 'setelectronico', label: 'Set electrónico' },
+    // Cambio 442: nombres más cortos — Val notó que "Teclado MIDI" y
+    // "Set electrónico" se truncaban ("Teclado ...", "Set elect...")
+    // por el ancho fijo de la columna de nombre.
+    { id: 'tecladomidi', label: 'Solo MIDI' },
+    { id: 'setelectronico', label: 'Electro' },
     { id: 'otro', label: 'Otro instrumento' }
   ];
 
@@ -586,12 +589,15 @@
          menú "⋮"), y ▶ Escuchar / 🗑 Borrar / balance se mueven a ese
          menú desplegable — mismo patrón que .s936tr-lanepicker, ya
          existente en este archivo. */
-      .s936tr-laneicon{display:flex;align-items:center;justify-content:center;width:28px;height:28px;
-        cursor:default;font-size:16px;flex-shrink:0;}
-      .s936tr-lanebtn-lg{width:26px;height:26px;padding:0;border:1px solid rgba(255,255,255,.12);
+      /* Cambio 442: íconos un poco más grandes en toda la fila — Val lo
+         pidió después de ver todo junto. laneicon 28→30, lanebtn-lg
+         26→29, fuente 13→15px. */
+      .s936tr-laneicon{display:flex;align-items:center;justify-content:center;width:30px;height:30px;
+        cursor:default;font-size:17px;flex-shrink:0;}
+      .s936tr-lanebtn-lg{width:29px;height:29px;padding:0;border:1px solid rgba(255,255,255,.12);
         background:rgba(255,255,255,.04);border-radius:6px;
         display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;
-        color:rgba(255,255,255,.75);font-size:13px;line-height:1;}
+        color:rgba(255,255,255,.75);font-size:15px;line-height:1;}
       .s936tr-lanebtn-lg:hover{background:rgba(255,255,255,.1);}
       .s936tr-lanebtn-lg.is-active{background:rgba(255,120,120,.22);border-color:rgba(255,120,120,.4);color:#ff9d9d;}
       .s936tr-lanebtn-lg.is-active.is-solo{background:rgba(0,255,204,.2);border-color:rgba(0,255,204,.45);color:#7dffe0;}
@@ -606,18 +612,18 @@
         background:transparent;cursor:pointer;margin:0;
       }
       .s936tr-lanevol input[type=range]::-webkit-slider-runnable-track{
-        height:3px;border-radius:2px;background:rgba(255,255,255,.15);
+        height:4px;border-radius:2px;background:rgba(255,255,255,.15);
       }
       .s936tr-lanevol input[type=range]::-webkit-slider-thumb{
-        -webkit-appearance:none;appearance:none;width:10px;height:10px;
-        border-radius:50%;background:#5be8c9;margin-top:-3.5px;
+        -webkit-appearance:none;appearance:none;width:12px;height:12px;
+        border-radius:50%;background:#5be8c9;margin-top:-4px;
         box-shadow:0 0 4px rgba(91,232,201,.5);
       }
       .s936tr-lanevol input[type=range]::-moz-range-track{
-        height:3px;border-radius:2px;background:rgba(255,255,255,.15);
+        height:4px;border-radius:2px;background:rgba(255,255,255,.15);
       }
       .s936tr-lanevol input[type=range]::-moz-range-thumb{
-        width:10px;height:10px;border-radius:50%;background:#5be8c9;
+        width:12px;height:12px;border-radius:50%;background:#5be8c9;
         border:none;box-shadow:0 0 4px rgba(91,232,201,.5);
       }
       /* Cambio 431: botón "⋮" — abre el menú con ▶ Escuchar, balance
@@ -1015,7 +1021,14 @@
     const nameSpan = document.createElement('span');
     nameSpan.className = 's936tr-lanename';
     nameSpan.textContent = info.label;
-    nameSpan.style.cssText = 'font-size:.62rem;font-weight:700;color:' + color + ';margin-right:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52px;';
+    // Cambio 442: width FIJO (no max-width) — Val notó que "Chart"/"Lyric"
+    // (cortos) y "Batería"/"Guitarra" (más largos, truncados con "...")
+    // dejaban el resto de los íconos desalineados entre filas. Con width
+    // fijo, TODOS los nombres ocupan el mismo espacio exacto sin importar
+    // el texto, así el resto de los controles arranca siempre en la
+    // misma posición. Mismo valor (50px) en suite-pro-chart-v260-cambio100.js
+    // (.s936-ch-mini-sesion-name) — si se cambia acá, cambiarlo allá también.
+    nameSpan.style.cssText = 'font-size:.62rem;font-weight:700;color:' + color + ';margin-right:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:50px;flex-shrink:0;';
 
     const track = document.createElement('div');
     track.className = 's936tr-lanetrack';
@@ -1185,7 +1198,11 @@
       if (menu.classList.contains('is-open') && e.target !== moreBtn) closeLaneMenu();
     });
 
-    label.append(iconSpan, nameSpan, soloBtn, volWrap, muteBtn, moreWrap);
+    // Cambio 442: moreWrap ("⋮") se agrega AL FINAL, después del bloque
+    // de canal MIDI de abajo — antes se agregaba acá y el botón "Ch N"
+    // quedaba después de él (más a la derecha que "⋮"), rompiendo el
+    // criterio de que "⋮" sea siempre el último elemento de la fila.
+    label.append(iconSpan, nameSpan, soloBtn, volWrap, muteBtn);
 
     // Cambio 436: el <select> nativo de canal MIDI (Ch 1-16) se veía
     // "expuesto" — distinto tamaño y estilo que el resto de los
@@ -1251,6 +1268,9 @@
       midiWrap.append(midiBtn, midiMenu);
       label.appendChild(midiWrap);
     }
+    // Cambio 442: "⋮" siempre al final — después del botón de canal MIDI
+    // si esta fila es Teclado MIDI, o inmediatamente si no lo es.
+    label.appendChild(moreWrap);
     row.append(label, track);
     return row;
   }

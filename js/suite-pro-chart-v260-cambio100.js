@@ -238,6 +238,9 @@ window.Studio936SuiteProChart = (() => {
   let _chartChannelMuted = false;
   let _chartChannelSolo = false;
   let _lyricChannelSolo = false;
+  // Cambio 442: Mute de Lyric vuelve también — cosmético (ese canal
+  // todavía no produce sonido propio), pero visible por consistencia.
+  let _lyricChannelMuted = false;
   // Cambio 439: volumen de Chart SÍ es real (ver isChartChannelAudible
   // abajo); el de Lyric sigue siendo cosmético (ese canal todavía no
   // produce sonido propio).
@@ -1517,19 +1520,13 @@ window.Studio936SuiteProChart = (() => {
    en línea con el ícono de canal, hay que resetearlo para que no quede
    descolgado. */
 .s936-ch-mini-sesion-bar .s936tr-laneadd{margin-top:0}
-/* Cambio 436 (ajuste): Val notó que estos botones (Chart/Lyric) se
-   veían "afuera" del rediseño — seguían con el tamaño viejo (22px)
-   mientras los de instrumento ya usaban 26px, borde y fondo distintos
-   desde el Cambio 431. Mismas medidas acá (no es la misma clase CSS
-   porque vive en otro archivo, pero se mantienen IGUALES a propósito —
-   si .s936tr-lanebtn-lg cambia de tamaño en track-recorder.js, este
-   bloque hay que actualizarlo también para que seguir pareciendo una
-   sola familia de controles). */
+/* Cambio 442: agrandado — MISMO valor que .s936tr-lanebtn-lg en
+   track-recorder.js (26→29px). Si se cambia uno, cambiar el otro. */
 .s936-ch-mini-sesion-btn{
-  min-width:26px;height:26px;padding:0 6px;
+  min-width:29px;height:29px;padding:0 6px;
   border-radius:6px;border:1px solid rgba(255,255,255,.12);
   background:rgba(255,255,255,.04);color:rgba(255,255,255,.75);
-  font-size:.7rem;line-height:1;cursor:pointer;
+  font-size:.78rem;line-height:1;cursor:pointer;
   display:inline-flex;align-items:center;justify-content:center;
 }
 .s936-ch-mini-sesion-btn:hover{background:rgba(255,255,255,.1)}
@@ -1541,19 +1538,23 @@ window.Studio936SuiteProChart = (() => {
    tiene tamaño consistente) este quedaba como un emoji suelto sin peso
    visual. .is-chart y .is-lyric dan el color — antes era un
    channelIcon.style.color puesto a mano en JS, ahora es CSS, más fácil
-   de ajustar. */
+   de ajustar. Cambio 442: agrandado, mismo criterio que arriba. */
 .s936-ch-mini-sesion-channel-icon{
-  font-size:.85rem;line-height:1;display:inline-flex;align-items:center;
-  justify-content:center;width:26px;height:26px;border-radius:6px;flex-shrink:0;
+  font-size:.95rem;line-height:1;display:inline-flex;align-items:center;
+  justify-content:center;width:29px;height:29px;border-radius:6px;flex-shrink:0;
 }
 .s936-ch-mini-sesion-channel-icon.is-chart{background:rgba(0,255,204,.14);border:1px solid rgba(0,255,204,.3)}
 .s936-ch-mini-sesion-channel-icon.is-lyric{background:rgba(55,138,221,.14);border:1px solid rgba(55,138,221,.35)}
 /* Cambio 439: nombre del canal ("Chart"/"Lyric") — mismo criterio visual
    que .s936tr-lanename en track-recorder.js (Cambio 367), para que esta
    barra tenga tantos elementos como una fila de instrumento. */
+/* Cambio 442: width FIJO 50px (no max-width) — MISMO valor que
+   .s936tr-lanename en track-recorder.js. Antes eran 44px acá vs 52px
+   allá, esa diferencia desalineaba los íconos entre Chart/Lyric y las
+   filas de instrumento. Si se cambia acá, cambiar allá también. */
 .s936-ch-mini-sesion-name{
-  font-size:.62rem;font-weight:700;color:#c9d8d5;margin-right:2px;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:44px;flex-shrink:0;
+  font-size:.62rem;font-weight:700;color:#c9d8d5;margin-right:4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:50px;flex-shrink:0;
 }
 /* Cambio 441: mismo slider fino/elegante que .s936tr-lanevol en
    track-recorder.js — antes usaba accent-color, que en muchos
@@ -1566,18 +1567,18 @@ window.Studio936SuiteProChart = (() => {
   background:transparent;cursor:pointer;margin:0;
 }
 .s936-ch-mini-vol input[type=range]::-webkit-slider-runnable-track{
-  height:3px;border-radius:2px;background:rgba(255,255,255,.15);
+  height:4px;border-radius:2px;background:rgba(255,255,255,.15);
 }
 .s936-ch-mini-vol input[type=range]::-webkit-slider-thumb{
-  -webkit-appearance:none;appearance:none;width:10px;height:10px;
-  border-radius:50%;background:#5be8c9;margin-top:-3.5px;
+  -webkit-appearance:none;appearance:none;width:12px;height:12px;
+  border-radius:50%;background:#5be8c9;margin-top:-4px;
   box-shadow:0 0 4px rgba(91,232,201,.5);
 }
 .s936-ch-mini-vol input[type=range]::-moz-range-track{
-  height:3px;border-radius:2px;background:rgba(255,255,255,.15);
+  height:4px;border-radius:2px;background:rgba(255,255,255,.15);
 }
 .s936-ch-mini-vol input[type=range]::-moz-range-thumb{
-  width:10px;height:10px;border-radius:50%;background:#5be8c9;
+  width:12px;height:12px;border-radius:50%;background:#5be8c9;
   border:none;box-shadow:0 0 4px rgba(91,232,201,.5);
 }
 /* Cambio 438: cuando el riel colapsa la columna (56px), TODO adentro de
@@ -8623,6 +8624,17 @@ body.s936-chart-stage main{
         return b;
       };
 
+      // Cambio 442: Mute vuelve a Lyric (Val lo pidió de nuevo) — igual
+      // que en instrumentos/Chart, cosmético por ahora (este canal
+      // todavía no produce sonido propio), pero visible para
+      // consistencia. Solo sigue sin volver — Val solo mencionó Mute.
+      const lyricMuteBtn = mkLyricBtn(_lyricChannelMuted ? "🔇" : "🔊", _lyricChannelMuted ? "Activar sonido (Lyric)" : "Silenciar (Lyric)", () => {
+        _lyricChannelMuted = !_lyricChannelMuted;
+        lyricMuteBtn.textContent = _lyricChannelMuted ? "🔇" : "🔊";
+        lyricMuteBtn.classList.toggle("is-active", _lyricChannelMuted);
+      });
+      lyricMuteBtn.classList.toggle("is-active", _lyricChannelMuted);
+
       const openLyricBtn = () => {
         try {
           window.dispatchEvent(new CustomEvent("studio936:chart-open-lyrics-editor", {
@@ -8631,12 +8643,8 @@ body.s936-chart-stage main{
         } catch(_) {}
       };
 
-      // Cambio 441: rediseño completo de esta barra — Val sacó Solo y
-      // Mute de Lyric (no aportaban mucho: mutear nunca calló nada real
-      // acá, y Solo era el único con efecto real pero indirecto sobre
-      // Chart). En su lugar quedan expuestas las 3 acciones que sí
-      // importan en este canal: Abrir Editor, Volumen, Convertir a
-      // sonido — antes las dos últimas estaban escondidas en el "⋮".
+      // Cambio 441/442: quedan expuestas las acciones que importan en
+      // este canal: Mute, Abrir Editor, Volumen, Convertir a sonido.
       const openEditorBtn = mkLyricBtn("✎", "Abrir editor de letra de esta sección", openLyricBtn);
 
       const lyricVolWrap = document.createElement("div");
@@ -8649,28 +8657,27 @@ body.s936-chart-stage main{
       lyricVolSlider.oninput = () => { _lyricChannelVolume = Number(lyricVolSlider.value); };
       lyricVolWrap.appendChild(lyricVolSlider);
 
-      // Cambio 441: "Convertir letra en sonido" pasa de estar escondido
-      // en el "⋮" a visible siempre — sigue siendo placeholder (todavía
-      // no está construido, ver handoff: conecta con el pentagrama de
-      // pitch que ya existe en structure.js pero que el Chart no lee
-      // todavía).
+      // Cambio 441: "Convertir letra en sonido" — sigue siendo
+      // placeholder (todavía no está construido, ver handoff: conecta
+      // con el pentagrama de pitch que ya existe en structure.js pero
+      // que el Chart no lee todavía).
       const convertBtn = mkLyricBtn("🎷", "Convertir letra en sonido (próximo cambio)", () => {
         alert("Convertir letra en sonido — todavía no está construido.");
       });
       convertBtn.classList.add("is-placeholder");
 
-      // Cambio 441: "Crear sonido en pentagrama" — función NUEVA
-      // (todavía sin diseñar) que Val pidió escondida en el "⋮". Se dejó
-      // como placeholder, igual que "Detectar instrumento" en la barra
-      // de Chart — no se inventa una conexión real sin que Val la
-      // confirme primero.
-      const moreWrap = buildMiniMoreMenu([
-        { label: "🎼 Crear sonido en pentagrama (próximo cambio)", onClick: () => {
-          alert("Crear sonido en pentagrama — todavía no está construido, es la próxima función a diseñar.");
-        } }
-      ]);
+      // Cambio 442: "Crear sonido en pentagrama" pasa de estar escondido
+      // en el "⋮" a visible siempre — Val lo pidió como 4to botón a la
+      // vista. Sigue siendo placeholder (función nueva sin diseñar
+      // todavía) — no se inventa una conexión real sin que Val la
+      // confirme primero. Como ya no queda nada para esconder, se saca
+      // el "⋮" de esta barra por completo.
+      const pentagramaBtn = mkLyricBtn("🎼", "Crear sonido en pentagrama (próximo cambio)", () => {
+        alert("Crear sonido en pentagrama — todavía no está construido, es la próxima función a diseñar.");
+      });
+      pentagramaBtn.classList.add("is-placeholder");
 
-      bar.append(openEditorBtn, lyricVolWrap, convertBtn, moreWrap);
+      bar.append(lyricMuteBtn, openEditorBtn, lyricVolWrap, convertBtn, pentagramaBtn);
       return bar;
     }
 
