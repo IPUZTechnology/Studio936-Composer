@@ -1514,7 +1514,19 @@ window.Studio936SuiteProChart = (() => {
      Chart, Lyric e instrumentos de una vez. */
   min-height:68px;
 }
-.s936-ch-mini-sesion-bar{display:flex;align-items:center;gap:5px;margin:0}
+/* Cambio 444: BUG real encontrado — esta barra vivía dentro de un
+   spacer con justify-content:center (.s936-ch-mini-sesion-spacer) sin
+   ancho propio, así que quedaba centrada a su tamaño de CONTENIDO en
+   vez de ocupar los 320px reales. Por eso el slider de volumen
+   (flex:1) nunca tenía espacio real para crecer — flex:1 solo funciona
+   si el contenedor mismo está forzado a un ancho, y acá no lo estaba.
+   Con width:100% + el mismo padding horizontal que .s936tr-lanelabel en
+   track-recorder.js (8px), el volumen de Chart/Lyric queda con el
+   MISMO ancho real que el de los instrumentos, no solo el mismo CSS. */
+.s936-ch-mini-sesion-bar{
+  display:flex;align-items:center;gap:5px;margin:0;
+  width:100%;box-sizing:border-box;padding:0 8px;
+}
 /* Cambio 379 (ajuste): el control "+" reusado de track-recorder.js trae
    su propio margin-top pensado para la lista vertical de pistas — acá,
    en línea con el ícono de canal, hay que resetearlo para que no quede
@@ -1522,11 +1534,17 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-mini-sesion-bar .s936tr-laneadd{margin-top:0}
 /* Cambio 442: agrandado — MISMO valor que .s936tr-lanebtn-lg en
    track-recorder.js (26→29px). Si se cambia uno, cambiar el otro. */
+/* Cambio 444: EXACTO igual que .s936tr-lanebtn-lg en track-recorder.js
+   — antes tenía padding:0 6px (ensanchaba el botón más allá de 29px
+   real con texto largo como "☰"/"✎") y font-size en rem en vez de px
+   (.78rem ≈ 12.48px vs 15px real de instrumentos), dos diferencias que
+   hacían que no se vieran 100% iguales aunque el número base (29px)
+   coincidiera. */
 .s936-ch-mini-sesion-btn{
-  min-width:29px;height:29px;padding:0 6px;
+  width:29px;height:29px;padding:0;
   border-radius:6px;border:1px solid rgba(255,255,255,.12);
   background:rgba(255,255,255,.04);color:rgba(255,255,255,.75);
-  font-size:.78rem;line-height:1;cursor:pointer;
+  font-size:15px;line-height:1;cursor:pointer;
   display:inline-flex;align-items:center;justify-content:center;
 }
 .s936-ch-mini-sesion-btn:hover{background:rgba(255,255,255,.1)}

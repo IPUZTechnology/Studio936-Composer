@@ -603,8 +603,15 @@
       /* Cambio 442: íconos un poco más grandes en toda la fila — Val lo
          pidió después de ver todo junto. laneicon 28→30, lanebtn-lg
          26→29, fuente 13→15px. */
-      .s936tr-laneicon{display:flex;align-items:center;justify-content:center;width:30px;height:30px;
-        cursor:default;font-size:17px;flex-shrink:0;}
+      /* Cambio 444: 30px → 29px, font-size 17px → .95rem — para que
+         quede EXACTO igual que .s936-ch-mini-sesion-channel-icon en
+         suite-pro-chart-v260-cambio100.js (antes había 1px de
+         diferencia de tamaño y una unidad distinta de fuente, que se
+         notaba al comparar Chart/Lyric contra instrumentos en la misma
+         pantalla). Mismo criterio: si se cambia acá, cambiar allá.
+         Fuente/tamaño y forma. */
+      .s936tr-laneicon{display:flex;align-items:center;justify-content:center;width:29px;height:29px;
+        cursor:default;font-size:.95rem;flex-shrink:0;border-radius:6px;}
       .s936tr-lanebtn-lg{width:29px;height:29px;padding:0;border:1px solid rgba(255,255,255,.12);
         background:rgba(255,255,255,.04);border-radius:6px;
         display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;
@@ -1032,7 +1039,9 @@
     // (el mismo que ya usa la franja de la pista) en vez de uno fijo.
     iconSpan.style.background = color + '24'; // 24 hex ≈ 14% opacidad
     iconSpan.style.border = '1px solid ' + color + '4d'; // 4d hex ≈ 30% opacidad
-    iconSpan.style.borderRadius = '6px';
+    // Cambio 444: border-radius ya viene de la clase CSS .s936tr-laneicon
+    // (para que sea IGUAL, no solo parecido, al de Chart/Lyric) — se
+    // saca de acá para no repetir el valor en dos lugares.
 
     // Cambio 367: el nombre del instrumento ahora se ve escrito, no solo
     // como tooltip del ícono — Val no reconocía qué instrumento era cada
