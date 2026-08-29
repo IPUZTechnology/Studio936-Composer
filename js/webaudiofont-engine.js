@@ -54,15 +54,30 @@
   // antes de considerar la batería "ya resuelta".
   const DRUM_KIT_FILE = '0128_1_FluidR3_GM_sf2_file';
 
-  // Cambio 446: mapa de golpes de batería de Studio 936 (los mismos
-  // "kind" que ya usa hitDrum() en app.js) a nota MIDI de percusión GM
-  // estándar — esto SÍ es estándar fijo (no depende del soundfont).
+  // Cambio 448: mapa de golpes de batería a nota MIDI de percusión GM
+  // estándar. Ampliado — el groove REAL de práctica usa
+  // playSongDrumLane() en app.js (kick/snare/hatClosed/hatOpen/toms/
+  // platillos/percusión), un sistema más completo que el hitDrum()
+  // original que se había cubierto en el Cambio 446. Los nombres de acá
+  // coinciden con los "laneId" que ya usa playSongDrumLane.
   const DRUM_NOTE_BY_KIND = {
-    kick: 36,   // Bass Drum 1
-    snare: 38,  // Acoustic Snare
-    hat: 42,    // Closed Hi-Hat
-    clave: 75,  // Claves
-    conga: 63   // Open High Conga
+    kick: 36,        // Bass Drum 1
+    snare: 38,       // Acoustic Snare
+    hatClosed: 42,   // Closed Hi-Hat
+    hatOpen: 46,      // Open Hi-Hat
+    tomHigh: 50,      // High Tom
+    tomMid: 47,       // Low-Mid Tom
+    tomLow: 41,       // Low Floor Tom
+    crash: 49,        // Crash Cymbal 1
+    ride: 51,         // Ride Cymbal 1
+    percussion: 54,   // Tambourine (aproximado — playSongDrumLane varía
+                       // este golpe según "kit"; se deja fijo acá para
+                       // no sobrecomplicar el mapeo)
+    // Cambio 446 (compatibilidad): nombres viejos de hitDrum(), por si
+    // algún llamador viejo todavía los usa con esta forma.
+    hat: 42,
+    clave: 75,
+    conga: 63
   };
 
   const loadedInstruments = {}; // instrumentId -> WebAudioFont preset object | 'loading' | 'failed'

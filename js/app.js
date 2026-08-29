@@ -42,6 +42,27 @@ function playNoteAsInstrument(midi,vol,decay,type,time,instrumentId){
     const role = noteRole(type);
     const inst = instruments[instrumentId] || instruments.piano;
     const prof = inst[role] || inst.chord || instruments.piano.chord;
+    // Cambio 448: mismo criterio que playNoteImpl (Cambio 446) — esta
+    // función se usa para forzar un instrumento específico sin importar
+    // cuál esté seleccionado arriba (selector de práctica, voces
+    // paralelas de Piano/Ukelele en el Mixer de Canales). Se le había
+    // quedado afuera del Cambio 446 — por eso Val vio que elegir otro
+    // instrumento en el selector no cambiaba el sonido real.
+    const sampleEngine = window.Studio936SampleEngine;
+    if (sampleEngine) {
+        if (sampleEngine.hasSample(instrumentId)) {
+            const now = Math.max(time, audioCtx.currentTime);
+            const m = adjustedMidiForInstrument(midi, prof, role);
+            const finalDecay = Math.max(.06, decay * (prof.decayMult || 1));
+            const v = Math.min(1, vol * (project.grooveVol/7) * (prof.volMult || 1) * 2.2);
+            const outGain = audioCtx.createGain();
+            connectOut(outGain, role);
+            const played = sampleEngine.playSampledNote(audioCtx, outGain, instrumentId, m, finalDecay, v, now);
+            if (played) return;
+        } else {
+            sampleEngine.warmUp(audioCtx, instrumentId);
+        }
+    }
     if(inst.mode === 'pluck') return playPluckedNote(midi,vol,decay,type,time,role,inst,prof);
     if(inst.mode === 'wind') return playWindNote(midi,vol,decay,type,time,role,inst,prof);
     return playBasicSynthNote(midi,vol,decay,type,time,role,inst,prof);
@@ -821,6 +842,22 @@ function playDrumNoise(volume,when,decay,filterType='highpass',frequency=4200){
 function playSongDrumLane(laneId,velocity,pattern,when){
     const kit = String(pattern?.kit || 'studio');
     const v = Math.max(.01,Math.min(1,Number(velocity)||.7)) * (Number(project.grooveVol || 7) / 7) * .72 * channelMix.drums.vol;
+    // Cambio 448: si hay un sample real (WebAudioFont) para este golpe,
+    // se usa ESE en vez de las capas de tono+ruido sintetizadas de
+    // abajo — un solo golpe de sample ya trae el cuerpo+ataque juntos,
+    // así que no tiene sentido sumarle las capas viejas encima.
+    // playSampledDrum ya dispara la carga del kit sola si todavía no
+    // está lista (mismo patrón que playSampledNote) — no hace falta
+    // pedirla aparte acá.
+    const sampleEngine = window.Studio936SampleEngine;
+    if (sampleEngine) {
+        const outGain = audioCtx.createGain();
+        connectOut(outGain, 'drums');
+        const dur = laneId === 'crash' ? .6 : laneId === 'ride' ? .35 : laneId === 'hatOpen' ? .25 : .3;
+        if (sampleEngine.playSampledDrum(audioCtx, outGain, laneId, dur, Math.min(1, v * 1.3), when)) return;
+        // si todavía no está lista (cargando o falló), sigue hacia abajo
+        // y toca con el sintetizador de siempre en este golpe puntual.
+    }
     switch(String(laneId)){
         case 'kick':
             playDrumTone(kit === 'electronic' ? 138 : 112,v,when,.22,'sine',kit === 'electronic' ? 48 : 42);
