@@ -1197,6 +1197,35 @@ function playNoteImpl(midi,vol=.18,decay=.45,type='triangle',time=audioCtx.curre
     const role = noteRole(type);
     const inst = currentInstrument();
     const prof = inst[role] || inst.chord || instruments.piano.chord;
+    // Cambio 446: si hay un sample real (WebAudioFont) disponible para
+    // el instrumento activo, se usa ESE en vez del sintetizador de
+    // osciladores — mismo cálculo de pitch/volumen/duración que ya
+    // hacía el camino de abajo, para que sea un reemplazo de sonido
+    // nomás, sin cambiar CUÁNDO ni QUÉ TAN FUERTE suena cada nota. Si
+    // el sample todavía no está listo (cargando o falló), sigue exacto
+    // igual que siempre — las líneas de abajo no se tocaron.
+    const sampleEngine = window.Studio936SampleEngine;
+    const instrumentId = activeInstrumentId();
+    if (sampleEngine) {
+        if (sampleEngine.hasSample(instrumentId)) {
+            const now = Math.max(time, audioCtx.currentTime);
+            const m = adjustedMidiForInstrument(midi, prof, role);
+            const finalDecay = Math.max(.06, decay * (prof.decayMult || 1));
+            // *2.2: WebAudioFont espera una escala de volumen distinta
+            // a la del sintetizador de osciladores viejo — el número
+            // salió de escuchar y ajustar, no de una fórmula exacta.
+            const v = Math.min(1, vol * (project.grooveVol/7) * (prof.volMult || 1) * 2.2);
+            const outGain = audioCtx.createGain();
+            connectOut(outGain, role);
+            const played = sampleEngine.playSampledNote(audioCtx, outGain, instrumentId, m, finalDecay, v, now);
+            if (played) return;
+            // si falló justo en este golpe puntual, sigue hacia abajo y
+            // toca con el sintetizador de siempre en vez de quedar en
+            // silencio.
+        } else {
+            sampleEngine.warmUp(audioCtx, instrumentId); // pide la carga para la próxima nota
+        }
+    }
     if(inst.mode === 'pluck') return playPluckedNote(midi,vol,decay,type,time,role,inst,prof);
     if(inst.mode === 'wind') return playWindNote(midi,vol,decay,type,time,role,inst,prof);
     return playBasicSynthNote(midi,vol,decay,type,time,role,inst,prof);
@@ -3466,7 +3495,19 @@ const drumPatterns={funk:{kick:[0,6,10],snare:[4,12],hat:[0,2,4,6,8,10,12,14]},r
 function ensureDrums(){ if(!drumCtx){ drumCtx=new (window.AudioContext||window.webkitAudioContext)(); drumGain=drumCtx.createGain(); drumGain.gain.value=Number(loadAddon().drumVol||0.35); drumGain.connect(drumCtx.destination); } if(drumCtx.state==='suspended') drumCtx.resume(); }
 function drumOsc(freq,dur,type,time,vol){ const o=drumCtx.createOscillator(), g=drumCtx.createGain(); o.type=type; o.frequency.setValueAtTime(freq,time); g.gain.setValueAtTime(vol,time); g.gain.exponentialRampToValueAtTime(0.001,time+dur); o.connect(g); g.connect(drumGain); o.start(time); o.stop(time+dur); }
 function drumNoise(dur,time,vol,filter=9000){ const len=Math.max(1,Math.floor(drumCtx.sampleRate*dur)), b=drumCtx.createBuffer(1,len,drumCtx.sampleRate), d=b.getChannelData(0); for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len); const src=drumCtx.createBufferSource(), f=drumCtx.createBiquadFilter(), g=drumCtx.createGain(); f.type='highpass'; f.frequency.value=filter; g.gain.value=vol; src.buffer=b; src.connect(f); f.connect(g); g.connect(drumGain); src.start(time); }
-function hitDrum(kind,time){ if(kind==='kick') drumOsc(75,.22,'sine',time,.65); if(kind==='snare') drumNoise(.12,time,.33,1200); if(kind==='hat') drumNoise(.045,time,.13,7000); if(kind==='clave') drumOsc(900,.06,'square',time,.17); if(kind==='conga') drumOsc(180,.12,'triangle',time,.2); }
+function hitDrum(kind,time){
+    // Cambio 446: mismo criterio que playNoteImpl — si el kit de
+    // batería real (WebAudioFont) ya está cargado, se usa ese; si no,
+    // sigue con el sintetizador de siempre (líneas de abajo, sin tocar).
+    const sampleEngine = window.Studio936SampleEngine;
+    if (sampleEngine) {
+        ensureDrums();
+        const vol = kind==='kick' ? .9 : kind==='snare' ? .6 : kind==='hat' ? .35 : kind==='clave' ? .5 : .55;
+        const dur = kind==='kick' ? .4 : kind==='snare' ? .25 : kind==='hat' ? .15 : .2;
+        if (sampleEngine.playSampledDrum(drumCtx, drumGain, kind, dur, vol, time)) return;
+    }
+    if(kind==='kick') drumOsc(75,.22,'sine',time,.65); if(kind==='snare') drumNoise(.12,time,.33,1200); if(kind==='hat') drumNoise(.045,time,.13,7000); if(kind==='clave') drumOsc(900,.06,'square',time,.17); if(kind==='conga') drumOsc(180,.12,'triangle',time,.2);
+}
 function scheduleDrums(){ if(!drumOn) return; const p=getProject(); const pat=drumPatterns[p.style]||drumPatterns.funk; const stepDur=60/(Number($('bpmDisplay')?.textContent)||p.bpm||95)/4; while(drumNext < drumCtx.currentTime + .1){ Object.keys(pat).forEach(k=>{ if(pat[k].includes(drumStep%16)) hitDrum(k,drumNext); }); drumNext+=stepDur; drumStep=(drumStep+1)%16; } drumTimer=requestAnimationFrame(scheduleDrums); }
 function toggleDrums(){ ensureDrums(); drumOn=!drumOn; const btn=$('v18DrumBtn'); if(btn) btn.textContent=drumOn?T('drumsOn'):T('drumsOff'); if(drumOn){ drumNext=drumCtx.currentTime; scheduleDrums(); } else cancelAnimationFrame(drumTimer); }
 function loadAddon(){ try{return JSON.parse(localStorage.getItem(ADDON_KEY)||'{}')}catch(e){return{}} }
