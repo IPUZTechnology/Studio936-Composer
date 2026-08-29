@@ -46,11 +46,17 @@
     lead:    { file: '0290_Aspirin_sf2_file',       gm: 29, confirmado: true },  // Overdriven Guitar — citado en la documentación oficial de WebAudioFont
     violin:  { file: '0400_GeneralUserGS_sf2_file', gm: 40, confirmado: true },  // catálogo real: "MIDI: 40. Violin: Strings"
     trumpet: { file: '0560_GeneralUserGS_sf2_file', gm: 56, confirmado: true },  // catálogo real: "MIDI: 56. Trumpet: Brass"
+    cello:   { file: '0421_GeneralUserGS_sf2_file', gm: 42, confirmado: true },  // catálogo real: "MIDI: 42. Cello: Strings"
+    // Cambio 451: epiano pasa de "deducido" a CONFIRMADO — el valor
+    // anterior (0040_FluidR3_GM) era una suposición con la fórmula, sin
+    // probar. Este nuevo (0041_GeneralUserGS) sí está confirmado por el
+    // catálogo real: "MIDI: 4. Electric Piano 1" (el Fender Rhodes que
+    // pidió Val).
+    epiano:  { file: '0041_GeneralUserGS_sf2_file', gm: 4,  confirmado: true },
     // DEDUCIDOS con la fórmula correcta (programa×10 + variante 0,
     // soundfont FluidR3_GM) — más confiables que antes, pero
     // TODAVÍA NO probados con HTTP real. Si alguno da 404, cae al
     // sintetizador de siempre (no rompe nada) — avisar para confirmar.
-    epiano:  { file: '0040_FluidR3_GM_sf2_file', gm: 4,  confirmado: false }, // Electric Piano 1
     organ:   { file: '0190_FluidR3_GM_sf2_file', gm: 19, confirmado: false }, // Church Organ
     sax:     { file: '0660_FluidR3_GM_sf2_file', gm: 66, confirmado: false }, // Tenor Sax
     synth:   { file: '0810_FluidR3_GM_sf2_file', gm: 81, confirmado: false }  // Lead 2 (sawtooth)

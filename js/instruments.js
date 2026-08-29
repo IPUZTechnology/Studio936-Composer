@@ -19,5 +19,8 @@ window.Studio936Instruments = {
     // dos son de sonido sostenido (arco/soplido), no pulsado como la
     // guitarra.
     violin:{label:'Violín', mode:'wind', chord:{type:'sawtooth', type2:'triangle', filter:2600, attack:.05, decayMult:1.3, detune:1.004}, bass:{type:'sawtooth', type2:'sine', filter:1400, attack:.04, decayMult:1.2, detune:1.002}, solo:{type:'sawtooth', type2:'triangle', filter:3200, attack:.045, decayMult:1.4, detune:1.005}, strum:.015},
-    trumpet:{label:'Trompeta', mode:'wind', chord:{type:'sawtooth', type2:'square', filter:2800, attack:.03, decayMult:1.15, detune:1.003}, bass:{type:'sawtooth', type2:'square', filter:1600, attack:.025, decayMult:1.1, detune:1.002}, solo:{type:'sawtooth', type2:'square', filter:3400, attack:.025, decayMult:1.3, detune:1.004}, strum:.012}
+    trumpet:{label:'Trompeta', mode:'wind', chord:{type:'sawtooth', type2:'square', filter:2800, attack:.03, decayMult:1.15, detune:1.003}, bass:{type:'sawtooth', type2:'square', filter:1600, attack:.025, decayMult:1.1, detune:1.002}, solo:{type:'sawtooth', type2:'square', filter:3400, attack:.025, decayMult:1.3, detune:1.004}, strum:.012},
+    // Cambio 451: chelo — pedido por Val, con sample real confirmado.
+    // mode:'wind' (arco, sonido sostenido) igual que violín.
+    cello:{label:'Chelo', mode:'wind', chord:{type:'sawtooth', type2:'sine', filter:1800, attack:.06, decayMult:1.5, detune:1.003}, bass:{type:'sawtooth', type2:'sine', filter:1000, attack:.05, decayMult:1.4, detune:1.002}, solo:{type:'sawtooth', type2:'triangle', filter:2200, attack:.055, decayMult:1.6, detune:1.004}, strum:.015}
 };
