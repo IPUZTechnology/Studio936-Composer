@@ -58,6 +58,28 @@
   let mediaRecorder = null;
   let recordedChunks = [];
   let recordStartedAt = null;
+
+  // Cambio 445: motor de audio real (Bloque 1 de la bitácora — Web Audio
+  // API) — reemplaza el sistema viejo de un <audio> suelto por toma, que
+  // no tenía forma de que Volumen/Mute/Solo le hicieran algo de verdad.
+  // playbackAudioCtx: UN solo AudioContext compartido por todo el módulo
+  // (no uno por toma) — se crea recién al primer play (los navegadores
+  // exigen un gesto del usuario antes de poder arrancar audio real).
+  let playbackAudioCtx = null;
+  function getPlaybackAudioCtx() {
+    if (!playbackAudioCtx) playbackAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return playbackAudioCtx;
+  }
+  // decodedBuffersById: cache de AudioBuffer ya decodificado por take.id —
+  // decodeAudioData() es relativamente caro, no conviene repetirlo cada
+  // vez que se aprieta Play sobre la misma toma sin cambios.
+  const decodedBuffersById = {};
+  // instrumentAudioNodes: UN GainNode + StereoPannerNode por instrumentId
+  // (no por toma) — así, si hay 2 tomas de Guitarra sonando, comparten el
+  // mismo control de volumen/balance, y un cambio en el slider mientras
+  // suena se aplica en vivo a las dos de una (GainNode.gain.value es
+  // instantáneo, no hace falta reiniciar la reproducción).
+  const instrumentAudioNodes = {}; // instrumentId -> { gain, panner, sources: Set }
   let recordAnchorCtxTime = null;
   let recordTimerHandle = null;
   let recordSeconds = 0;
@@ -869,18 +891,14 @@
     if (panelEl) panelEl.style.display = 'none';
   }
 
-  // ─── Cambio 252: reproducción sincronizada con el Play de la sección ───
+  // ─── Cambio 252 → 445: reproducción sincronizada con el Play de la sección ───
   //
-  // Nota honesta sobre precisión: esto usa elementos <audio> normales, no
-  // el reloj de muestra exacta de Web Audio (AudioBufferSourceNode +
-  // ctx.currentTime). Eso significa que puede haber unos pocos
-  // milisegundos de desfase — imperceptible para escuchar una referencia
-  // mientras compones, pero no es el nivel de precisión de un canal real
-  // de estudio. Si más adelante hace falta esa precisión exacta (para el
-  // sistema de canales real del Studio), se puede reconstruir con
-  // AudioBufferSourceNode anclado a ctx.currentTime — pieza aparte, no
-  // esta.
-  const playingTrackEls = [];
+  // Cambio 445: esto ya NO usa <audio> normales — el comentario viejo acá
+  // avisaba que hacía falta reconstruir esto con AudioBufferSourceNode +
+  // ctx.currentTime para tener precisión real de muestra. Ya está hecho
+  // (ver getPlaybackAudioCtx/getOrCreateInstrumentNodes más abajo) — todas
+  // las tomas arrancan ancladas al mismo instante del reloj del
+  // AudioContext, no una tras otra con `await audioEl.play()`.
 
   // Cambio 432: estado global (no por sección) de si el panel de pistas
   // está colapsado — un solo control cambia TODAS las filas visibles a
@@ -912,25 +930,72 @@
   function toggleAllLaneWraps() { setLanesCollapsed(!lanesCollapsed); }
   function isLanesCollapsed() { return lanesCollapsed; }
 
+  // Cambio 445: se reemplaza el <audio> suelto por toma por el grafo de
+  // Web Audio real. playingSources guarda los AudioBufferSourceNode
+  // activos (no <audio> elements) para poder pararlos todos con
+  // stopSyncedPlayback().
+  let playingSources = [];
+  let currentPlaybackSection = null;
+
   function stopSyncedPlayback() {
-    while (playingTrackEls.length) {
-      const audioEl = playingTrackEls.pop();
-      try { audioEl.pause(); audioEl.currentTime = 0; } catch (_) {}
+    while (playingSources.length) {
+      const src = playingSources.pop();
+      try { src.stop(); } catch (_) {} // ya puede haber terminado solo, no pasa nada
     }
+    currentPlaybackSection = null;
   }
 
   async function startSyncedPlaybackForSection(sectionKey) {
     stopSyncedPlayback();
     const takes = listTakesForSection(sectionKey);
     if (!takes.length) return;
-    for (const take of takes) {
-      const url = await ensureTakePlayable(take);
-      if (!url) continue; // toma perdida (sin carpeta configurada) — se salta, no rompe el Play
-      const audioEl = new Audio(url);
-      audioEl.currentTime = 0;
-      try { await audioEl.play(); } catch (_) {}
-      playingTrackEls.push(audioEl);
-    }
+    currentPlaybackSection = sectionKey;
+    const ctx = getPlaybackAudioCtx();
+    if (ctx.state === 'suspended') { try { await ctx.resume(); } catch (_) {} }
+
+    // Cambio 445: se decodifican TODAS las tomas primero (en paralelo) y
+    // recién cuando todas están listas se programa el arranque — esto es
+    // lo que permite que empiecen exactamente juntas. El loop viejo hacía
+    // "resolver → reproducir" toma por toma, así que la última siempre
+    // arrancaba un poco más tarde que la primera.
+    const prepared = await Promise.all(takes.map(async (take) => {
+      try {
+        let buffer = decodedBuffersById[take.id];
+        if (!buffer) {
+          const url = await ensureTakePlayable(take);
+          if (!url) return null; // toma perdida (sin carpeta configurada) — se salta, no rompe el Play
+          const arrayBuffer = await (await fetch(url)).arrayBuffer();
+          buffer = await ctx.decodeAudioData(arrayBuffer);
+          decodedBuffersById[take.id] = buffer;
+        }
+        return { take, buffer };
+      } catch (_) {
+        return null; // una toma corrupta/ilegible no debe tirar abajo el Play de las demás
+      }
+    }));
+
+    // Si mientras se decodificaba el usuario ya apretó Stop (o arrancó
+    // otra sección), no arrancar esta reproducción vieja por encima.
+    if (currentPlaybackSection !== sectionKey) return;
+
+    // Cambio 445: arranque sincronizado real — mismo "when" (instante del
+    // reloj del AudioContext) para TODAS las fuentes, con un pequeño
+    // colchón (0.12s) para que decodeAudioData/creación de nodos de
+    // ninguna toma llegue tarde a su propio horario de arranque.
+    const startAt = ctx.currentTime + 0.12;
+    prepared.forEach(item => {
+      if (!item) return;
+      const { take, buffer } = item;
+      const instrumentId = take.instrument || 'otro';
+      const nodes = getOrCreateInstrumentNodes(ctx, sectionKey, instrumentId);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(nodes.panner);
+      source.start(startAt);
+      nodes.sources.add(source);
+      source.onended = () => { nodes.sources.delete(source); };
+      playingSources.push(source);
+    });
   }
 
   window.addEventListener('studio936:chart-practice-start', (ev) => {
@@ -979,6 +1044,69 @@
     // guardado.
     if (!laneMuteSolo[sectionKey][instrumentId]) laneMuteSolo[sectionKey][instrumentId] = { muted: false, solo: false, pan: 0, volume: 0.8 };
     return laneMuteSolo[sectionKey][instrumentId];
+  }
+
+  // Cambio 445: cálculo de la ganancia REAL de un instrumento — mismo
+  // criterio que ya usa isChartChannelAudible() en
+  // suite-pro-chart-v260-cambio100.js (Cambio 412/441): si CUALQUIER
+  // instrumento de la sección tiene Solo activo, los demás quedan en 0
+  // salvo que ellos también estén en Solo; el mute y el volumen propio
+  // siempre se respetan encima de eso.
+  function computeRealGain(sectionKey, instrumentId) {
+    const state = getLaneState(sectionKey, instrumentId);
+    const locallyAudible = !state.muted ? (state.volume != null ? state.volume : 0.8) : 0;
+    const sectionStates = laneMuteSolo[sectionKey] || {};
+    const anySolo = Object.values(sectionStates).some(s => s.solo);
+    if (anySolo) return state.solo ? locallyAudible : 0;
+    return locallyAudible;
+  }
+
+  // Cambio 445: reaplica la ganancia/balance real a TODOS los
+  // instrumentos que estén sonando en este momento — hace falta llamarla
+  // completa (no solo para el instrumento que tocaste) porque activar
+  // Solo en UNO afecta el volumen real de TODOS los demás.
+  function refreshLivePlaybackGains(sectionKey) {
+    // Cambio 445 (corrección): Vista Continua puede mostrar varias
+    // secciones a la vez en pantalla — si el usuario mueve el volumen de
+    // una fila de una sección que NO es la que está sonando ahora mismo,
+    // no debe tocar el audio en vivo (solo queda guardado el valor para
+    // cuando esa sección sí se reproduzca).
+    if (sectionKey !== currentPlaybackSection) return;
+    Object.keys(instrumentAudioNodes).forEach(instrumentId => {
+      const nodes = instrumentAudioNodes[instrumentId];
+      if (!nodes) return;
+      const state = getLaneState(sectionKey, instrumentId);
+      nodes.gain.gain.value = computeRealGain(sectionKey, instrumentId);
+      nodes.panner.pan.value = state.pan || 0;
+    });
+  }
+
+  // Cambio 445: un GainNode+StereoPannerNode persistente por instrumento
+  // (se crea la primera vez que ese instrumento suena, se reusa después)
+  // — así un cambio en el slider mientras está sonando se escucha al
+  // instante, sin tener que parar y volver a armar el grafo de audio.
+  function getOrCreateInstrumentNodes(ctx, sectionKey, instrumentId) {
+    if (instrumentAudioNodes[instrumentId]) {
+      // Cambio 445 (corrección): si el nodo ya existía de una sección
+      // ANTERIOR, su ganancia/balance quedaron congelados con el estado
+      // de esa sección vieja — hay que refrescarlos contra la sección
+      // actual antes de reusarlo, si no, una pista podía sonar con el
+      // volumen de la sección de la que se vino, no de la que está
+      // sonando ahora.
+      const nodes = instrumentAudioNodes[instrumentId];
+      nodes.gain.gain.value = computeRealGain(sectionKey, instrumentId);
+      nodes.panner.pan.value = getLaneState(sectionKey, instrumentId).pan || 0;
+      return nodes;
+    }
+    const gain = ctx.createGain();
+    const panner = ctx.createStereoPanner();
+    gain.gain.value = computeRealGain(sectionKey, instrumentId);
+    panner.pan.value = getLaneState(sectionKey, instrumentId).pan || 0;
+    panner.connect(gain);
+    gain.connect(ctx.destination);
+    const nodes = { gain, panner, sources: new Set() };
+    instrumentAudioNodes[instrumentId] = nodes;
+    return nodes;
   }
 
   function groupTakesByInstrument(sectionKey) {
@@ -1107,6 +1235,10 @@
       e.stopPropagation();
       state.solo = !state.solo;
       soloBtn.classList.toggle('is-active', state.solo);
+      // Cambio 445: activar/quitar Solo en ESTE instrumento cambia el
+      // volumen real de TODOS los demás que estén sonando ahora mismo
+      // (por eso se llama la versión "refresh todo", no una puntual).
+      refreshLivePlaybackGains(sectionKey);
     };
 
     // Cambio 441: slider de volumen más angosto/suave (Val: "muy grande
@@ -1122,6 +1254,10 @@
     volSlider.oninput = () => {
       state.volume = Number(volSlider.value);
       updateTrackOpacity();
+      // Cambio 445: si este instrumento está sonando ahora, el cambio de
+      // volumen se escucha al instante — no hace falta parar y volver a
+      // apretar Play.
+      refreshLivePlaybackGains(sectionKey);
     };
     volWrap.appendChild(volSlider);
 
@@ -1139,6 +1275,7 @@
       muteBtn.title = state.muted ? 'Activar sonido de ' + info.label : 'Silenciar ' + info.label;
       muteBtn.classList.toggle('is-active', state.muted);
       updateTrackOpacity();
+      refreshLivePlaybackGains(sectionKey);
     };
 
     const moreWrap = document.createElement('div');
@@ -1167,7 +1304,10 @@
     panSlider.min = '-1'; panSlider.max = '1'; panSlider.step = '0.1';
     panSlider.value = String(state.pan || 0);
     panSlider.title = 'Balance izquierda/derecha';
-    panSlider.oninput = () => { state.pan = Number(panSlider.value); };
+    panSlider.oninput = () => {
+      state.pan = Number(panSlider.value);
+      refreshLivePlaybackGains(sectionKey);
+    };
     panRow.append(panLabel, panSlider);
 
     const delRow = document.createElement('button');
