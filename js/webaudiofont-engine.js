@@ -66,10 +66,27 @@
   };
 
   const loadedInstruments = {}; // instrumentId -> WebAudioFont preset object | 'loading' | 'failed'
+  const pendingInstrumentPromises = {}; // instrumentId -> Promise (mientras está en la fila o cargando)
   let drumKit = null; // WebAudioFont preset object | 'loading' | 'failed'
+  let pendingDrumPromise = null;
   let player = null;
   let playerLoadStarted = false;
   const playerReadyCallbacks = [];
+
+  // Cambio 446 (corrección): WebAudioFontPlayer.loader.startLoad/waitLoad
+  // NO admite varios pedidos en paralelo — Val probó y solo el piano
+  // (el primer instrumento pedido) cargaba bien; bajo/batería/etc.
+  // se pisaban entre sí porque salían casi al mismo tiempo apenas
+  // arranca la práctica. loadQueue fuerza que TODOS los pedidos de
+  // carga (instrumentos Y batería) pasen de a uno, en fila — recién
+  // cuando termina el anterior (con éxito o error) arranca el
+  // siguiente.
+  let loadQueue = Promise.resolve();
+  function enqueueLoad(taskFn) {
+    const result = loadQueue.then(taskFn, taskFn);
+    loadQueue = result.catch(() => {}); // una carga fallida no debe trabar la fila para las siguientes
+    return result;
+  }
 
   function loadScriptOnce(src) {
     return new Promise((resolve, reject) => {
@@ -107,95 +124,74 @@
 
   // Cambio 446: cada instrumento se carga UNA sola vez y se cachea en
   // memoria (loadedInstruments) — instrumentos ya usados no vuelven a
-  // pedirse por red.
+  // pedirse por red. Cambio 446 (corrección): la carga real pasa por
+  // enqueueLoad() para no competir con otros instrumentos/la batería
+  // por el mismo loader compartido.
   function ensureInstrumentLoaded(ctx, instrumentId) {
     const gmProgram = GM_PROGRAM_BY_INSTRUMENT[instrumentId];
     if (gmProgram == null) return Promise.resolve(null); // instrumento sin mapeo GM (no debería pasar, pero no romper si pasa)
     if (loadedInstruments[instrumentId] && loadedInstruments[instrumentId] !== 'loading') {
       return Promise.resolve(loadedInstruments[instrumentId] === 'failed' ? null : loadedInstruments[instrumentId]);
     }
-    if (loadedInstruments[instrumentId] === 'loading') {
-      // Ya se está cargando (otra nota lo pidió un instante antes) — no
-      // duplicar el pedido de red, esperar al mismo resultado.
-      return new Promise(resolve => {
-        const check = () => {
-          if (loadedInstruments[instrumentId] === 'loading') { setTimeout(check, 50); return; }
-          resolve(loadedInstruments[instrumentId] === 'failed' ? null : loadedInstruments[instrumentId]);
-        };
-        check();
-      });
-    }
+    if (pendingInstrumentPromises[instrumentId]) return pendingInstrumentPromises[instrumentId]; // ya en la fila — devolver la MISMA promesa, no pedir de nuevo
     loadedInstruments[instrumentId] = 'loading';
     const fileBase = String(gmProgram).padStart(4, '0') + '_FluidR3_GM_sf2_file';
     const varName = '_tone_' + fileBase;
-    return ensurePlayer().then(p => {
-      return new Promise(resolve => {
-        p.loader.startLoad(ctx, WAF_DATA_BASE + fileBase + '.js', varName);
-        p.loader.waitLoad(() => {
-          try {
-            const preset = window[varName];
-            if (preset) {
-              p.loader.decodeAfterLoading(ctx, varName);
-              loadedInstruments[instrumentId] = preset;
-              resolve(preset);
-            } else {
-              loadedInstruments[instrumentId] = 'failed';
-              resolve(null);
-            }
-          } catch (err) {
-            console.warn('Studio936 SampleEngine: fallo decodificando ' + instrumentId, err);
-            loadedInstruments[instrumentId] = 'failed';
-            resolve(null);
-          }
-        });
+    const promise = enqueueLoad(() => ensurePlayer().then(p => new Promise(resolve => {
+      p.loader.startLoad(ctx, WAF_DATA_BASE + fileBase + '.js', varName);
+      p.loader.waitLoad(() => {
+        try {
+          const preset = window[varName];
+          if (preset) p.loader.decodeAfterLoading(ctx, varName);
+          resolve(preset || null);
+        } catch (err) {
+          console.warn('Studio936 SampleEngine: fallo decodificando ' + instrumentId, err);
+          resolve(null);
+        }
       });
+    }))).then(preset => {
+      loadedInstruments[instrumentId] = preset || 'failed';
+      delete pendingInstrumentPromises[instrumentId];
+      return preset;
     }).catch(err => {
       console.warn('Studio936 SampleEngine: fallo cargando ' + instrumentId, err);
       loadedInstruments[instrumentId] = 'failed';
+      delete pendingInstrumentPromises[instrumentId];
       return null;
     });
+    pendingInstrumentPromises[instrumentId] = promise;
+    return promise;
   }
 
   function ensureDrumKitLoaded(ctx) {
     if (drumKit && drumKit !== 'loading') return Promise.resolve(drumKit === 'failed' ? null : drumKit);
-    if (drumKit === 'loading') {
-      return new Promise(resolve => {
-        const check = () => {
-          if (drumKit === 'loading') { setTimeout(check, 50); return; }
-          resolve(drumKit === 'failed' ? null : drumKit);
-        };
-        check();
-      });
-    }
+    if (pendingDrumPromise) return pendingDrumPromise;
     drumKit = 'loading';
     const varName = '_tone_' + DRUM_KIT_FILE;
-    return ensurePlayer().then(p => {
-      return new Promise(resolve => {
-        p.loader.startLoad(ctx, WAF_DATA_BASE + DRUM_KIT_FILE + '.js', varName);
-        p.loader.waitLoad(() => {
-          try {
-            const preset = window[varName];
-            if (preset) {
-              p.loader.decodeAfterLoading(ctx, varName);
-              drumKit = preset;
-              resolve(preset);
-            } else {
-              drumKit = 'failed';
-              console.warn('Studio936 SampleEngine: el archivo de batería (' + DRUM_KIT_FILE + ') no devolvió datos válidos — la batería sigue con el sintetizador de siempre. Avisar a Val para confirmar el nombre correcto de archivo.');
-              resolve(null);
-            }
-          } catch (err) {
-            drumKit = 'failed';
-            console.warn('Studio936 SampleEngine: fallo cargando el kit de batería — la batería sigue con el sintetizador de siempre.', err);
-            resolve(null);
-          }
-        });
+    pendingDrumPromise = enqueueLoad(() => ensurePlayer().then(p => new Promise(resolve => {
+      p.loader.startLoad(ctx, WAF_DATA_BASE + DRUM_KIT_FILE + '.js', varName);
+      p.loader.waitLoad(() => {
+        try {
+          const preset = window[varName];
+          if (preset) p.loader.decodeAfterLoading(ctx, varName);
+          resolve(preset || null);
+        } catch (err) {
+          console.warn('Studio936 SampleEngine: fallo decodificando el kit de batería', err);
+          resolve(null);
+        }
       });
+    }))).then(preset => {
+      drumKit = preset || 'failed';
+      pendingDrumPromise = null;
+      if (!preset) console.warn('Studio936 SampleEngine: el archivo de batería (' + DRUM_KIT_FILE + ') no devolvió datos válidos — la batería sigue con el sintetizador de siempre. Avisar a Val para confirmar el nombre correcto de archivo.');
+      return preset;
     }).catch(err => {
+      console.warn('Studio936 SampleEngine: fallo cargando el kit de batería — la batería sigue con el sintetizador de siempre.', err);
       drumKit = 'failed';
-      console.warn('Studio936 SampleEngine: no se pudo pedir el archivo de batería por red — la batería sigue con el sintetizador de siempre.', err);
+      pendingDrumPromise = null;
       return null;
     });
+    return pendingDrumPromise;
   }
 
   // Cambio 446: dispara la carga de un instrumento SIN bloquear — se usa
