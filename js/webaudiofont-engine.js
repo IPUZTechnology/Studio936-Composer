@@ -44,6 +44,8 @@
     ukulele: { file: '0241_GeneralUserGS_sf2_file', gm: 24, confirmado: true },  // reusa guitarra — instruments.js ya transpone +12 semitonos (transpose:12)
     bass:    { file: '0330_JCLive_sf2_file',        gm: 33, confirmado: true },  // catálogo real: "MIDI: 33. Electric Bass (finger)"
     lead:    { file: '0290_Aspirin_sf2_file',       gm: 29, confirmado: true },  // Overdriven Guitar — citado en la documentación oficial de WebAudioFont
+    violin:  { file: '0400_GeneralUserGS_sf2_file', gm: 40, confirmado: true },  // catálogo real: "MIDI: 40. Violin: Strings"
+    trumpet: { file: '0560_GeneralUserGS_sf2_file', gm: 56, confirmado: true },  // catálogo real: "MIDI: 56. Trumpet: Brass"
     // DEDUCIDOS con la fórmula correcta (programa×10 + variante 0,
     // soundfont FluidR3_GM) — más confiables que antes, pero
     // TODAVÍA NO probados con HTTP real. Si alguno da 404, cae al

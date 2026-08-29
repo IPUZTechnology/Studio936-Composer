@@ -11,5 +11,13 @@ window.Studio936Instruments = {
     drums:{label:'Batería', mode:'drums', chord:{type:'square', type2:'triangle', filter:1900, attack:.002, decayMult:.25, detune:1}, bass:{type:'sine', type2:'sine', filter:900, attack:.002, decayMult:.32, detune:1}, solo:{type:'triangle', type2:'square', filter:2600, attack:.002, decayMult:.20, detune:1}, strum:.006},
     organ:{label:'Órgano', chord:{type:'square', type2:'triangle', filter:1700, attack:.01, decayMult:2.2, detune:1.002}, bass:{type:'sine', type2:'triangle', filter:950, attack:.01, decayMult:1.7, detune:1.001}, solo:{type:'square', type2:'triangle', filter:2100, attack:.01, decayMult:1.8, detune:1.002}, strum:.006},
     sax:{label:'Saxo guía', mode:'wind', chord:{type:'triangle', type2:'sine', filter:1500, attack:.075, decayMult:1.18, detune:1.002}, bass:{type:'sine', type2:'triangle', filter:900, attack:.045, decayMult:1.1, detune:1.001}, solo:{type:'sawtooth', type2:'triangle', filter:2200, attack:.07, decayMult:1.4, detune:1.003}, strum:.012},
-    synth:{label:'Synth', chord:{type:'sawtooth', type2:'square', filter:3000, attack:.018, decayMult:1.1, detune:1.007}, bass:{type:'square', type2:'sine', filter:1200, attack:.01, decayMult:1.05, detune:1.003}, solo:{type:'sawtooth', type2:'square', filter:3500, attack:.012, decayMult:1.05, detune:1.006}, strum:.008}
+    synth:{label:'Synth', chord:{type:'sawtooth', type2:'square', filter:3000, attack:.018, decayMult:1.1, detune:1.007}, bass:{type:'square', type2:'sine', filter:1200, attack:.01, decayMult:1.05, detune:1.003}, solo:{type:'sawtooth', type2:'square', filter:3500, attack:.012, decayMult:1.05, detune:1.006}, strum:.008},
+    // Cambio 450: violín y trompeta — pedidos por Val, con sample real
+    // confirmado (WebAudioFont, ver webaudiofont-engine.js). El perfil
+    // de acá abajo es solo el RESPALDO sintetizado (mientras carga el
+    // sample real, o si por algún motivo falla) — mode:'wind' porque las
+    // dos son de sonido sostenido (arco/soplido), no pulsado como la
+    // guitarra.
+    violin:{label:'Violín', mode:'wind', chord:{type:'sawtooth', type2:'triangle', filter:2600, attack:.05, decayMult:1.3, detune:1.004}, bass:{type:'sawtooth', type2:'sine', filter:1400, attack:.04, decayMult:1.2, detune:1.002}, solo:{type:'sawtooth', type2:'triangle', filter:3200, attack:.045, decayMult:1.4, detune:1.005}, strum:.015},
+    trumpet:{label:'Trompeta', mode:'wind', chord:{type:'sawtooth', type2:'square', filter:2800, attack:.03, decayMult:1.15, detune:1.003}, bass:{type:'sawtooth', type2:'square', filter:1600, attack:.025, decayMult:1.1, detune:1.002}, solo:{type:'sawtooth', type2:'square', filter:3400, attack:.025, decayMult:1.3, detune:1.004}, strum:.012}
 };
