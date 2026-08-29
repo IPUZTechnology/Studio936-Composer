@@ -26,33 +26,33 @@
   const WAF_PLAYER_URL = 'https://surikov.github.io/webaudiofont/npm/dist/WebAudioFontPlayer.js';
   const WAF_DATA_BASE = 'https://surikov.github.io/webaudiofontdata/sound/';
 
-  // Cambio 446: números de programa General MIDI — esto es un estándar
-  // fijo, no depende de qué soundfont se use. Mapea cada instrumento de
-  // Studio 936 (instruments.js) a su equivalente GM más cercano.
-  // CONFIRMADO con ejemplos reales de la documentación de WebAudioFont.
-  const GM_PROGRAM_BY_INSTRUMENT = {
-    piano: 0,     // Acoustic Grand Piano
-    epiano: 4,    // Electric Piano 1
-    guitar: 24,   // Nylon Acoustic Guitar
-    ukulele: 24,  // Reusa el mismo sample que guitarra — instruments.js
-                  // ya transpone +12 semitonos para ukulele (transpose:12
-                  // en su perfil), así que no hace falta un sample aparte.
-    bass: 33,     // Electric Bass (finger)
-    lead: 29,     // Overdriven Guitar
-    organ: 19,    // Church Organ
-    sax: 66,      // Tenor Sax
-    synth: 81     // Lead 2 (sawtooth) — el synth más parecido en el set GM
+  // Cambio 449 — CORRECCIÓN IMPORTANTE: la fórmula original (número de
+  // programa GM directo, tipo "0024" para guitarra) estaba MAL. Val
+  // probó y confirmó con HTTP real: piano (0000) daba 200 ✅, pero
+  // guitarra (0024) y batería daban 404 ❌. Investigando el catálogo
+  // real de WebAudioFont (vía GitHub API, ver bitácora) encontré el
+  // patrón verdadero: el número de archivo es
+  // (programa GM × 10) + variante, no el programa GM directo. Acá cada
+  // instrumento tiene su NOMBRE DE ARCHIVO EXPLÍCITO en vez de calcularse
+  // con una fórmula — algunos confirmados con evidencia real, otros
+  // deducidos con la fórmula correcta pero todavía sin probar con HTTP.
+  const INSTRUMENT_FILES = {
+    // CONFIRMADOS (HTTP 200 real, o citados en la documentación oficial
+    // de WebAudioFont):
+    piano:   { file: '0000_FluidR3_GM_sf2_file',    gm: 0,  confirmado: true },  // Val lo probó: HTTP 200 ✅
+    guitar:  { file: '0241_GeneralUserGS_sf2_file', gm: 24, confirmado: true },  // catálogo real: "MIDI: 24. Acoustic Guitar (nylon)"
+    ukulele: { file: '0241_GeneralUserGS_sf2_file', gm: 24, confirmado: true },  // reusa guitarra — instruments.js ya transpone +12 semitonos (transpose:12)
+    bass:    { file: '0330_JCLive_sf2_file',        gm: 33, confirmado: true },  // catálogo real: "MIDI: 33. Electric Bass (finger)"
+    lead:    { file: '0290_Aspirin_sf2_file',       gm: 29, confirmado: true },  // Overdriven Guitar — citado en la documentación oficial de WebAudioFont
+    // DEDUCIDOS con la fórmula correcta (programa×10 + variante 0,
+    // soundfont FluidR3_GM) — más confiables que antes, pero
+    // TODAVÍA NO probados con HTTP real. Si alguno da 404, cae al
+    // sintetizador de siempre (no rompe nada) — avisar para confirmar.
+    epiano:  { file: '0040_FluidR3_GM_sf2_file', gm: 4,  confirmado: false }, // Electric Piano 1
+    organ:   { file: '0190_FluidR3_GM_sf2_file', gm: 19, confirmado: false }, // Church Organ
+    sax:     { file: '0660_FluidR3_GM_sf2_file', gm: 66, confirmado: false }, // Tenor Sax
+    synth:   { file: '0810_FluidR3_GM_sf2_file', gm: 81, confirmado: false }  // Lead 2 (sawtooth)
   };
-
-  // Cambio 446 — AVISO IMPORTANTE: este nombre de archivo de batería NO
-  // está confirmado con documentación real (a diferencia del mapeo de
-  // arriba, que sí). Es la mejor suposición siguiendo el patrón conocido
-  // (NNNN_FluidR3_GM_sf2_file.js, banco 128 = percusión GM). Si al
-  // probar la consola muestra un error 404 acá, la batería sigue sonando
-  // con el sintetizador de siempre (ver hasSample/fallback en app.js) —
-  // no rompe nada, pero avisa a Val para confirmar el nombre correcto
-  // antes de considerar la batería "ya resuelta".
-  const DRUM_KIT_FILE = '0128_1_FluidR3_GM_sf2_file';
 
   // Cambio 448: mapa de golpes de batería a nota MIDI de percusión GM
   // estándar. Ampliado — el groove REAL de práctica usa
@@ -143,14 +143,14 @@
   // enqueueLoad() para no competir con otros instrumentos/la batería
   // por el mismo loader compartido.
   function ensureInstrumentLoaded(ctx, instrumentId) {
-    const gmProgram = GM_PROGRAM_BY_INSTRUMENT[instrumentId];
-    if (gmProgram == null) return Promise.resolve(null); // instrumento sin mapeo GM (no debería pasar, pero no romper si pasa)
+    const entry = INSTRUMENT_FILES[instrumentId];
+    if (!entry) return Promise.resolve(null); // instrumento sin mapeo (no debería pasar, pero no romper si pasa)
     if (loadedInstruments[instrumentId] && loadedInstruments[instrumentId] !== 'loading') {
       return Promise.resolve(loadedInstruments[instrumentId] === 'failed' ? null : loadedInstruments[instrumentId]);
     }
     if (pendingInstrumentPromises[instrumentId]) return pendingInstrumentPromises[instrumentId]; // ya en la fila — devolver la MISMA promesa, no pedir de nuevo
     loadedInstruments[instrumentId] = 'loading';
-    const fileBase = String(gmProgram).padStart(4, '0') + '_FluidR3_GM_sf2_file';
+    const fileBase = entry.file;
     const varName = '_tone_' + fileBase;
     const promise = enqueueLoad(() => ensurePlayer().then(p => new Promise(resolve => {
       p.loader.startLoad(ctx, WAF_DATA_BASE + fileBase + '.js', varName);
@@ -167,6 +167,7 @@
     }))).then(preset => {
       loadedInstruments[instrumentId] = preset || 'failed';
       delete pendingInstrumentPromises[instrumentId];
+      if (!preset) console.warn('Studio936 SampleEngine: "' + instrumentId + '" (archivo ' + fileBase + '.js, ' + (entry.confirmado ? 'confirmado' : 'SIN confirmar') + ') no cargó — sigue con el sintetizador de siempre.');
       return preset;
     }).catch(err => {
       console.warn('Studio936 SampleEngine: fallo cargando ' + instrumentId, err);
@@ -178,35 +179,16 @@
     return promise;
   }
 
+  // Cambio 449: la batería se deja DESHABILITADA a propósito — el
+  // intento anterior (0128_1_FluidR3_GM_sf2_file) dio 404 confirmado
+  // (Val lo probó). No encontré el nombre real del kit de percusión
+  // todavía, y prefiero no seguir adivinando un tercer nombre — mejor
+  // que la batería suene con el sintetizador de siempre (funciona bien,
+  // no rompe nada) hasta confirmar el archivo correcto en una próxima
+  // sesión. hasDrumKit() siempre da false, así que playSampledDrum()
+  // nunca llega a intentar la carga — cero pedidos de red rotos.
   function ensureDrumKitLoaded(ctx) {
-    if (drumKit && drumKit !== 'loading') return Promise.resolve(drumKit === 'failed' ? null : drumKit);
-    if (pendingDrumPromise) return pendingDrumPromise;
-    drumKit = 'loading';
-    const varName = '_tone_' + DRUM_KIT_FILE;
-    pendingDrumPromise = enqueueLoad(() => ensurePlayer().then(p => new Promise(resolve => {
-      p.loader.startLoad(ctx, WAF_DATA_BASE + DRUM_KIT_FILE + '.js', varName);
-      p.loader.waitLoad(() => {
-        try {
-          const preset = window[varName];
-          if (preset) p.loader.decodeAfterLoading(ctx, varName);
-          resolve(preset || null);
-        } catch (err) {
-          console.warn('Studio936 SampleEngine: fallo decodificando el kit de batería', err);
-          resolve(null);
-        }
-      });
-    }))).then(preset => {
-      drumKit = preset || 'failed';
-      pendingDrumPromise = null;
-      if (!preset) console.warn('Studio936 SampleEngine: el archivo de batería (' + DRUM_KIT_FILE + ') no devolvió datos válidos — la batería sigue con el sintetizador de siempre. Avisar a Val para confirmar el nombre correcto de archivo.');
-      return preset;
-    }).catch(err => {
-      console.warn('Studio936 SampleEngine: fallo cargando el kit de batería — la batería sigue con el sintetizador de siempre.', err);
-      drumKit = 'failed';
-      pendingDrumPromise = null;
-      return null;
-    });
-    return pendingDrumPromise;
+    return Promise.resolve(null);
   }
 
   // Cambio 446: dispara la carga de un instrumento SIN bloquear — se usa
