@@ -226,3 +226,86 @@ Val confirmó algo importante: **el repo público está sirviendo `main`**, la v
 - Ancho real de grabación según duración+BPM — Cambio 434.
 
 Esto no estaba en el handoff previo como prioridad, pero el resultado visual fue importante para que la app "se sienta profesional" — vale la pena tenerlo anotado para que la fecha de 3 meses considere que ya se usó tiempo de sesión en esto.
+
+---
+
+## Cierre de sesión de audio — diagnóstico de timbres y dirección de calidad sonora
+
+**Fecha:** 30 agosto 2026  
+**Contexto:** revisión del motor de audio y perfiles de instrumentos del proyecto antes de seguir con ajustes puntuales.
+
+### Estado previo al inicio de la sesión
+- El proyecto ya tiene un motor de audio funcional basado en WebAudio y perfiles por instrumento.
+- La arquitectura de audio no estaba rota ni desactivada.
+- El problema principal ya no era "no suena", sino definir qué timbres están realmente bien y cuáles quedan como pendientes para perfeccionamiento.
+
+### Resumen de la sesión
+Se revisó el estado real del sonido en los archivos principales:
+- `js/audio-engine.js`
+- `js/instruments.js`
+- `js/webaudiofont-engine.js`
+
+Se concluyó que:
+- El motor base es sólido y funcional.
+- Hay una base correcta de perfiles por instrumento, con filtros, ataque, decay y variaciones de timbre.
+- Hay una capa de samples reales con WebAudioFont para varios instrumentos, aunque no todos están en el mismo nivel de madurez.
+- La diferencia más relevante no es quitar instrumentos, sino diferenciar cuáles timbres ya están bien y cuáles requieren ajuste de timbre, mezcla o sample real.
+
+### Qué está bien
+Los timbres que presentan mejor identidad y cuerpo son, en orden de confort sonoro observado:
+- Piano
+- Bajo
+- Violín
+- Chelo
+- Epiano
+
+También se evaluó que la guitarra es usable pero menos convincente que el piano o las cuerdas, y que su nivel de naturalidad dependerá de brillo y mezcla.
+
+### Qué queda como opcional o pendiente
+Los instrumentos que requieren más cuidado o son más claramente artificiales en su sonido actual son:
+- Ukelele
+- Sax
+- Synth
+- Organ
+- Trompeta, si se quiere un carácter más natural o menos brillante
+- Guitarra, si se desea un timbre más orgánico y menos "plástico"
+
+### Razón del cambio
+La decisión no fue quitar instrumentos del sistema, porque el selector y la lógica del proyecto siguen siendo funcionales para:
+- DAW
+- práctica por instrumento
+- edición y vista de estudio
+- composición y flujo del editor
+
+La decisión fue documental: mantener todo visible y dejar escrito qué timbres ya están bien y cuáles quedan pendientes de mejora de sonido, sin romper la interfaz ni la lógica del producto.
+
+### Decisión de diseño adoptada
+- No se quitan instrumentos del selector ni de la UI.
+- Se documenta su estado real de calidad sonora.
+- Los timbres mejor evaluados permanecen como base y preferencia.
+- Los timbres más artificiales quedan como opcionales o pendientes de ajuste.
+- Los refinamientos de timbre se harán en una fase posterior, cuando el producto esté estabilizado y la prioridad sea calidad sonora más que funcionalidad.
+
+### Prioridades claras para seguir
+**Alta prioridad**
+- Mejorar timbres pendientes para que suenen más naturales
+- Afinar brillo y cuerpo en guitarras, ukelele y sax
+- Revisión de synth/organ como color, no como base
+
+**Media prioridad**
+- Ajustes de mezcla y EQ por timbre
+- Matizar tono y ataque para instrumentos con brillo excesivo
+- Revisar trompeta y guitarra para quitar artificialidad
+
+**Baja prioridad**
+- Mejoras cosméticas o de UX sobre instrumentos no críticos
+- Ajustes de detalle no esenciales para lanzamiento
+
+### Siguiente sesión
+La siguiente sesión debe arrancar revisando este cierre de audio y continuando con:
+- clasificación documental del estado real de cada instrumento
+- registro de prioridades de timbre
+- seguimiento de ajustes para los pendientes
+- cerrar una ruta clara de mejora sin tocar la interfaz del selector
+
+**Conclusión:** este análisis cierra correctamente como diagnóstico técnico y deja la base de decisión para la siguiente fase de refinamiento del sonido, sin romper la funcionalidad del proyecto.

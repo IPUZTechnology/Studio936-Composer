@@ -1302,19 +1302,23 @@ function playPluckedNote(midi,vol,decay,type,time,role,inst,prof){
     const v = vol * (project.grooveVol/7) * (instrumentId === 'ukulele' ? 1.12 : instrumentId === 'bass' ? 1.05 : .95);
     const osc = audioCtx.createOscillator();
     const osc2 = audioCtx.createOscillator();
+    const oscGain = audioCtx.createGain();
+    const osc2Gain = audioCtx.createGain();
     const body = audioCtx.createBiquadFilter();
     const bright = audioCtx.createBiquadFilter();
     const gain = audioCtx.createGain();
     osc.type = prof.type || 'triangle';
     osc2.type = prof.type2 || 'sine';
     osc.frequency.setValueAtTime(freq, now);
-    osc2.frequency.setValueAtTime(freq*(prof.detune || 1.006), now);
+    osc2.frequency.setValueAtTime(freq*(prof.detune || 1.0026), now);
     body.type = 'bandpass'; body.frequency.setValueAtTime(inst.body || 220, now); body.Q.setValueAtTime(instrumentId==='ukulele'?3.2:instrumentId==='bass'?1.35:2.1, now);
     bright.type = 'lowpass'; bright.frequency.setValueAtTime(prof.filter || inst.brightness || 3000, now); bright.Q.setValueAtTime(.8, now);
+    oscGain.gain.setValueAtTime(1, now);
+    osc2Gain.gain.setValueAtTime(instrumentId === 'ukulele' ? .28 : instrumentId === 'bass' ? .34 : .22, now);
     gain.gain.setValueAtTime(0.0001, now);
     gain.gain.exponentialRampToValueAtTime(Math.max(.0002,v), now + (prof.attack || .003));
     gain.gain.exponentialRampToValueAtTime(0.001, now + finalDecay);
-    osc.connect(body); osc2.connect(body); body.connect(bright); bright.connect(gain); connectOut(gain,role);
+    osc.connect(oscGain); osc2.connect(osc2Gain); oscGain.connect(body); osc2Gain.connect(body); body.connect(bright); bright.connect(gain); connectOut(gain,role);
     osc.start(now); osc2.start(now); osc.stop(now+finalDecay+.05); osc2.stop(now+finalDecay+.05);
     addPickNoise(now, v * (inst.pick || 1), instrumentId==='ukulele' ? 0.018 : instrumentId==='bass' ? 0.014 : 0.026, instrumentId==='ukulele' ? 5200 : instrumentId==='bass' ? 900 : 3300);
 }
