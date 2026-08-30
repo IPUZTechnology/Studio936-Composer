@@ -62,13 +62,11 @@
   // Cambio 445: motor de audio real (Bloque 1 de la bitácora — Web Audio
   // API) — reemplaza el sistema viejo de un <audio> suelto por toma, que
   // no tenía forma de que Volumen/Mute/Solo le hicieran algo de verdad.
-  // playbackAudioCtx: UN solo AudioContext compartido por todo el módulo
-  // (no uno por toma) — se crea recién al primer play (los navegadores
-  // exigen un gesto del usuario antes de poder arrancar audio real).
-  let playbackAudioCtx = null;
+  // Cambio 452: usar window.__studio936AudioCtx (contexto compartido) en
+  // lugar de crear uno nuevo — esto sincroniza exactamente con Chart y
+  // los demás módulos. Ambos ahora leen del MISMO reloj (currentTime).
   function getPlaybackAudioCtx() {
-    if (!playbackAudioCtx) playbackAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    return playbackAudioCtx;
+    return window.__studio936AudioCtx || null;
   }
   // decodedBuffersById: cache de AudioBuffer ya decodificado por take.id —
   // decodeAudioData() es relativamente caro, no conviene repetirlo cada
