@@ -32,14 +32,8 @@
   // Cambio 255: mismos canales que ya controla el Mixer de Compose
   // (suite-pro-channel-mixer.js) — se reutilizan, no se inventa un
   // sistema de mute nuevo.
-  const BACKING_CHANNELS = ['drums', 'bass', 'chord', 'solo', 'piano', 'organ', 'ukulele', 'sax', 'violin', 'trumpet', 'cello'];
-    // Cambio 453: BACKING_CHANNELS ampliado con los instrumentos nuevos
-  // (organ, sax, violin, trumpet, cello) — antes, silenciar el fondo
-  // mientras se graba (checkbox de arriba) no los apagaba a ellos, solo
-  // a los 6 canales viejos. Sin este cambio, esos instrumentos podian
-  // colarse por el microfono durante una grabacion aunque el usuario
-  // hubiera marcado silenciar fondo.
-let muteBackingWhileRec = true;
+  const BACKING_CHANNELS = ['drums', 'bass', 'chord', 'solo', 'piano', 'ukulele'];
+  let muteBackingWhileRec = true;
   let mutedChannelsBeforeRec = null;
   const INSTRUMENTS = [
     { id: 'voz', label: 'Voz' },
@@ -47,15 +41,8 @@ let muteBackingWhileRec = true;
     { id: 'piano', label: 'Piano' },
     { id: 'bateria', label: 'Batería' },
     // Cambio 364: Val pidió que también aparezcan como opciones de pista.
-    // Cambio 442: nombres más cortos — Val notó que "Teclado MIDI" y
-    // "Set electrónico" se truncaban ("Teclado ...", "Set elect...")
-    // por el ancho fijo de la columna de nombre.
-    // Cambio 443: "Solo MIDI" → "MIDI" — Val notó que "Solo" ya es el
-    // nombre de un botón (Solo instrumento) y podía confundir con el
-    // nombre del canal; "MIDI" a secas entra sin truncarse en los 50px
-    // fijos del nombre.
-    { id: 'tecladomidi', label: 'MIDI' },
-    { id: 'setelectronico', label: 'Electro' },
+    { id: 'tecladomidi', label: 'Teclado MIDI' },
+    { id: 'setelectronico', label: 'Set electrónico' },
     { id: 'otro', label: 'Otro instrumento' }
   ];
 
@@ -64,26 +51,6 @@ let muteBackingWhileRec = true;
   let mediaRecorder = null;
   let recordedChunks = [];
   let recordStartedAt = null;
-
-  // Cambio 445: motor de audio real (Bloque 1 de la bitácora — Web Audio
-  // API) — reemplaza el sistema viejo de un <audio> suelto por toma, que
-  // no tenía forma de que Volumen/Mute/Solo le hicieran algo de verdad.
-  // Cambio 452: usar window.__studio936AudioCtx (contexto compartido) en
-  // lugar de crear uno nuevo — esto sincroniza exactamente con Chart y
-  // los demás módulos. Ambos ahora leen del MISMO reloj (currentTime).
-  function getPlaybackAudioCtx() {
-    return window.__studio936AudioCtx || null;
-  }
-  // decodedBuffersById: cache de AudioBuffer ya decodificado por take.id —
-  // decodeAudioData() es relativamente caro, no conviene repetirlo cada
-  // vez que se aprieta Play sobre la misma toma sin cambios.
-  const decodedBuffersById = {};
-  // instrumentAudioNodes: UN GainNode + StereoPannerNode por instrumentId
-  // (no por toma) — así, si hay 2 tomas de Guitarra sonando, comparten el
-  // mismo control de volumen/balance, y un cambio en el slider mientras
-  // suena se aplica en vivo a las dos de una (GainNode.gain.value es
-  // instantáneo, no hace falta reiniciar la reproducción).
-  const instrumentAudioNodes = {}; // instrumentId -> { gain, panner, sources: Set }
   let recordAnchorCtxTime = null;
   let recordTimerHandle = null;
   let recordSeconds = 0;
@@ -561,28 +528,7 @@ let muteBackingWhileRec = true;
       .s936tr-btn.small{padding:5px 8px;font-size:.72rem;flex:none;}
       .s936tr-hint{font-size:.72rem;color:#7fa8a0;margin-top:10px;line-height:1.4;}
       .s936tr-empty{font-size:.78rem;color:#7fa8a0;font-style:italic;}
-      /* Cambio 443: padding-top 6px → 2px — Val notó un espacio más
-         grande entre Lyric y el primer instrumento que entre
-         instrumento e instrumento. Causa real: la fila de Lyric
-         (.s936-ch-cont-row en suite-pro-chart-v260-cambio100.js) ya
-         trae margin-bottom:3px propio; sumado a este padding-top:6px
-         daba 9px total, contra los 5px del gap normal entre filas
-         (gap:5px, abajo). Con 2px acá, 2+3=5px — igual que el resto. */
-      .s936tr-lanewrap{padding:2px 4px 2px;display:flex;flex-direction:column;gap:5px;}
-      /* Cambio 431: botón único que colapsa/expande TODA la columna de
-         320px de una vez (todas las filas de instrumento a la vez) —
-         Val mostró GarageBand: la columna se achica a solo el ícono del
-         instrumento, dejando más ancho para las franjas de las pistas.
-         El estado vive en .s936tr-lanewrap (clase .is-collapsed), así
-         que una sola regla CSS cambia las 320px → 56px en cada fila hija
-         de una sola vez, sin tocar cada .s936tr-lanerow individualmente. */
-      .s936tr-lanewrap.is-collapsed .s936tr-lanerow{grid-template-columns:56px 1fr;}
-      .s936tr-lanewrap.is-collapsed .s936tr-lanename,
-      .s936tr-lanewrap.is-collapsed .s936tr-lanevol,
-      .s936tr-lanewrap.is-collapsed .s936tr-lanebtn-lg{display:none;}
-      /* Cambio 436: .s936tr-collapsetoggle (el botón ◀/▶ viejo) se sacó
-         de acá — el riel nuevo vive en suite-pro-chart-v260-cambio100.js
-         (installLanesCollapseRail). */
+      .s936tr-lanewrap{padding:6px 4px 2px;display:flex;flex-direction:column;gap:5px;}
       .s936tr-laneheading{font-size:.62rem;color:#7fa8a0;text-transform:uppercase;letter-spacing:.5px;
         font-weight:700;margin-bottom:1px;}
       /* Cambio 368: Val aclaró que quería una columna FIJA real (como en
@@ -605,125 +551,26 @@ let muteBackingWhileRec = true;
          corte con la tira de la sección anterior. */
       .s936tr-lanerow-continuation{grid-template-columns:0 1fr;gap:0}
       .s936tr-lanerow-continuation .s936tr-lanelabel{display:none}
-      /* Cambio 431: 56px → 68px — Val pidió que la fila de instrumento
-         mida EXACTO lo mismo que el chip de acorde del Chart
-         (.s936-ch-fret-mini de 40px + el renglón del nombre arriba,
-         ~68px total) para que las dos vistas se sientan parejas, como
-         en las referencias de GarageBand que mostró. Si el chip de
-         acorde cambia de alto en el futuro, este valor hay que
-         revisarlo también — están pensados para ir juntos. */
+      /* Cambio 423: mismo estilo visual (fondo oscuro redondeado, alto
+         mínimo) que .s936-ch-mini-sesion-spacer del Chart — Val pidió
+         que la barra de instrumentos se vea igual, no distinta. */
       .s936tr-lanelabel{
-        display:flex;align-items:center;gap:5px;overflow:hidden;
+        display:flex;align-items:center;gap:2px;overflow:hidden;
         background:rgba(255,255,255,.05);border-radius:5px;
-        box-sizing:border-box;min-height:68px;padding:0 8px;
+        box-sizing:border-box;min-height:56px;padding:0 6px;
       }
-      /* Cambio 431: rediseño completo de la fila — antes tenía 7
-         controles apretados (▶ 🔇 🎧 pan 🗑) en 320px de ancho con
-         íconos de 16-18px, como se veía amontonado en las capturas que
-         mostró Val comparadas con GarageBand. Ahora quedan solo 3
-         controles visibles siempre (ícono, mute, headphone/solo) más un
-         slider de VOLUMEN real (antes era de pan, que ahora vive en el
-         menú "⋮"), y ▶ Escuchar / 🗑 Borrar / balance se mueven a ese
-         menú desplegable — mismo patrón que .s936tr-lanepicker, ya
-         existente en este archivo. */
-      /* Cambio 442: íconos un poco más grandes en toda la fila — Val lo
-         pidió después de ver todo junto. laneicon 28→30, lanebtn-lg
-         26→29, fuente 13→15px. */
-      /* Cambio 444: 30px → 29px, font-size 17px → .95rem — para que
-         quede EXACTO igual que .s936-ch-mini-sesion-channel-icon en
-         suite-pro-chart-v260-cambio100.js (antes había 1px de
-         diferencia de tamaño y una unidad distinta de fuente, que se
-         notaba al comparar Chart/Lyric contra instrumentos en la misma
-         pantalla). Mismo criterio: si se cambia acá, cambiar allá.
-         Fuente/tamaño y forma. */
-      .s936tr-laneicon{display:flex;align-items:center;justify-content:center;width:29px;height:29px;
-        cursor:default;font-size:.95rem;flex-shrink:0;border-radius:6px;}
-      .s936tr-lanebtn-lg{width:29px;height:29px;padding:0;border:1px solid rgba(255,255,255,.12);
-        background:rgba(255,255,255,.04);border-radius:6px;
-        display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;
-        color:rgba(255,255,255,.75);font-size:15px;line-height:1;}
-      .s936tr-lanebtn-lg:hover{background:rgba(255,255,255,.1);}
-      .s936tr-lanebtn-lg.is-active{background:rgba(255,120,120,.22);border-color:rgba(255,120,120,.4);color:#ff9d9d;}
-      .s936tr-lanebtn-lg.is-active.is-solo{background:rgba(0,255,204,.2);border-color:rgba(0,255,204,.45);color:#7dffe0;}
-      /* Cambio 441: slider de volumen rediseñado — Val: "muy grande y
-         muy tosco". El slider nativo del navegador dibuja una pista y
-         una perilla gruesas por defecto; con -webkit-appearance:none +
-         los pseudo-elementos de thumb/track se controla el tamaño real
-         (pista de 3px, perilla de 10px), mucho más fino/elegante. */
-      .s936tr-lanevol{display:flex;align-items:center;flex:1;min-width:20px;}
-      .s936tr-lanevol input[type=range]{
-        -webkit-appearance:none;appearance:none;width:100%;height:16px;
-        background:transparent;cursor:pointer;margin:0;
-      }
-      .s936tr-lanevol input[type=range]::-webkit-slider-runnable-track{
-        height:4px;border-radius:2px;background:rgba(255,255,255,.15);
-      }
-      .s936tr-lanevol input[type=range]::-webkit-slider-thumb{
-        -webkit-appearance:none;appearance:none;width:12px;height:12px;
-        border-radius:50%;background:#5be8c9;margin-top:-4px;
-        box-shadow:0 0 4px rgba(91,232,201,.5);
-      }
-      .s936tr-lanevol input[type=range]::-moz-range-track{
-        height:4px;border-radius:2px;background:rgba(255,255,255,.15);
-      }
-      .s936tr-lanevol input[type=range]::-moz-range-thumb{
-        width:12px;height:12px;border-radius:50%;background:#5be8c9;
-        border:none;box-shadow:0 0 4px rgba(91,232,201,.5);
-      }
-      /* Cambio 431: botón "⋮" — abre el menú con ▶ Escuchar, balance
-         izq/der y 🗑 Borrar, para no repetir esos tres en la fila
-         siempre visible. */
+      .s936tr-laneicon{display:flex;align-items:center;justify-content:center;width:18px;height:18px;
+        margin-right:2px;cursor:default;font-size:12px;flex-shrink:0;}
       .s936tr-lanebtn{width:16px;height:16px;padding:0;border:none;background:none;border-radius:3px;
         display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;
         color:rgba(255,255,255,.65);font-size:8px;line-height:1;}
       .s936tr-lanebtn:hover{background:rgba(255,255,255,.08);}
       .s936tr-lanebtn.is-active{background:rgba(255,120,120,.22);color:#ff9d9d;}
-      /* Cambio 435: BUG real encontrado — #s936-chart-view-panel tiene
-         isolation:isolate (suite-pro-chart-v260-cambio100.js), que crea
-         su PROPIO contexto de apilamiento. Cualquier z-index puesto acá
-         adentro, por alto que sea, queda atrapado por debajo de paneles
-         que viven FUERA de ese panel (Docker z-index:10060, mixer
-         z-index:10000, confirmados en el código) — por eso el menú se
-         veía tapado sin importar el número. position:fixed + z-index
-         altísimo NO alcanza mientras siga siendo hijo de ese árbol; la
-         solución real es moverlo a document.body al abrirlo (ver
-         openLaneMenu más abajo) — position:fixed calculado desde el
-         botón, y position:absolute normal ya no sirve una vez portado. */
-      .s936tr-lanemenu{display:none;position:fixed;margin-top:2px;
-        background:#0d1a1a;border:1px solid rgba(91,232,201,.3);border-radius:8px;
-        padding:8px;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:150px;}
-      .s936tr-lanemenu.is-open{display:flex;flex-direction:column;gap:6px;}
-      .s936tr-lanemenu-row{display:flex;align-items:center;gap:6px;font-size:.68rem;color:#c9d8d5;}
-      .s936tr-lanemenu-row input[type=range]{flex:1;accent-color:#5be8c9;}
-      .s936tr-lanemenubtn{padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.12);
-        background:rgba(255,255,255,.04);color:#c9d8d5;font-size:.68rem;cursor:pointer;text-align:left;}
-      .s936tr-lanemenubtn:hover{background:rgba(255,255,255,.1);}
-      .s936tr-lanemenubtn.danger{color:#ff9d9d;border-color:rgba(255,120,120,.3);}
-      /* Cambio 436: botón "Ch N" (canal MIDI) — mismo alto que
-         mute/solo/⋮ (26px) pero ancho automático, porque el texto
-         ("Ch 16") no entra en un cuadrado de 26px como esos. */
-      .s936tr-lanebtn-lg.is-wide{width:auto;padding:0 8px;font-size:.62rem;font-weight:700;}
-      /* Cambio 436: popover de canales — grilla de 4x4 en vez de una
-         lista larga vertical de 16 filas (mismo popover .s936tr-lanemenu
-         ya usado por "⋮", solo cambia el layout interno acá). Se usa
-         .s936tr-lanemenu.s936tr-midi-menu.is-open (3 clases) para ganarle
-         en especificidad a .s936tr-lanemenu.is-open (2 clases) SIN
-         !important — con !important, el display quedaría forzado
-         incluso en estado cerrado (rompe el display:none de base). */
-      .s936tr-lanemenu.s936tr-midi-menu.is-open{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;min-width:150px;}
-      .s936tr-midi-menu .s936tr-lanemenubtn{text-align:center;padding:5px 2px;}
-      .s936tr-midi-menu .s936tr-lanemenubtn.is-active{background:rgba(0,255,204,.2);border-color:rgba(0,255,204,.45);color:#7dffe0;}
-      .s936tr-lanemore-wrap{position:relative;flex-shrink:0;}
-      /* Cambio 429/431: la barra de color de cada canal sube un poco
-         más (26px → 30px) para acompañar la fila más alta (68px) sin
-         verse chica dentro de tanto espacio nuevo. */
-      /* Cambio 435: 30px → 54px — Val comparó contra el chip de acorde
-         (mini-diagrama de guitarra, que llena casi toda su caja de
-         68px) y esta franja se veía flaca/con mucho aire arriba y abajo
-         adentro de su fila de 68px. Ahora ocupa casi todo el alto de la
-         fila (deja ~7px arriba/abajo), leyéndose como un "chip" sólido
-         igual de lleno que el del acorde. */
-      .s936tr-lanetrack{height:54px;border-radius:4px;cursor:default;width:100%;}
+      /* Cambio 429: de 7px a 26px — Val pidió que la barra de color de
+         cada canal sea más gruesa, para llenar mejor el alto de su
+         fila (56px, desde el Cambio 423), en vez de verse como una
+         rayita fina. */
+      .s936tr-lanetrack{height:26px;border-radius:4px;cursor:default;width:100%;}
       .s936tr-laneadd{position:relative;padding-left:0;margin-top:2px;}
       .s936tr-laneaddbtn{width:20px;height:20px;padding:0;border-radius:50%;
         border:1px solid rgba(91,232,201,.35);background:rgba(91,232,201,.1);color:#5be8c9;
@@ -895,111 +742,38 @@ let muteBackingWhileRec = true;
     if (panelEl) panelEl.style.display = 'none';
   }
 
-  // ─── Cambio 252 → 445: reproducción sincronizada con el Play de la sección ───
+  // ─── Cambio 252: reproducción sincronizada con el Play de la sección ───
   //
-  // Cambio 445: esto ya NO usa <audio> normales — el comentario viejo acá
-  // avisaba que hacía falta reconstruir esto con AudioBufferSourceNode +
-  // ctx.currentTime para tener precisión real de muestra. Ya está hecho
-  // (ver getPlaybackAudioCtx/getOrCreateInstrumentNodes más abajo) — todas
-  // las tomas arrancan ancladas al mismo instante del reloj del
-  // AudioContext, no una tras otra con `await audioEl.play()`.
-
-  // Cambio 432: estado global (no por sección) de si el panel de pistas
-  // está colapsado — un solo control cambia TODAS las filas visibles a
-  // la vez (todas las secciones montadas comparten esta variable), como
-  // pidió Val viendo el comportamiento de GarageBand (barra abierta vs.
-  // barra angosta con solo el ícono).
-  let lanesCollapsed = false;
-  // Cambio 436: setLanesCollapsed(bool) — versión EXPLÍCITA (no toggle),
-  // idempotente (no dispara nada si ya está en ese estado). Se necesita
-  // porque el riel nuevo se abre con HOVER (repetido muchas veces sin
-  // querer togglear cada vez) y se cierra con CLICK — dos gestos
-  // distintos, no un solo toggle como antes con el botón ◀.
-  function setLanesCollapsed(collapsed) {
-    collapsed = !!collapsed;
-    if (collapsed === lanesCollapsed) return; // ya está así, no hacer nada
-    lanesCollapsed = collapsed;
-    document.querySelectorAll('.s936tr-lanewrap').forEach(w => {
-      w.classList.toggle('is-collapsed', lanesCollapsed);
-    });
-    // Cambio 433: aviso por evento — el Chart (Vista Continua) tiene su
-    // propia columna de 320px para Chart/Lyric (.s936-ch-cont-headerspacer,
-    // en suite-pro-chart-v260-cambio100.js) que debe colapsar/expandir EN
-    // SINCRONÍA con esta, aunque vive en otro archivo/módulo. Se avisa
-    // por evento en vez de acoplar los dos archivos directamente — mismo
-    // patrón que ya se usa en el proyecto (p. ej.
-    // studio936:create-section-request).
-    window.dispatchEvent(new CustomEvent('studio936:lanes-collapse-changed', { detail: { collapsed: lanesCollapsed } }));
-  }
-  function toggleAllLaneWraps() { setLanesCollapsed(!lanesCollapsed); }
-  function isLanesCollapsed() { return lanesCollapsed; }
-
-  // Cambio 445: se reemplaza el <audio> suelto por toma por el grafo de
-  // Web Audio real. playingSources guarda los AudioBufferSourceNode
-  // activos (no <audio> elements) para poder pararlos todos con
-  // stopSyncedPlayback().
-  let playingSources = [];
-  let currentPlaybackSection = null;
+  // Nota honesta sobre precisión: esto usa elementos <audio> normales, no
+  // el reloj de muestra exacta de Web Audio (AudioBufferSourceNode +
+  // ctx.currentTime). Eso significa que puede haber unos pocos
+  // milisegundos de desfase — imperceptible para escuchar una referencia
+  // mientras compones, pero no es el nivel de precisión de un canal real
+  // de estudio. Si más adelante hace falta esa precisión exacta (para el
+  // sistema de canales real del Studio), se puede reconstruir con
+  // AudioBufferSourceNode anclado a ctx.currentTime — pieza aparte, no
+  // esta.
+  const playingTrackEls = [];
 
   function stopSyncedPlayback() {
-    while (playingSources.length) {
-      const src = playingSources.pop();
-      try { src.stop(); } catch (_) {} // ya puede haber terminado solo, no pasa nada
+    while (playingTrackEls.length) {
+      const audioEl = playingTrackEls.pop();
+      try { audioEl.pause(); audioEl.currentTime = 0; } catch (_) {}
     }
-    currentPlaybackSection = null;
   }
 
   async function startSyncedPlaybackForSection(sectionKey) {
     stopSyncedPlayback();
     const takes = listTakesForSection(sectionKey);
     if (!takes.length) return;
-    currentPlaybackSection = sectionKey;
-    const ctx = getPlaybackAudioCtx();
-    if (ctx.state === 'suspended') { try { await ctx.resume(); } catch (_) {} }
-
-    // Cambio 445: se decodifican TODAS las tomas primero (en paralelo) y
-    // recién cuando todas están listas se programa el arranque — esto es
-    // lo que permite que empiecen exactamente juntas. El loop viejo hacía
-    // "resolver → reproducir" toma por toma, así que la última siempre
-    // arrancaba un poco más tarde que la primera.
-    const prepared = await Promise.all(takes.map(async (take) => {
-      try {
-        let buffer = decodedBuffersById[take.id];
-        if (!buffer) {
-          const url = await ensureTakePlayable(take);
-          if (!url) return null; // toma perdida (sin carpeta configurada) — se salta, no rompe el Play
-          const arrayBuffer = await (await fetch(url)).arrayBuffer();
-          buffer = await ctx.decodeAudioData(arrayBuffer);
-          decodedBuffersById[take.id] = buffer;
-        }
-        return { take, buffer };
-      } catch (_) {
-        return null; // una toma corrupta/ilegible no debe tirar abajo el Play de las demás
-      }
-    }));
-
-    // Si mientras se decodificaba el usuario ya apretó Stop (o arrancó
-    // otra sección), no arrancar esta reproducción vieja por encima.
-    if (currentPlaybackSection !== sectionKey) return;
-
-    // Cambio 445: arranque sincronizado real — mismo "when" (instante del
-    // reloj del AudioContext) para TODAS las fuentes, con un pequeño
-    // colchón (0.12s) para que decodeAudioData/creación de nodos de
-    // ninguna toma llegue tarde a su propio horario de arranque.
-    const startAt = ctx.currentTime + 0.12;
-    prepared.forEach(item => {
-      if (!item) return;
-      const { take, buffer } = item;
-      const instrumentId = take.instrument || 'otro';
-      const nodes = getOrCreateInstrumentNodes(ctx, sectionKey, instrumentId);
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(nodes.panner);
-      source.start(startAt);
-      nodes.sources.add(source);
-      source.onended = () => { nodes.sources.delete(source); };
-      playingSources.push(source);
-    });
+    for (const take of takes) {
+      const url = await ensureTakePlayable(take);
+      if (!url) continue; // toma perdida (sin carpeta configurada) — se salta, no rompe el Play
+      const audioEl = new Audio(url);
+      audioEl.currentTime = 0;
+      try { await audioEl.play(); } catch (_) {}
+      playingTrackEls.push(audioEl);
+    }
   }
 
   window.addEventListener('studio936:chart-practice-start', (ev) => {
@@ -1042,75 +816,8 @@ let muteBackingWhileRec = true;
   const laneMuteSolo = {}; // { [sectionKey]: { [instrumentId]: {muted, solo, pan} } }
   function getLaneState(sectionKey, instrumentId) {
     if (!laneMuteSolo[sectionKey]) laneMuteSolo[sectionKey] = {};
-    // Cambio 431: se agrega "volume" (0-1, empieza en 0.8) — antes solo
-    // existía "pan" en este estado; el slider visible en la fila ahora
-    // es de volumen real, pan se movió al menú "⋮" sin perder su valor
-    // guardado.
-    if (!laneMuteSolo[sectionKey][instrumentId]) laneMuteSolo[sectionKey][instrumentId] = { muted: false, solo: false, pan: 0, volume: 0.8 };
+    if (!laneMuteSolo[sectionKey][instrumentId]) laneMuteSolo[sectionKey][instrumentId] = { muted: false, solo: false, pan: 0 };
     return laneMuteSolo[sectionKey][instrumentId];
-  }
-
-  // Cambio 445: cálculo de la ganancia REAL de un instrumento — mismo
-  // criterio que ya usa isChartChannelAudible() en
-  // suite-pro-chart-v260-cambio100.js (Cambio 412/441): si CUALQUIER
-  // instrumento de la sección tiene Solo activo, los demás quedan en 0
-  // salvo que ellos también estén en Solo; el mute y el volumen propio
-  // siempre se respetan encima de eso.
-  function computeRealGain(sectionKey, instrumentId) {
-    const state = getLaneState(sectionKey, instrumentId);
-    const locallyAudible = !state.muted ? (state.volume != null ? state.volume : 0.8) : 0;
-    const sectionStates = laneMuteSolo[sectionKey] || {};
-    const anySolo = Object.values(sectionStates).some(s => s.solo);
-    if (anySolo) return state.solo ? locallyAudible : 0;
-    return locallyAudible;
-  }
-
-  // Cambio 445: reaplica la ganancia/balance real a TODOS los
-  // instrumentos que estén sonando en este momento — hace falta llamarla
-  // completa (no solo para el instrumento que tocaste) porque activar
-  // Solo en UNO afecta el volumen real de TODOS los demás.
-  function refreshLivePlaybackGains(sectionKey) {
-    // Cambio 445 (corrección): Vista Continua puede mostrar varias
-    // secciones a la vez en pantalla — si el usuario mueve el volumen de
-    // una fila de una sección que NO es la que está sonando ahora mismo,
-    // no debe tocar el audio en vivo (solo queda guardado el valor para
-    // cuando esa sección sí se reproduzca).
-    if (sectionKey !== currentPlaybackSection) return;
-    Object.keys(instrumentAudioNodes).forEach(instrumentId => {
-      const nodes = instrumentAudioNodes[instrumentId];
-      if (!nodes) return;
-      const state = getLaneState(sectionKey, instrumentId);
-      nodes.gain.gain.value = computeRealGain(sectionKey, instrumentId);
-      nodes.panner.pan.value = state.pan || 0;
-    });
-  }
-
-  // Cambio 445: un GainNode+StereoPannerNode persistente por instrumento
-  // (se crea la primera vez que ese instrumento suena, se reusa después)
-  // — así un cambio en el slider mientras está sonando se escucha al
-  // instante, sin tener que parar y volver a armar el grafo de audio.
-  function getOrCreateInstrumentNodes(ctx, sectionKey, instrumentId) {
-    if (instrumentAudioNodes[instrumentId]) {
-      // Cambio 445 (corrección): si el nodo ya existía de una sección
-      // ANTERIOR, su ganancia/balance quedaron congelados con el estado
-      // de esa sección vieja — hay que refrescarlos contra la sección
-      // actual antes de reusarlo, si no, una pista podía sonar con el
-      // volumen de la sección de la que se vino, no de la que está
-      // sonando ahora.
-      const nodes = instrumentAudioNodes[instrumentId];
-      nodes.gain.gain.value = computeRealGain(sectionKey, instrumentId);
-      nodes.panner.pan.value = getLaneState(sectionKey, instrumentId).pan || 0;
-      return nodes;
-    }
-    const gain = ctx.createGain();
-    const panner = ctx.createStereoPanner();
-    gain.gain.value = computeRealGain(sectionKey, instrumentId);
-    panner.pan.value = getLaneState(sectionKey, instrumentId).pan || 0;
-    panner.connect(gain);
-    gain.connect(ctx.destination);
-    const nodes = { gain, panner, sources: new Set() };
-    instrumentAudioNodes[instrumentId] = nodes;
-    return nodes;
   }
 
   function groupTakesByInstrument(sectionKey) {
@@ -1148,7 +855,7 @@ let muteBackingWhileRec = true;
     }
   }
 
-  function buildLaneRow(sectionKey, instrumentId, takes, secondsPerBar) {
+  function buildLaneRow(sectionKey, instrumentId, takes) {
     const info = INSTRUMENTS.find(i => i.id === instrumentId) || INSTRUMENTS[INSTRUMENTS.length - 1];
     const color = LANE_COLORS[instrumentId] || LANE_COLORS.otro;
     const icon = LANE_ICONS[instrumentId] || LANE_ICONS.otro;
@@ -1164,16 +871,6 @@ let muteBackingWhileRec = true;
     iconSpan.className = 's936tr-laneicon';
     iconSpan.title = info.label;
     iconSpan.textContent = icon;
-    // Cambio 443: chip con fondo tenue del color del instrumento — Val
-    // notó que el ícono de Chart/Lyric SÍ tiene una caja de fondo
-    // (Cambio 439) y este quedaba como emoji suelto, sin ese peso
-    // visual. Mismo criterio, con el color propio de cada instrumento
-    // (el mismo que ya usa la franja de la pista) en vez de uno fijo.
-    iconSpan.style.background = color + '24'; // 24 hex ≈ 14% opacidad
-    iconSpan.style.border = '1px solid ' + color + '4d'; // 4d hex ≈ 30% opacidad
-    // Cambio 444: border-radius ya viene de la clase CSS .s936tr-laneicon
-    // (para que sea IGUAL, no solo parecido, al de Chart/Lyric) — se
-    // saca de acá para no repetir el valor en dos lugares.
 
     // Cambio 367: el nombre del instrumento ahora se ve escrito, no solo
     // como tooltip del ícono — Val no reconocía qué instrumento era cada
@@ -1181,267 +878,59 @@ let muteBackingWhileRec = true;
     const nameSpan = document.createElement('span');
     nameSpan.className = 's936tr-lanename';
     nameSpan.textContent = info.label;
-    // Cambio 442: width FIJO (no max-width) — Val notó que "Chart"/"Lyric"
-    // (cortos) y "Batería"/"Guitarra" (más largos, truncados con "...")
-    // dejaban el resto de los íconos desalineados entre filas. Con width
-    // fijo, TODOS los nombres ocupan el mismo espacio exacto sin importar
-    // el texto, así el resto de los controles arranca siempre en la
-    // misma posición. Mismo valor (50px) en suite-pro-chart-v260-cambio100.js
-    // (.s936-ch-mini-sesion-name) — si se cambia acá, cambiarlo allá también.
-    nameSpan.style.cssText = 'font-size:.62rem;font-weight:700;color:' + color + ';margin-right:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:50px;flex-shrink:0;';
+    nameSpan.style.cssText = 'font-size:.62rem;font-weight:700;color:' + color + ';margin-right:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52px;';
 
     const track = document.createElement('div');
     track.className = 's936tr-lanetrack';
     track.title = info.label;
     track.style.backgroundColor = color;
     track.style.backgroundImage = tickBackgroundStyle();
-    // Cambio 441: Val volvió a pedir Mute en todos lados (revierte el
-    // Cambio 440) — la opacidad ahora combina volumen Y mute: el
-    // volumen da la base (0.15 a 0.55), y muteado fuerza 0.12 sin
-    // importar el volumen.
-    const vol0 = state.volume != null ? state.volume : 0.8;
-    function updateTrackOpacity() {
-      track.style.opacity = state.muted ? '0.12' : String(0.15 + (state.volume != null ? state.volume : 0.8) * 0.4);
-    }
-    updateTrackOpacity();
-    // Cambio 434: ancho REAL según la duración grabada — Val fue claro
-    // en que esto tiene que salir de BPM+compases, no ser decorativo.
-    // takes[].durationSec ya se guarda al terminar de grabar (Cambio
-    // 251), así que no hace falta decodificar audio de nuevo: se toma
-    // la toma más larga del grupo (normalmente hay una sola por
-    // instrumento por sección) y se convierte a píxeles con la MISMA
-    // escala que usa la regla de arriba (320px por compás real). Si no
-    // llega secondsPerBar (llamador viejo, sin BPM), se mantiene el
-    // comportamiento de siempre (100%, ancho de toda la fila).
-    if (secondsPerBar > 0 && takes && takes.length) {
-      const longestSec = takes.reduce((max, t) => Math.max(max, Number(t.durationSec) || 0), 0);
-      if (longestSec > 0) {
-        const px = Math.max(24, Math.round((longestSec / secondsPerBar) * 320));
-        track.style.width = px + 'px';
-        track.style.flexShrink = '0';
-        track.title = (track.title ? track.title + ' — ' : '') + fmtTime(longestSec);
-      }
-    }
+    track.style.opacity = state.muted ? '0.2' : '0.55';
 
-    // Cambio 431: solo (headphone) — botón grande, siempre visible.
-    // Cambio 441: Mute vuelve (Val lo confirmó otra vez, en todos
-    // lados) — orden final: Solo, Volumen, Mute, ⋮ (con L/R Balance,
-    // ▶ Escuchar y 🗑 Borrar adentro).
-    const soloBtn = document.createElement('button');
-    soloBtn.type = 'button';
-    soloBtn.className = 's936tr-lanebtn-lg';
-    soloBtn.title = 'Solo ' + info.label;
-    soloBtn.setAttribute('aria-label', 'Solo ' + info.label);
-    soloBtn.textContent = '🎧';
-    soloBtn.classList.toggle('is-active', state.solo);
-    soloBtn.classList.add('is-solo');
-    soloBtn.onclick = (e) => {
-      e.stopPropagation();
+    const playBtn = laneMiniBtn('▶', 'Escuchar ' + info.label, color, () => playInstrumentGroup(takes));
+    const muteBtn = laneMiniBtn(state.muted ? '🔇' : '🔊', 'Silenciar ' + info.label, null, () => {
+      state.muted = !state.muted;
+      track.style.opacity = state.muted ? '0.2' : '0.55';
+      muteBtn.textContent = state.muted ? '🔇' : '🔊';
+      muteBtn.classList.toggle('is-active', state.muted);
+    });
+    const soloBtn = laneMiniBtn('🎧', 'Solo ' + info.label, null, () => {
       state.solo = !state.solo;
       soloBtn.classList.toggle('is-active', state.solo);
-      // Cambio 445: activar/quitar Solo en ESTE instrumento cambia el
-      // volumen real de TODOS los demás que estén sonando ahora mismo
-      // (por eso se llama la versión "refresh todo", no una puntual).
-      refreshLivePlaybackGains(sectionKey);
-    };
-
-    // Cambio 441: slider de volumen más angosto/suave (Val: "muy grande
-    // y muy tosco") — ver CSS .s936tr-lanevol para el thumb chico y la
-    // pista delgada nuevos.
-    const volWrap = document.createElement('div');
-    volWrap.className = 's936tr-lanevol';
-    const volSlider = document.createElement('input');
-    volSlider.type = 'range';
-    volSlider.min = '0'; volSlider.max = '1'; volSlider.step = '0.01';
-    volSlider.value = String(state.volume != null ? state.volume : 0.8);
-    volSlider.title = 'Volumen de ' + info.label;
-    volSlider.oninput = () => {
-      state.volume = Number(volSlider.value);
-      updateTrackOpacity();
-      // Cambio 445: si este instrumento está sonando ahora, el cambio de
-      // volumen se escucha al instante — no hace falta parar y volver a
-      // apretar Play.
-      refreshLivePlaybackGains(sectionKey);
-    };
-    volWrap.appendChild(volSlider);
-
-    const muteBtn = document.createElement('button');
-    muteBtn.type = 'button';
-    muteBtn.className = 's936tr-lanebtn-lg';
-    muteBtn.title = state.muted ? 'Activar sonido de ' + info.label : 'Silenciar ' + info.label;
-    muteBtn.setAttribute('aria-label', 'Silenciar ' + info.label);
-    muteBtn.textContent = state.muted ? '🔇' : '🔊';
-    muteBtn.classList.toggle('is-active', state.muted);
-    muteBtn.onclick = (e) => {
-      e.stopPropagation();
-      state.muted = !state.muted;
-      muteBtn.textContent = state.muted ? '🔇' : '🔊';
-      muteBtn.title = state.muted ? 'Activar sonido de ' + info.label : 'Silenciar ' + info.label;
-      muteBtn.classList.toggle('is-active', state.muted);
-      updateTrackOpacity();
-      refreshLivePlaybackGains(sectionKey);
-    };
-
-    const moreWrap = document.createElement('div');
-    moreWrap.className = 's936tr-lanemore-wrap';
-    const moreBtn = document.createElement('button');
-    moreBtn.type = 'button';
-    moreBtn.className = 's936tr-lanebtn-lg';
-    moreBtn.title = 'Más opciones de ' + info.label;
-    moreBtn.setAttribute('aria-label', 'Más opciones de ' + info.label);
-    moreBtn.textContent = '⋮';
-    const menu = document.createElement('div');
-    menu.className = 's936tr-lanemenu';
-
-    const playRow = document.createElement('button');
-    playRow.type = 'button';
-    playRow.className = 's936tr-lanemenubtn';
-    playRow.textContent = '▶ Escuchar';
-    playRow.onclick = (e) => { e.stopPropagation(); playInstrumentGroup(takes); };
-
-    const panRow = document.createElement('div');
-    panRow.className = 's936tr-lanemenu-row';
-    const panLabel = document.createElement('span');
-    panLabel.textContent = 'L/R';
+      soloBtn.style.color = state.solo ? color : '';
+    });
+    // Cambio 364: Pan (balance izquierda/derecha), -1 a 1. Estado visual
+    // por ahora — ver aviso arriba de getLaneState.
     const panSlider = document.createElement('input');
     panSlider.type = 'range';
     panSlider.min = '-1'; panSlider.max = '1'; panSlider.step = '0.1';
     panSlider.value = String(state.pan || 0);
     panSlider.title = 'Balance izquierda/derecha';
-    panSlider.oninput = () => {
-      state.pan = Number(panSlider.value);
-      refreshLivePlaybackGains(sectionKey);
-    };
-    panRow.append(panLabel, panSlider);
-
-    const delRow = document.createElement('button');
-    delRow.type = 'button';
-    delRow.className = 's936tr-lanemenubtn danger';
-    delRow.textContent = '🗑 Borrar pista';
-    delRow.onclick = (e) => {
-      e.stopPropagation();
+    panSlider.style.cssText = 'width:42px;height:16px;vertical-align:middle;';
+    panSlider.oninput = () => { state.pan = Number(panSlider.value); };
+    const delBtn = laneMiniBtn('🗑', 'Borrar ' + info.label, null, () => {
       takes.forEach(t => removeTake(sectionKey, t.id));
       row.remove();
-      // Cambio 435: si el menú estaba portado a document.body en el
-      // momento de borrar la pista, row.remove() no lo alcanza (ya no
-      // es hijo de row) — se saca a mano para no dejarlo flotando.
-      if (menu.parentNode) menu.parentNode.removeChild(menu);
-    };
-
-    menu.append(playRow, panRow, delRow);
-    moreWrap.append(moreBtn, menu); // reposo normal: adentro de moreWrap, oculto (sin .is-open)
-
-    // Cambio 435: portal a document.body SOLO mientras está abierto —
-    // moreBtn.getBoundingClientRect() da la posición real en pantalla
-    // (fixed, no depende de ningún padre), así el menú queda SIEMPRE
-    // arriba de cualquier otro panel, sin importar el isolation:isolate
-    // del Chart. Al cerrar, vuelve a moreWrap (su lugar de reposo) para
-    // no dejar nodos sueltos acumulándose en document.body.
-    function closeLaneMenu() {
-      menu.classList.remove('is-open');
-      if (menu.parentNode !== moreWrap) moreWrap.appendChild(menu);
-    }
-    menu._closeSelf = closeLaneMenu; // permite que OTRAS filas cierren esta si abren la suya
-    function openLaneMenu() {
-      // Cambio 435: cerrar cualquier otro menú abierto usando SU PROPIA
-      // función de cierre (guardada en _closeSelf) — así cada uno
-      // vuelve a SU moreWrap correcto, no solo se le saca la clase
-      // .is-open dejándolo huérfano en document.body.
-      document.querySelectorAll('.s936tr-lanemenu.is-open').forEach(m => {
-        if (m !== menu && typeof m._closeSelf === 'function') m._closeSelf();
-      });
-      const r = moreBtn.getBoundingClientRect();
-      document.body.appendChild(menu);
-      menu.style.top = (r.bottom + 4) + 'px';
-      // Alineado por la derecha del botón, pero sin salirse de pantalla
-      // por la izquierda si la fila está cerca del borde.
-      const left = Math.max(6, r.right - 150);
-      menu.style.left = left + 'px';
-      menu.classList.add('is-open');
-    }
-    moreBtn.onclick = (e) => {
-      e.stopPropagation();
-      if (menu.classList.contains('is-open')) closeLaneMenu();
-      else openLaneMenu();
-    };
-    playRow.addEventListener('click', closeLaneMenu);
-    delRow.addEventListener('click', closeLaneMenu);
-    document.addEventListener('click', (e) => {
-      if (menu.classList.contains('is-open') && e.target !== moreBtn) closeLaneMenu();
     });
 
-    // Cambio 442: moreWrap ("⋮") se agrega AL FINAL, después del bloque
-    // de canal MIDI de abajo — antes se agregaba acá y el botón "Ch N"
-    // quedaba después de él (más a la derecha que "⋮"), rompiendo el
-    // criterio de que "⋮" sea siempre el último elemento de la fila.
-    label.append(iconSpan, nameSpan, soloBtn, volWrap, muteBtn);
+    label.append(iconSpan, nameSpan, playBtn, muteBtn, soloBtn, panSlider, delBtn);
 
-    // Cambio 443: el botón "Ch N" deja de ser un botón siempre visible
-    // en la fila — Val simplificó el criterio a Solo+Volumen+Mute
-    // visibles nomás, en TODOS los instrumentos por igual (incluido
-    // MIDI). "Canal MIDI" ahora vive como una fila más adentro del "⋮",
-    // igual que Balance L/R o Borrar pista. Abre el mismo popover de
-    // grilla de 16 canales de siempre (portado a document.body), solo
-    // que ahora el gatillo es una fila de texto dentro del menú en vez
-    // de un botón cuadrado aparte.
+    // Cambio 364: canal MIDI (1-16) — solo tiene sentido para la pista de
+    // Teclado MIDI, ninguna otra lo necesita.
     if (instrumentId === 'tecladomidi') {
-      const midiMenu = document.createElement('div');
-      midiMenu.className = 's936tr-lanemenu s936tr-midi-menu';
-
-      const midiRow = document.createElement('button');
-      midiRow.type = 'button';
-      midiRow.className = 's936tr-lanemenubtn';
-      const setMidiRowLabel = () => { midiRow.textContent = '🎚 Canal MIDI: Ch ' + (state.midiChannel || 1); };
-      setMidiRowLabel();
-
+      const midiSelect = document.createElement('select');
+      midiSelect.title = 'Canal MIDI';
+      midiSelect.style.cssText = 'font-size:10px;background:#1c2731;color:#e6edf3;border:1px solid #2a3844;border-radius:6px;padding:1px 3px;';
       for (let ch = 1; ch <= 16; ch++) {
-        const chBtn = document.createElement('button');
-        chBtn.type = 'button';
-        chBtn.className = 's936tr-lanemenubtn';
-        chBtn.textContent = 'Ch ' + ch;
-        if ((state.midiChannel || 1) === ch) chBtn.classList.add('is-active');
-        chBtn.onclick = (e) => {
-          e.stopPropagation();
-          state.midiChannel = ch;
-          setMidiRowLabel();
-          midiMenu.querySelectorAll('.s936tr-lanemenubtn').forEach(b => b.classList.remove('is-active'));
-          chBtn.classList.add('is-active');
-          closeMidiMenu();
-        };
-        midiMenu.appendChild(chBtn);
+        const opt = document.createElement('option');
+        opt.value = String(ch);
+        opt.textContent = 'Ch ' + ch;
+        midiSelect.appendChild(opt);
       }
-
-      function closeMidiMenu() {
-        midiMenu.classList.remove('is-open');
-        if (midiMenu.parentNode !== moreWrap) moreWrap.appendChild(midiMenu);
-      }
-      midiMenu._closeSelf = closeMidiMenu;
-      midiRow.onclick = (e) => {
-        e.stopPropagation();
-        // Cambio 443: se toma la posición ANTES de cerrar el "⋮" de
-        // afuera (closeLaneMenu lo devuelve a su reposo, donde ya no
-        // sirve para calcular dónde abrir la grilla de canales).
-        const r = midiRow.getBoundingClientRect();
-        closeLaneMenu();
-        document.querySelectorAll('.s936tr-lanemenu.is-open').forEach(m => {
-          if (m !== midiMenu && typeof m._closeSelf === 'function') m._closeSelf();
-        });
-        document.body.appendChild(midiMenu);
-        midiMenu.style.top = (r.bottom + 4) + 'px';
-        midiMenu.style.left = Math.max(6, r.right - 150) + 'px';
-        midiMenu.classList.add('is-open');
-      };
-      document.addEventListener('click', (e) => {
-        if (midiMenu.classList.contains('is-open') && e.target !== midiRow) closeMidiMenu();
-      });
-
-      // Cambio 443: se inserta ANTES de delRow (Balance, Canal MIDI,
-      // Borrar — mismo orden que antes: acciones primero, borrar al
-      // final).
-      menu.insertBefore(midiRow, delRow);
-      moreWrap.appendChild(midiMenu); // reposo normal, oculto
+      midiSelect.value = String(state.midiChannel || 1);
+      midiSelect.onchange = () => { state.midiChannel = Number(midiSelect.value); };
+      label.appendChild(midiSelect);
     }
-    label.appendChild(moreWrap);
     row.append(label, track);
     return row;
   }
@@ -1522,27 +1011,8 @@ let muteBackingWhileRec = true;
       // continuación de la tira de color, sin repetir la columna del
       // nombre.
       const hideLabelColumn = !!(opts && opts.hideLabelColumn);
-      // Cambio 434: BPM real de la canción, en segundos por compás — lo
-      // manda el Chart (suite-pro-chart-v260-cambio100.js), que ya lo
-      // calcula para su propio reloj de karaoke (secondsPerBar). Este
-      // archivo (track-recorder.js) no conocía el BPM antes de esto; si
-      // no llega (por ejemplo, llamado desde Arreglo de la Canción, que
-      // no manda este opt), se usa el ancho de siempre (100%, sin
-      // relación a duración real) — no rompe ningún llamador existente.
-      const secondsPerBar = Number(opts && opts.secondsPerBar) > 0 ? Number(opts.secondsPerBar) : 0;
-      // Cambio 436: se saca el botón ◀/▶ que vivía acá — a Val no le
-      // gustó (flecha fea en estado cerrado) y además quedaba
-      // visualmente separado de las barras de Chart/Lyric (arriba, en
-      // otro archivo), como si fueran controles distintos aunque
-      // colapsaban juntos. Lo reemplaza un riel único que dibuja
-      // suite-pro-chart-v260-cambio100.js, de punta a punta de las tres
-      // barras (Chart+Lyric+instrumentos) — ver installLanesCollapseRail
-      // en ese archivo. Este archivo (track-recorder.js) ya no dibuja
-      // ningún control de colapso, solo REACCIONA al estado (clase
-      // .is-collapsed en .s936tr-lanewrap, ver setLanesCollapsed arriba).
-      if (lanesCollapsed) wrap.classList.add('is-collapsed');
       Object.keys(groups).forEach(instrumentId => {
-        const row = buildLaneRow(sectionKey, instrumentId, groups[instrumentId], secondsPerBar);
+        const row = buildLaneRow(sectionKey, instrumentId, groups[instrumentId]);
         if (hideLabelColumn) {
           row.classList.add("s936tr-lanerow-continuation");
         }
@@ -1590,5 +1060,5 @@ let muteBackingWhileRec = true;
     openPanel();
   });
 
-  window.Studio936TrackRecorder = { toggle, openPanel, closePanel, renderSectionLanes, buildAddInstrumentControl, isLanesCollapsed, toggleAllLaneWraps, setLanesCollapsed };
+  window.Studio936TrackRecorder = { toggle, openPanel, closePanel, renderSectionLanes, buildAddInstrumentControl };
 })();
