@@ -41,7 +41,30 @@
     // de WebAudioFont):
     piano:   { file: '0000_FluidR3_GM_sf2_file',    gm: 0,  confirmado: true },  // Val lo probó: HTTP 200 ✅
     guitar:  { file: '0241_GeneralUserGS_sf2_file', gm: 24, confirmado: true },  // catálogo real: "MIDI: 24. Acoustic Guitar (nylon)"
-    ukulele: { file: '0241_GeneralUserGS_sf2_file', gm: 24, confirmado: true },  // reusa guitarra — instruments.js ya transpone +12 semitonos (transpose:12)
+    // Cambio 456: Val necesita distinguir nailon / cuerdas de metal /
+    // eléctrica — antes solo había "guitar" (nailon). "guitarSteel"
+    // confirmado con evidencia real (tiene página propia en el catálogo
+    // de WebAudioFont). "guitarElectric" deducido con la formula
+    // programa×10+variante (igual que organ/sax/synth) — todavia sin
+    // probar con HTTP real, cae al sintetizador si falla.
+    guitarSteel:    { file: '0253_Acoustic_Guitar_sf2_file', gm: 25, confirmado: true },  // catálogo real: "MIDI: 25. Acoustic Guitar (steel)"
+    guitarElectric: { file: '0260_GeneralUserGS_sf2_file',   gm: 26, confirmado: false }, // Electric Guitar (jazz) — deducido, sin confirmar
+    // Cambio 454: WebAudioFont no tiene ukelele bajo NINGUN nombre en su
+    // catalogo (confirmado revisando el catalogo completo, categoria por
+    // categoria: ni en Guitar ni en Ethnic aparece 'Ukulele'). El parche
+    // viejo (reusar guitarra +12 semitonos) sonaba mal (Val: 'como
+    // marimba') porque transponer una grabacion real una octava entera
+    // le cambia el timbre, no solo el tono. Se reemplaza por Banjo real
+    // (mismo archivo que la entrada 'banjo' de abajo) sin transponer -
+    // no es un ukelele autentico, pero es un sample real de un
+    // instrumento de cuerdas cortas pellizcadas, mucho mas cercano que
+    // una guitarra estirada. Pendiente real: conseguir/convertir un
+    // soundfont de ukelele de verdad (existe uno gratuito de HedSound,
+    // investigar aparte, no es de este Cambio).
+    ukulele: { file: '1050_GeneralUserGS_sf2_file', gm: 105, confirmado: true },
+    // Cambio 454: Banjo — instrumento nuevo, sample real confirmado en
+    // el catalogo (categoria Ethnic, GM 105).
+    banjo:   { file: '1050_GeneralUserGS_sf2_file', gm: 105, confirmado: true },
     bass:    { file: '0330_JCLive_sf2_file',        gm: 33, confirmado: true },  // catálogo real: "MIDI: 33. Electric Bass (finger)"
     lead:    { file: '0290_Aspirin_sf2_file',       gm: 29, confirmado: true },  // Overdriven Guitar — citado en la documentación oficial de WebAudioFont
     violin:  { file: '0400_GeneralUserGS_sf2_file', gm: 40, confirmado: true },  // catálogo real: "MIDI: 40. Violin: Strings"

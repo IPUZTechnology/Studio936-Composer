@@ -19,12 +19,19 @@ window.__studio936AudioCtx = audioCtx;
 // sesion de hoy). Un DynamicsCompressorNode entre todo y el destino final
 // evita que la suma se pase — no cambia el timbre de una nota sola, solo
 // evita que varias juntas se aplasten.
+// Cambio 456: compresor suavizado — Val reportó que el piano/Rhodes (que
+// antes sonaba bien) quedó "aplastado" tras el Cambio 455. El umbral de
+// -8dB con ratio 9:1 estaba comprimiendo CUALQUIER nota, no solo los
+// acordes que sumaban demasiado. Ahora el umbral queda casi en el techo
+// (-2dB) — una nota sola nunca lo toca, sigue sonando igual que siempre;
+// solo entra cuando varias notas juntas (un acorde real) se acercan al
+// límite, que es exactamente el caso que había que resolver.
 const __studio936MasterCompressor = audioCtx.createDynamicsCompressor();
-__studio936MasterCompressor.threshold.setValueAtTime(-8, audioCtx.currentTime);
-__studio936MasterCompressor.knee.setValueAtTime(14, audioCtx.currentTime);
-__studio936MasterCompressor.ratio.setValueAtTime(9, audioCtx.currentTime);
-__studio936MasterCompressor.attack.setValueAtTime(0.003, audioCtx.currentTime);
-__studio936MasterCompressor.release.setValueAtTime(0.18, audioCtx.currentTime);
+__studio936MasterCompressor.threshold.setValueAtTime(-2, audioCtx.currentTime);
+__studio936MasterCompressor.knee.setValueAtTime(6, audioCtx.currentTime);
+__studio936MasterCompressor.ratio.setValueAtTime(14, audioCtx.currentTime);
+__studio936MasterCompressor.attack.setValueAtTime(0.002, audioCtx.currentTime);
+__studio936MasterCompressor.release.setValueAtTime(0.12, audioCtx.currentTime);
 __studio936MasterCompressor.connect(audioCtx.destination);
 window.__studio936MasterBus = __studio936MasterCompressor;
 
