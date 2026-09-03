@@ -7,8 +7,15 @@ window.Studio936Rhythms = {
         help:'Funk: semicorcheas, contratiempos, ghost chords y bajo sincopado. Ideal para sentir acompañamiento rítmico.'
     },
     rock:{
-        label:'Rock', swing:0, bass:[0,4,8,12], chord:[0,4,8,12], ghost:[2,6,10,14], arp:false,
-        help:'Rock: pulso fuerte en negras/corcheas, bajo sólido y acordes más directos.'
+        // Cambio 467: reconstruido. Antes el acorde pegaba EXACTO en el
+        // mismo lugar que el bajo (negras rectas los dos) — sonaba
+        // genérico, sin carácter de guitarra rítmica real. Ahora: bajo
+        // en negras (correcto, así es el rock real), pero el acorde es
+        // un strum de corcheas rectas (guitarra rítmica/power chords),
+        // con "chugs" apagados en las semicorcheas de en medio — el
+        // vaivén característico del rock, no un bloque plano.
+        label:'Rock', swing:0, bass:[0,4,8,12], chord:[0,2,4,6,8,10,12,14], ghost:[1,3,5,7,9,11,13,15], arp:false,
+        help:'Rock: bajo sólido en negras, guitarra rítmica en corcheas rectas con chugs apagados entre medio — el vaivén de power chords real, no un bloque plano.'
     },
     ballad:{
         label:'Balada', swing:0, bass:[0,8], chord:[0,8], ghost:[], arp:true,
@@ -39,8 +46,14 @@ window.Studio936Rhythms = {
         help:'Salsa: tumbao simplificado para piano, con bajo anticipado y acordes sincopados. No reemplaza una clave completa, pero da el sabor para componer.'
     },
     cumbia:{
-        label:'Cumbia', swing:0, bass:[0,4,8,12], chord:[2,6,10,14], ghost:[15], arp:false,
-        help:'Cumbia: pulso bailable, bajo estable y acordes en respuesta. Muy útil para progresiones latinas sencillas.'
+        // Cambio 467: reconstruido. Antes el bajo pegaba en negras rectas
+        // — casi idéntico a Rock, sin la síncopa que define a la cumbia.
+        // Ahora usa la figura de bajo característica del género (acento
+        // adelantado antes del 3er tiempo, no cuadrada), acordes de
+        // acordeón/guitarra en contratiempo, y un swing sutil para el
+        // vaivén bailable real.
+        label:'Cumbia', swing:.05, bass:[0,6,8,12], chord:[3,7,11,14], ghost:[2,10], arp:false,
+        help:'Cumbia: figura de bajo sincopada (adelantada antes del 3er tiempo, no en negras rectas), acordes de acordeón en contratiempo. Pulso bailable real, no genérico.'
     },
     reggae:{
         label:'Reggae', swing:.03, bass:[0,8], chord:[4,12], ghost:[6,14], arp:false,

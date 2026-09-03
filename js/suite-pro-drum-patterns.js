@@ -180,10 +180,15 @@ window.Studio936DrumPatterns = (() => {
           setHits(pattern,"percussion",[0,3,6,10,12,15],.72,offset);
           break;
         case "cumbia":
-          setHits(pattern,"kick",[0,8],.82,offset);
-          setHits(pattern,"snare",[4,12],.62,offset);
-          setHits(pattern,"hatClosed",[0,2,4,6,8,10,12,14],.50,offset);
-          setHits(pattern,"percussion",[3,7,11,15],.62,offset);
+          // Cambio 467: bombo re-sincronizado con la nueva figura de bajo
+          // sincopada de rhythm-engine.js ([0,6,8,12]) — antes pegaba en
+          // [0,8], derecho, sin relación real con el bajo. Percusión
+          // (guacharaca) más presente, es el instrumento que más define
+          // el género.
+          setHits(pattern,"kick",[0,6,8,12],.84,offset);
+          setHits(pattern,"snare",[4,12],.6,offset);
+          setHits(pattern,"hatClosed",[0,2,4,6,8,10,12,14],.48,offset);
+          setHits(pattern,"percussion",[0,2,3,5,7,9,10,11,13,14,15],.5,offset);
           break;
         case "reggae":
           setHits(pattern,"kick",[8],.86,offset);
