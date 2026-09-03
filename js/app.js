@@ -4287,7 +4287,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     if(s936EditorSurfaceActive()) return;
     const inst=$('instrumentSelect')?.value||'piano';
     const piano=$('pianoContainer'), fret=$('fretboardContainer'), toggle=$('viewToggleBtn'), fm=$('fretModeSelect');
-    if(['guitar','ukulele','bass','lead'].includes(inst)){
+    if(['guitar','guitarSteel','guitarElectric','ukulele','bass','lead'].includes(inst)){
       if(fm) fm.value=inst==='ukulele'?'ukulele':inst==='bass'?'bass':'guitar';
       if(piano) piano.style.display='none'; if(fret) fret.style.display='flex';
       if(toggle) toggle.textContent=tr()==='en'?'Piano view':'Vista piano';
