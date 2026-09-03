@@ -273,6 +273,14 @@ function addTomFill(pattern){
   pattern.lanes.crash.hits[offset]=.84;
 }
 function ensureAudio(){
+  // Cambio 472: usar el AudioContext COMPARTIDO (window.__studio936AudioCtx,
+  // el mismo que usa app.js desde el Cambio 455) en vez de crear uno
+  // propio — antes este módulo tenía su propio contexto aislado, que es
+  // exactamente el tipo de problema que causaba rutas de audio
+  // duplicadas/desincronizadas en otras partes del proyecto (ver
+  // Cambio 452). Si por algún motivo el compartido todavía no existe,
+  // cae a crear uno propio como respaldo, sin romper nada.
+  if(window.__studio936AudioCtx){ audioCtx = window.__studio936AudioCtx; audioCtx.resume?.(); return audioCtx; }
   const AC=window.AudioContext||window.webkitAudioContext;
   if(!AC) return null;
   if(!audioCtx) audioCtx=new AC();
@@ -290,7 +298,9 @@ function outputGain(volume,when,decay){
   const gain=audioCtx.createGain();
   gain.gain.setValueAtTime(Math.max(.0001,volume),when);
   gain.gain.exponentialRampToValueAtTime(.0001,when+decay);
-  gain.connect(audioCtx.destination);
+  // Cambio 472: bus maestro con limitador (ver Cambio 455 en app.js) en
+  // vez de audioCtx.destination directo.
+  gain.connect(window.__studio936MasterBus || audioCtx.destination);
   return gain;
 }
 function playTone(freq,volume,when,decay,type="sine",endFreq=null){
@@ -314,6 +324,23 @@ function playLane(id,velocity,pattern,when){
   const lane=pattern.lanes[id];
   const volume=clamp(velocity,0,1)*lane.volume*pattern.masterVolume;
   const kit=pattern.kit;
+  // Cambio 472: si hay un sample real de batería (WebAudioFont, ver
+  // Cambio 472 en webaudiofont-engine.js) para este golpe puntual, se
+  // usa ESE en vez de la síntesis de abajo — mismo criterio que ya usa
+  // app.js en playSongDrumLane() desde el Cambio 448. Antes este módulo
+  // (el que suena cuando tocás la batería A MANO, no el groove
+  // automático) nunca consultaba el motor de samples — por eso sonaba
+  // más pobre que el resto de instrumentos aunque el motor ya tuviera
+  // samples reales.
+  const sampleEngine = window.Studio936SampleEngine;
+  if (sampleEngine) {
+    const outGain = audioCtx.createGain();
+    outGain.connect(window.__studio936MasterBus || audioCtx.destination);
+    const dur = id === 'crash' ? .6 : id === 'ride' ? .35 : id === 'hatOpen' ? .25 : .3;
+    if (sampleEngine.playSampledDrum(audioCtx, outGain, id, dur, Math.min(1, volume * 1.3), when)) return;
+    // si todavía no está lista (cargando o sin sample para este golpe),
+    // sigue hacia abajo y toca con el sintetizador de siempre.
+  }
   switch(id){
     case "kick":
       playTone(kit==="electronic"?145:112,volume,when,.22,"sine",kit==="electronic"?48:42);
