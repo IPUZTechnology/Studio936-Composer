@@ -257,11 +257,24 @@
     // instrumento — ahí sí tiene sentido dejar que la persona elija con
     // qué instrumento quiere tocar/practicar encima.
     const ELECTRONIC_STYLES = new Set(['trance', 'eurotrance', 'electro', 'house', 'techno', 'dnb', 'dubstep']);
+    // Cambio 470: tempo sugerido por género — Val notó que DnB y Dubstep
+    // "no sonaban bien". Causa real, no era el patrón: ningún estilo
+    // cambiaba el tempo, y el proyecto siempre arranca a 95 BPM. DnB real
+    // anda en ~170 BPM y Dubstep en ~140 (con sensación de "mitad de
+    // tiempo") — a 95 BPM un breakbeat de DnB se siente lento y flojo, no
+    // frenético. El control de BPM del proyecto tiene un techo real de
+    // 160 (ver setBPM en app.js, clamp(...,60,160)) — no se puede llegar
+    // al tempo real de DnB (~170-180), 160 es lo más cerca posible.
+    const SUGGESTED_BPM = {
+        trance: 138, eurotrance: 140, electro: 128,
+        house: 124, techno: 130, dnb: 160, dubstep: 140
+    };
 
     function triggerPad(padEl, key){
         const ok = bridge()?.setStyle?.(key);
         if(!ok) return;
         if(ELECTRONIC_STYLES.has(key)) bridge()?.setInstrument?.('synth');
+        if(SUGGESTED_BPM[key] && typeof window.setBPM === 'function') window.setBPM(SUGGESTED_BPM[key]);
         padEl.classList.add('is-flash');
         setTimeout(() => padEl.classList.remove('is-flash'), 280);
         refreshActiveState();
@@ -305,7 +318,7 @@
         panel.id = PANEL_ID;
 
         const title = el('h2', '', '🥁 Pads de Ritmo');
-        const note = el('div', 's936pads-note', 'Tocá un pad para cambiar el groove en vivo. Los 3 electrónicos (Trance/Eurotrance/Electro) también cambian el instrumento a Synth automáticamente, para que suenen electrónicos de una.');
+        const note = el('div', 's936pads-note', 'Tocá un pad para cambiar el groove en vivo. Los electrónicos también cambian el instrumento a Synth y ajustan el tempo al rango real del género (DnB no puede llegar al tempo real por el límite de 160 BPM del proyecto).');
         const grid = el('div', 's936pads-grid');
 
         const wheelSection = el('div', 's936wheel-section');
