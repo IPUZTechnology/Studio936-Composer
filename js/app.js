@@ -8,6 +8,26 @@ const STORAGE_KEY = 'studio936ComposerV25SongStructure';
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 window.__studio936AudioCtx = audioCtx;
 
+// Cambio 455: bus maestro con limitador — antes, connectOut() mandaba cada
+// nota (o cada cuerda de un acorde) directo a audioCtx.destination, sin
+// ningun control compartido. Con una sola nota nunca se notaba, pero un
+// acorde real son 3-6 cuerdas del mismo sample sonando casi juntas (unos
+// 24ms de diferencia entre cada una, para el rasgueo) — sumadas, superan
+// facil el limite de 0 a 1 que soporta la salida de audio, y el navegador
+// recorta la onda a la fuerza (clipping). Eso sonaba distorsionado/sucio,
+// como si fuera "otro instrumento" en vez de una guitarra limpia (Val,
+// sesion de hoy). Un DynamicsCompressorNode entre todo y el destino final
+// evita que la suma se pase — no cambia el timbre de una nota sola, solo
+// evita que varias juntas se aplasten.
+const __studio936MasterCompressor = audioCtx.createDynamicsCompressor();
+__studio936MasterCompressor.threshold.setValueAtTime(-8, audioCtx.currentTime);
+__studio936MasterCompressor.knee.setValueAtTime(14, audioCtx.currentTime);
+__studio936MasterCompressor.ratio.setValueAtTime(9, audioCtx.currentTime);
+__studio936MasterCompressor.attack.setValueAtTime(0.003, audioCtx.currentTime);
+__studio936MasterCompressor.release.setValueAtTime(0.18, audioCtx.currentTime);
+__studio936MasterCompressor.connect(audioCtx.destination);
+window.__studio936MasterBus = __studio936MasterCompressor;
+
 const SongModel = window.Studio936SongModel || {};
 const {
     sectionNames,
@@ -80,11 +100,14 @@ function connectOut(node,role='music'){
     if(project.routingMode === 'split') panValue = (role === 'click') ? -1 : 1;
     const channelKey = role === 'bass' ? 'bass' : role === 'solo' ? 'solo' : role === 'drums' ? 'drums' : (role === 'chord' || role === 'music') ? 'chord' : null;
     if(channelKey && channelMix[channelKey] && channelMix[channelKey].pan) panValue = channelMix[channelKey].pan;
+    // Cambio 455: bus maestro con limitador en vez de audioCtx.destination
+    // directo — ver __studio936MasterCompressor más arriba.
+    const outBus = window.__studio936MasterBus || audioCtx.destination;
     if(panValue !== null && audioCtx.createStereoPanner){
         const pan = audioCtx.createStereoPanner();
         pan.pan.setValueAtTime(Math.max(-1,Math.min(1,panValue)),audioCtx.currentTime);
-        node.connect(pan); pan.connect(audioCtx.destination);
-    } else node.connect(audioCtx.destination);
+        node.connect(pan); pan.connect(outBus);
+    } else node.connect(outBus);
 }
 function noteRole(type){ if(type==='sine') return 'bass'; if(type==='square') return 'solo'; return 'chord'; }
 

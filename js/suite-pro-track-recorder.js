@@ -32,7 +32,7 @@
   // Cambio 255: mismos canales que ya controla el Mixer de Compose
   // (suite-pro-channel-mixer.js) — se reutilizan, no se inventa un
   // sistema de mute nuevo.
-  const BACKING_CHANNELS = ['drums', 'bass', 'chord', 'solo', 'piano', 'organ', 'ukulele', 'sax', 'violin', 'trumpet', 'cello'];
+  const BACKING_CHANNELS = ['drums', 'bass', 'chord', 'solo', 'piano', 'organ', 'ukulele', 'sax', 'violin', 'trumpet', 'cello', 'banjo'];
     // Cambio 453: BACKING_CHANNELS ampliado con los instrumentos nuevos
   // (organ, sax, violin, trumpet, cello) — antes, silenciar el fondo
   // mientras se graba (checkbox de arriba) no los apagaba a ellos, solo
@@ -1107,7 +1107,10 @@ let muteBackingWhileRec = true;
     gain.gain.value = computeRealGain(sectionKey, instrumentId);
     panner.pan.value = getLaneState(sectionKey, instrumentId).pan || 0;
     panner.connect(gain);
-    gain.connect(ctx.destination);
+    // Cambio 455: mismo bus maestro con limitador que usa app.js — antes
+    // esto iba directo a ctx.destination, sin nada que evite que varias
+    // pistas grabadas sonando juntas se pasen del limite y distorsionen.
+    gain.connect(window.__studio936MasterBus || ctx.destination);
     const nodes = { gain, panner, sources: new Set() };
     instrumentAudioNodes[instrumentId] = nodes;
     return nodes;
