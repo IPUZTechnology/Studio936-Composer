@@ -169,6 +169,12 @@ function canonicalInstrumentId(value){
     const id = String(value || '').trim().toLowerCase();
     if(id === 'uke' || id === 'ukelele' || id === 'ukulele') return 'ukulele';
     if(id === 'guitarra' || id === 'guitar') return 'guitar';
+    // Cambio 457: guitarSteel/guitarElectric (Cambio 456) usan un sample de
+    // audio distinto (eso vive en activeInstrumentId(), sin tocar), pero
+    // para TODO lo estructural — diapasón, voicings, tuning — son una
+    // guitarra normal de 6 cuerdas. Sin esto, caían en ninguna categoría
+    // conocida y el diapasón no se mostraba (Val: "me sale el piano").
+    if(id === 'guitarsteel' || id === 'guitar-steel' || id === 'guitarelectric' || id === 'guitar-electric') return 'guitar';
     if(id === 'guitar-lead' || id === 'guitarra-lead' || id === 'g.lead' || id === 'glead') return 'lead';
     if(id === 'bajo' || id === 'bass') return 'bass';
     if(id === 'drum' || id === 'drums' || id === 'bateria' || id === 'batería') return 'drums';
@@ -3649,7 +3655,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     instrument.dataset.v19AutoFret='1';
     instrument.addEventListener('change',()=>{
       const p=load();
-      if(instrument.value==='guitar' || instrument.value==='ukulele' || instrument.value==='bass' || instrument.value==='lead' || instrument.value==='drums'){
+      if(instrument.value==='guitar' || instrument.value==='guitarSteel' || instrument.value==='guitarElectric' || instrument.value==='ukulele' || instrument.value==='bass' || instrument.value==='lead' || instrument.value==='drums'){
         p.instrument=instrument.value; p.viewMode='fretboard'; p.fretMode=instrument.value==='ukulele'?'ukulele':instrument.value==='bass'?'bass':'guitar'; save(p);
         if(fret && instrument.value!=='drums') fret.value=p.fretMode;
         const pianoBox=$('pianoContainer');
@@ -3821,7 +3827,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     const inst=$('instrumentSelect')?.value || '';
     const fm=$('fretModeSelect')?.value || '';
     if(inst==='ukulele') return 'ukulele';
-    if(inst==='guitar') return 'guitar';
+    if(inst==='guitar' || inst==='guitarSteel' || inst==='guitarElectric') return 'guitar';
     return fm || 'guitar';
   }
   function chordContext(){
@@ -3954,7 +3960,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     const fret = $('fretboardContainer');
     const fretMode = $('fretModeSelect');
     const viewBtn = $('viewToggleBtn');
-    const wantsMainSurface = inst === 'guitar' || inst === 'ukulele' || inst === 'bass' || inst === 'lead' || inst === 'drums';
+    const wantsMainSurface = inst === 'guitar' || inst === 'guitarSteel' || inst === 'guitarElectric' || inst === 'ukulele' || inst === 'bass' || inst === 'lead' || inst === 'drums';
     if(wantsMainSurface){
       if(fretMode && inst !== 'drums') fretMode.value = inst === 'ukulele' ? 'ukulele' : inst === 'bass' ? 'bass' : 'guitar';
       if(piano) piano.style.display = 'none';
