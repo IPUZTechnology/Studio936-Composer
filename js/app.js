@@ -368,7 +368,7 @@ function buildFretboard(){
         onCellPlay:(midi,meta={}) => {
             resumeAudio();
             const instrument = meta.mode || project.instrument || 'guitar';
-            withEditorPreviewInstrument(['guitar','ukulele','bass'].includes(instrument) ? instrument : project.instrument, () => {
+            withEditorPreviewInstrument(['guitar','guitarSteel','guitarElectric','ukulele','bass'].includes(instrument) ? instrument : project.instrument, () => {
                 playNote(midi, instrument === 'bass' ? .38 : .28, instrument === 'bass' ? .70 : .62, instrument === 'bass' ? 'sine' : 'triangle', audioCtx.currentTime);
             });
             flashFretboard([midi],'active-chord',420);
@@ -420,7 +420,19 @@ function updateFretboardMap(){
 }
 
 function stringInstrumentId(value){
-    return ['guitar','ukulele','bass','lead'].includes(value) ? value : null;
+    // Cambio 459: guitarSteel/guitarElectric (Cambio 456) tienen que
+    // devolver 'guitar' acá para que el motor de voicings/digitaciones
+    // (mainStringVoicing, Studio936StringInstruments.profile) encuentre
+    // un perfil real. Sin esto, renderMainStringSurface() fallaba en
+    // silencio y la app caía a una vista de respaldo mas vieja/basica
+    // ("Mapa Temporal", grilla sin la digitación real) en vez del
+    // mástil real con las voicings de Ipuz (captura de Val: guitarra
+    // normal = mástil correcto, guitarra de cuerdas = grilla vieja).
+    // Esta MISMA lista aparece repetida en varios lugares de app.js
+    // (11 en total, ver Cambio 459) — quedó documentado como deuda
+    // técnica real, no se centralizó todo en este Cambio para no
+    // mezclar demasiados cambios en un paso.
+    return ['guitar','guitarSteel','guitarElectric','ukulele','bass','lead'].includes(value) ? value : null;
 }
 function drumInstrumentId(value){
     return value === 'drums' ? 'drums' : null;
@@ -2655,7 +2667,7 @@ function installStudio936AppBridge(){
             _mainInstrumentBeforeEditor = null;
         }
         const mainInstrument = project.instrument || 'piano';
-        if(['guitar','ukulele','bass','lead'].includes(mainInstrument)){
+        if(['guitar','guitarSteel','guitarElectric','ukulele','bass','lead'].includes(mainInstrument)){
             project.fretMode = mainInstrument === 'lead' ? 'guitar' : mainInstrument;
             if(els.fretModeSelect) els.fretModeSelect.value = project.fretMode;
             buildFretboard();
@@ -2707,7 +2719,7 @@ function installStudio936AppBridge(){
         if(!['piano','guitar','ukulele','bass','lead','drums'].includes(value)) return;
         project.instrument = value;
         if(els.instrumentSelect) els.instrumentSelect.value = value;
-        if(['guitar','ukulele','bass','lead'].includes(value)){
+        if(['guitar','guitarSteel','guitarElectric','ukulele','bass','lead'].includes(value)){
             project.fretMode = value === 'lead' ? 'guitar' : value;
             if(els.fretModeSelect) els.fretModeSelect.value = project.fretMode;
         }
@@ -3806,7 +3818,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     instrument.dataset.v20Return='1';
     instrument.addEventListener('change',()=>{
       const p=load(); p.instrument=instrument.value;
-      if(!['guitar','ukulele','bass','lead','drums'].includes(instrument.value)){
+      if(!['guitar','guitarSteel','guitarElectric','ukulele','bass','lead','drums'].includes(instrument.value)){
         p.viewMode='piano'; save(p);
         const piano=$('pianoContainer'), fret=$('fretboardContainer'), toggle=$('viewToggleBtn');
         if(piano) piano.style.display='flex';
@@ -4258,7 +4270,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
     document.documentElement.classList.remove('v23-zoom-on');
     const btn=$('pianoZoomBtn'); if(btn){btn.classList.remove('active'); const sp=btn.querySelector('span'); if(sp) sp.textContent=T('zoom'); else btn.textContent=T('zoom');}
     const inst=$('instrumentSelect')?.value||'piano';
-    if(prevView==='fretboard' && ['guitar','ukulele','bass'].includes(inst)){
+    if(prevView==='fretboard' && ['guitar','guitarSteel','guitarElectric','ukulele','bass'].includes(inst)){
       const piano=$('pianoContainer'), fret=$('fretboardContainer'), toggle=$('viewToggleBtn');
       if(piano) piano.style.display='none'; if(fret) fret.style.display='flex'; if(toggle) toggle.textContent=tr()==='en'?'Piano view':'Vista piano';
       renderChordCharts();
