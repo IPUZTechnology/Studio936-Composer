@@ -309,3 +309,64 @@ La siguiente sesión debe arrancar revisando este cierre de audio y continuando 
 - cerrar una ruta clara de mejora sin tocar la interfaz del selector
 
 **Conclusión:** este análisis cierra correctamente como diagnóstico técnico y deja la base de decisión para la siguiente fase de refinamiento del sonido, sin romper la funcionalidad del proyecto.
+----
+Sesión — Cambios 453 a 474 (instrumentos nuevos, mixer, pads de ritmo, 11 géneros electrónicos)
+Fecha: 2-3 septiembre 2026 Contexto: Val trajo un ZIP local con una auditoría de sonido hecha con otra IA (diagnóstico de rutas de audio duplicadas). Se rescató lo bueno, se descartó lo que tenía regresiones sin probar, y a partir de ahí la sesión se extendió mucho más: instrumentos nuevos, rediseño del Mixer, sistema de pads de ritmo con 11 géneros electrónicos reales, y un intento de batería real que hubo que revertir.
+
+Qué se rescató del ZIP local (y qué NO)
+✅ Rescatado: BACKING_CHANNELS ampliado en el track-recorder (silenciar fondo al grabar también apaga órgano/sax/violín/trompeta/chelo/banjo).
+❌ NO rescatado: el motor de audio reescrito (audio-engine.js nuevo) — rompía la app entera al cargar (app.js llama a AudioEngine.setup(), que esa reescritura ya no tenía). Era para "El Estudio" (motor multipista, todavía en 0%), no para el motor de práctica en vivo. Queda como base real para cuando arranque ese bloque, con su propio nombre de archivo.
+❌ NO rescatado: el Mixer DJ nuevo (sound-mix-module.js + channel-mixer.js reescrito) — limitaba el sample real solo a guitarra/ukelele (regresión) y dejaba instrumentos nuevos silenciados por defecto sin forma obvia de reactivarlos.
+Instrumentos nuevos (Cambios 454, 456)
+Banjo — sample real confirmado (1050_GeneralUserGS_sf2_file, GM 105).
+Ukelele — como WebAudioFont no tiene ukelele bajo ningún nombre en su catálogo (confirmado revisando categoría por categoría), se reemplazó el parche viejo (guitarra transpuesta +12, sonaba "a marimba") por el mismo sample de Banjo sin transponer. No es un ukelele real, pero suena mucho más limpio. Pendiente real: conseguir/convertir un soundfont de ukelele genuino (existe uno gratuito de HedSound).
+Guitarra (cuerdas de metal) — sample real confirmado (0253_Acoustic_Guitar_sf2_file, GM 25).
+Guitarra Eléctrica — deducido con la fórmula ya probada (GM 26, jazz/clean), sin confirmar con HTTP real todavía, cae al sintetizador si falla.
+Bug encontrado y corregido (Cambios 457-460): agregar estos instrumentos nuevos expuso que hay 11 listas separadas en app.js que chequean literalmente 'guitar'/'ukulele'/'bass'/'lead' para decidir qué mostrar (piano vs. diapasón, qué digitación usar) — nunca centralizadas. Se corrigieron los 6 lugares que afectaban directamente el bug reportado (guitarras nuevas mostraban el piano, o una vista vieja de respaldo sin la digitación real). Las otras 5 quedaron documentadas en el código como deuda técnica, sin tocar.
+Limitador maestro (Cambio 455-456)
+Causa: connectOut() mandaba cada nota directo a audioCtx.destination, sin control compartido — un acorde de guitarra (varias cuerdas casi juntas) superaba el límite de 0 a 1 y el navegador recortaba la onda (clipping, sonaba distorsionado).
+Solución: DynamicsCompressorNode compartido (window.__studio936MasterBus), por el que pasa todo el audio.
+Ajuste fino: el umbral inicial aplastaba el piano/Rhodes (comprimía cualquier nota, no solo los acordes que se pasaban). Se subió el umbral para que solo entre cuando hace falta.
+Mixer de Canales rediseñado (Cambio 461)
+Estética de consola física: faders verticales, VU meter animado (basado en el volumen configurado, no análisis de audio real — está documentado en el código como limitación honesta), botones tipo hardware. Mismo "Bridge" de siempre con app.js, cero riesgo para el motor de audio.
+Pads de Ritmo + 11 géneros electrónicos nuevos (Cambios 462-471)
+Sistema de pads táctiles: tocás un pad, cambia el groove en vivo (usa Bridge.setStyle, agregado en el Cambio 462 — antes no existía la contraparte de getStyle()).
+11 géneros nuevos, cada uno con patrón de batería real Y capa armónica propia (no son variaciones disfrazadas): Trance, Eurotrance, Electro (UK), House, Techno, Drum & Bass, Dubstep, Deep House, Afrobeats, Dembow — más un ajuste real a 3 de los 11 géneros viejos que estaban genéricos: Rock (antes acorde y bajo pegaban exacto, ahora strum real de guitarra rítmica), Cumbia (antes negras rectas casi idénticas a Rock, ahora la síncopa real del género), Bossa Nova (el acorde estaba espaciado uniforme cada 4 pasos — no es síncopa real, es contratiempo parejo; corregido con el patrón irregular real tipo Jobim/Gilberto).
+Cada pad electrónico también cambia el instrumento a Synth automáticamente y ajusta el tempo al rango real del género (Cambio 465, 470) — antes el estilo y el instrumento eran independientes y todo sonaba "a piano con otro tempo" sin importar el ritmo elegido.
+Limitación real y honesta, documentada en el código: el control de BPM tiene un techo de 160 — Drum & Bass real anda en 170-180, no se puede llegar al tempo real todavía.
+Pad sostenido de fondo (Cambio 466): colchón de synth atmosférico real (sample "Pad 2 warm" confirmado) para los 3 primeros géneros electrónicos, tocando el mismo acorde largo y sostenido por debajo del bajo/arpegio — capa que le faltaba comparado con un acompañamiento tipo teclado Yamaha.
+Rueda táctil / jog wheel (Cambio 464): dentro del panel de Pads, gira con el dedo o el mouse y dispara el patrón de batería real paso a paso, siguiendo el gesto — pensado para iPad.
+🔴 Batería como instrumento — intentado y REVERTIDO (Cambios 472-474)
+La batería como instrumento de práctica (a diferencia del groove automático, que siempre sonó bien con el sintetizador) nunca tuvo sample real — quedó deshabilitada a propósito desde una sesión anterior (Cambio 449) porque no se había encontrado el archivo correcto.
+Se encontró evidencia sólida real (el mismo ejemplo oficial del repositorio de WebAudioFont) para kick/caja/hi-hat cerrado/hi-hat abierto, y se conectó también el módulo de toque manual (suite-pro-drum-composer.js), que tenía su PROPIO AudioContext aislado, nunca conectado al motor de samples.
+Se rompió dos veces en el intento: primero un error de cálculo del nombre de variable real del archivo; después, un problema más de fondo — el motor de carga de samples usa una sola fila compartida y serializada (WebAudioFont no soporta pedidos en paralelo), y los 4 pedidos nuevos de batería competían por esa fila con los instrumentos que Val estaba tocando activamente (guitarra, etc.), dejándolos sonando con el sintetizador viejo mientras esperaban en la cola.
+Decisión: revertir todo por completo (Cambios 472 y 473 deshechos) en vez de seguir parchando en caliente al final de una sesión ya muy larga. Queda pendiente como su propio Cambio futuro, dedicado, con un diseño de cola de carga que no compita con los instrumentos activos.
+🔴 Hallazgo no documentado hasta hoy: fretboard.js es legacy VIVO, no muerto
+A diferencia de los 182 archivos ya archivados en js/_archivo_historico/ (esos sí confirmados sin riesgo), js/fretboard.js es un sistema de diapasón viejo que index.html sigue cargando y usando activamente, en paralelo al sistema nuevo (js/suite-pro-string-surface.js, el mástil "SuperGuitarra 936"). Fue la causa real de que el bug de las guitarras nuevas apareciera — cuando el sistema nuevo no encuentra una digitación válida, no oculta nada, y el diagrama plano de fretboard.js se queda visible por debajo. No se tocó en esta sesión — migrarlo necesita su propio Cambio dedicado, mapeando primero qué partes de la app todavía dependen de él.
+
+Consola de DJ con platos — alcance aclarado, no construido
+Val pidió una consola tipo DJ con platos/discos para "scratchear" la canción completa. Se aclaró el alcance real: eso es un proyecto grande aparte (necesita renderizar la canción a un buffer fijo y que el mouse/dedo controle la posición de reproducción en tiempo real). Queda pendiente, sin empezar, como su propio bloque de trabajo futuro. Los pads de ritmo y la rueda táctil de hoy SÍ se construyeron y son una pieza más chica y ya resuelta de esa misma visión (dar sensación física de consola).
+
+Todos los pendientes reales al cierre de esta sesión
+Audio:
+
+Batería como instrumento de práctica sin sample real (revertido hoy, ver arriba).
+Consola de platos/discos para mezclar la canción completa (scratch real).
+Ukelele sigue sin sample real propio (usa Banjo prestado).
+Platillos, toms y percusión del groove automático siguen con sintetizador.
+Limpieza/documentación:
+
+fretboard.js sigue vivo, compitiendo con el sistema nuevo de mástil.
+Los 2 duplicados trampa de la raíz del repo (suite-pro-chart-v260-cambio100.js, suite-pro-track-recorder.js sueltos) — pendiente borrar directo, sin archivar (un intento de archivarlos a mitad de esta sesión salió mal).
+README maestro sigue fechado en junio, desactualizado.
+5 de las 11 listas repetidas de "qué instrumento es de cuerdas" en app.js sin tocar (documentadas como deuda técnica en el código).
+DJ / composición:
+
+Plantilla de estructura DJ (16/32 compases con un clic) — hoy es manual.
+Más géneros electrónicos si se quiere seguir ampliando.
+Refinar Jazz/Pop con el mismo criterio aplicado a Rock/Cumbia/Bossa hoy.
+Plan de lanzamiento (bitácora original, sin tocar toda esta sesión):
+
+Bloque 1: motor de audio real multipista (base para que Volumen/Mute/Solo de instrumentos dejen de ser decorativos).
+Bloque 2: editor tijera.
+
