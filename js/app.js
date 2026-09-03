@@ -2469,6 +2469,23 @@ function installStudio936AppBridge(){
     function getStyle(){
         return safe(() => String(project.style || ''), '');
     }
+    // Cambio 462: setStyle() — faltaba la contraparte de getStyle(). La
+    // necesitan los pads de ritmo nuevos (suite-pro-groove-pads.js) para
+    // cambiar el groove en vivo sin duplicar la lógica que ya vive en
+    // styleSelect.onchange (updateStyleHelp/updateStepGrid/etc.) — mismo
+    // patrón que setInstrument(): pone el valor en el <select> real y
+    // dispara 'change', dejando que el handler existente haga el trabajo.
+    function setStyle(value){
+        return safe(() => {
+            if(!els.styleSelect) return false;
+            const id = String(value || '').trim();
+            const hasOption = !!els.styleSelect.querySelector(`option[value="${CSS.escape(id)}"]`);
+            if(!id || !hasOption) return false;
+            els.styleSelect.value = id;
+            els.styleSelect.dispatchEvent(new Event('change', {bubbles:true}));
+            return true;
+        }, false);
+    }
     // Cambio 107: consulta si el transporte de Main está sonando ahora
     // mismo — base para que otros módulos decidan si deben esperar,
     // detenerlo, o simplemente seguirlo en vez de arrancar el suyo.
@@ -3248,6 +3265,7 @@ function installStudio936AppBridge(){
         setBPM: (v) => { setBPM(v); return true; },
         getBpm,
         getStyle,
+        setStyle,
         isMainPlaying,
         getChannelMix,
         setChannelMute,
