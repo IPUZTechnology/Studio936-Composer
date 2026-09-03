@@ -45,5 +45,20 @@ window.Studio936Rhythms = {
     reggae:{
         label:'Reggae', swing:.03, bass:[0,8], chord:[4,12], ghost:[6,14], arp:false,
         help:'Reggae: acordes en off-beat, bajo con mucho espacio y sensación relajada.'
+    },
+    // Cambio 463: 3 ritmos electrónicos nuevos, pedidos por Val como
+    // bases reales para componer encima — no reusan ningún patrón
+    // existente, están armados desde cero pensando en cada género.
+    trance:{
+        label:'Trance', swing:0, bass:[0,4,8,12], chord:[2,6,10,14], ghost:[], arp:false,
+        help:'Trance: bajo en negras (four-on-the-floor), acordes cortos en los contratiempos. Base directa y sostenida para construir encima.'
+    },
+    eurotrance:{
+        label:'Eurotrance', swing:0, bass:[0,4,8,12], chord:[0,2,4,6,8,10,12,14], ghost:[], arp:true,
+        help:'Eurotrance: bajo en negras y acorde arpegiado corriendo en corcheas — el "arpegio trance" característico, más denso y energético que Trance.'
+    },
+    electro:{
+        label:'Electro (UK)', swing:.05, bass:[0,4,8,10,12], chord:[4,12], ghost:[7,15], arp:false,
+        help:'Electro británico: bajo con el "rebote" extra típico del género (golpe de más entre el 8 y el 12), acordes escasos y ghost sincopados para el aire garage.'
     }
 };
