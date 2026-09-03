@@ -35,7 +35,11 @@ window.Studio936DrumPatterns = (() => {
     ["salsa","Salsa"],
     ["cumbia","Cumbia"],
     ["reggae","Reggae"],
-    ["worship","Worship"]
+    ["worship","Worship"],
+    // Cambio 463: 3 estilos electrónicos nuevos
+    ["trance","Trance"],
+    ["eurotrance","Eurotrance"],
+    ["electro","Electro (UK)"]
   ];
 
   const SECTION_PRESETS = {
@@ -193,6 +197,41 @@ window.Studio936DrumPatterns = (() => {
           setHits(pattern,"hatClosed",section.density < .8 ? [0,4,8,12] : [0,2,4,6,8,10,12,14],.44,offset);
           if(section.openHat) setHits(pattern,"hatOpen",[15],.50,offset);
           if(crashOnBar) setHits(pattern,"crash",[0],.72,offset);
+          break;
+        // Cambio 463: 3 patrones de batería electrónicos nuevos.
+        case "trance":
+          // Four-on-the-floor clásico: bombo en cada negra, hi-hat
+          // cerrado en cada corchea, hi-hat abierto acentuado en los
+          // contratiempos — la base de trance más reconocible.
+          setHits(pattern,"kick",[0,4,8,12],.95,offset);
+          setHits(pattern,"snare",[4,12],.7,offset);
+          setHits(pattern,"hatClosed",[0,2,4,6,8,10,12,14],.42,offset);
+          setHits(pattern,"hatOpen",[2,6,10,14],.6,offset);
+          if(crashOnBar) setHits(pattern,"crash",[0],.7,offset);
+          break;
+        case "eurotrance":
+          // Igual base four-on-the-floor que Trance, pero más denso: hats
+          // en semicorcheas (capa suave encima de la capa fuerte de
+          // corcheas) y percusión sincopada — sensación más "llena".
+          setHits(pattern,"kick",[0,4,8,12],.96,offset);
+          setHits(pattern,"snare",[4,12],.74,offset);
+          setHits(pattern,"hatClosed",[0,2,4,6,8,10,12,14],.46,offset);
+          setHits(pattern,"hatClosed",[1,3,5,7,9,11,13,15],.24,offset);
+          setHits(pattern,"hatOpen",[6,14],.62,offset);
+          setHits(pattern,"percussion",[3,7,11,15],.4,offset);
+          if(crashOnBar) setHits(pattern,"crash",[0],.76,offset);
+          break;
+        case "electro":
+          // Bombo con el "rebote" extra (golpe de más entre el 8 y el
+          // 12) típico del electro británico/garage, caja con ghost
+          // sincopados y hi-hat abierto ligeramente fuera de la grilla
+          // para el aire "bounce" del género.
+          setHits(pattern,"kick",[0,4,8,10,12],.9,offset);
+          setHits(pattern,"snare",[4,12],.82,offset);
+          setHits(pattern,"snare",[7,15],.32,offset);
+          setHits(pattern,"hatClosed",[0,2,4,6,8,10,12,14],.4,offset);
+          setHits(pattern,"hatOpen",[3,11],.5,offset);
+          setHits(pattern,"percussion",[1,9],.46,offset);
           break;
         default:
           setHits(pattern,"kick",[0,8,10],.88,offset);
