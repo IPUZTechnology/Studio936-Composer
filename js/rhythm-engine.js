@@ -22,8 +22,14 @@ window.Studio936Rhythms = {
         help:'Balada: acompañamiento abierto con arpegio. Menos golpes, más aire y sostén armónico.'
     },
     bossa:{
-        label:'Bossa Nova', swing:0, bass:[0,6,8,14], chord:[3,7,11,15], ghost:[5,13], arp:false,
-        help:'Bossa Nova: bajo alternado y acordes en síncopas suaves, tipo guitarra/piano brasileño.'
+        // Cambio 469: reconstruido. El acorde pegaba cada 4 pasos exactos
+        // (3,7,11,15) — eso es un contratiempo PAREJO, no síncopa real.
+        // El bossa nova de verdad tiene agrupaciones desparejas (el
+        // patrón clásico de comping, el que se enseña en los métodos,
+        // tipo 3-3-4-2 pasos entre golpe y golpe). Val tenía razón: se
+        // sentía mecánico, no bossa.
+        label:'Bossa Nova', swing:0, bass:[0,6,8,14], chord:[0,3,6,10,12], ghost:[8,15], arp:false,
+        help:'Bossa Nova: bajo alternado en tónica/quinta, acordes con la síncopa irregular real del comping brasileño (agrupaciones desparejas, no un contratiempo parejo) — el patrón clásico tipo Jobim/Gilberto, no una aproximación genérica.'
     },
     jazz:{
         label:'Jazz', swing:.22, bass:[0,4,8,12], chord:[0,5,8,13], ghost:[10,15], arp:false,
