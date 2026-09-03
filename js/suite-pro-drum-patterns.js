@@ -39,7 +39,12 @@ window.Studio936DrumPatterns = (() => {
     // Cambio 463: 3 estilos electrónicos nuevos
     ["trance","Trance"],
     ["eurotrance","Eurotrance"],
-    ["electro","Electro (UK)"]
+    ["electro","Electro (UK)"],
+    // Cambio 468: 4 géneros electrónicos nuevos más
+    ["house","House"],
+    ["techno","Techno"],
+    ["dnb","Drum & Bass"],
+    ["dubstep","Dubstep"]
   ];
 
   const SECTION_PRESETS = {
@@ -237,6 +242,46 @@ window.Studio936DrumPatterns = (() => {
           setHits(pattern,"hatClosed",[0,2,4,6,8,10,12,14],.4,offset);
           setHits(pattern,"hatOpen",[3,11],.5,offset);
           setHits(pattern,"percussion",[1,9],.46,offset);
+          break;
+        // Cambio 468: 4 patrones de batería electrónicos nuevos más.
+        case "house":
+          // Four-on-the-floor con clap clásico de house en el
+          // contratiempo, hi-hat abierto acentuado — el "chick" típico
+          // del género.
+          setHits(pattern,"kick",[0,4,8,12],.92,offset);
+          setHits(pattern,"snare",[4,12],.68,offset);
+          setHits(pattern,"hatClosed",[2,6,10,14],.5,offset);
+          setHits(pattern,"hatOpen",[2,6,10,14],.42,offset);
+          setHits(pattern,"percussion",[3,11],.36,offset);
+          if(crashOnBar) setHits(pattern,"crash",[0],.66,offset);
+          break;
+        case "techno":
+          // Bombo duro y seco en negras, hi-hat en semicorcheas casi
+          // constante (hipnótico), sin caja fuerte ni pad — busca sonar
+          // más minimal/directo que House o Trance.
+          setHits(pattern,"kick",[0,4,8,12],1,offset);
+          setHits(pattern,"hatClosed",[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],.3,offset);
+          setHits(pattern,"hatOpen",[6,14],.44,offset);
+          setHits(pattern,"percussion",[3,11],.34,offset);
+          break;
+        case "dnb":
+          // Breakbeat sincopado (no four-on-the-floor) — bombo escaso,
+          // caja principal en el 2 y 4 con "chatter" de cajas fantasma
+          // alrededor, hi-hat denso e irregular. El bajo real de DnB
+          // vive en rhythm-engine.js, acá la protagonista es la batería.
+          setHits(pattern,"kick",[0,10],.86,offset);
+          setHits(pattern,"snare",[4,12],.88,offset);
+          setHits(pattern,"snare",[7,9,15],.34,offset);
+          setHits(pattern,"hatClosed",[0,2,3,6,8,10,11,14],.44,offset);
+          break;
+        case "dubstep":
+          // Sensación "half-time": un solo golpe grande de caja a mitad
+          // de compás (paso 8) en vez de caja en 2 y 4 — es lo que le da
+          // esa sensación de espacio/lentitud aunque el tempo real sea
+          // rápido. Bombo disperso, hi-hats esporádicos, sin prisa.
+          setHits(pattern,"kick",[0,6],.92,offset);
+          setHits(pattern,"snare",[8],.95,offset);
+          setHits(pattern,"hatClosed",[2,4,6,10,12,14],.34,offset);
           break;
         default:
           setHits(pattern,"kick",[0,8,10],.88,offset);

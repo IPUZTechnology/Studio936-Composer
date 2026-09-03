@@ -35,7 +35,12 @@
         // Cambio 463: 3 ritmos electrónicos nuevos
         { key: 'trance',     label: 'Trance',       color: '#b967ff' },
         { key: 'eurotrance', label: 'Eurotrance',   color: '#ff2d95' },
-        { key: 'electro',    label: 'Electro (UK)', color: '#00e5ff' }
+        { key: 'electro',    label: 'Electro (UK)', color: '#00e5ff' },
+        // Cambio 468: 4 pads electrónicos nuevos más
+        { key: 'house',   label: 'House',        color: '#ffb347' },
+        { key: 'techno',  label: 'Techno',       color: '#d3d3d3' },
+        { key: 'dnb',     label: 'Drum & Bass',  color: '#5ee6a0' },
+        { key: 'dubstep', label: 'Dubstep',      color: '#7c5cff' }
     ];
 
     function bridge(){ return window.Studio936AppBridge || null; }
@@ -251,7 +256,7 @@
     // paso manual aparte. Los 11 ritmos de siempre NO fuerzan
     // instrumento — ahí sí tiene sentido dejar que la persona elija con
     // qué instrumento quiere tocar/practicar encima.
-    const ELECTRONIC_STYLES = new Set(['trance', 'eurotrance', 'electro']);
+    const ELECTRONIC_STYLES = new Set(['trance', 'eurotrance', 'electro', 'house', 'techno', 'dnb', 'dubstep']);
 
     function triggerPad(padEl, key){
         const ok = bridge()?.setStyle?.(key);

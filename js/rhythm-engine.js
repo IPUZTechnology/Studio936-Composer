@@ -73,5 +73,22 @@ window.Studio936Rhythms = {
     electro:{
         label:'Electro (UK)', swing:.05, bass:[0,4,8,10,12], chord:[4,12], ghost:[7,15], arp:false, pad:true,
         help:'Electro británico: bajo con el "rebote" extra típico del género (golpe de más entre el 8 y el 12), acordes escasos y ghost sincopados para el aire garage.'
+    },
+    // Cambio 468: 4 géneros electrónicos nuevos más.
+    house:{
+        label:'House', swing:.05, bass:[0,4,7,8,12,15], chord:[3,7,11,15], ghost:[], arp:false, pad:true,
+        help:'House: bombo/bajo four-on-the-floor con un pequeño rebote sincopado, acordes tipo "stab" en el contratiempo (el clásico acorde jazzy de house), con un poco de swing para el groove bailable.'
+    },
+    techno:{
+        label:'Techno', swing:0, bass:[0,2,4,6,8,10,12,14], chord:[0,8], ghost:[], arp:false,
+        help:'Techno: bajo pulsando en corcheas rectas, hipnótico, acordes mínimos y escasos — el género se apoya en el ritmo y el bajo, no en la armonía. Sin pad de fondo a propósito, busca sonar más duro/directo.'
+    },
+    dnb:{
+        label:'Drum & Bass', swing:0, bass:[0,3,10,13], chord:[8], ghost:[], arp:false, pad:true,
+        help:'Drum & Bass: bajo sub grave y sincopado (no pegado al bombo), acorde único casi de adorno — acá el protagonista real es el breakbeat de la batería, no la armonía.'
+    },
+    dubstep:{
+        label:'Dubstep', swing:0, bass:[0,6,10], chord:[0], ghost:[], arp:false, pad:true,
+        help:'Dubstep: sensación "half-time" (todo se siente a la mitad de velocidad), bajo con reataques a mitad de compás simulando el "wobble", acorde único de fondo. Limitación real: el wobble de verdad es una nota sostenida con modulación de filtro en el tiempo, no algo que este motor pueda simular con golpes — esto es una aproximación rítmica, no el timbre real.'
     }
 };
