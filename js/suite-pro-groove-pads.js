@@ -31,7 +31,11 @@
         { key: 'bolero', label: 'Bolero',      color: '#a0e0a0' },
         { key: 'salsa',  label: 'Salsa',       color: '#ffe066' },
         { key: 'cumbia', label: 'Cumbia',      color: '#ff9f4d' },
-        { key: 'reggae', label: 'Reggae',      color: '#7dffb3' }
+        { key: 'reggae', label: 'Reggae',      color: '#7dffb3' },
+        // Cambio 463: 3 ritmos electrónicos nuevos
+        { key: 'trance',     label: 'Trance',       color: '#b967ff' },
+        { key: 'eurotrance', label: 'Eurotrance',   color: '#ff2d95' },
+        { key: 'electro',    label: 'Electro (UK)', color: '#00e5ff' }
     ];
 
     function bridge(){ return window.Studio936AppBridge || null; }
@@ -116,12 +120,123 @@
   border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 7px 22px;
   color: #cfe0dd; font-size: .72rem; font-weight: 700; cursor: pointer; letter-spacing: .5px;
 }
+
+/* Cambio 464: rueda táctil (jog wheel) */
+#${PANEL_ID} .s936wheel-section {
+  margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.08);
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+#${PANEL_ID} .s936wheel-title {
+  font-size: .68rem; color: #7d8d8a; text-align: center; line-height: 1.4; max-width: 320px;
+}
+#${PANEL_ID} .s936wheel-style {
+  font-size: .78rem; font-weight: 900; color: #00ffcc; letter-spacing: .5px;
+}
+#${PANEL_ID} .s936wheel-outer {
+  width: 190px; height: 190px; border-radius: 50%; position: relative;
+  background: radial-gradient(circle at 35% 30%, #23303a, #0a0d13 70%);
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 14px 40px rgba(0,0,0,.6), inset 0 0 0 6px rgba(255,255,255,.03);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#${PANEL_ID} .s936wheel-outer:active { cursor: grabbing; }
+#${PANEL_ID} .s936wheel-tick {
+  position: absolute; width: 4px; height: 12px; left: 50%; top: 6px;
+  background: rgba(255,255,255,.16); border-radius: 2px;
+  transform-origin: 2px 89px;
+  transition: background-color .08s ease;
+}
+#${PANEL_ID} .s936wheel-tick.is-lit { background: #00ffcc; box-shadow: 0 0 8px #00ffcc; }
+#${PANEL_ID} .s936wheel-knob {
+  position: absolute; inset: 26px; border-radius: 50%;
+  background: linear-gradient(160deg, #2a3742, #0d1117 65%);
+  border: 1px solid rgba(255,255,255,.1);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 0 22px rgba(0,0,0,.6);
+}
+#${PANEL_ID} .s936wheel-knob::after {
+  content: ''; position: absolute; top: 10px; left: 50%; width: 3px; height: 16px;
+  background: #00ffcc; box-shadow: 0 0 8px #00ffcc; border-radius: 2px;
+  transform: translateX(-50%);
+}
+#${PANEL_ID} .s936wheel-center-label {
+  font-size: .6rem; color: #5e6c6a; text-align: center; letter-spacing: .5px;
+}
 `;
         document.head.appendChild(style);
     }
 
     function currentStyle(){
         try { return bridge()?.getStyle?.() || ''; } catch(_) { return ''; }
+    }
+
+    // Cambio 464: rueda táctil — cada uno de los 16 "steps" de un compás
+    // se dispara con AUDIO REAL (scheduleDrumStep, el mismo motor que usa
+    // la canción al reproducirse), siguiendo el gesto del dedo/mouse. No
+    // es una animación: cada golpe que se escucha es un hit real de
+    // batería del estilo activo en ese momento.
+    const STEPS = 16;
+    let wheelAngle = 0;
+    let wheelLastStep = -1;
+    let wheelDragging = false;
+    let wheelStartAngle = 0;
+    let wheelStartPointerAngle = 0;
+
+    function stepFromAngle(angle){
+        const norm = ((angle % 360) + 360) % 360;
+        return Math.floor(norm / (360 / STEPS)) % STEPS;
+    }
+
+    function fireStep(step){
+        try {
+            const ctx = window.__studio936AudioCtx;
+            bridge()?.scheduleDrumStep?.(null, step, ctx ? ctx.currentTime : 0);
+        } catch(_) {}
+        const panel = document.getElementById(PANEL_ID);
+        if(!panel) return;
+        panel.querySelectorAll('.s936wheel-tick').forEach((tick, i) => {
+            tick.classList.toggle('is-lit', i === step);
+        });
+        setTimeout(() => {
+            const t = panel.querySelector(`.s936wheel-tick[data-step="${step}"]`);
+            if(t) t.classList.remove('is-lit');
+        }, 150);
+    }
+
+    function pointerAngleFromEvent(evt, centerEl){
+        const rect = centerEl.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = evt.clientX - cx;
+        const dy = evt.clientY - cy;
+        return Math.atan2(dy, dx) * 180 / Math.PI;
+    }
+
+    function bindWheel(wheelEl, knobEl){
+        wheelEl.addEventListener('pointerdown', (evt) => {
+            wheelDragging = true;
+            wheelEl.setPointerCapture(evt.pointerId);
+            wheelStartPointerAngle = pointerAngleFromEvent(evt, wheelEl);
+            wheelStartAngle = wheelAngle;
+        });
+        wheelEl.addEventListener('pointermove', (evt) => {
+            if(!wheelDragging) return;
+            const nowAngle = pointerAngleFromEvent(evt, wheelEl);
+            let delta = nowAngle - wheelStartPointerAngle;
+            wheelAngle = wheelStartAngle + delta;
+            knobEl.style.transform = `rotate(${wheelAngle}deg)`;
+            const step = stepFromAngle(wheelAngle);
+            if(step !== wheelLastStep){
+                wheelLastStep = step;
+                fireStep(step);
+            }
+        });
+        const endDrag = () => { wheelDragging = false; };
+        wheelEl.addEventListener('pointerup', endDrag);
+        wheelEl.addEventListener('pointercancel', endDrag);
     }
 
     function triggerPad(padEl, key){
@@ -139,6 +254,11 @@
         panel.querySelectorAll('.s936pad').forEach(padEl => {
             padEl.classList.toggle('is-active', padEl.dataset.key === active);
         });
+        const label = document.getElementById(PANEL_ID + 'WheelStyle');
+        if(label){
+            const found = PADS.find(p => p.key === active);
+            label.textContent = found ? ('Sonando: ' + found.label) : 'Elegí un pad arriba primero';
+        }
     }
 
     function render(){
@@ -167,10 +287,28 @@
         const title = el('h2', '', '🥁 Pads de Ritmo');
         const note = el('div', 's936pads-note', 'Tocá un pad para cambiar el groove en vivo — es el mismo motor rítmico de siempre, solo que a un toque.');
         const grid = el('div', 's936pads-grid');
+
+        const wheelSection = el('div', 's936wheel-section');
+        const wheelTitle = el('div', 's936wheel-title', 'Rueda táctil — arrastrá con el dedo o el mouse para tocar el patrón de batería del groove activo, paso a paso, con sonido real.');
+        const wheelStyleLabel = el('div', 's936wheel-style');
+        wheelStyleLabel.id = PANEL_ID + 'WheelStyle';
+        const wheelOuter = el('div', 's936wheel-outer');
+        for(let i = 0; i < STEPS; i++){
+            const tick = el('div', 's936wheel-tick');
+            tick.dataset.step = String(i);
+            tick.style.transform = `rotate(${i * (360 / STEPS)}deg)`;
+            wheelOuter.appendChild(tick);
+        }
+        const wheelKnob = el('div', 's936wheel-knob');
+        wheelOuter.appendChild(wheelKnob);
+        bindWheel(wheelOuter, wheelKnob);
+        const wheelCenterNote = el('div', 's936wheel-center-label', '1 compás · 16 pasos');
+        wheelSection.append(wheelTitle, wheelStyleLabel, wheelOuter, wheelCenterNote);
+
         const closeBtn = el('button', 's936pads-closebtn', 'Cerrar');
         closeBtn.onclick = close;
 
-        panel.append(title, note, grid, closeBtn);
+        panel.append(title, note, grid, wheelSection, closeBtn);
         overlay.appendChild(panel);
         overlay.addEventListener('click', (e) => { if(e.target === overlay) close(); });
         document.body.appendChild(overlay);
