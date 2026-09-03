@@ -24,6 +24,11 @@ window.Studio936Instruments = {
     organ:{label:'Órgano', chord:{type:'square', type2:'triangle', filter:1700, attack:.01, decayMult:2.2, detune:1.002}, bass:{type:'sine', type2:'triangle', filter:950, attack:.01, decayMult:1.7, detune:1.001}, solo:{type:'square', type2:'triangle', filter:2100, attack:.01, decayMult:1.8, detune:1.002}, strum:.006},
     sax:{label:'Saxo guía', mode:'wind', chord:{type:'triangle', type2:'sine', filter:1500, attack:.075, decayMult:1.18, detune:1.002}, bass:{type:'sine', type2:'triangle', filter:900, attack:.045, decayMult:1.1, detune:1.001}, solo:{type:'sawtooth', type2:'triangle', filter:2200, attack:.07, decayMult:1.4, detune:1.003}, strum:.012},
     synth:{label:'Synth', chord:{type:'sawtooth', type2:'square', filter:3000, attack:.018, decayMult:1.1, detune:1.007}, bass:{type:'square', type2:'sine', filter:1200, attack:.01, decayMult:1.05, detune:1.003}, solo:{type:'sawtooth', type2:'square', filter:3500, attack:.012, decayMult:1.05, detune:1.006}, strum:.008},
+    // Cambio 466: Pad sostenido — respaldo del sintetizador si el sample
+    // real todavía no cargó. Ataque lento, decaimiento largo, filtro
+    // cerrado: busca la sensación de "colchón" atmosférico, no de nota
+    // percutida.
+    pad:{label:'Pad', chord:{type:'sine', type2:'triangle', filter:1400, attack:.35, decayMult:3.2, detune:1.004}, bass:{type:'sine', type2:'triangle', filter:900, attack:.35, decayMult:3.2, detune:1.003}, solo:{type:'sine', type2:'triangle', filter:1600, attack:.3, decayMult:3, detune:1.005}, strum:.05},
     // Cambio 450: violín y trompeta — pedidos por Val, con sample real
     // confirmado (WebAudioFont, ver webaudiofont-engine.js). El perfil
     // de acá abajo es solo el RESPALDO sintetizado (mientras carga el

@@ -82,7 +82,11 @@
     // sintetizador de siempre (no rompe nada) — avisar para confirmar.
     organ:   { file: '0190_FluidR3_GM_sf2_file', gm: 19, confirmado: false }, // Church Organ
     sax:     { file: '0660_FluidR3_GM_sf2_file', gm: 66, confirmado: false }, // Tenor Sax
-    synth:   { file: '0810_FluidR3_GM_sf2_file', gm: 81, confirmado: false }  // Lead 2 (sawtooth)
+    synth:   { file: '0810_FluidR3_GM_sf2_file', gm: 81, confirmado: true },  // Lead 2 (sawtooth) — confirmado: tiene página propia en el catálogo
+    // Cambio 466: Pad sostenido de fondo para los ritmos electrónicos —
+    // confirmado real (tiene página propia en el catálogo, igual criterio
+    // que el resto de instrumentos "confirmado:true" de este proyecto).
+    pad:     { file: '0891_GeneralUserGS_sf2_file', gm: 89, confirmado: true }  // Pad 2 (warm): Synth Pad
   };
 
   // Cambio 448: mapa de golpes de batería a nota MIDI de percusión GM

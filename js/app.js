@@ -1612,6 +1612,18 @@ function scheduleStep(time){
     if(st.chord.includes(stepBar) && !channelMix.chord.mute) strumChord(chordNotes,.13,.35*channelMix.chord.vol,when,'active-chord');
     if(st.ghost.includes(stepBar) && !channelMix.chord.mute) strumChord(thinChord(chordNotes),.055,.18*channelMix.chord.vol,when,'active-chord');
 
+    // Cambio 466: colchón de synth sostenido, para los ritmos
+    // electrónicos que lo tengan marcado (st.pad — Trance, Eurotrance,
+    // Electro). Se toca UNA vez por compás (stepBar===0), con una
+    // duración larga y volumen bajo — es una capa atmosférica de fondo,
+    // no otra voz protagonista. Usa siempre el instrumento 'pad' fijo
+    // (no el instrumento activo de práctica), porque es parte del
+    // arreglo del estilo en sí, igual que el bombo o el bajo de la
+    // batería no cambian según qué estés practicando.
+    if(st.pad && stepBar===0 && !channelMix.chord.mute){
+        strumChordAsInstrument(chordNotes,2.6,.16*channelMix.chord.vol,when,'pad');
+    }
+
     // Cambio 135: voces paralelas de práctica (Piano/Ukelele) — suenan
     // junto al instrumento principal, sin importar cuál esté elegido
     // arriba. Apagadas por defecto (mute:true), se activan desde el
