@@ -86,24 +86,7 @@
     // Cambio 466: Pad sostenido de fondo para los ritmos electrónicos —
     // confirmado real (tiene página propia en el catálogo, igual criterio
     // que el resto de instrumentos "confirmado:true" de este proyecto).
-    pad:     { file: '0891_GeneralUserGS_sf2_file', gm: 89, confirmado: true },  // Pad 2 (warm): Synth Pad
-    // Cambio 472: batería real — CONFIRMADO con la evidencia más sólida
-    // posible: son los mismos 4 archivos que usa el ejemplo OFICIAL
-    // "realtime.html" del propio repositorio de WebAudioFont (ver
-    // github.com/surikov/webaudiofont/blob/master/examples/realtime.html).
-    // A diferencia de los instrumentos melódicos, la batería NO es un
-    // "kit" único con varias notas — cada pieza es su PROPIO archivo,
-    // pensado para sonar siempre con la misma nota MIDI fija (la nota
-    // de percusión GM estándar de esa pieza). Por eso cada entrada tiene
-    // "midi" (la nota fija a usar) y "varPrefix": "_drum_" — el nombre
-    // de la variable global que carga este tipo de archivo empieza con
-    // "_drum_", no "_tone_" como los instrumentos melódicos.
-    // Todavía sin sample real: platillos (crash/ride), toms y
-    // percusión — quedan con el sintetizador de siempre por ahora.
-    drum_kick:      { file: '12836_6_JCLive_sf2_file', varPrefix: '_drum_', midi: 36, confirmado: true },  // Bass Drum 1
-    drum_snare:     { file: '12840_6_JCLive_sf2_file', varPrefix: '_drum_', midi: 40, confirmado: true },  // Electric Snare
-    drum_hatClosed: { file: '12842_6_JCLive_sf2_file', varPrefix: '_drum_', midi: 42, confirmado: true },  // Closed Hi-Hat
-    drum_hatOpen:   { file: '12846_6_JCLive_sf2_file', varPrefix: '_drum_', midi: 46, confirmado: true }   // Open Hi-Hat
+    pad:     { file: '0891_GeneralUserGS_sf2_file', gm: 89, confirmado: true }  // Pad 2 (warm): Synth Pad
   };
 
   // Cambio 448: mapa de golpes de batería a nota MIDI de percusión GM
@@ -134,9 +117,7 @@
 
   const loadedInstruments = {}; // instrumentId -> WebAudioFont preset object | 'loading' | 'failed'
   const pendingInstrumentPromises = {}; // instrumentId -> Promise (mientras está en la fila o cargando)
-  // Cambio 472: la variable "drumKit" única ya no existe — cada pieza de
-  // batería se carga como su propio instrumento (drum_kick, drum_snare,
-  // etc.) en loadedInstruments, igual que los instrumentos melódicos.
+  let drumKit = null; // WebAudioFont preset object | 'loading' | 'failed'
   let pendingDrumPromise = null;
   let player = null;
   let playerLoadStarted = false;
@@ -205,9 +186,7 @@
     if (pendingInstrumentPromises[instrumentId]) return pendingInstrumentPromises[instrumentId]; // ya en la fila — devolver la MISMA promesa, no pedir de nuevo
     loadedInstruments[instrumentId] = 'loading';
     const fileBase = entry.file;
-    // Cambio 472: los archivos de batería individuales usan el prefijo
-    // "_drum_" en vez de "_tone_" — ver INSTRUMENT_FILES más arriba.
-    const varName = (entry.varPrefix || '_tone_') + fileBase;
+    const varName = '_tone_' + fileBase;
     const promise = enqueueLoad(() => ensurePlayer().then(p => new Promise(resolve => {
       p.loader.startLoad(ctx, WAF_DATA_BASE + fileBase + '.js', varName);
       p.loader.waitLoad(() => {
@@ -235,20 +214,17 @@
     return promise;
   }
 
-  // Cambio 472: qué "instrumento" de INSTRUMENT_FILES usar para cada
-  // golpe de batería — reusa exactamente el mismo pipeline de carga
-  // que los instrumentos melódicos (ensureInstrumentLoaded/hasSample),
-  // en vez de un sistema de "kit único" aparte. Los golpes sin entrada
-  // acá (crash, ride, toms, percusión) devuelven undefined — hasSample
-  // da false para ellos y caen al sintetizador de siempre, sin romper
-  // nada.
-  const DRUM_INSTRUMENT_BY_KIND = {
-    kick: 'drum_kick',
-    snare: 'drum_snare',
-    hatClosed: 'drum_hatClosed',
-    hatOpen: 'drum_hatOpen',
-    hat: 'drum_hatClosed' // Cambio 446 (compatibilidad): nombre viejo de hitDrum()
-  };
+  // Cambio 449: la batería se deja DESHABILITADA a propósito — el
+  // intento anterior (0128_1_FluidR3_GM_sf2_file) dio 404 confirmado
+  // (Val lo probó). No encontré el nombre real del kit de percusión
+  // todavía, y prefiero no seguir adivinando un tercer nombre — mejor
+  // que la batería suene con el sintetizador de siempre (funciona bien,
+  // no rompe nada) hasta confirmar el archivo correcto en una próxima
+  // sesión. hasDrumKit() siempre da false, así que playSampledDrum()
+  // nunca llega a intentar la carga — cero pedidos de red rotos.
+  function ensureDrumKitLoaded(ctx) {
+    return Promise.resolve(null);
+  }
 
   // Cambio 446: dispara la carga de un instrumento SIN bloquear — se usa
   // para "precalentar" apenas arranca la práctica, así la primera nota
@@ -264,11 +240,8 @@
     const v = loadedInstruments[instrumentId];
     return !!v && v !== 'loading' && v !== 'failed';
   }
-  // Cambio 472: hasDrumKit() queda como sinónimo de "¿el kick real ya
-  // está listo?" — algunos llamadores viejos todavía la consultan antes
-  // de decidir si vale la pena intentar la batería real en absoluto.
   function hasDrumKit() {
-    return hasSample('drum_kick');
+    return !!drumKit && drumKit !== 'loading' && drumKit !== 'failed';
   }
 
   // Cambio 446: toca una nota con el sample real. Dispara la carga si
@@ -288,21 +261,12 @@
     }
   }
 
-  // Cambio 472: reescrito por completo — antes esto SIEMPRE devolvía
-  // false a propósito (ver comentario viejo del Cambio 449, no se había
-  // encontrado el archivo real todavía). Ahora usa los 4 samples reales
-  // confirmados (kick/snare/hatClosed/hatOpen) vía el mismo pipeline que
-  // los instrumentos melódicos. Golpes sin sample real todavía (crash,
-  // ride, toms, percusión) devuelven false acá y caen al sintetizador
-  // de siempre en app.js — sin romper nada.
   function playSampledDrum(ctx, destination, kind, duration, volume, time) {
-    const instrumentId = DRUM_INSTRUMENT_BY_KIND[kind];
-    if (!instrumentId) return false;
-    const entry = INSTRUMENT_FILES[instrumentId];
-    warmUp(ctx, instrumentId);
-    if (!entry || !hasSample(instrumentId) || !player) return false;
+    ensureDrumKitLoaded(ctx);
+    const note = DRUM_NOTE_BY_KIND[kind];
+    if (note == null || !hasDrumKit() || !player) return false;
     try {
-      player.queueWaveTable(ctx, destination, loadedInstruments[instrumentId], time, entry.midi, duration, volume);
+      player.queueWaveTable(ctx, destination, drumKit, time, note, duration, volume);
       return true;
     } catch (err) {
       console.warn('Studio936 SampleEngine: fallo reproduciendo golpe de batería ' + kind, err);
