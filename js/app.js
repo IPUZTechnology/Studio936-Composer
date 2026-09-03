@@ -432,7 +432,20 @@ function stringInstrumentId(value){
     // (11 en total, ver Cambio 459) — quedó documentado como deuda
     // técnica real, no se centralizó todo en este Cambio para no
     // mezclar demasiados cambios en un paso.
-    return ['guitar','guitarSteel','guitarElectric','ukulele','bass','lead'].includes(value) ? value : null;
+    // Cambio 460: CORRECCIÓN al Cambio 459 — acá había que devolver 'guitar'
+    // (canonicalizar), no el nombre literal. El motor de voicings/digitación
+    // real (suite-pro-string-instruments.js) solo tiene perfiles guardados
+    // para 'guitar'/'ukulele'/'bass'/'lead' — devolver 'guitarSteel' tal
+    // cual hacía que mainStringVoicing() nunca encontrara un perfil, y por
+    // eso renderMainStringSurface() seguía fallando en silencio incluso
+    // con el Cambio 459 puesto (Val: "al dar play, solo quedan los
+    // acordes pequeños sin mástil"). Con esto, guitarSteel/guitarElectric
+    // usan la MISMA digitación real que guitarra nailon (misma afinación
+    // de 6 cuerdas, tiene sentido) — el timbre real de audio sigue
+    // siendo distinto porque eso vive aparte, en activeInstrumentId().
+    const id = String(value || '');
+    if(id === 'guitarSteel' || id === 'guitarElectric') return 'guitar';
+    return ['guitar','ukulele','bass','lead'].includes(id) ? id : null;
 }
 function drumInstrumentId(value){
     return value === 'drums' ? 'drums' : null;
