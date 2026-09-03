@@ -239,9 +239,24 @@
         wheelEl.addEventListener('pointercancel', endDrag);
     }
 
+    // Cambio 465: pads electrónicos vs pads acústicos — Val notó que
+    // Eurotrance sonaba "a piano con otro tempo". Causa real: estilo
+    // (ritmo) e instrumento (timbre) son dos selectores INDEPENDIENTES,
+    // y toda canción nueva arranca con instrument:'piano' por defecto.
+    // El pad solo cambiaba el estilo, nunca el instrumento — sonaba
+    // correcto rítmicamente, pero con el timbre que hubiera quedado
+    // seleccionado antes (casi siempre Piano, el default). Para los 3
+    // ritmos electrónicos, el pad ahora también cambia el instrumento a
+    // Synth de una — así "suena electrónico" apenas lo tocás, sin un
+    // paso manual aparte. Los 11 ritmos de siempre NO fuerzan
+    // instrumento — ahí sí tiene sentido dejar que la persona elija con
+    // qué instrumento quiere tocar/practicar encima.
+    const ELECTRONIC_STYLES = new Set(['trance', 'eurotrance', 'electro']);
+
     function triggerPad(padEl, key){
         const ok = bridge()?.setStyle?.(key);
         if(!ok) return;
+        if(ELECTRONIC_STYLES.has(key)) bridge()?.setInstrument?.('synth');
         padEl.classList.add('is-flash');
         setTimeout(() => padEl.classList.remove('is-flash'), 280);
         refreshActiveState();
@@ -285,7 +300,7 @@
         panel.id = PANEL_ID;
 
         const title = el('h2', '', '🥁 Pads de Ritmo');
-        const note = el('div', 's936pads-note', 'Tocá un pad para cambiar el groove en vivo — es el mismo motor rítmico de siempre, solo que a un toque.');
+        const note = el('div', 's936pads-note', 'Tocá un pad para cambiar el groove en vivo. Los 3 electrónicos (Trance/Eurotrance/Electro) también cambian el instrumento a Synth automáticamente, para que suenen electrónicos de una.');
         const grid = el('div', 's936pads-grid');
 
         const wheelSection = el('div', 's936wheel-section');
