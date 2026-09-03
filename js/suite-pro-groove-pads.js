@@ -40,7 +40,11 @@
         { key: 'house',   label: 'House',        color: '#ffb347' },
         { key: 'techno',  label: 'Techno',       color: '#d3d3d3' },
         { key: 'dnb',     label: 'Drum & Bass',  color: '#5ee6a0' },
-        { key: 'dubstep', label: 'Dubstep',      color: '#7c5cff' }
+        { key: 'dubstep', label: 'Dubstep',      color: '#7c5cff' },
+        // Cambio 471: 3 pads nuevos más
+        { key: 'deephouse', label: 'Deep House', color: '#c58aff' },
+        { key: 'afrobeats', label: 'Afrobeats',  color: '#ff8c42' },
+        { key: 'dembow',    label: 'Dembow',     color: '#ff4d6d' }
     ];
 
     function bridge(){ return window.Studio936AppBridge || null; }
@@ -256,7 +260,7 @@
     // paso manual aparte. Los 11 ritmos de siempre NO fuerzan
     // instrumento — ahí sí tiene sentido dejar que la persona elija con
     // qué instrumento quiere tocar/practicar encima.
-    const ELECTRONIC_STYLES = new Set(['trance', 'eurotrance', 'electro', 'house', 'techno', 'dnb', 'dubstep']);
+    const ELECTRONIC_STYLES = new Set(['trance', 'eurotrance', 'electro', 'house', 'techno', 'dnb', 'dubstep', 'deephouse', 'afrobeats', 'dembow']);
     // Cambio 470: tempo sugerido por género — Val notó que DnB y Dubstep
     // "no sonaban bien". Causa real, no era el patrón: ningún estilo
     // cambiaba el tempo, y el proyecto siempre arranca a 95 BPM. DnB real
@@ -267,7 +271,8 @@
     // al tempo real de DnB (~170-180), 160 es lo más cerca posible.
     const SUGGESTED_BPM = {
         trance: 138, eurotrance: 140, electro: 128,
-        house: 124, techno: 130, dnb: 160, dubstep: 140
+        house: 124, techno: 130, dnb: 160, dubstep: 140,
+        deephouse: 120, afrobeats: 105, dembow: 92
     };
 
     function triggerPad(padEl, key){

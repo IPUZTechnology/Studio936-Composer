@@ -44,7 +44,11 @@ window.Studio936DrumPatterns = (() => {
     ["house","House"],
     ["techno","Techno"],
     ["dnb","Drum & Bass"],
-    ["dubstep","Dubstep"]
+    ["dubstep","Dubstep"],
+    // Cambio 471: 3 géneros nuevos más
+    ["deephouse","Deep House"],
+    ["afrobeats","Afrobeats"],
+    ["dembow","Dembow"]
   ];
 
   const SECTION_PRESETS = {
@@ -282,6 +286,36 @@ window.Studio936DrumPatterns = (() => {
           setHits(pattern,"kick",[0,6],.92,offset);
           setHits(pattern,"snare",[8],.95,offset);
           setHits(pattern,"hatClosed",[2,4,6,10,12,14],.34,offset);
+          break;
+        // Cambio 471: 3 patrones de batería nuevos más.
+        case "deephouse":
+          // Igual base que House pero más suave — velocidades más bajas,
+          // hi-hat abierto más discreto, percusión ligera en vez de
+          // clap fuerte. La sensación cálida/relajada del género.
+          setHits(pattern,"kick",[0,4,8,12],.8,offset);
+          setHits(pattern,"snare",[4,12],.5,offset);
+          setHits(pattern,"hatClosed",[2,6,10,14],.4,offset);
+          setHits(pattern,"hatOpen",[6,14],.3,offset);
+          setHits(pattern,"percussion",[3,7,11,15],.28,offset);
+          break;
+        case "afrobeats":
+          // Bombo sincopado tipo "log drum" (no four-on-the-floor),
+          // percusión densa con acentos cruzados — la base rítmica
+          // moderna de afrobeats/amapiano, no una imitación de house.
+          setHits(pattern,"kick",[0,3,6,10,13],.86,offset);
+          setHits(pattern,"snare",[8],.6,offset);
+          setHits(pattern,"hatClosed",[0,2,4,6,8,10,12,14],.36,offset);
+          setHits(pattern,"percussion",[1,5,7,9,11,15],.5,offset);
+          break;
+        case "dembow":
+          // El patrón "boom-ch-boom-chick" clásico del dembow/reggaetón
+          // — bombo pegado exacto con el bajo de rhythm-engine.js
+          // ([0,6,10]), caja marcando el "ch" en el contratiempo,
+          // hi-hat en corcheas rectas sin swing (muy cuantizado, así es
+          // el género real).
+          setHits(pattern,"kick",[0,6,10],.92,offset);
+          setHits(pattern,"snare",[3,11],.8,offset);
+          setHits(pattern,"hatClosed",[0,2,4,6,8,10,12,14],.42,offset);
           break;
         default:
           setHits(pattern,"kick",[0,8,10],.88,offset);

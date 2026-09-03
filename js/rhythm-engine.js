@@ -96,5 +96,18 @@ window.Studio936Rhythms = {
     dubstep:{
         label:'Dubstep', swing:0, bass:[0,6,10], chord:[0], ghost:[], arp:false, pad:true,
         help:'Dubstep: sensación "half-time" (todo se siente a la mitad de velocidad), bajo con reataques a mitad de compás simulando el "wobble", acorde único de fondo. Limitación real: el wobble de verdad es una nota sostenida con modulación de filtro en el tiempo, no algo que este motor pueda simular con golpes — esto es una aproximación rítmica, no el timbre real.'
+    },
+    // Cambio 471: 3 géneros electrónicos/urbanos más.
+    deephouse:{
+        label:'Deep House', swing:.08, bass:[0,4,8,12], chord:[3,11], ghost:[], arp:false, pad:true,
+        help:'Deep House: bombo four-on-the-floor pero suave, acorde jazzy escaso (7as/9as, no un stab constante), swing marcado para el groove relajado — más cálido y espacioso que House.'
+    },
+    afrobeats:{
+        label:'Afrobeats', swing:.06, bass:[0,3,6,10,13], chord:[2,9], ghost:[], arp:false, pad:false,
+        help:'Afrobeats: bajo tipo "log drum" con rebote sincopado (no four-on-the-floor), acordes escasos y en llamada-respuesta. Base moderna afro/amapiano-influenciada, no una imitación de house con otro nombre.'
+    },
+    dembow:{
+        label:'Dembow', swing:0, bass:[0,6,10], chord:[3,11], ghost:[], arp:false, pad:false,
+        help:'Dembow/reggaetón: el patrón "boom-ch-boom-chick" clásico del género — bombo pegado exacto al bajo, acorde sincopado marcando el "ch". Muy cuantizado, sin swing, así es el dembow real.'
     }
 };
