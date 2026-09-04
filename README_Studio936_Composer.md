@@ -9,6 +9,50 @@ La visión del proyecto es convertirse en una herramienta modular para el Estudi
 
 ---
 
+# ACTUALIZACIÓN MAESTRA Y HANDOFF ACTUAL (reemplaza a la del 5 de junio de 2026 como la vigente)
+
+**Fecha de corte:** 4 de septiembre de 2026
+**Objetivo de esta sección:** dejar un estado técnico vigente, verificable y utilizable para continuar en otro chat sin reconstruir toda la historia.
+
+> **Regla de lectura:** esta actualización maestra tiene prioridad sobre la del 5 de junio de 2026 (que queda como registro histórico, no se borra) y sobre todo el contenido histórico conservado más abajo.
+
+---
+
+## Dónde está el detalle completo
+
+Esta sección es un resumen ejecutivo. **El detalle Cambio por Cambio de todo lo trabajado desde el Cambio 371 en adelante vive en `BITACORA_Studio936_Rumbo_Lanzamiento.md`**, incluidos sus addendums de sesión (uno por cada sesión larga de trabajo). Ese archivo es la fuente de verdad para "qué se hizo, cuándo, y por qué" — este README da la foto general, no el detalle.
+
+También existe `PLAN_LIMPIEZA_Studio936.md`, con el plan de limpieza técnica en curso (código muerto, duplicados, deuda técnica) — activo desde el 3 de septiembre de 2026.
+
+---
+
+## Resumen ejecutivo vigente (4 de septiembre de 2026)
+
+Desde la actualización de junio, el proyecto avanzó en dos frentes grandes:
+
+### 1) Instrumentos, sonido y ritmos electrónicos (Cambios 453-474)
+
+- **Instrumentos nuevos con sample real confirmado:** Banjo, Guitarra (cuerdas de metal), Guitarra Eléctrica. Ukelele ya no usa el parche viejo (guitarra transpuesta) — ahora comparte el sample de Banjo, sonido más limpio aunque todavía no es un ukelele genuino (pendiente real: conseguir/convertir un soundfont de ukelele de verdad).
+- **Limitador maestro** (`DynamicsCompressorNode` compartido) — evita que acordes con varias notas/cuerdas simultáneas se distorsionen por exceso de volumen sumado.
+- **11 ritmos electrónicos/urbanos nuevos**, cada uno con patrón de batería real y capa armónica propia: Trance, Eurotrance, Electro (UK), House, Techno, Drum & Bass, Dubstep, Deep House, Afrobeats, Dembow. Accesibles desde el selector de estilo y desde un panel de **Pads de Ritmo** táctil nuevo, con una **rueda/jog wheel** que dispara el patrón de batería real siguiendo el gesto del dedo.
+- **Mixer de Canales rediseñado** con estética de consola (faders verticales, VU meter).
+- Corrección real de 3 ritmos viejos que estaban genéricos: Rock, Cumbia, Bossa Nova (la síncopa de Bossa era pareja, no irregular como el género real).
+- **Intento de batería real como instrumento de práctica — revertido.** Rompió otros instrumentos por congestión en la cola de carga de samples compartida. Pendiente para sesión dedicada con otro diseño.
+
+### 2) Limpieza técnica (Cambios 475-477, en curso)
+
+- Repo: borrados definitivos los 180 archivos ya archivados del Bloque 0, y los 2 duplicados trampa de la raíz.
+- `app.js`: eliminado un bloque completo de código muerto ("v18 Pro Suite", ~200 líneas, una versión reemplazada hace tiempo por los módulos Suite Pro reales pero nunca borrada). Centralizadas 14 listas repetidas de "qué instrumentos son de cuerdas" en una sola constante — 4 de esas 14 tenían un bug real de inconsistencia, ya corregido.
+- **Hallazgo importante:** `js/fretboard.js` es un sistema de diapasón viejo que **sigue activo**, compitiendo con el sistema nuevo (`suite-pro-string-surface.js`) — causó un bug real durante la sesión de instrumentos nuevos. Pendiente de migrar con cuidado (ver `PLAN_LIMPIEZA_Studio936.md`, es el ítem de mayor riesgo del plan).
+- **Hallazgo:** existen dos módulos de "Mixer" con nombres parecidos pero alcance distinto — el de adentro de "El Estudio" (`suite-pro-mixer.js`, controla solo el groove general) y el del botón principal (`suite-pro-channel-mixer.js`, rediseñado hoy, control por canal). Pendiente decidir si conviven o se unifican.
+- En curso: extracción de los bloques "extensión" de `app.js` (17 bloques auto-contenidos, históricamente parches de versiones v16 a v25, aptos para moverse a archivos propios) a sus propios módulos — empezado, un bloque confirmado muerto y eliminado, el resto pendiente, cada uno requiere investigación individual antes de mover (el conteo de líneas no es buen indicador de dificultad en este archivo).
+
+### 3) Corrección a la bitácora de lanzamiento original
+
+**"El Estudio" NO está en 0% de avance** como decía el plan de 3 meses original — tiene 4 herramientas reales conectadas dentro del panel Suite Pro (Batería, Mixer, Grabador, MIDI IN), coincide con lo que ya documentaba este README en la sección "Studio" más abajo. El plan de lanzamiento de 3 meses (Bloque 1: motor de audio multipista, Bloque 2: editor tijera) sigue sin tocarse desde su creación — quedó en pausa durante toda esta sesión de trabajo en instrumentos/limpieza.
+
+---
+
 # ACTUALIZACIÓN MAESTRA Y HANDOFF ACTUAL
 
 **Fecha de corte:** 5 de junio de 2026  
