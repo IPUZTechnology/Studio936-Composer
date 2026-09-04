@@ -1624,5 +1624,6 @@ let muteBackingWhileRec = true;
   }
 
   window.Studio936TrackRecorder = { toggle, openPanel, closePanel, renderSectionLanes, buildAddInstrumentControl, isLanesCollapsed, toggleAllLaneWraps, setLanesCollapsed,
-    getCurrentPlaybackSection, listRecordedInstruments, getLaneStateExternal, setLaneVolume, setLaneMute, setLanePan };
+    getCurrentPlaybackSection, listRecordedInstruments, getLaneStateExternal, setLaneVolume, setLaneMute, setLanePan,
+    startRecording, stopRecording, isRecordingActive: () => !!(mediaRecorder && mediaRecorder.state === 'recording') };
 })();
