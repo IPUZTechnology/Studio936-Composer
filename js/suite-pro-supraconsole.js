@@ -91,7 +91,14 @@
 #${PANEL_ID} .sc-fx span{font-size:.48rem;color:#7d8d8a;}
 
 /* Canales - real */
-#${PANEL_ID} .sc-strips{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;}
+#${PANEL_ID} .sc-strips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;}
+#${PANEL_ID} .sc-channels-row{display:flex;gap:14px;margin-bottom:12px;align-items:flex-start;}
+#${PANEL_ID} .sc-icon-grid{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px;align-content:start;min-width:140px;}
+#${PANEL_ID} .sc-icon-btn{aspect-ratio:1/1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.14);border-radius:12px;color:#cfe0dd;font-size:.5rem;font-weight:800;cursor:pointer;text-align:center;padding:4px;}
+#${PANEL_ID} .sc-icon-btn .sc-icon-glyph{font-size:1.3rem;line-height:1;}
+#${PANEL_ID} .sc-icon-btn.is-live{background:rgba(0,255,204,.14);border-color:#00ffcc;color:#8affff;box-shadow:0 0 8px rgba(0,255,204,.35);}
+#${PANEL_ID} .sc-icon-btn.sc-playbtn{background:rgba(0,255,204,.16);border-color:#00ffcc;color:#8affff;grid-column:span 2;}
+#${PANEL_ID} .sc-icon-btn.sc-playbtn.is-playing{background:rgba(255,90,90,.16);border-color:#ff5a5a;color:#ffb0b0;}
 #${PANEL_ID} .sc-strip{flex:0 0 46px;display:flex;flex-direction:column;align-items:center;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:6px 4px;}
 #${PANEL_ID} .sc-strip.is-muted{opacity:.5;}
 #${PANEL_ID} .sc-strip-label{font-size:.52rem;font-weight:800;text-align:center;min-height:18px;color:#cfe0dd;margin-bottom:5px;}
@@ -104,9 +111,9 @@
 #${PANEL_ID} .sc-fader::-moz-range-thumb{width:30px;height:16px;border-radius:3px;background:linear-gradient(180deg,#e8f4f2,#9fb0ae);border:1px solid #05070a;}
 #${PANEL_ID} .sc-mutebtn{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:6px 0;color:#9fb0ae;font-size:.5rem;font-weight:800;cursor:pointer;}
 #${PANEL_ID} .sc-mutebtn.is-active{background:rgba(226,75,74,.2);border-color:#e24b4a;color:#ff8a89;}
-#${PANEL_ID} .sc-pan-row{display:flex;align-items:center;gap:2px;width:100%;margin-top:4px;}
-#${PANEL_ID} .sc-pan-label{font-size:.4rem;color:#5e6c6a;flex-shrink:0;}
-#${PANEL_ID} .sc-pan{flex:1;width:100%;accent-color:#ffe066;height:10px;}
+#${PANEL_ID} .sc-pan-row{display:flex;align-items:center;gap:3px;width:100%;margin-top:6px;}
+#${PANEL_ID} .sc-pan-label{font-size:.46rem;color:#7d8d8a;flex-shrink:0;font-weight:700;}
+#${PANEL_ID} .sc-pan{flex:1;width:100%;accent-color:#ffe066;height:22px;}
 
 /* Pads - real */
 #${PANEL_ID} .sc-pads{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:5px;margin-bottom:12px;}
@@ -247,38 +254,51 @@
         refreshPads(container);
     }
 
-    // ---- Atajos: metrónomo / batería (mismo criterio que el mixer viejo del Estudio) ----
+    // ---- Atajos: cuadraditos con ícono (Cambio 485) ----
     function metroIsOn(){ const b=document.getElementById('metroBtn'); return !!b && (b.classList.contains('active') || /ON/i.test(b.textContent||'')); }
-    function bindShortcuts(row){
-        // Cambio 484: Play/Stop real — Val no podía escuchar la canción
-        // sin cerrar la consola primero. Este botón toca el mismo
-        // playBtn de siempre (unifiedPlayToggle en app.js), no inventa
-        // una reproducción aparte.
-        const playBtn=el('button','sc-playbtn', bridge()?.isMainPlaying?.() ? '⏹ Detener' : '▶ Reproducir');
+    function iconBtn(glyph, label, extraClass){
+        const btn=el('button','sc-icon-btn'+(extraClass?(' '+extraClass):''));
+        btn.appendChild(el('div','sc-icon-glyph',glyph));
+        btn.appendChild(el('div','',label));
+        return btn;
+    }
+    function bindShortcuts(grid){
+        // Cambio 484/485: Play/Stop real, ahora como ícono cuadrado —
+        // toca el mismo playBtn de siempre (unifiedPlayToggle en
+        // app.js), no inventa una reproducción aparte.
+        const playing0 = !!bridge()?.isMainPlaying?.();
+        const playBtn=iconBtn(playing0?'⏹':'▶', playing0?'Detener':'Reproducir', 'sc-playbtn'+(playing0?' is-playing':''));
         playBtn.onclick=()=>{
             document.getElementById('playBtn')?.click();
             setTimeout(()=>{
-                const playing = bridge()?.isMainPlaying?.();
-                playBtn.textContent = playing ? '⏹ Detener' : '▶ Reproducir';
-                playBtn.classList.toggle('is-playing', !!playing);
+                const playing = !!bridge()?.isMainPlaying?.();
+                playBtn.querySelector('.sc-icon-glyph').textContent = playing?'⏹':'▶';
+                playBtn.lastChild.textContent = playing?'Detener':'Reproducir';
+                playBtn.classList.toggle('is-playing', playing);
             }, 80);
         };
-        playBtn.classList.toggle('is-playing', !!bridge()?.isMainPlaying?.());
-        row.appendChild(playBtn);
-        const metroBtn=el('button','sc-shortcut'+(metroIsOn()?' is-live':''),'Metrónomo');
+        grid.appendChild(playBtn);
+
+        const metroBtn=iconBtn('🎵','Metrónomo', metroIsOn()?'is-live':'');
         metroBtn.onclick=()=>{ document.getElementById('metroBtn')?.click(); setTimeout(()=>{ metroBtn.classList.toggle('is-live', metroIsOn()); },80); };
-        const drumStartBtn=el('button','sc-shortcut','Iniciar batería');
+        grid.appendChild(metroBtn);
+
+        const drumStartBtn=iconBtn('🥁','Iniciar batería');
         drumStartBtn.onclick=()=>{ const mod=window.Studio936SuiteProModules?.drums || window.Studio936SuiteProDrums; if(mod?.start) mod.start(); };
-        const drumStopBtn=el('button','sc-shortcut','Detener batería');
+        grid.appendChild(drumStartBtn);
+
+        const drumStopBtn=iconBtn('⏸','Detener batería');
         drumStopBtn.onclick=()=>{ const mod=window.Studio936SuiteProModules?.drums || window.Studio936SuiteProDrums; if(mod?.stop) mod.stop(); };
+        grid.appendChild(drumStopBtn);
+
         // Cambio 482: atajo a MIDI IN Pro (suite-pro-midi.js) — módulo
         // real, ya conecta teclados/pianos MIDI reales vía Web MIDI API
         // y suena con el instrumento activo (Cambio 146, confirmado
         // funcionando). Este botón solo navega hacia ese panel real, no
         // duplica nada de la lógica de MIDI.
-        const midiBtn=el('button','sc-shortcut','Conectar MIDI');
+        const midiBtn=iconBtn('🎹','Conectar MIDI');
         midiBtn.onclick=()=>{ window.Studio936SuitePro?.openStudioTool?.('midi'); };
-        row.append(metroBtn, drumStartBtn, drumStopBtn, midiBtn);
+        grid.appendChild(midiBtn);
     }
 
     function buildDecksPart2(container){
@@ -374,6 +394,10 @@
         instSelect.onchange=()=>{ bridge()?.setInstrument?.(instSelect.value); renderChannels(strips); };
         instRow.append(el('span','sc-rec-note','Instrumento activo:'), instSelect);
         const strips=el('div','sc-strips');
+        const iconGrid=el('div','sc-icon-grid');
+        bindShortcuts(iconGrid);
+        const channelsRow=el('div','sc-channels-row');
+        channelsRow.append(strips, iconGrid);
 
         const recLabel=el('div','sc-section-label','Pistas grabadas (sección en reproducción)');
         const recNote=el('div','sc-rec-note','');
@@ -387,10 +411,9 @@
         for(let i=0;i<STEPS;i++){ const t=el('div','sc-wheel-tick'); t.dataset.step=String(i); t.style.transform=`rotate(${i*(360/STEPS)}deg)`; wheelOuter.appendChild(t); }
         const wheelKnob=el('div','sc-wheel-knob'); wheelOuter.appendChild(wheelKnob);
         bindWheel(wheelOuter, wheelKnob);
-        bottomRow.append(wheelOuter, el('div','sc-wheel-note','Rueda táctil'));
-        bindShortcuts(bottomRow);
+        bottomRow.append(wheelOuter, el('div','sc-wheel-note','Rueda táctil — arrastrá para tocar el patrón de batería paso a paso.'));
 
-        panel.append(head, decksLabelRow, decksZone, fxZone, chLabel, instRow, strips, recLabel, recNote, recStrips, padsLabel, pads, bottomRow);
+        panel.append(head, decksLabelRow, decksZone, fxZone, chLabel, instRow, channelsRow, recLabel, recNote, recStrips, padsLabel, pads, bottomRow);
         overlay.appendChild(panel);
         overlay.addEventListener('click', e=>{ if(e.target===overlay) close(); });
         document.body.appendChild(overlay);
@@ -471,7 +494,8 @@
             const playBtn=overlay.querySelector('.sc-playbtn');
             if(playBtn){
                 const playing=!!bridge()?.isMainPlaying?.();
-                playBtn.textContent = playing ? '⏹ Detener' : '▶ Reproducir';
+                const glyphEl=playBtn.querySelector('.sc-icon-glyph');
+                if(glyphEl){ glyphEl.textContent = playing ? '⏹' : '▶'; playBtn.lastChild.textContent = playing ? 'Detener' : 'Reproducir'; }
                 playBtn.classList.toggle('is-playing', playing);
             }
         }, 1500);
