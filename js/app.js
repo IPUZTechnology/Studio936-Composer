@@ -5064,11 +5064,4 @@ Post-MIDI Recovery App Inventory
 
 
 // Absolute-end MIDI binding reinforcement: keep modular handler as the only active #midiBtn click path.
-(function(){
-  if(typeof bindFinalMidiExport!=='function') return;
-  bindFinalMidiExport();
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bindFinalMidiExport);
-  setTimeout(bindFinalMidiExport,0);
-  setTimeout(bindFinalMidiExport,500);
-  setTimeout(bindFinalMidiExport,1500);
-})();
+
