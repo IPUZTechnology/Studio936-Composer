@@ -2458,6 +2458,13 @@ function installStudio936AppBridge(){
     // maneja toda la lógica existente (surfaces, fretboard, flashStatus, etc.),
     // en vez de duplicar esa lógica en el bridge. Si el valor no es válido, no
     // toca nada y retorna false (mismo criterio defensivo que el resto del bridge).
+    // Cambio 481: getInstrument() — faltaba la contraparte de
+    // setInstrument(). La necesita la Supraconsola para mostrar el
+    // nombre real del instrumento activo en el canal "Acordes", en vez
+    // de un nombre fijo que no cuenta la historia completa.
+    function getInstrument(){
+        return safe(() => String(project.instrument || ''), '');
+    }
     function setInstrument(value){
         return safe(() => {
             if(!els.instrumentSelect) return false;
@@ -3281,6 +3288,7 @@ function installStudio936AppBridge(){
             } catch(e) { console.warn('loadProject error:', e); return false; }
         },
         getEditorState,
+        getInstrument,
         setInstrument,
         setKey,
         setBPM: (v) => { setBPM(v); return true; },

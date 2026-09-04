@@ -44,6 +44,12 @@
         { key: 'dubstep', label: 'Dubstep', color: '#7c5cff' }, { key: 'deephouse', label: 'Deep House', color: '#c58aff' },
         { key: 'afrobeats', label: 'Afrobeats', color: '#ff8c42' }, { key: 'dembow', label: 'Dembow', color: '#ff4d6d' }
     ];
+    const INSTRUMENT_LABELS = {
+        piano:'Piano', epiano:'Piano eléctrico', guitar:'Guitarra', guitarSteel:'Guitarra (cuerdas)',
+        guitarElectric:'Guitarra Eléctrica', ukulele:'Ukelele', banjo:'Banjo', bass:'Bajo eléctrico',
+        lead:'Guitarra Lead', drums:'Batería', organ:'Órgano', sax:'Saxo', synth:'Synth',
+        violin:'Violín', trumpet:'Trompeta', cello:'Chelo', pad:'Pad'
+    };
     const ELECTRONIC_STYLES = new Set(['trance','eurotrance','electro','house','techno','dnb','dubstep','deephouse','afrobeats','dembow']);
     const SUGGESTED_BPM = { trance:138, eurotrance:140, electro:128, house:124, techno:130, dnb:160, dubstep:140, deephouse:120, afrobeats:105, dembow:92 };
     const STEPS = 16;
@@ -56,9 +62,10 @@
         const style = document.createElement('style');
         style.id = PANEL_ID+'Style';
         style.textContent = `
-#${PANEL_ID}Overlay{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:14px;}
-#${PANEL_ID}Overlay.is-open{display:flex;}
-#${PANEL_ID}{width:min(760px,97vw);max-height:94vh;overflow-y:auto;background:linear-gradient(180deg,#12161f 0%,#0a0d13 100%);border:1px solid rgba(0,255,204,.28);border-radius:18px;box-shadow:0 30px 90px rgba(0,0,0,.75);padding:16px 18px 14px;color:#e8f4f2;font-family:inherit;}
+#${PANEL_ID}Overlay{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.7);display:none;padding:0;}
+#${PANEL_ID}Overlay.is-open{display:block;}
+#${PANEL_ID}{position:absolute;width:min(760px,97vw);max-height:94vh;min-width:340px;min-height:320px;overflow-y:auto;resize:both;background:linear-gradient(180deg,#12161f 0%,#0a0d13 100%);border:1px solid rgba(0,255,204,.28);border-radius:18px;box-shadow:0 30px 90px rgba(0,0,0,.75);padding:16px 18px 14px;color:#e8f4f2;font-family:inherit;}
+#${PANEL_ID} .sc-head{cursor:move;touch-action:none;}
 #${PANEL_ID} h2{margin:0;font-size:.88rem;color:#00ffcc;font-weight:950;letter-spacing:1.4px;text-transform:uppercase;}
 #${PANEL_ID} .sc-head{display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:8px;margin-bottom:12px;}
 #${PANEL_ID} .sc-closebtn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:5px 14px;color:#cfe0dd;font-size:.66rem;font-weight:700;cursor:pointer;}
@@ -82,7 +89,7 @@
 
 /* Canales - real */
 #${PANEL_ID} .sc-strips{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;}
-#${PANEL_ID} .sc-strip{flex:1 0 68px;display:flex;flex-direction:column;align-items:center;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:7px 6px;}
+#${PANEL_ID} .sc-strip{flex:0 0 46px;display:flex;flex-direction:column;align-items:center;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:6px 4px;}
 #${PANEL_ID} .sc-strip.is-muted{opacity:.5;}
 #${PANEL_ID} .sc-strip-label{font-size:.52rem;font-weight:800;text-align:center;min-height:18px;color:#cfe0dd;margin-bottom:5px;}
 #${PANEL_ID} .sc-fader-row{display:flex;align-items:flex-end;gap:5px;height:88px;margin-bottom:6px;}
@@ -94,6 +101,9 @@
 #${PANEL_ID} .sc-fader::-moz-range-thumb{width:30px;height:16px;border-radius:3px;background:linear-gradient(180deg,#e8f4f2,#9fb0ae);border:1px solid #05070a;}
 #${PANEL_ID} .sc-mutebtn{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:5px;padding:3px 0;color:#9fb0ae;font-size:.48rem;font-weight:800;cursor:pointer;}
 #${PANEL_ID} .sc-mutebtn.is-active{background:rgba(226,75,74,.2);border-color:#e24b4a;color:#ff8a89;}
+#${PANEL_ID} .sc-pan-row{display:flex;align-items:center;gap:2px;width:100%;margin-top:4px;}
+#${PANEL_ID} .sc-pan-label{font-size:.4rem;color:#5e6c6a;flex-shrink:0;}
+#${PANEL_ID} .sc-pan{flex:1;width:100%;accent-color:#ffe066;height:10px;}
 
 /* Pads - real */
 #${PANEL_ID} .sc-pads{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:5px;margin-bottom:12px;}
@@ -145,6 +155,8 @@
     function updateVu(){
         const panel=document.getElementById(PANEL_ID); if(!panel) return;
         const mix=bridge()?.getChannelMix?.()||{};
+        const chordLabelEl=panel.querySelector('.sc-strip[data-key="chord"] .sc-strip-label');
+        if(chordLabelEl) chordLabelEl.textContent=chordChannelLabel();
         CHANNELS.forEach(ch=>{
             const vuEl=panel.querySelector(`.sc-vu[data-ch="${ch.key}"]`); if(!vuEl) return;
             const st=mix[ch.key]||{mute:false,vol:1};
@@ -159,13 +171,28 @@
         });
     }
 
+    // Cambio 481: el canal "chord" recibe el audio de CUALQUIER
+    // instrumento activo (guitarra, órgano, sax, etc. — todos comparten
+    // ese canal, ver conversación con Val). Antes decía siempre
+    // "Acordes"; ahora muestra el nombre real del instrumento activo,
+    // más honesto sobre qué está controlando de verdad ese fader. Se
+    // queda como "Acordes" solo si el instrumento activo es Batería o
+    // Bajo (esos ya tienen su propio canal dedicado, no pasan por acá).
+    function chordChannelLabel(){
+        const inst = bridge()?.getInstrument?.() || '';
+        if(inst === 'drums' || inst === 'bass' || !INSTRUMENT_LABELS[inst]) return 'Acordes';
+        return INSTRUMENT_LABELS[inst];
+    }
+
     function renderChannels(container){
         container.innerHTML='';
         const mix=bridge()?.getChannelMix?.()||{};
         CHANNELS.forEach(ch=>{
             const st=mix[ch.key]||{mute:false,vol:1,pan:0};
             const strip=el('div','sc-strip'+(st.mute?' is-muted':''));
-            strip.appendChild(el('div','sc-strip-label',ch.label));
+            strip.dataset.key=ch.key;
+            const label = ch.key==='chord' ? chordChannelLabel() : ch.label;
+            strip.appendChild(el('div','sc-strip-label',label));
             const row=el('div','sc-fader-row');
             const vu=el('div','sc-vu'); vu.dataset.ch=ch.key;
             for(let i=0;i<VU_SEGMENTS;i++) vu.appendChild(el('div','sc-vu-seg'));
@@ -178,7 +205,15 @@
             row.append(vu,track);
             const muteBtn=el('button','sc-mutebtn'+(st.mute?' is-active':''),'MUTE');
             muteBtn.onclick=()=>{ bridge()?.setChannelMute?.(ch.key, !st.mute); renderChannels(container); };
-            strip.append(row, muteBtn);
+            const panRow=el('div','sc-pan-row');
+            const lLabel=el('span','sc-pan-label','L');
+            const panSlider=document.createElement('input');
+            panSlider.type='range'; panSlider.min='-100'; panSlider.max='100'; panSlider.value=String(Math.round((st.pan??0)*100));
+            panSlider.className='sc-pan'; panSlider.title='Panorama';
+            panSlider.oninput=()=>bridge()?.setChannelPan?.(ch.key, Number(panSlider.value)/100);
+            const rLabel=el('span','sc-pan-label','R');
+            panRow.append(lLabel, panSlider, rLabel);
+            strip.append(row, muteBtn, panRow);
             container.appendChild(strip);
         });
     }
@@ -259,9 +294,39 @@
 
         const head=el('div','sc-head');
         head.appendChild(el('h2','','🎛 Supraconsola'));
+        const headBtns=el('div',''); headBtns.style.cssText='display:flex;gap:6px;';
+        const minBtn=el('button','sc-closebtn','—');
+        minBtn.title='Minimizar';
+        minBtn.onclick=()=>{
+            const body=panel.querySelectorAll(':scope > *:not(.sc-head)');
+            const minimized=panel.classList.toggle('is-minimized');
+            body.forEach(node=>{ node.style.display = minimized ? 'none' : ''; });
+            panel.style.resize = minimized ? 'none' : 'both';
+            panel.style.maxHeight = minimized ? 'none' : '94vh';
+        };
         const closeBtn=el('button','sc-closebtn','Cerrar');
         closeBtn.onclick=close;
-        head.appendChild(closeBtn);
+        headBtns.append(minBtn, closeBtn);
+        head.appendChild(headBtns);
+
+        // Cambio 479: arrastrar el panel tomándolo del header — consola
+        // flotante de verdad, no fija al centro. El tamaño se ajusta con
+        // el "resize:both" nativo del navegador (esquina inferior
+        // derecha), y "Minimizar" colapsa todo menos el header.
+        let dragging=false, dragStartX=0, dragStartY=0, panelStartLeft=0, panelStartTop=0;
+        head.addEventListener('pointerdown', evt=>{
+            if(evt.target.closest('button')) return;
+            dragging=true; head.setPointerCapture(evt.pointerId);
+            dragStartX=evt.clientX; dragStartY=evt.clientY;
+            const rect=panel.getBoundingClientRect();
+            panelStartLeft=rect.left; panelStartTop=rect.top;
+        });
+        head.addEventListener('pointermove', evt=>{
+            if(!dragging) return;
+            const nx=panelStartLeft+(evt.clientX-dragStartX), ny=panelStartTop+(evt.clientY-dragStartY);
+            panel.style.left=Math.max(0,nx)+'px'; panel.style.top=Math.max(0,ny)+'px';
+        });
+        head.addEventListener('pointerup', ()=>{ dragging=false; });
 
         const decksLabelRow=el('div',''); decksLabelRow.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;';
         decksLabelRow.appendChild(el('div','sc-section-label','Deck A / Deck B / Efectos'));
@@ -299,6 +364,13 @@
         let overlay=document.getElementById(PANEL_ID+'Overlay');
         if(!overlay) overlay=buildPanel();
         overlay.classList.add('is-open');
+        const panel=document.getElementById(PANEL_ID);
+        if(panel && !panel.dataset.positioned){
+            const w=panel.offsetWidth||760, h=panel.offsetHeight||500;
+            panel.style.left=Math.max(0,(window.innerWidth-w)/2)+'px';
+            panel.style.top=Math.max(0,(window.innerHeight-h)/2)+'px';
+            panel.dataset.positioned='1';
+        }
         renderChannels(overlay.querySelector('.sc-strips'));
         renderPads(overlay.querySelector('.sc-pads'));
         if(vuInterval) clearInterval(vuInterval);
