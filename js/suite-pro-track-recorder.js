@@ -1593,5 +1593,36 @@ let muteBackingWhileRec = true;
     openPanel();
   });
 
-  window.Studio936TrackRecorder = { toggle, openPanel, closePanel, renderSectionLanes, buildAddInstrumentControl, isLanesCollapsed, toggleAllLaneWraps, setLanesCollapsed };
+  // Cambio 483: API expuesta para la Supraconsola — antes todo esto
+  // (laneMuteSolo, getLaneState, refreshLivePlaybackGains) era privado
+  // al módulo, sin forma de leerlo/controlarlo desde afuera. Estas 5
+  // funciones no agregan lógica de audio nueva — solo abren una puerta
+  // segura hacia lo que ya existía, mismo patrón que el Bridge de
+  // app.js.
+  function getCurrentPlaybackSection(){
+    return currentPlaybackSection;
+  }
+  function listRecordedInstruments(sectionKey){
+    try { return Object.keys(groupTakesByInstrument(sectionKey || currentPlaybackSection || '')); }
+    catch(_) { return []; }
+  }
+  function getLaneStateExternal(sectionKey, instrumentId){
+    try { const s = getLaneState(sectionKey, instrumentId); return { muted:!!s.muted, solo:!!s.solo, pan:s.pan||0, volume:s.volume!=null?s.volume:0.8 }; }
+    catch(_) { return { muted:false, solo:false, pan:0, volume:0.8 }; }
+  }
+  function setLaneVolume(sectionKey, instrumentId, value){
+    try { getLaneState(sectionKey, instrumentId).volume = Math.max(0, Math.min(1, Number(value))); refreshLivePlaybackGains(sectionKey); return true; }
+    catch(_) { return false; }
+  }
+  function setLaneMute(sectionKey, instrumentId, muted){
+    try { getLaneState(sectionKey, instrumentId).muted = !!muted; refreshLivePlaybackGains(sectionKey); return true; }
+    catch(_) { return false; }
+  }
+  function setLanePan(sectionKey, instrumentId, value){
+    try { getLaneState(sectionKey, instrumentId).pan = Math.max(-1, Math.min(1, Number(value))); refreshLivePlaybackGains(sectionKey); return true; }
+    catch(_) { return false; }
+  }
+
+  window.Studio936TrackRecorder = { toggle, openPanel, closePanel, renderSectionLanes, buildAddInstrumentControl, isLanesCollapsed, toggleAllLaneWraps, setLanesCollapsed,
+    getCurrentPlaybackSection, listRecordedInstruments, getLaneStateExternal, setLaneVolume, setLaneMute, setLanePan };
 })();

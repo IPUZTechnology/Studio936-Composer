@@ -70,6 +70,9 @@
 #${PANEL_ID} .sc-head{display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:8px;margin-bottom:12px;}
 #${PANEL_ID} .sc-closebtn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:5px 14px;color:#cfe0dd;font-size:.66rem;font-weight:700;cursor:pointer;}
 #${PANEL_ID} .sc-section-label{font-size:.56rem;color:#7d8d8a;font-weight:800;letter-spacing:.5px;margin:0 0 6px;text-transform:uppercase;}
+#${PANEL_ID} .sc-instrument-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+#${PANEL_ID} .sc-instrument-select{flex:1;background:#05070a;border:1px solid rgba(255,255,255,.14);border-radius:8px;color:#cfe0dd;font-size:.66rem;padding:6px 8px;}
+#${PANEL_ID} .sc-rec-note{font-size:.52rem;color:#5e6c6a;margin-bottom:6px;}
 #${PANEL_ID} .sc-part2-badge{font-size:.54rem;color:#ffe066;background:rgba(255,216,77,.10);border:1px solid rgba(255,216,77,.35);padding:2px 8px;border-radius:999px;font-weight:700;}
 
 /* Decks / crossfader / efectos - Parte 2, decorativo */
@@ -113,7 +116,7 @@
 @keyframes scPadFlash{0%{filter:brightness(2.1);}100%{filter:brightness(1);}}
 
 /* Rueda + atajos - real */
-#${PANEL_ID} .sc-bottom-row{display:flex;gap:12px;align-items:center;margin-bottom:6px;}
+#${PANEL_ID} .sc-bottom-row{display:flex;gap:10px;align-items:center;margin-bottom:6px;flex-wrap:wrap;}
 #${PANEL_ID} .sc-wheel-outer{width:64px;height:64px;border-radius:50%;position:relative;background:radial-gradient(circle at 35% 30%,#23303a,#0a0d13 70%);border:1px solid rgba(255,255,255,.14);touch-action:none;cursor:grab;flex-shrink:0;}
 #${PANEL_ID} .sc-wheel-outer:active{cursor:grabbing;}
 #${PANEL_ID} .sc-wheel-tick{position:absolute;width:3px;height:8px;left:50%;top:4px;background:rgba(255,255,255,.16);border-radius:2px;transform-origin:1.5px 28px;}
@@ -251,7 +254,14 @@
         drumStartBtn.onclick=()=>{ const mod=window.Studio936SuiteProModules?.drums || window.Studio936SuiteProDrums; if(mod?.start) mod.start(); };
         const drumStopBtn=el('button','sc-shortcut','Detener batería');
         drumStopBtn.onclick=()=>{ const mod=window.Studio936SuiteProModules?.drums || window.Studio936SuiteProDrums; if(mod?.stop) mod.stop(); };
-        row.append(metroBtn, drumStartBtn, drumStopBtn);
+        // Cambio 482: atajo a MIDI IN Pro (suite-pro-midi.js) — módulo
+        // real, ya conecta teclados/pianos MIDI reales vía Web MIDI API
+        // y suena con el instrumento activo (Cambio 146, confirmado
+        // funcionando). Este botón solo navega hacia ese panel real, no
+        // duplica nada de la lógica de MIDI.
+        const midiBtn=el('button','sc-shortcut','Conectar MIDI');
+        midiBtn.onclick=()=>{ window.Studio936SuitePro?.openStudioTool?.('midi'); };
+        row.append(metroBtn, drumStartBtn, drumStopBtn, midiBtn);
     }
 
     function buildDecksPart2(container){
@@ -337,7 +347,20 @@
         buildFxPart2(fxZone);
 
         const chLabel=el('div','sc-section-label','Canales');
+        const instRow=el('div','sc-instrument-row');
+        const instSelect=document.createElement('select');
+        instSelect.className='sc-instrument-select';
+        Object.entries(INSTRUMENT_LABELS).forEach(([val,label])=>{
+            const opt=document.createElement('option'); opt.value=val; opt.textContent=label; instSelect.appendChild(opt);
+        });
+        instSelect.value = bridge()?.getInstrument?.() || 'piano';
+        instSelect.onchange=()=>{ bridge()?.setInstrument?.(instSelect.value); renderChannels(strips); };
+        instRow.append(el('span','sc-rec-note','Instrumento activo:'), instSelect);
         const strips=el('div','sc-strips');
+
+        const recLabel=el('div','sc-section-label','Pistas grabadas (sección en reproducción)');
+        const recNote=el('div','sc-rec-note','');
+        const recStrips=el('div','sc-strips');
 
         const padsLabel=el('div','sc-section-label','Pads de ritmo');
         const pads=el('div','sc-pads');
@@ -350,14 +373,62 @@
         bottomRow.append(wheelOuter, el('div','sc-wheel-note','Rueda táctil'));
         bindShortcuts(bottomRow);
 
-        panel.append(head, decksLabelRow, decksZone, fxZone, chLabel, strips, padsLabel, pads, bottomRow);
+        panel.append(head, decksLabelRow, decksZone, fxZone, chLabel, instRow, strips, recLabel, recNote, recStrips, padsLabel, pads, bottomRow);
         overlay.appendChild(panel);
         overlay.addEventListener('click', e=>{ if(e.target===overlay) close(); });
         document.body.appendChild(overlay);
 
         renderChannels(strips);
         renderPads(pads);
+        renderRecordedChannels(recStrips, recNote);
         return overlay;
+    }
+
+    // Cambio 483: canales de las pistas YA GRABADAS en la sección que
+    // está sonando ahora mismo (Vista Continua) — usa la API nueva de
+    // suite-pro-track-recorder.js (getCurrentPlaybackSection,
+    // listRecordedInstruments, getLaneStateExternal, setLaneVolume,
+    // setLaneMute, setLanePan). Si no hay ninguna sección reproduciéndose
+    // ahora, no hay nada real que controlar — se muestra un aviso en vez
+    // de canales vacíos/decorativos.
+    function renderRecordedChannels(container, noteEl){
+        container.innerHTML='';
+        const rec = window.Studio936TrackRecorder;
+        const sectionKey = rec?.getCurrentPlaybackSection?.();
+        if(!rec || !sectionKey){
+            noteEl.textContent = 'No hay ninguna sección con pistas grabadas reproduciéndose ahora mismo.';
+            return;
+        }
+        const instruments = rec.listRecordedInstruments(sectionKey) || [];
+        if(!instruments.length){
+            noteEl.textContent = 'Esta sección no tiene tomas grabadas todavía.';
+            return;
+        }
+        noteEl.textContent = '';
+        instruments.forEach(instrumentId=>{
+            const st = rec.getLaneStateExternal(sectionKey, instrumentId);
+            const label = INSTRUMENT_LABELS[instrumentId] || instrumentId;
+            const strip=el('div','sc-strip'+(st.muted?' is-muted':''));
+            strip.appendChild(el('div','sc-strip-label',label));
+            const row=el('div','sc-fader-row');
+            const track=el('div','sc-fader-track');
+            const fader=document.createElement('input');
+            fader.type='range'; fader.min='0'; fader.max='100'; fader.value=String(Math.round(st.volume*100));
+            fader.className='sc-fader';
+            fader.oninput=()=>rec.setLaneVolume(sectionKey, instrumentId, Number(fader.value)/100);
+            track.appendChild(fader);
+            row.appendChild(track);
+            const muteBtn=el('button','sc-mutebtn'+(st.muted?' is-active':''),'MUTE');
+            muteBtn.onclick=()=>{ rec.setLaneMute(sectionKey, instrumentId, !st.muted); renderRecordedChannels(container, noteEl); };
+            const panRow=el('div','sc-pan-row');
+            const panSlider=document.createElement('input');
+            panSlider.type='range'; panSlider.min='-100'; panSlider.max='100'; panSlider.value=String(Math.round(st.pan*100));
+            panSlider.className='sc-pan';
+            panSlider.oninput=()=>rec.setLanePan(sectionKey, instrumentId, Number(panSlider.value)/100);
+            panRow.append(el('span','sc-pan-label','L'), panSlider, el('span','sc-pan-label','R'));
+            strip.append(row, muteBtn, panRow);
+            container.appendChild(strip);
+        });
     }
 
     function open(){
@@ -371,10 +442,16 @@
             panel.style.top=Math.max(0,(window.innerHeight-h)/2)+'px';
             panel.dataset.positioned='1';
         }
-        renderChannels(overlay.querySelector('.sc-strips'));
+        const allStrips = overlay.querySelectorAll('.sc-strips');
+        renderChannels(allStrips[0]);
         renderPads(overlay.querySelector('.sc-pads'));
+        const recNoteEl = overlay.querySelector('.sc-rec-note');
+        renderRecordedChannels(allStrips[1], recNoteEl);
         if(vuInterval) clearInterval(vuInterval);
-        vuInterval=setInterval(updateVu, 220);
+        vuInterval=setInterval(()=>{
+            updateVu();
+            renderRecordedChannels(overlay.querySelector('.sc-strips:last-of-type'), overlay.querySelector('.sc-rec-note'));
+        }, 1500);
     }
     function close(){
         const overlay=document.getElementById(PANEL_ID+'Overlay');
