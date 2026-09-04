@@ -68,7 +68,7 @@
 #${PANEL_ID} .sc-head{cursor:move;touch-action:none;}
 #${PANEL_ID} h2{margin:0;font-size:.88rem;color:#00ffcc;font-weight:950;letter-spacing:1.4px;text-transform:uppercase;}
 #${PANEL_ID} .sc-head{display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:8px;margin-bottom:12px;}
-#${PANEL_ID} .sc-closebtn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:5px 14px;color:#cfe0dd;font-size:.66rem;font-weight:700;cursor:pointer;}
+#${PANEL_ID} .sc-closebtn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:8px 16px;color:#cfe0dd;font-size:.7rem;font-weight:700;cursor:pointer;min-width:34px;}
 #${PANEL_ID} .sc-section-label{font-size:.56rem;color:#7d8d8a;font-weight:800;letter-spacing:.5px;margin:0 0 6px;text-transform:uppercase;}
 #${PANEL_ID} .sc-instrument-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
 #${PANEL_ID} .sc-instrument-select{flex:1;background:#05070a;border:1px solid rgba(255,255,255,.14);border-radius:8px;color:#cfe0dd;font-size:.66rem;padding:6px 8px;}
@@ -102,7 +102,7 @@
 #${PANEL_ID} .sc-fader{-webkit-appearance:none;appearance:none;width:80px;height:20px;background:transparent;transform:rotate(-90deg);margin:0;}
 #${PANEL_ID} .sc-fader::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:16px;border-radius:3px;background:linear-gradient(180deg,#e8f4f2,#9fb0ae);border:1px solid #05070a;}
 #${PANEL_ID} .sc-fader::-moz-range-thumb{width:30px;height:16px;border-radius:3px;background:linear-gradient(180deg,#e8f4f2,#9fb0ae);border:1px solid #05070a;}
-#${PANEL_ID} .sc-mutebtn{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:5px;padding:3px 0;color:#9fb0ae;font-size:.48rem;font-weight:800;cursor:pointer;}
+#${PANEL_ID} .sc-mutebtn{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:6px 0;color:#9fb0ae;font-size:.5rem;font-weight:800;cursor:pointer;}
 #${PANEL_ID} .sc-mutebtn.is-active{background:rgba(226,75,74,.2);border-color:#e24b4a;color:#ff8a89;}
 #${PANEL_ID} .sc-pan-row{display:flex;align-items:center;gap:2px;width:100%;margin-top:4px;}
 #${PANEL_ID} .sc-pan-label{font-size:.4rem;color:#5e6c6a;flex-shrink:0;}
@@ -123,7 +123,9 @@
 #${PANEL_ID} .sc-wheel-tick.is-lit{background:#00ffcc;box-shadow:0 0 6px #00ffcc;}
 #${PANEL_ID} .sc-wheel-knob{position:absolute;inset:9px;border-radius:50%;background:linear-gradient(160deg,#2a3742,#0d1117 65%);border:1px solid rgba(255,255,255,.1);}
 #${PANEL_ID} .sc-wheel-note{font-size:.52rem;color:#7d8d8a;flex:1;}
-#${PANEL_ID} .sc-shortcut{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:6px 11px;color:#cfe0dd;font-size:.6rem;font-weight:800;cursor:pointer;white-space:nowrap;}
+#${PANEL_ID} .sc-shortcut{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:9px 14px;color:#cfe0dd;font-size:.66rem;font-weight:800;cursor:pointer;white-space:nowrap;}
+#${PANEL_ID} .sc-playbtn{background:rgba(0,255,204,.16);border:2px solid #00ffcc;border-radius:10px;padding:9px 18px;color:#8affff;font-size:.7rem;font-weight:900;cursor:pointer;white-space:nowrap;}
+#${PANEL_ID} .sc-playbtn.is-playing{background:rgba(255,90,90,.16);border-color:#ff5a5a;color:#ffb0b0;}
 #${PANEL_ID} .sc-shortcut.is-live{background:rgba(0,255,204,.14);border-color:#00ffcc;color:#8affff;box-shadow:0 0 8px rgba(0,255,204,.35);}
 `;
         document.head.appendChild(style);
@@ -248,6 +250,21 @@
     // ---- Atajos: metrónomo / batería (mismo criterio que el mixer viejo del Estudio) ----
     function metroIsOn(){ const b=document.getElementById('metroBtn'); return !!b && (b.classList.contains('active') || /ON/i.test(b.textContent||'')); }
     function bindShortcuts(row){
+        // Cambio 484: Play/Stop real — Val no podía escuchar la canción
+        // sin cerrar la consola primero. Este botón toca el mismo
+        // playBtn de siempre (unifiedPlayToggle en app.js), no inventa
+        // una reproducción aparte.
+        const playBtn=el('button','sc-playbtn', bridge()?.isMainPlaying?.() ? '⏹ Detener' : '▶ Reproducir');
+        playBtn.onclick=()=>{
+            document.getElementById('playBtn')?.click();
+            setTimeout(()=>{
+                const playing = bridge()?.isMainPlaying?.();
+                playBtn.textContent = playing ? '⏹ Detener' : '▶ Reproducir';
+                playBtn.classList.toggle('is-playing', !!playing);
+            }, 80);
+        };
+        playBtn.classList.toggle('is-playing', !!bridge()?.isMainPlaying?.());
+        row.appendChild(playBtn);
         const metroBtn=el('button','sc-shortcut'+(metroIsOn()?' is-live':''),'Metrónomo');
         metroBtn.onclick=()=>{ document.getElementById('metroBtn')?.click(); setTimeout(()=>{ metroBtn.classList.toggle('is-live', metroIsOn()); },80); };
         const drumStartBtn=el('button','sc-shortcut','Iniciar batería');
@@ -451,6 +468,12 @@
         vuInterval=setInterval(()=>{
             updateVu();
             renderRecordedChannels(overlay.querySelector('.sc-strips:last-of-type'), overlay.querySelector('.sc-rec-note'));
+            const playBtn=overlay.querySelector('.sc-playbtn');
+            if(playBtn){
+                const playing=!!bridge()?.isMainPlaying?.();
+                playBtn.textContent = playing ? '⏹ Detener' : '▶ Reproducir';
+                playBtn.classList.toggle('is-playing', playing);
+            }
         }, 1500);
     }
     function close(){
