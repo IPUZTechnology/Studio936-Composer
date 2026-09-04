@@ -1,0 +1,318 @@
+// Studio 936 Composer — Supraconsola (Cambio 478)
+//
+// QUÉ ES: panel único que junta, en una sola pantalla, todo lo que hoy
+// vive separado en dos botones (Mixer de canales + Pads de ritmo), más
+// la rueda táctil y atajos rápidos — todo REAL y funcional, reusando
+// exactamente el mismo Bridge que ya usaban esos dos paneles, sin
+// duplicar lógica de audio.
+//
+// La parte de arriba (Deck A / Deck B / crossfader / efectos) es la
+// visión completa que se acordó con Val — se dibuja entera, prolija,
+// pero marcada como "Parte 2": no tiene ninguna función real todavía
+// (es la consola de mezclar canciones completas / MP3s, un proyecto
+// aparte, ver VISION_Supraconsola_Estudio.md). Ningún control de esa
+// zona hace nada al tocarlo — están ahí para mostrar el plan completo,
+// no para mentir sobre lo que hacen (por eso llevan el aviso explícito).
+//
+// Este archivo REEMPLAZA a los botones de Mixer y Pads por uno solo
+// ("Consola"). suite-pro-channel-mixer.js y suite-pro-groove-pads.js
+// siguen existiendo sin tocarse — este panel nuevo llama a las mismas
+// funciones de Bridge que ellos, no los reemplaza por dentro.
+
+(function(){
+    'use strict';
+
+    const PANEL_ID = 's936Supraconsole';
+    const CHANNELS = [
+        { key: 'drums',   label: 'Batería',              color: '#ff6b6b' },
+        { key: 'bass',    label: 'Bajo',                 color: '#ffb020' },
+        { key: 'chord',   label: 'Acordes',              color: '#00ffcc' },
+        { key: 'solo',    label: 'Solo',                 color: '#00b3ff' },
+        { key: 'piano',   label: 'Piano',                color: '#c792ff' },
+        { key: 'ukulele', label: 'Ukelele',              color: '#ffe066' }
+    ];
+    const PADS = [
+        { key: 'funk', label: 'Funk', color: '#00ffcc' }, { key: 'rock', label: 'Rock', color: '#ff6b6b' },
+        { key: 'ballad', label: 'Balada', color: '#c792ff' }, { key: 'bossa', label: 'Bossa Nova', color: '#00b3ff' },
+        { key: 'jazz', label: 'Jazz', color: '#ffb020' }, { key: 'blues', label: 'Blues', color: '#4d96ff' },
+        { key: 'pop', label: 'Pop', color: '#ff8fd8' }, { key: 'bolero', label: 'Bolero', color: '#a0e0a0' },
+        { key: 'salsa', label: 'Salsa', color: '#ffe066' }, { key: 'cumbia', label: 'Cumbia', color: '#ff9f4d' },
+        { key: 'reggae', label: 'Reggae', color: '#7dffb3' },
+        { key: 'trance', label: 'Trance', color: '#b967ff' }, { key: 'eurotrance', label: 'Eurotrance', color: '#ff2d95' },
+        { key: 'electro', label: 'Electro (UK)', color: '#00e5ff' }, { key: 'house', label: 'House', color: '#ffb347' },
+        { key: 'techno', label: 'Techno', color: '#d3d3d3' }, { key: 'dnb', label: 'Drum & Bass', color: '#5ee6a0' },
+        { key: 'dubstep', label: 'Dubstep', color: '#7c5cff' }, { key: 'deephouse', label: 'Deep House', color: '#c58aff' },
+        { key: 'afrobeats', label: 'Afrobeats', color: '#ff8c42' }, { key: 'dembow', label: 'Dembow', color: '#ff4d6d' }
+    ];
+    const ELECTRONIC_STYLES = new Set(['trance','eurotrance','electro','house','techno','dnb','dubstep','deephouse','afrobeats','dembow']);
+    const SUGGESTED_BPM = { trance:138, eurotrance:140, electro:128, house:124, techno:130, dnb:160, dubstep:140, deephouse:120, afrobeats:105, dembow:92 };
+    const STEPS = 16;
+
+    function bridge(){ return window.Studio936AppBridge || null; }
+    function el(tag, className, text){ const n=document.createElement(tag); if(className) n.className=className; if(text!==undefined) n.textContent=text; return n; }
+
+    function injectStyle(){
+        if(document.getElementById(PANEL_ID+'Style')) return;
+        const style = document.createElement('style');
+        style.id = PANEL_ID+'Style';
+        style.textContent = `
+#${PANEL_ID}Overlay{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:14px;}
+#${PANEL_ID}Overlay.is-open{display:flex;}
+#${PANEL_ID}{width:min(760px,97vw);max-height:94vh;overflow-y:auto;background:linear-gradient(180deg,#12161f 0%,#0a0d13 100%);border:1px solid rgba(0,255,204,.28);border-radius:18px;box-shadow:0 30px 90px rgba(0,0,0,.75);padding:16px 18px 14px;color:#e8f4f2;font-family:inherit;}
+#${PANEL_ID} h2{margin:0;font-size:.88rem;color:#00ffcc;font-weight:950;letter-spacing:1.4px;text-transform:uppercase;}
+#${PANEL_ID} .sc-head{display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:8px;margin-bottom:12px;}
+#${PANEL_ID} .sc-closebtn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:5px 14px;color:#cfe0dd;font-size:.66rem;font-weight:700;cursor:pointer;}
+#${PANEL_ID} .sc-section-label{font-size:.56rem;color:#7d8d8a;font-weight:800;letter-spacing:.5px;margin:0 0 6px;text-transform:uppercase;}
+#${PANEL_ID} .sc-part2-badge{font-size:.54rem;color:#ffe066;background:rgba(255,216,77,.10);border:1px solid rgba(255,216,77,.35);padding:2px 8px;border-radius:999px;font-weight:700;}
+
+/* Decks / crossfader / efectos - Parte 2, decorativo */
+#${PANEL_ID} .sc-decks-row{display:flex;gap:10px;margin-bottom:10px;}
+#${PANEL_ID} .sc-deck{flex:1;background:rgba(255,255,255,.025);border:1px dashed rgba(255,255,255,.15);border-radius:12px;padding:9px;text-align:center;}
+#${PANEL_ID} .sc-deck-wheel{width:64px;height:64px;margin:0 auto 5px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#242e37,#0a0d13 70%);border:2px solid rgba(255,255,255,.18);position:relative;}
+#${PANEL_ID} .sc-deck-wave{height:16px;background:#05070a;border-radius:4px;margin:5px 0;display:flex;align-items:center;justify-content:center;gap:1px;padding:0 3px;opacity:.35;}
+#${PANEL_ID} .sc-deck-wave span{width:2px;background:#9fb0ae;border-radius:1px;}
+#${PANEL_ID} .sc-deck-btns{display:flex;gap:4px;justify-content:center;}
+#${PANEL_ID} .sc-deck-btns div{width:24px;height:18px;border:1px solid rgba(255,255,255,.15);border-radius:4px;font-size:.44rem;display:flex;align-items:center;justify-content:center;color:#7d8d8a;}
+#${PANEL_ID} .sc-xfader{height:9px;background:#05070a;border:1px solid rgba(255,255,255,.1);border-radius:5px;position:relative;margin:4px 0 3px;}
+#${PANEL_ID} .sc-xfader-knob{position:absolute;left:50%;top:-4px;width:14px;height:16px;background:linear-gradient(180deg,#7d8d8a,#5a6663);border-radius:3px;transform:translateX(-50%);}
+#${PANEL_ID} .sc-fx-row{display:flex;gap:7px;margin-bottom:4px;}
+#${PANEL_ID} .sc-fx{flex:1;background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.13);border-radius:10px;padding:7px;text-align:center;}
+#${PANEL_ID} .sc-fx-knob{width:26px;height:26px;margin:0 auto 4px;border-radius:50%;border:3px solid rgba(255,255,255,.13);border-top-color:rgba(197,138,255,.4);}
+#${PANEL_ID} .sc-fx span{font-size:.48rem;color:#7d8d8a;}
+
+/* Canales - real */
+#${PANEL_ID} .sc-strips{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;}
+#${PANEL_ID} .sc-strip{flex:1 0 68px;display:flex;flex-direction:column;align-items:center;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:7px 6px;}
+#${PANEL_ID} .sc-strip.is-muted{opacity:.5;}
+#${PANEL_ID} .sc-strip-label{font-size:.52rem;font-weight:800;text-align:center;min-height:18px;color:#cfe0dd;margin-bottom:5px;}
+#${PANEL_ID} .sc-fader-row{display:flex;align-items:flex-end;gap:5px;height:88px;margin-bottom:6px;}
+#${PANEL_ID} .sc-vu{width:8px;height:88px;border-radius:4px;background:#05070a;border:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column-reverse;overflow:hidden;padding:2px;gap:1px;}
+#${PANEL_ID} .sc-vu-seg{width:100%;height:5px;border-radius:1px;background:rgba(255,255,255,.06);}
+#${PANEL_ID} .sc-fader-track{position:relative;width:26px;height:88px;background:linear-gradient(180deg,#05070a,#0d1117);border:1px solid rgba(255,255,255,.09);border-radius:5px;display:flex;align-items:center;justify-content:center;}
+#${PANEL_ID} .sc-fader{-webkit-appearance:none;appearance:none;width:80px;height:20px;background:transparent;transform:rotate(-90deg);margin:0;}
+#${PANEL_ID} .sc-fader::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:16px;border-radius:3px;background:linear-gradient(180deg,#e8f4f2,#9fb0ae);border:1px solid #05070a;}
+#${PANEL_ID} .sc-fader::-moz-range-thumb{width:30px;height:16px;border-radius:3px;background:linear-gradient(180deg,#e8f4f2,#9fb0ae);border:1px solid #05070a;}
+#${PANEL_ID} .sc-mutebtn{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:5px;padding:3px 0;color:#9fb0ae;font-size:.48rem;font-weight:800;cursor:pointer;}
+#${PANEL_ID} .sc-mutebtn.is-active{background:rgba(226,75,74,.2);border-color:#e24b4a;color:#ff8a89;}
+
+/* Pads - real */
+#${PANEL_ID} .sc-pads{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:5px;margin-bottom:12px;}
+#${PANEL_ID} .sc-pad{aspect-ratio:1/.62;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#cfe0dd;font-size:.56rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;text-align:center;padding:3px;touch-action:manipulation;user-select:none;}
+#${PANEL_ID} .sc-pad.is-active{color:#0a0d13;box-shadow:0 0 0 2px currentColor,0 0 14px 1px var(--pad-glow,rgba(0,255,204,.5));}
+#${PANEL_ID} .sc-pad.is-flash{animation:scPadFlash .28s ease;}
+@keyframes scPadFlash{0%{filter:brightness(2.1);}100%{filter:brightness(1);}}
+
+/* Rueda + atajos - real */
+#${PANEL_ID} .sc-bottom-row{display:flex;gap:12px;align-items:center;margin-bottom:6px;}
+#${PANEL_ID} .sc-wheel-outer{width:64px;height:64px;border-radius:50%;position:relative;background:radial-gradient(circle at 35% 30%,#23303a,#0a0d13 70%);border:1px solid rgba(255,255,255,.14);touch-action:none;cursor:grab;flex-shrink:0;}
+#${PANEL_ID} .sc-wheel-outer:active{cursor:grabbing;}
+#${PANEL_ID} .sc-wheel-tick{position:absolute;width:3px;height:8px;left:50%;top:4px;background:rgba(255,255,255,.16);border-radius:2px;transform-origin:1.5px 28px;}
+#${PANEL_ID} .sc-wheel-tick.is-lit{background:#00ffcc;box-shadow:0 0 6px #00ffcc;}
+#${PANEL_ID} .sc-wheel-knob{position:absolute;inset:9px;border-radius:50%;background:linear-gradient(160deg,#2a3742,#0d1117 65%);border:1px solid rgba(255,255,255,.1);}
+#${PANEL_ID} .sc-wheel-note{font-size:.52rem;color:#7d8d8a;flex:1;}
+#${PANEL_ID} .sc-shortcut{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:6px 11px;color:#cfe0dd;font-size:.6rem;font-weight:800;cursor:pointer;white-space:nowrap;}
+#${PANEL_ID} .sc-shortcut.is-live{background:rgba(0,255,204,.14);border-color:#00ffcc;color:#8affff;box-shadow:0 0 8px rgba(0,255,204,.35);}
+`;
+        document.head.appendChild(style);
+    }
+
+    // ---- Rueda (misma lógica que suite-pro-groove-pads.js) ----
+    let wheelAngle=0, wheelLastStep=-1, wheelDragging=false, wheelStartAngle=0, wheelStartPointerAngle=0;
+    function stepFromAngle(a){ const n=((a%360)+360)%360; return Math.floor(n/(360/STEPS))%STEPS; }
+    function fireStep(step){
+        try{ const ctx=window.__studio936AudioCtx; bridge()?.scheduleDrumStep?.(null, step, ctx?ctx.currentTime:0); }catch(_){}
+        const panel=document.getElementById(PANEL_ID); if(!panel) return;
+        panel.querySelectorAll('.sc-wheel-tick').forEach((t,i)=>t.classList.toggle('is-lit', i===step));
+        setTimeout(()=>{ const t=panel.querySelector(`.sc-wheel-tick[data-step="${step}"]`); if(t) t.classList.remove('is-lit'); },150);
+    }
+    function pointerAngle(evt, elRef){ const r=elRef.getBoundingClientRect(); const cx=r.left+r.width/2, cy=r.top+r.height/2; return Math.atan2(evt.clientY-cy, evt.clientX-cx)*180/Math.PI; }
+    function bindWheel(wheelEl, knobEl){
+        wheelEl.addEventListener('pointerdown', evt=>{ wheelDragging=true; wheelEl.setPointerCapture(evt.pointerId); wheelStartPointerAngle=pointerAngle(evt,wheelEl); wheelStartAngle=wheelAngle; });
+        wheelEl.addEventListener('pointermove', evt=>{
+            if(!wheelDragging) return;
+            const now=pointerAngle(evt,wheelEl); wheelAngle=wheelStartAngle+(now-wheelStartPointerAngle);
+            knobEl.style.transform=`rotate(${wheelAngle}deg)`;
+            const step=stepFromAngle(wheelAngle);
+            if(step!==wheelLastStep){ wheelLastStep=step; fireStep(step); }
+        });
+        const end=()=>{ wheelDragging=false; };
+        wheelEl.addEventListener('pointerup', end); wheelEl.addEventListener('pointercancel', end);
+    }
+
+    // ---- VU meters (canales) ----
+    let vuInterval=null;
+    const VU_SEGMENTS=12;
+    function updateVu(){
+        const panel=document.getElementById(PANEL_ID); if(!panel) return;
+        const mix=bridge()?.getChannelMix?.()||{};
+        CHANNELS.forEach(ch=>{
+            const vuEl=panel.querySelector(`.sc-vu[data-ch="${ch.key}"]`); if(!vuEl) return;
+            const st=mix[ch.key]||{mute:false,vol:1};
+            const base=st.mute?0:(st.vol??1);
+            const level=Math.max(0,Math.min(1, base + (st.mute?0:(Math.random()*.2-.1))));
+            const lit=Math.round(level*VU_SEGMENTS);
+            [...vuEl.children].forEach((seg,i)=>{
+                const on=i<lit;
+                if(on){ const pct=i/VU_SEGMENTS; seg.style.background = pct>.8?'#ff5a5a':pct>.6?'#ffcc4d':ch.color; }
+                else seg.style.background='rgba(255,255,255,.06)';
+            });
+        });
+    }
+
+    function renderChannels(container){
+        container.innerHTML='';
+        const mix=bridge()?.getChannelMix?.()||{};
+        CHANNELS.forEach(ch=>{
+            const st=mix[ch.key]||{mute:false,vol:1,pan:0};
+            const strip=el('div','sc-strip'+(st.mute?' is-muted':''));
+            strip.appendChild(el('div','sc-strip-label',ch.label));
+            const row=el('div','sc-fader-row');
+            const vu=el('div','sc-vu'); vu.dataset.ch=ch.key;
+            for(let i=0;i<VU_SEGMENTS;i++) vu.appendChild(el('div','sc-vu-seg'));
+            const track=el('div','sc-fader-track');
+            const fader=document.createElement('input');
+            fader.type='range'; fader.min='0'; fader.max='100'; fader.value=String(Math.round((st.vol??1)*100));
+            fader.className='sc-fader';
+            fader.oninput=()=>bridge()?.setChannelVolume?.(ch.key, Number(fader.value)/100);
+            track.appendChild(fader);
+            row.append(vu,track);
+            const muteBtn=el('button','sc-mutebtn'+(st.mute?' is-active':''),'MUTE');
+            muteBtn.onclick=()=>{ bridge()?.setChannelMute?.(ch.key, !st.mute); renderChannels(container); };
+            strip.append(row, muteBtn);
+            container.appendChild(strip);
+        });
+    }
+
+    function currentStyle(){ try{ return bridge()?.getStyle?.()||''; }catch(_){ return ''; } }
+    function refreshPads(container){
+        const active=currentStyle();
+        container.querySelectorAll('.sc-pad').forEach(p=>p.classList.toggle('is-active', p.dataset.key===active));
+    }
+    function triggerPad(padEl, key, container){
+        const ok=bridge()?.setStyle?.(key); if(!ok) return;
+        if(ELECTRONIC_STYLES.has(key)) bridge()?.setInstrument?.('synth');
+        if(SUGGESTED_BPM[key] && typeof window.setBPM==='function') window.setBPM(SUGGESTED_BPM[key]);
+        padEl.classList.add('is-flash'); setTimeout(()=>padEl.classList.remove('is-flash'),280);
+        refreshPads(container);
+    }
+
+    function renderPads(container){
+        container.innerHTML='';
+        PADS.forEach(pad=>{
+            const btn=el('button','sc-pad',pad.label);
+            btn.dataset.key=pad.key; btn.style.setProperty('--pad-glow',pad.color); btn.style.borderColor=pad.color+'55';
+            btn.onclick=()=>triggerPad(btn,pad.key,container);
+            container.appendChild(btn);
+        });
+        refreshPads(container);
+    }
+
+    // ---- Atajos: metrónomo / batería (mismo criterio que el mixer viejo del Estudio) ----
+    function metroIsOn(){ const b=document.getElementById('metroBtn'); return !!b && (b.classList.contains('active') || /ON/i.test(b.textContent||'')); }
+    function bindShortcuts(row){
+        const metroBtn=el('button','sc-shortcut'+(metroIsOn()?' is-live':''),'Metrónomo');
+        metroBtn.onclick=()=>{ document.getElementById('metroBtn')?.click(); setTimeout(()=>{ metroBtn.classList.toggle('is-live', metroIsOn()); },80); };
+        const drumStartBtn=el('button','sc-shortcut','Iniciar batería');
+        drumStartBtn.onclick=()=>{ const mod=window.Studio936SuiteProModules?.drums || window.Studio936SuiteProDrums; if(mod?.start) mod.start(); };
+        const drumStopBtn=el('button','sc-shortcut','Detener batería');
+        drumStopBtn.onclick=()=>{ const mod=window.Studio936SuiteProModules?.drums || window.Studio936SuiteProDrums; if(mod?.stop) mod.stop(); };
+        row.append(metroBtn, drumStartBtn, drumStopBtn);
+    }
+
+    function buildDecksPart2(container){
+        const row=el('div','sc-decks-row');
+        ['A','B'].forEach(id=>{
+            const deck=el('div','sc-deck');
+            const wheel=el('div','sc-deck-wheel');
+            deck.appendChild(wheel);
+            deck.appendChild(el('div','',('Deck '+id)));
+            const wave=el('div','sc-deck-wave');
+            for(let i=0;i<18;i++){ const bar=el('span'); bar.style.height=(4+Math.abs(Math.sin(i+ (id==='B'?1:0)))*9)+'px'; wave.appendChild(bar); }
+            deck.appendChild(wave);
+            const btns=el('div','sc-deck-btns');
+            btns.appendChild(el('div','','▶')); btns.appendChild(el('div','','CUE'));
+            deck.appendChild(btns);
+            row.appendChild(deck);
+        });
+        container.appendChild(row);
+        const xfader=el('div','sc-xfader'); xfader.appendChild(el('div','sc-xfader-knob'));
+        container.appendChild(xfader);
+        const xlabel=el('div',''); xlabel.style.cssText='display:flex;justify-content:space-between;font-size:.46rem;color:#5e6c6a;margin-bottom:10px;';
+        xlabel.append(el('span','','A'), el('span','','CROSSFADER'), el('span','','B'));
+        container.appendChild(xlabel);
+    }
+    function buildFxPart2(container){
+        const row=el('div','sc-fx-row');
+        ['Reverb','Delay','Filtro','Distorsión'].forEach(fx=>{
+            const card=el('div','sc-fx');
+            card.appendChild(el('div','sc-fx-knob'));
+            card.appendChild(el('span','',fx));
+            row.appendChild(card);
+        });
+        container.appendChild(row);
+    }
+
+    function buildPanel(){
+        injectStyle();
+        const overlay=el('div',''); overlay.id=PANEL_ID+'Overlay';
+        const panel=el('div',''); panel.id=PANEL_ID;
+
+        const head=el('div','sc-head');
+        head.appendChild(el('h2','','🎛 Supraconsola'));
+        const closeBtn=el('button','sc-closebtn','Cerrar');
+        closeBtn.onclick=close;
+        head.appendChild(closeBtn);
+
+        const decksLabelRow=el('div',''); decksLabelRow.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;';
+        decksLabelRow.appendChild(el('div','sc-section-label','Deck A / Deck B / Efectos'));
+        decksLabelRow.appendChild(el('div','sc-part2-badge','Parte 2 — próximamente'));
+        const decksZone=el('div','');
+        buildDecksPart2(decksZone);
+        const fxZone=el('div','');
+        buildFxPart2(fxZone);
+
+        const chLabel=el('div','sc-section-label','Canales');
+        const strips=el('div','sc-strips');
+
+        const padsLabel=el('div','sc-section-label','Pads de ritmo');
+        const pads=el('div','sc-pads');
+
+        const bottomRow=el('div','sc-bottom-row');
+        const wheelOuter=el('div','sc-wheel-outer');
+        for(let i=0;i<STEPS;i++){ const t=el('div','sc-wheel-tick'); t.dataset.step=String(i); t.style.transform=`rotate(${i*(360/STEPS)}deg)`; wheelOuter.appendChild(t); }
+        const wheelKnob=el('div','sc-wheel-knob'); wheelOuter.appendChild(wheelKnob);
+        bindWheel(wheelOuter, wheelKnob);
+        bottomRow.append(wheelOuter, el('div','sc-wheel-note','Rueda táctil'));
+        bindShortcuts(bottomRow);
+
+        panel.append(head, decksLabelRow, decksZone, fxZone, chLabel, strips, padsLabel, pads, bottomRow);
+        overlay.appendChild(panel);
+        overlay.addEventListener('click', e=>{ if(e.target===overlay) close(); });
+        document.body.appendChild(overlay);
+
+        renderChannels(strips);
+        renderPads(pads);
+        return overlay;
+    }
+
+    function open(){
+        let overlay=document.getElementById(PANEL_ID+'Overlay');
+        if(!overlay) overlay=buildPanel();
+        overlay.classList.add('is-open');
+        renderChannels(overlay.querySelector('.sc-strips'));
+        renderPads(overlay.querySelector('.sc-pads'));
+        if(vuInterval) clearInterval(vuInterval);
+        vuInterval=setInterval(updateVu, 220);
+    }
+    function close(){
+        const overlay=document.getElementById(PANEL_ID+'Overlay');
+        if(overlay) overlay.classList.remove('is-open');
+        if(vuInterval){ clearInterval(vuInterval); vuInterval=null; }
+    }
+    function toggle(){
+        const overlay=document.getElementById(PANEL_ID+'Overlay');
+        if(overlay && overlay.classList.contains('is-open')) close(); else open();
+    }
+
+    window.Studio936Supraconsole = { open, close, toggle };
+})();
