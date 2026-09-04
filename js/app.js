@@ -161,7 +161,16 @@ const els = {
     txtBtn:document.getElementById('txtBtn'), jsonBtn:document.getElementById('jsonBtn'), copyBtn:document.getElementById('copyBtn'), importBtn:document.getElementById('importBtn'), importFile:document.getElementById('importFile'), lyricsBtn:document.getElementById('lyricsBtn'), lyricsModal:document.getElementById('lyricsModal'), lyricsGrid:document.getElementById('lyricsGrid'), closeLyricsBtn:document.getElementById('closeLyricsBtn'), saveLyricsBtn:document.getElementById('saveLyricsBtn'), saveStatus:document.getElementById('saveStatus'), styleHelp:document.getElementById('styleHelp'), editorSectionBadge:document.getElementById('editorSectionBadge'), sectionNoteMap:document.getElementById('sectionNoteMap'), lyricsMap:document.getElementById('lyricsMap'), helpBtn:document.getElementById('helpBtn'), helpModal:document.getElementById('helpModal'), closeHelpBtn:document.getElementById('closeHelpBtn'), clearSoloBtn:document.getElementById('clearSoloBtn')
 };
 let project = loadProject();
-const EDITOR_INSTRUMENT_IDS = ['piano','guitar','ukulele','bass','lead'];
+// Cambio (limpieza 2.4): lista centralizada de instrumentos "de cuerdas"
+// (los que usan el mástil real y las voicings de Ipuz) — antes esta
+// misma lista estaba repetida 14 veces en el archivo, cada una escrita
+// en un Cambio distinto. 4 de esas 14 copias nunca se actualizaron
+// cuando se agregaron guitarSteel/guitarElectric (Cambio 456), quedando
+// inconsistentes con las otras 10. Centralizada acá, una sola fuente de
+// verdad — el próximo instrumento de cuerdas que se agregue solo
+// necesita tocarse en un lugar.
+const STRING_FAMILY_INSTRUMENTS = ['guitar','guitarSteel','guitarElectric','ukulele','bass','lead'];
+const EDITOR_INSTRUMENT_IDS = ['piano', ...STRING_FAMILY_INSTRUMENTS];
 const EDITOR_SURFACE_IDS = [...EDITOR_INSTRUMENT_IDS,'drums'];
 let editorInstrument = [...EDITOR_INSTRUMENT_IDS,'drums'].includes(project.instrument) ? project.instrument : 'piano';
 let _mainInstrumentBeforeEditor = null; // v0.8.0: instrumento original del Main antes de abrir el Editor
@@ -368,7 +377,7 @@ function buildFretboard(){
         onCellPlay:(midi,meta={}) => {
             resumeAudio();
             const instrument = meta.mode || project.instrument || 'guitar';
-            withEditorPreviewInstrument(['guitar','guitarSteel','guitarElectric','ukulele','bass'].includes(instrument) ? instrument : project.instrument, () => {
+            withEditorPreviewInstrument(STRING_FAMILY_INSTRUMENTS.filter(x=>x!=='lead').includes(instrument) ? instrument : project.instrument, () => {
                 playNote(midi, instrument === 'bass' ? .38 : .28, instrument === 'bass' ? .70 : .62, instrument === 'bass' ? 'sine' : 'triangle', audioCtx.currentTime);
             });
             flashFretboard([midi],'active-chord',420);
@@ -2709,7 +2718,7 @@ function installStudio936AppBridge(){
             _mainInstrumentBeforeEditor = null;
         }
         const mainInstrument = project.instrument || 'piano';
-        if(['guitar','guitarSteel','guitarElectric','ukulele','bass','lead'].includes(mainInstrument)){
+        if(STRING_FAMILY_INSTRUMENTS.includes(mainInstrument)){
             project.fretMode = mainInstrument === 'lead' ? 'guitar' : mainInstrument;
             if(els.fretModeSelect) els.fretModeSelect.value = project.fretMode;
             buildFretboard();
@@ -2758,10 +2767,10 @@ function installStudio936AppBridge(){
     }
     installEditorSurfaceCleanup();
     function syncMainInstrumentFromEditor(value){
-        if(!['piano','guitar','ukulele','bass','lead','drums'].includes(value)) return;
+        if(!['piano','drums',...STRING_FAMILY_INSTRUMENTS].includes(value)) return;
         project.instrument = value;
         if(els.instrumentSelect) els.instrumentSelect.value = value;
-        if(['guitar','guitarSteel','guitarElectric','ukulele','bass','lead'].includes(value)){
+        if(STRING_FAMILY_INSTRUMENTS.includes(value)){
             project.fretMode = value === 'lead' ? 'guitar' : value;
             if(els.fretModeSelect) els.fretModeSelect.value = project.fretMode;
         }
@@ -3167,7 +3176,7 @@ function installStudio936AppBridge(){
         const newIndex = idx + 1;
         seq.splice(newIndex, 0, copy);
         if(VoicingStore){
-            ['piano','guitar','ukulele','bass'].forEach(instrument => {
+            ['piano', ...STRING_FAMILY_INSTRUMENTS.filter(x=>x!=='lead')].forEach(instrument => {
                 if(copy?.voicings?.[instrument]){
                     VoicingStore.remember(project,instrument,copy.name,copy.voicings[instrument]);
                 }
@@ -3513,7 +3522,7 @@ Post-MIDI Recovery App Inventory
     instrument.dataset.v19AutoFret='1';
     instrument.addEventListener('change',()=>{
       const p=load();
-      if(instrument.value==='guitar' || instrument.value==='guitarSteel' || instrument.value==='guitarElectric' || instrument.value==='ukulele' || instrument.value==='bass' || instrument.value==='lead' || instrument.value==='drums'){
+      if([...STRING_FAMILY_INSTRUMENTS,'drums'].includes(instrument.value)){
         p.instrument=instrument.value; p.viewMode='fretboard'; p.fretMode=instrument.value==='ukulele'?'ukulele':instrument.value==='bass'?'bass':'guitar'; save(p);
         if(fret && instrument.value!=='drums') fret.value=p.fretMode;
         const pianoBox=$('pianoContainer');
@@ -3664,7 +3673,7 @@ Post-MIDI Recovery App Inventory
     instrument.dataset.v20Return='1';
     instrument.addEventListener('change',()=>{
       const p=load(); p.instrument=instrument.value;
-      if(!['guitar','guitarSteel','guitarElectric','ukulele','bass','lead','drums'].includes(instrument.value)){
+      if(![...STRING_FAMILY_INSTRUMENTS,'drums'].includes(instrument.value)){
         p.viewMode='piano'; save(p);
         const piano=$('pianoContainer'), fret=$('fretboardContainer'), toggle=$('viewToggleBtn');
         if(piano) piano.style.display='flex';
@@ -3818,7 +3827,7 @@ Post-MIDI Recovery App Inventory
     const fret = $('fretboardContainer');
     const fretMode = $('fretModeSelect');
     const viewBtn = $('viewToggleBtn');
-    const wantsMainSurface = inst === 'guitar' || inst === 'guitarSteel' || inst === 'guitarElectric' || inst === 'ukulele' || inst === 'bass' || inst === 'lead' || inst === 'drums';
+    const wantsMainSurface = [...STRING_FAMILY_INSTRUMENTS,'drums'].includes(inst);
     if(wantsMainSurface){
       if(fretMode && inst !== 'drums') fretMode.value = inst === 'ukulele' ? 'ukulele' : inst === 'bass' ? 'bass' : 'guitar';
       if(piano) piano.style.display = 'none';
@@ -3986,7 +3995,7 @@ Post-MIDI Recovery App Inventory
   }
   function mode(){
     const inst=$('instrumentSelect')?.value || 'piano';
-    if(['piano','drums','guitar','ukulele','bass','lead'].includes(inst)) return inst;
+    if(['piano','drums',...STRING_FAMILY_INSTRUMENTS].includes(inst)) return inst;
     const fm=$('fretModeSelect')?.value || 'guitar';
     return fm==='ukulele'?'ukulele':fm==='bass'?'bass':'guitar';
   }
@@ -4116,7 +4125,7 @@ Post-MIDI Recovery App Inventory
     document.documentElement.classList.remove('v23-zoom-on');
     const btn=$('pianoZoomBtn'); if(btn){btn.classList.remove('active'); const sp=btn.querySelector('span'); if(sp) sp.textContent=T('zoom'); else btn.textContent=T('zoom');}
     const inst=$('instrumentSelect')?.value||'piano';
-    if(prevView==='fretboard' && ['guitar','guitarSteel','guitarElectric','ukulele','bass'].includes(inst)){
+    if(prevView==='fretboard' && STRING_FAMILY_INSTRUMENTS.filter(x=>x!=='lead').includes(inst)){
       const piano=$('pianoContainer'), fret=$('fretboardContainer'), toggle=$('viewToggleBtn');
       if(piano) piano.style.display='none'; if(fret) fret.style.display='flex'; if(toggle) toggle.textContent=tr()==='en'?'Piano view':'Vista piano';
       renderChordCharts();
@@ -4145,7 +4154,7 @@ Post-MIDI Recovery App Inventory
     if(s936EditorSurfaceActive()) return;
     const inst=$('instrumentSelect')?.value||'piano';
     const piano=$('pianoContainer'), fret=$('fretboardContainer'), toggle=$('viewToggleBtn'), fm=$('fretModeSelect');
-    if(['guitar','guitarSteel','guitarElectric','ukulele','bass','lead'].includes(inst)){
+    if(STRING_FAMILY_INSTRUMENTS.includes(inst)){
       if(fm) fm.value=inst==='ukulele'?'ukulele':inst==='bass'?'bass':'guitar';
       if(piano) piano.style.display='none'; if(fret) fret.style.display='flex';
       if(toggle) toggle.textContent=tr()==='en'?'Piano view':'Vista piano';
