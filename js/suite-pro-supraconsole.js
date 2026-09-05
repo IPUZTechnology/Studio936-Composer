@@ -102,10 +102,6 @@
 #${PANEL_ID} .sc-icon-btn.sc-recbtn{background:rgba(255,90,90,.1);border-color:rgba(255,90,90,.4);color:#ffb0b0;}
 #${PANEL_ID} .sc-icon-btn.sc-recbtn.is-recording{background:rgba(255,90,90,.22);border-color:#ff5a5a;color:#ffdada;box-shadow:0 0 10px rgba(255,90,90,.4);animation:scRecPulse 1.1s ease-in-out infinite;}
 @keyframes scRecPulse{0%,100%{opacity:1;}50%{opacity:.6;}}
-#${PANEL_ID} .sc-cam-preview{position:fixed;bottom:14px;right:14px;width:150px;border-radius:10px;overflow:hidden;border:2px solid #ff5a5a;box-shadow:0 8px 24px rgba(0,0,0,.6);z-index:10001;display:none;}
-#${PANEL_ID} .sc-cam-preview.is-active{display:block;}
-#${PANEL_ID} .sc-cam-preview video{width:100%;display:block;background:#000;}
-#${PANEL_ID} .sc-cam-download{display:block;text-align:center;font-size:.6rem;color:#8affff;background:rgba(0,255,204,.1);padding:5px;text-decoration:none;}
 #${PANEL_ID} .sc-strip{flex:0 0 46px;display:flex;flex-direction:column;align-items:center;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:6px 4px;}
 #${PANEL_ID} .sc-strip.is-muted{opacity:.5;}
 #${PANEL_ID} .sc-strip-label{font-size:.52rem;font-weight:800;text-align:center;min-height:18px;color:#cfe0dd;margin-bottom:5px;}
@@ -307,65 +303,18 @@
         midiBtn.onclick=()=>{ window.Studio936SuitePro?.openStudioTool?.('midi'); };
         grid.appendChild(midiBtn);
 
-        // Cambio 486: REC unificado — instrumento activo + voz (ya
-        // existía, vía suite-pro-track-recorder.js/startRecording, que
-        // graba por micrófono con el fondo de siempre sonando) + cámara
-        // (NUEVO de verdad, no existía nada de video en el proyecto
-        // hasta este Cambio — usa getUserMedia+MediaRecorder reales).
+        // Cambio 487: REC ahora usa el Centro de Grabación compartido
+        // (suite-pro-record-hub.js) — antes esta lógica estaba
+        // duplicada acá adentro, y siempre grababa instrumento+voz+video
+        // juntos sin preguntar. Ahora pregunta qué modo, y el mismo
+        // centro lo comparte con el botón REC principal (junto a Play).
         const recBtn=iconBtn('⏺','REC','sc-recbtn');
-        let camStream=null, camRecorder=null, camChunks=[];
-        recBtn.onclick=async ()=>{
-            const rec=window.Studio936TrackRecorder;
-            const alreadyRecording = rec?.isRecordingActive?.() || (camRecorder && camRecorder.state==='recording');
-            if(alreadyRecording){
-                // Detener las dos grabaciones
-                try{ await rec?.stopRecording?.(); }catch(_){}
-                if(camRecorder && camRecorder.state==='recording') camRecorder.stop();
-                recBtn.classList.remove('is-recording');
-                recBtn.querySelector('.sc-icon-glyph').textContent='⏺';
-                return;
-            }
-            // Arrancar instrumento+voz (ya existente)
-            try{ await rec?.startRecording?.(); }catch(_){}
-            // Arrancar cámara (nuevo)
-            try{
-                camStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:false });
-                const preview = ensureCamPreview();
-                const video = preview.querySelector('video');
-                video.srcObject = camStream;
-                video.muted = true; video.play().catch(()=>{});
-                preview.classList.add('is-active');
-                camChunks=[];
-                camRecorder = new MediaRecorder(camStream);
-                camRecorder.ondataavailable = ev => { if(ev.data && ev.data.size>0) camChunks.push(ev.data); };
-                camRecorder.onstop = () => {
-                    camStream?.getTracks()?.forEach(t=>t.stop());
-                    const blob = new Blob(camChunks, { type: camRecorder.mimeType||'video/webm' });
-                    const url = URL.createObjectURL(blob);
-                    const dl = preview.querySelector('.sc-cam-download');
-                    dl.href = url; dl.download = 'studio936-video-'+Date.now()+'.webm';
-                    dl.style.display='block'; dl.textContent='Descargar video';
-                    video.srcObject=null; video.src=url; video.muted=false; video.controls=true;
-                };
-                camRecorder.start();
-            }catch(err){
-                console.warn('Studio936 Supraconsola: no se pudo activar la cámara', err);
-            }
-            recBtn.classList.add('is-recording');
-            recBtn.querySelector('.sc-icon-glyph').textContent='⏹';
-        };
+        recBtn.onclick=()=>window.Studio936RecordHub?.toggleFromButton?.(recBtn);
+        window.Studio936RecordHub?.onChange?.(recording=>{
+            recBtn.classList.toggle('is-recording', recording);
+            recBtn.querySelector('.sc-icon-glyph').textContent = recording ? '⏹' : '⏺';
+        });
         grid.appendChild(recBtn);
-    }
-
-    function ensureCamPreview(){
-        let preview=document.getElementById(PANEL_ID+'CamPreview');
-        if(preview) return preview;
-        preview=el('div','sc-cam-preview'); preview.id=PANEL_ID+'CamPreview';
-        const video=document.createElement('video');
-        const dl=document.createElement('a'); dl.className='sc-cam-download'; dl.style.display='none';
-        preview.append(video, dl);
-        document.body.appendChild(preview);
-        return preview;
     }
 
     function buildDecksPart2(container){
