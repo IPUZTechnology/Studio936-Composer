@@ -170,7 +170,20 @@ let project = loadProject();
 // verdad — el próximo instrumento de cuerdas que se agregue solo
 // necesita tocarse en un lugar.
 const STRING_FAMILY_INSTRUMENTS = ['guitar','guitarSteel','guitarElectric','ukulele','bass','lead'];
-const EDITOR_INSTRUMENT_IDS = ['piano', ...STRING_FAMILY_INSTRUMENTS];
+// Cambio 492: namespace unico compartido entre los ~18 bloques
+// independientes de app.js (son IIFEs separadas por diseno, para
+// aislar extensiones historicas entre si - pero eso significa que una
+// const del bloque principal es invisible para las otras). Antes de
+// este Cambio, cada necesidad de compartir algo entre bloques se
+// resolvia con un window.X suelto, sin ningun lugar unico donde ver
+// que se comparte. window.Studio936Shared es ESE lugar - todo lo que
+// necesite cruzar de un bloque a otro va aca, documentado, en vez de
+// seguir sumando globals sueltos. La solucion de fondo real (modulos
+// ES de verdad, import/export) es un cambio de arquitectura mas grande,
+// ver PLAN_LIMPIEZA_Studio936.md punto 9.
+window.Studio936Shared = window.Studio936Shared || {};
+window.Studio936Shared.STRING_FAMILY_INSTRUMENTS = STRING_FAMILY_INSTRUMENTS;
+const EDITOR_INSTRUMENT_IDS = ['piano', ...window.Studio936Shared.STRING_FAMILY_INSTRUMENTS];
 const EDITOR_SURFACE_IDS = [...EDITOR_INSTRUMENT_IDS,'drums'];
 let editorInstrument = [...EDITOR_INSTRUMENT_IDS,'drums'].includes(project.instrument) ? project.instrument : 'piano';
 let _mainInstrumentBeforeEditor = null; // v0.8.0: instrumento original del Main antes de abrir el Editor
@@ -377,7 +390,7 @@ function buildFretboard(){
         onCellPlay:(midi,meta={}) => {
             resumeAudio();
             const instrument = meta.mode || project.instrument || 'guitar';
-            withEditorPreviewInstrument(STRING_FAMILY_INSTRUMENTS.filter(x=>x!=='lead').includes(instrument) ? instrument : project.instrument, () => {
+            withEditorPreviewInstrument(window.Studio936Shared.STRING_FAMILY_INSTRUMENTS.filter(x=>x!=='lead').includes(instrument) ? instrument : project.instrument, () => {
                 playNote(midi, instrument === 'bass' ? .38 : .28, instrument === 'bass' ? .70 : .62, instrument === 'bass' ? 'sine' : 'triangle', audioCtx.currentTime);
             });
             flashFretboard([midi],'active-chord',420);
@@ -2725,7 +2738,7 @@ function installStudio936AppBridge(){
             _mainInstrumentBeforeEditor = null;
         }
         const mainInstrument = project.instrument || 'piano';
-        if(STRING_FAMILY_INSTRUMENTS.includes(mainInstrument)){
+        if(window.Studio936Shared.STRING_FAMILY_INSTRUMENTS.includes(mainInstrument)){
             project.fretMode = mainInstrument === 'lead' ? 'guitar' : mainInstrument;
             if(els.fretModeSelect) els.fretModeSelect.value = project.fretMode;
             buildFretboard();
@@ -2774,10 +2787,10 @@ function installStudio936AppBridge(){
     }
     installEditorSurfaceCleanup();
     function syncMainInstrumentFromEditor(value){
-        if(!['piano','drums',...STRING_FAMILY_INSTRUMENTS].includes(value)) return;
+        if(!['piano','drums',...window.Studio936Shared.STRING_FAMILY_INSTRUMENTS].includes(value)) return;
         project.instrument = value;
         if(els.instrumentSelect) els.instrumentSelect.value = value;
-        if(STRING_FAMILY_INSTRUMENTS.includes(value)){
+        if(window.Studio936Shared.STRING_FAMILY_INSTRUMENTS.includes(value)){
             project.fretMode = value === 'lead' ? 'guitar' : value;
             if(els.fretModeSelect) els.fretModeSelect.value = project.fretMode;
         }
@@ -3183,7 +3196,7 @@ function installStudio936AppBridge(){
         const newIndex = idx + 1;
         seq.splice(newIndex, 0, copy);
         if(VoicingStore){
-            ['piano', ...STRING_FAMILY_INSTRUMENTS.filter(x=>x!=='lead')].forEach(instrument => {
+            ['piano', ...window.Studio936Shared.STRING_FAMILY_INSTRUMENTS.filter(x=>x!=='lead')].forEach(instrument => {
                 if(copy?.voicings?.[instrument]){
                     VoicingStore.remember(project,instrument,copy.name,copy.voicings[instrument]);
                 }
@@ -3530,7 +3543,7 @@ Post-MIDI Recovery App Inventory
     instrument.dataset.v19AutoFret='1';
     instrument.addEventListener('change',()=>{
       const p=load();
-      if([...STRING_FAMILY_INSTRUMENTS,'drums'].includes(instrument.value)){
+      if([...window.Studio936Shared.STRING_FAMILY_INSTRUMENTS,'drums'].includes(instrument.value)){
         p.instrument=instrument.value; p.viewMode='fretboard'; p.fretMode=instrument.value==='ukulele'?'ukulele':instrument.value==='bass'?'bass':'guitar'; save(p);
         if(fret && instrument.value!=='drums') fret.value=p.fretMode;
         const pianoBox=$('pianoContainer');
@@ -3681,7 +3694,7 @@ Post-MIDI Recovery App Inventory
     instrument.dataset.v20Return='1';
     instrument.addEventListener('change',()=>{
       const p=load(); p.instrument=instrument.value;
-      if(![...STRING_FAMILY_INSTRUMENTS,'drums'].includes(instrument.value)){
+      if(![...window.Studio936Shared.STRING_FAMILY_INSTRUMENTS,'drums'].includes(instrument.value)){
         p.viewMode='piano'; save(p);
         const piano=$('pianoContainer'), fret=$('fretboardContainer'), toggle=$('viewToggleBtn');
         if(piano) piano.style.display='flex';
@@ -3835,7 +3848,7 @@ Post-MIDI Recovery App Inventory
     const fret = $('fretboardContainer');
     const fretMode = $('fretModeSelect');
     const viewBtn = $('viewToggleBtn');
-    const wantsMainSurface = [...STRING_FAMILY_INSTRUMENTS,'drums'].includes(inst);
+    const wantsMainSurface = [...window.Studio936Shared.STRING_FAMILY_INSTRUMENTS,'drums'].includes(inst);
     if(wantsMainSurface){
       if(fretMode && inst !== 'drums') fretMode.value = inst === 'ukulele' ? 'ukulele' : inst === 'bass' ? 'bass' : 'guitar';
       if(piano) piano.style.display = 'none';
@@ -4003,7 +4016,7 @@ Post-MIDI Recovery App Inventory
   }
   function mode(){
     const inst=$('instrumentSelect')?.value || 'piano';
-    if(['piano','drums',...STRING_FAMILY_INSTRUMENTS].includes(inst)) return inst;
+    if(['piano','drums',...window.Studio936Shared.STRING_FAMILY_INSTRUMENTS].includes(inst)) return inst;
     const fm=$('fretModeSelect')?.value || 'guitar';
     return fm==='ukulele'?'ukulele':fm==='bass'?'bass':'guitar';
   }
@@ -4133,7 +4146,7 @@ Post-MIDI Recovery App Inventory
     document.documentElement.classList.remove('v23-zoom-on');
     const btn=$('pianoZoomBtn'); if(btn){btn.classList.remove('active'); const sp=btn.querySelector('span'); if(sp) sp.textContent=T('zoom'); else btn.textContent=T('zoom');}
     const inst=$('instrumentSelect')?.value||'piano';
-    if(prevView==='fretboard' && STRING_FAMILY_INSTRUMENTS.filter(x=>x!=='lead').includes(inst)){
+    if(prevView==='fretboard' && window.Studio936Shared.STRING_FAMILY_INSTRUMENTS.filter(x=>x!=='lead').includes(inst)){
       const piano=$('pianoContainer'), fret=$('fretboardContainer'), toggle=$('viewToggleBtn');
       if(piano) piano.style.display='none'; if(fret) fret.style.display='flex'; if(toggle) toggle.textContent=tr()==='en'?'Piano view':'Vista piano';
       renderChordCharts();
@@ -4162,7 +4175,7 @@ Post-MIDI Recovery App Inventory
     if(s936EditorSurfaceActive()) return;
     const inst=$('instrumentSelect')?.value||'piano';
     const piano=$('pianoContainer'), fret=$('fretboardContainer'), toggle=$('viewToggleBtn'), fm=$('fretModeSelect');
-    if(STRING_FAMILY_INSTRUMENTS.includes(inst)){
+    if(window.Studio936Shared.STRING_FAMILY_INSTRUMENTS.includes(inst)){
       if(fm) fm.value=inst==='ukulele'?'ukulele':inst==='bass'?'bass':'guitar';
       if(piano) piano.style.display='none'; if(fret) fret.style.display='flex';
       if(toggle) toggle.textContent=tr()==='en'?'Piano view':'Vista piano';
