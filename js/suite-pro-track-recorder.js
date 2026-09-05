@@ -653,10 +653,11 @@ let muteBackingWhileRec = true;
     style.id = 's936tr-styles';
     style.textContent = `
       .s936tr-panel{position:fixed;top:90px;right:24px;width:340px;max-width:92vw;
+        min-width:280px;min-height:200px;max-height:88vh;overflow-y:auto;resize:both;
         background:linear-gradient(155deg,rgba(14,26,26,.97),rgba(10,18,18,.97));
         border:1px solid rgba(91,232,201,.28);border-radius:16px;box-shadow:0 18px 48px rgba(0,0,0,.5);
         z-index:9999;color:#e8f4f2;font-family:inherit;backdrop-filter:blur(10px);}
-      .s936tr-head{display:flex;align-items:center;justify-content:space-between;
+      .s936tr-head{cursor:move;touch-action:none;display:flex;align-items:center;justify-content:space-between;
         padding:14px 16px;border-bottom:1px solid rgba(91,232,201,.16);}
       .s936tr-title{font-weight:800;font-size:.92rem;color:#5be8c9;letter-spacing:.3px;}
       .s936tr-close{background:none;border:none;color:#9fd8cc;font-size:1.1rem;cursor:pointer;line-height:1;}
@@ -1046,6 +1047,25 @@ let muteBackingWhileRec = true;
     panelEl.appendChild(el('div', 's936tr-body'));
     document.body.appendChild(panelEl);
     renderPanelBody();
+
+    // Cambio 493: panel flotante de verdad — antes quedaba clavado
+    // arriba a la derecha. Se arrastra desde el header (mismo patrón
+    // que la Supraconsola), se redimensiona con resize:both nativo.
+    let dragging = false, startX = 0, startY = 0, panelStartLeft = 0, panelStartTop = 0;
+    head.addEventListener('pointerdown', (evt) => {
+      if (evt.target.closest('button')) return;
+      dragging = true; head.setPointerCapture(evt.pointerId);
+      startX = evt.clientX; startY = evt.clientY;
+      const rect = panelEl.getBoundingClientRect();
+      panelStartLeft = rect.left; panelStartTop = rect.top;
+    });
+    head.addEventListener('pointermove', (evt) => {
+      if (!dragging) return;
+      panelEl.style.right = 'auto';
+      panelEl.style.left = Math.max(0, panelStartLeft + (evt.clientX - startX)) + 'px';
+      panelEl.style.top = Math.max(0, panelStartTop + (evt.clientY - startY)) + 'px';
+    });
+    head.addEventListener('pointerup', () => { dragging = false; });
   }
 
   function closePanel() {

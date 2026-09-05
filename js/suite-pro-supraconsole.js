@@ -301,11 +301,19 @@
         grid.appendChild(metroBtn);
 
         const drumStartBtn=iconBtn('🥁','Iniciar batería');
-        drumStartBtn.onclick=()=>{ const mod=window.Studio936SuiteProModules?.drums || window.Studio936SuiteProDrums; if(mod?.start) mod.start(); };
+        // Cambio 493: mod.start(ctx)/stop(ctx) necesitan un objeto "ctx"
+        // con byId/q/qa (lo arma normalmente el panel de Suite Pro,
+        // pero ese armador es privado a ese archivo). Se replica un
+        // "ctx mínimo" acá — son wrappers de una línea sobre
+        // document.getElementById/querySelector, no lógica nueva. Antes
+        // se llamaba mod.start() sin nada, y adentro rompía con
+        // "Cannot read properties of undefined (reading 'snapshot')".
+        const minimalDrumsCtx = { byId:(id)=>document.getElementById(id), q:(s,r=document)=>r.querySelector(s), qa:(s,r=document)=>Array.from(r.querySelectorAll(s)) };
+        drumStartBtn.onclick=()=>{ const mod=window.Studio936SuiteProModules?.drums || window.Studio936SuiteProDrums; try{ mod?.start?.(minimalDrumsCtx); }catch(err){ console.warn('Studio936 Supraconsola: no se pudo iniciar la batería', err); } };
         grid.appendChild(drumStartBtn);
 
         const drumStopBtn=iconBtn('⏸','Detener batería');
-        drumStopBtn.onclick=()=>{ const mod=window.Studio936SuiteProModules?.drums || window.Studio936SuiteProDrums; if(mod?.stop) mod.stop(); };
+        drumStopBtn.onclick=()=>{ const mod=window.Studio936SuiteProModules?.drums || window.Studio936SuiteProDrums; try{ mod?.stop?.(minimalDrumsCtx); }catch(err){ console.warn('Studio936 Supraconsola: no se pudo detener la batería', err); } };
         grid.appendChild(drumStopBtn);
 
         // Cambio 482: atajo a MIDI IN Pro (suite-pro-midi.js) — módulo
@@ -462,6 +470,11 @@
     // ahora, no hay nada real que controlar — se muestra un aviso en vez
     // de canales vacíos/decorativos.
     function renderRecordedChannels(container, noteEl){
+        // Cambio 493: guarda contra null — el intervalo periódico seguía
+        // llamando a esto incluso después de cerrar el panel (o si el
+        // selector no encontraba el elemento), rompiendo con
+        // "Cannot set properties of null".
+        if(!container || !noteEl) return;
         container.innerHTML='';
         const rec = window.Studio936TrackRecorder;
         const sectionKey = rec?.getCurrentPlaybackSection?.();
