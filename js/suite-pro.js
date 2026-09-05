@@ -2864,6 +2864,18 @@ function normalizeNoteName(value) {
     const c = clearContent();
     c.appendChild(toolNav(tools, state.studioTool, (v) => state.studioTool = v));
     if (state.studioTool === "mixer") {
+      // Cambio 488: el Mixer viejo de acá adentro (suite-pro-mixer.js,
+      // controlaba solo mute/volumen del groove general) se reemplaza
+      // por la Supraconsola nueva (fader real por canal, pads, rueda,
+      // atajos, REC — ver sesión del 4 de septiembre de 2026). En vez
+      // de duplicar interfaz, este tab cierra el panel de Suite Pro y
+      // abre la Supraconsola directo, para no tener dos mixers
+      // distintos abiertos en paralelo.
+      if (window.Studio936Supraconsole?.open) {
+        close();
+        window.Studio936Supraconsole.open();
+        return;
+      }
       const mod = window.Studio936SuiteProModules?.mixer || window.Studio936SuiteProMixer;
       if (mod && typeof mod.render === "function") {
         return mod.render(createModuleContext(), c);
