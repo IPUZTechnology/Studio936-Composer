@@ -164,6 +164,141 @@ let muteBackingWhileRec = true;
     writeMetaStore(store);
   }
 
+  // Cambio 490: editor tijera — modelo de datos real. UNA toma
+  // (take.durationSec) puede tener VARIOS "pedazos" (clips) marcados
+  // encima — cada corte solo agrega una marca de tiempo, nunca modifica
+  // el archivo de audio original. Un pedazo puede marcarse "deleted"
+  // (no se reproduce, pero sigue existiendo — se puede recuperar).
+  function updateTakeClips(sectionKey, takeId, clips) {
+    const store = readMetaStore();
+    const list = store[sectionKey];
+    if (!list) return;
+    const take = list.find(t => t.id === takeId);
+    if (!take) return;
+    take.clips = clips;
+    writeMetaStore(store);
+  }
+
+  // Si la toma nunca se cortó (o el corte dejó todo en un solo pedazo),
+  // se devuelve UN pedazo implícito que cubre toda la duración — así
+  // las tomas grabadas antes de este Cambio siguen sonando exactamente
+  // igual que siempre, sin ningún cambio de comportamiento.
+  function getEffectiveClips(take) {
+    if (Array.isArray(take.clips) && take.clips.length) return take.clips;
+    return [{ id: 'full', startSec: 0, endSec: Number(take.durationSec) || 0, deleted: false }];
+  }
+
+  function splitClipsAt(clips, cutSec) {
+    const result = [];
+    clips.forEach(clip => {
+      if (cutSec > clip.startSec + 0.05 && cutSec < clip.endSec - 0.05) {
+        result.push({ id: uid(), startSec: clip.startSec, endSec: cutSec, deleted: clip.deleted });
+        result.push({ id: uid(), startSec: cutSec, endSec: clip.endSec, deleted: clip.deleted });
+      } else {
+        result.push(clip);
+      }
+    });
+    return result.sort((a, b) => a.startSec - b.startSec);
+  }
+
+  // Cambio 490: dibuja la forma de onda real (picos de amplitud del
+  // buffer decodificado) — reemplaza la franja de color plana que había
+  // antes en este editor.
+  function drawWaveform(canvas, buffer, clips) {
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    const g = canvas.getContext('2d');
+    g.scale(dpr, dpr);
+    g.clearRect(0, 0, w, h);
+    const data = buffer.getChannelData(0);
+    const step = Math.max(1, Math.floor(data.length / w));
+    g.fillStyle = 'rgba(0,255,204,.55)';
+    for (let x = 0; x < w; x++) {
+      let min = 1, max = -1;
+      const start = x * step;
+      for (let i = 0; i < step && start + i < data.length; i++) {
+        const v = data[start + i];
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      const yMin = (1 - (max + 1) / 2) * h;
+      const yMax = (1 - (min + 1) / 2) * h;
+      g.fillRect(x, yMin, 1, Math.max(1, yMax - yMin));
+    }
+    // Zonas borradas, sombreadas en rojo por encima de la forma de onda.
+    const dur = buffer.duration || 1;
+    clips.filter(c => c.deleted).forEach(c => {
+      const x0 = (c.startSec / dur) * w, x1 = (c.endSec / dur) * w;
+      g.fillStyle = 'rgba(226,75,74,.35)';
+      g.fillRect(x0, 0, Math.max(1, x1 - x0), h);
+    });
+  }
+
+  // Cambio 490: editor tijera completo para UNA toma — forma de onda +
+  // click para cortar + lista de pedazos con borrar/recuperar. Se arma
+  // una sola vez (lazy) cuando el usuario toca "✂️ Editar", decodificando
+  // el buffer real de esa toma.
+  function buildScissorsEditor(sectionKey, take, audioUrl) {
+    const wrap = el('div', 's936tr-scissors');
+    const status = el('div', 's936tr-scissors-status', 'Cargando forma de onda…');
+    wrap.appendChild(status);
+
+    const ctx = getMainAudioCtx();
+    fetch(audioUrl).then(r => r.arrayBuffer()).then(buf => ctx.decodeAudioData(buf)).then(buffer => {
+      status.remove();
+      const canvas = document.createElement('canvas');
+      canvas.className = 's936tr-scissors-canvas';
+      canvas.style.height = '64px';
+      canvas.style.width = '100%';
+      canvas.style.cursor = 'crosshair';
+      wrap.appendChild(canvas);
+
+      const hint = el('div', 's936tr-scissors-hint', 'Tocá sobre la forma de onda para cortar ahí. Cada corte separa un pedazo más.');
+      wrap.appendChild(hint);
+
+      const piecesWrap = el('div', 's936tr-pieces');
+      wrap.appendChild(piecesWrap);
+
+      function currentClips() { return getEffectiveClips(take); }
+
+      function redraw() {
+        const clips = currentClips();
+        drawWaveform(canvas, buffer, clips);
+        piecesWrap.innerHTML = '';
+        clips.forEach((clip, i) => {
+          const piece = el('div', 's936tr-piece' + (clip.deleted ? ' is-deleted' : ''));
+          piece.appendChild(el('span', '', 'Pedazo ' + (i + 1) + ' · ' + fmtTime(clip.startSec) + '–' + fmtTime(clip.endSec)));
+          const toggleBtn = el('button', 's936tr-piece-btn', clip.deleted ? '↺ Recuperar' : '✕ Borrar');
+          toggleBtn.onclick = () => {
+            const clips2 = currentClips().map(c => c.id === clip.id ? { ...c, deleted: !c.deleted } : c);
+            take.clips = clips2;
+            updateTakeClips(sectionKey, take.id, clips2);
+            redraw();
+          };
+          piece.appendChild(toggleBtn);
+          piecesWrap.appendChild(piece);
+        });
+      }
+
+      canvas.onclick = (ev) => {
+        const rect = canvas.getBoundingClientRect();
+        const frac = (ev.clientX - rect.left) / rect.width;
+        const cutSec = Math.max(0.05, Math.min(buffer.duration - 0.05, frac * buffer.duration));
+        const clips2 = splitClipsAt(currentClips(), cutSec);
+        take.clips = clips2;
+        updateTakeClips(sectionKey, take.id, clips2);
+        redraw();
+      };
+
+      redraw();
+    }).catch(() => {
+      status.textContent = 'No se pudo cargar la forma de onda de esta toma.';
+    });
+
+    return wrap;
+  }
+
   // ─── Persistencia real del audio (carpeta configurada, si existe) ──────
 
   async function tryWriteBlobToConfiguredFolder(filename, blob) {
@@ -558,6 +693,14 @@ let muteBackingWhileRec = true;
       .s936tr-take-del{background:none;border:none;color:#ff9d9d;cursor:pointer;font-size:.75rem;}
       .s936tr-take audio{width:100%;}
       .s936tr-take-actions{margin-top:6px;}
+      .s936tr-scissors{margin-top:8px;padding:8px;border:1px solid rgba(0,255,204,.25);border-radius:8px;background:rgba(0,255,204,.03);}
+      .s936tr-scissors-status{font-size:.7rem;color:#7d8d8a;}
+      .s936tr-scissors-canvas{display:block;background:#05070a;border-radius:6px;border:1px solid rgba(255,255,255,.08);}
+      .s936tr-scissors-hint{font-size:.6rem;color:#7d8d8a;margin:5px 0;}
+      .s936tr-pieces{display:flex;flex-direction:column;gap:4px;}
+      .s936tr-piece{display:flex;justify-content:space-between;align-items:center;font-size:.66rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:4px 8px;}
+      .s936tr-piece.is-deleted{opacity:.5;text-decoration:line-through;}
+      .s936tr-piece-btn{background:none;border:1px solid rgba(255,255,255,.15);border-radius:5px;color:#ffb0b0;font-size:.6rem;padding:2px 8px;cursor:pointer;}
       .s936tr-btn.small{padding:5px 8px;font-size:.72rem;flex:none;}
       .s936tr-hint{font-size:.72rem;color:#7fa8a0;margin-top:10px;line-height:1.4;}
       .s936tr-empty{font-size:.78rem;color:#7fa8a0;font-style:italic;}
@@ -839,6 +982,20 @@ let muteBackingWhileRec = true;
         const dlBtn = el('button', 's936tr-btn secondary small', '⬇ Descargar');
         dlBtn.disabled = true;
         takeActions.appendChild(dlBtn);
+        // Cambio 490: editor tijera — se arma recién al tocar el botón
+        // (lazy), para no decodificar audio de tomas que nadie va a
+        // editar.
+        const scissorsBtn = el('button', 's936tr-btn secondary small', '✂️ Editar');
+        let scissorsPanel = null;
+        scissorsBtn.onclick = () => {
+          if (scissorsPanel) { scissorsPanel.remove(); scissorsPanel = null; return; }
+          ensureTakePlayable(take).then(url => {
+            if (!url) return;
+            scissorsPanel = buildScissorsEditor(sectionKey, take, url);
+            box.appendChild(scissorsPanel);
+          });
+        };
+        takeActions.appendChild(scissorsBtn);
         box.appendChild(takeActions);
 
         ensureTakePlayable(take).then(url => {
@@ -992,13 +1149,22 @@ let muteBackingWhileRec = true;
       const { take, buffer } = item;
       const instrumentId = take.instrument || 'otro';
       const nodes = getOrCreateInstrumentNodes(ctx, sectionKey, instrumentId);
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(nodes.panner);
-      source.start(startAt);
-      nodes.sources.add(source);
-      source.onended = () => { nodes.sources.delete(source); };
-      playingSources.push(source);
+      // Cambio 490: editor tijera — en vez de UNA fuente tocando todo el
+      // buffer, se crea una fuente POR PEDAZO no borrado, cada una
+      // arrancando en su posición real dentro de la toma (startAt +
+      // clip.startSec) y sonando solo su propio tramo (offset/duración).
+      // Las tomas nunca cortadas siguen teniendo un solo pedazo
+      // implícito que cubre todo — mismo comportamiento de siempre.
+      const clips = getEffectiveClips(take).filter(c => !c.deleted && c.endSec > c.startSec);
+      clips.forEach(clip => {
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(nodes.panner);
+        source.start(startAt + clip.startSec, clip.startSec, clip.endSec - clip.startSec);
+        nodes.sources.add(source);
+        source.onended = () => { nodes.sources.delete(source); };
+        playingSources.push(source);
+      });
     });
   }
 
@@ -1593,37 +1759,5 @@ let muteBackingWhileRec = true;
     openPanel();
   });
 
-  // Cambio 483: API expuesta para la Supraconsola — antes todo esto
-  // (laneMuteSolo, getLaneState, refreshLivePlaybackGains) era privado
-  // al módulo, sin forma de leerlo/controlarlo desde afuera. Estas 5
-  // funciones no agregan lógica de audio nueva — solo abren una puerta
-  // segura hacia lo que ya existía, mismo patrón que el Bridge de
-  // app.js.
-  function getCurrentPlaybackSection(){
-    return currentPlaybackSection;
-  }
-  function listRecordedInstruments(sectionKey){
-    try { return Object.keys(groupTakesByInstrument(sectionKey || currentPlaybackSection || '')); }
-    catch(_) { return []; }
-  }
-  function getLaneStateExternal(sectionKey, instrumentId){
-    try { const s = getLaneState(sectionKey, instrumentId); return { muted:!!s.muted, solo:!!s.solo, pan:s.pan||0, volume:s.volume!=null?s.volume:0.8 }; }
-    catch(_) { return { muted:false, solo:false, pan:0, volume:0.8 }; }
-  }
-  function setLaneVolume(sectionKey, instrumentId, value){
-    try { getLaneState(sectionKey, instrumentId).volume = Math.max(0, Math.min(1, Number(value))); refreshLivePlaybackGains(sectionKey); return true; }
-    catch(_) { return false; }
-  }
-  function setLaneMute(sectionKey, instrumentId, muted){
-    try { getLaneState(sectionKey, instrumentId).muted = !!muted; refreshLivePlaybackGains(sectionKey); return true; }
-    catch(_) { return false; }
-  }
-  function setLanePan(sectionKey, instrumentId, value){
-    try { getLaneState(sectionKey, instrumentId).pan = Math.max(-1, Math.min(1, Number(value))); refreshLivePlaybackGains(sectionKey); return true; }
-    catch(_) { return false; }
-  }
-
-  window.Studio936TrackRecorder = { toggle, openPanel, closePanel, renderSectionLanes, buildAddInstrumentControl, isLanesCollapsed, toggleAllLaneWraps, setLanesCollapsed,
-    getCurrentPlaybackSection, listRecordedInstruments, getLaneStateExternal, setLaneVolume, setLaneMute, setLanePan,
-    startRecording, stopRecording, isRecordingActive: () => !!(mediaRecorder && mediaRecorder.state === 'recording') };
+  window.Studio936TrackRecorder = { toggle, openPanel, closePanel, renderSectionLanes, buildAddInstrumentControl, isLanesCollapsed, toggleAllLaneWraps, setLanesCollapsed };
 })();
