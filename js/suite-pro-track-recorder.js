@@ -97,6 +97,17 @@ let muteBackingWhileRec = true;
   }
 
   function getCurrentSectionKey() {
+    // Cambio 494: preferir la sección REAL (currentSectionKey() de
+    // app.js, vía Bridge) — antes se leía el <select> directo, que en
+    // modo "Canción completa" da el valor especial "__song__" en vez de
+    // la sección que realmente está sonando. Por eso una toma grabada
+    // así nunca aparecía en la Vista Continua (esa busca por sección
+    // real, nunca por "__song__"). Si el Bridge no está disponible por
+    // algún motivo, cae al comportamiento de siempre, sin romper nada.
+    try {
+      const real = window.Studio936AppBridge?.getCurrentSectionKeyReal?.();
+      if (real && real !== '__song__') return real;
+    } catch (_) {}
     try {
       const sel = document.getElementById('sectionSelect');
       if (sel && sel.value) return sel.value;
@@ -544,9 +555,23 @@ let muteBackingWhileRec = true;
 
     const savedToDisk = await tryWriteBlobToConfiguredFolder(fileName, pendingBlob);
 
+    // Cambio 494: posición absoluta en la canción completa — primer
+    // paso del rediseño a timeline real (ver
+    // DISEÑO_Timeline_Real_Grabador.md). No cambia nada de cómo se ve
+    // ni se reproduce todavía (eso es el paso siguiente) — solo se
+    // empieza a GUARDAR el dato real, para no perder información de
+    // las tomas que se graban a partir de hoy.
+    let startSec = 0;
+    try {
+      const bridge = window.Studio936AppBridge;
+      const idx = bridge?.getCurrentSongSectionIndex?.();
+      startSec = bridge?.getSongPositionSeconds?.(sectionKey, idx) ?? 0;
+    } catch (_) {}
+
     const take = {
       id,
       section: sectionKey,
+      startSec,
       instrument: currentInstrument,
       instrumentLabel: instrumentInfo.label,
       label: instrumentInfo.label + ' · ' + fmtTime(recordSeconds),

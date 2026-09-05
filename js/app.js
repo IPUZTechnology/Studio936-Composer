@@ -2533,6 +2533,45 @@ function installStudio936AppBridge(){
     function isMainPlaying(){
         return safe(() => !!isPlaying, false);
     }
+    // Cambio 494: primer paso del rediseño a timeline real (ver
+    // DISEÑO_Timeline_Real_Grabador.md). currentSectionKey() YA
+    // resolvía bien esto internamente (usa activeSongSection en modo
+    // "Canción completa", nunca el valor crudo "__song__" del
+    // selector) — solo faltaba exponerla. El grabador de pistas usaba
+    // su propio atajo directo al <select>, por eso guardaba tomas bajo
+    // "__song__" y la Vista Continua nunca las encontraba.
+    function getCurrentSectionKeyReal(){
+        return safe(() => currentSectionKey(), 'intro');
+    }
+    // En modo "Canción completa", da el índice real dentro del arreglo
+    // (soporta secciones repetidas, ej. un Coro que aparece 3 veces) —
+    // -1 si se está practicando una sola sección suelta.
+    function getCurrentSongSectionIndex(){
+        return safe(() => playAllMode ? songSectionIdx : -1, -1);
+    }
+    // Segundos desde el inicio de la canción completa hasta el arranque
+    // de una sección — la pieza central del timeline real: una toma va
+    // a poder guardar "empiezo en el segundo 14.3 de la canción", no
+    // solo "pertenezco a la sección Verso".
+    function getSongPositionSeconds(targetSectionKey, targetIndex){
+        return safe(() => {
+            const parts = arrangementParts();
+            const bpm = Number(project.bpm) || 95;
+            const secondsPerBar = 4 * (60 / bpm);
+            let cumulative = 0;
+            for (let i = 0; i < parts.length; i++) {
+                const part = parts[i];
+                const matches = Number.isFinite(targetIndex) && targetIndex >= 0
+                    ? i === targetIndex
+                    : part.section === targetSectionKey;
+                if (matches) return cumulative;
+                const seq = project.sections[part.section] || [];
+                const bars = seq.reduce((sum, item) => sum + (Number(item.bars) || 1), 0);
+                cumulative += bars * secondsPerBar;
+            }
+            return 0;
+        }, 0);
+    }
     // Cambio 129: mixer de canales — permite al panel de "Canales/
     // Instrumentos" leer y cambiar el silencio/volumen de cada parte
     // del groove (batería, bajo, acordes/guitarra, solo) sin tocar
@@ -3309,6 +3348,9 @@ function installStudio936AppBridge(){
         getStyle,
         setStyle,
         isMainPlaying,
+        getCurrentSectionKeyReal,
+        getCurrentSongSectionIndex,
+        getSongPositionSeconds,
         getChannelMix,
         setChannelMute,
         setChannelVolume,
