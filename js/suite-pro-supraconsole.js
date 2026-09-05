@@ -266,18 +266,32 @@
         return btn;
     }
     function bindShortcuts(grid){
-        // Cambio 484/485: Play/Stop real, ahora como ícono cuadrado —
-        // toca el mismo playBtn de siempre (unifiedPlayToggle en
-        // app.js), no inventa una reproducción aparte.
+        // Cambio 491: CORRECCIÓN — el botón de Play acá adentro tocaba
+        // playBtn (el groove sintetizado), pero eso NUNCA activaba la
+        // reproducción sincronizada de pistas grabadas (ese sistema
+        // escucha un evento distinto, "studio936:chart-practice-start",
+        // disparado solo por el módulo Chart). Por eso "Pistas grabadas"
+        // en la Consola nunca aparecía al usar este botón — Val lo
+        // reportó. Corregido: ahora llama a la función real del Chart
+        // que arranca las dos cosas juntas (groove + pistas grabadas),
+        // la misma que ya usa startRecording() internamente.
         const playing0 = !!bridge()?.isMainPlaying?.();
         const playBtn=iconBtn(playing0?'⏹':'▶', playing0?'Detener':'Reproducir', 'sc-playbtn'+(playing0?' is-playing':''));
         playBtn.onclick=()=>{
-            document.getElementById('playBtn')?.click();
+            const chart=window.Studio936SuiteProChart;
+            const playing = !!bridge()?.isMainPlaying?.();
+            if(playing){
+                if(chart?.stopChartRhythmConsole) chart.stopChartRhythmConsole({ stopAudio:true, stopBridge:true });
+                else document.getElementById('playBtn')?.click();
+            } else {
+                if(chart?.startChartSectionPractice) chart.startChartSectionPractice(null, null);
+                else document.getElementById('playBtn')?.click();
+            }
             setTimeout(()=>{
-                const playing = !!bridge()?.isMainPlaying?.();
-                playBtn.querySelector('.sc-icon-glyph').textContent = playing?'⏹':'▶';
-                playBtn.lastChild.textContent = playing?'Detener':'Reproducir';
-                playBtn.classList.toggle('is-playing', playing);
+                const nowPlaying = !!bridge()?.isMainPlaying?.();
+                playBtn.querySelector('.sc-icon-glyph').textContent = nowPlaying?'⏹':'▶';
+                playBtn.lastChild.textContent = nowPlaying?'Detener':'Reproducir';
+                playBtn.classList.toggle('is-playing', nowPlaying);
             }, 80);
         };
         grid.appendChild(playBtn);
