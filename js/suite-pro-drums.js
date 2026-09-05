@@ -82,7 +82,81 @@
       chorus: { label: "Reggae coro", kick:[0, 8, 10], snare:[4, 12], hat:[2,6,8,10,14] },
       build:  { label: "Reggae build", kick:[0, 8, 10], snare:[4, 7, 12, 15], hat:[2,4,6,8,10,12,14] },
       break:  { label: "Reggae break", kick:[8], snare:[4, 7, 12], hat:[2,6,10,14] }
-    }
+    },
+    // Cambio 489: 11 generos electronicos nuevos (mismos de la sesion de
+    // hoy en suite-pro-drum-patterns.js) - el patron 'basic' reusa
+    // exactamente esos, las otras 4 variantes (groove/coro/build/break)
+    // son densidad progresiva, mismo criterio que ya usan Funk/Rock aca.
+    trance: {
+      basic:  { label: "Trance básico", kick:[0, 4, 8, 12], snare:[4, 12], hat:[0, 2, 4, 6, 8, 10, 12, 14] },
+      groove:  { label: "Trance groove", kick:[0, 4, 8, 12], snare:[4, 12], hat:[0, 2, 4, 6, 8, 10, 12, 14] },
+      chorus:  { label: "Trance coro", kick:[0, 4, 8, 12], snare:[4, 12], hat:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+      build:  { label: "Trance build", kick:[0, 4, 8, 10, 12], snare:[4, 12, 15], hat:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+      break:  { label: "Trance break", kick:[0, 8], snare:[4, 12], hat:[0, 4, 8, 12] },
+    },
+    eurotrance: {
+      basic:  { label: "Eurotrance básico", kick:[0, 4, 8, 12], snare:[4, 12], hat:[0, 2, 4, 6, 8, 10, 12, 14] },
+      groove:  { label: "Eurotrance groove", kick:[0, 4, 8, 12], snare:[4, 12], hat:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+      chorus:  { label: "Eurotrance coro", kick:[0, 4, 8, 12], snare:[4, 12], hat:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+      build:  { label: "Eurotrance build", kick:[0, 4, 8, 10, 12], snare:[4, 12, 15], hat:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+      break:  { label: "Eurotrance break", kick:[0, 8], snare:[4, 12], hat:[0, 4, 8, 12] },
+    },
+    electro: {
+      basic:  { label: "Electro (UK) básico", kick:[0, 4, 8, 10, 12], snare:[4, 7, 12, 15], hat:[0, 2, 4, 6, 8, 10, 12, 14] },
+      groove:  { label: "Electro (UK) groove", kick:[0, 4, 8, 10, 12], snare:[4, 7, 12, 15], hat:[0, 2, 4, 6, 8, 10, 12, 14] },
+      chorus:  { label: "Electro (UK) coro", kick:[0, 4, 8, 10, 12], snare:[4, 7, 12, 15], hat:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+      build:  { label: "Electro (UK) build", kick:[0, 3, 4, 8, 10, 12], snare:[4, 7, 12, 14, 15], hat:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+      break:  { label: "Electro (UK) break", kick:[0, 10], snare:[4, 12], hat:[0, 4, 8, 12] },
+    },
+    house: {
+      basic:  { label: "House básico", kick:[0, 4, 8, 12], snare:[4, 12], hat:[2, 6, 10, 14] },
+      groove:  { label: "House groove", kick:[0, 4, 8, 12], snare:[4, 12], hat:[2, 6, 10, 14] },
+      chorus:  { label: "House coro", kick:[0, 4, 8, 12], snare:[4, 12], hat:[0, 2, 4, 6, 8, 10, 12, 14] },
+      build:  { label: "House build", kick:[0, 4, 8, 10, 12], snare:[4, 12, 15], hat:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+      break:  { label: "House break", kick:[0, 8], snare:[4, 12], hat:[2, 6, 10, 14] },
+    },
+    techno: {
+      basic:  { label: "Techno básico", kick:[0, 4, 8, 12], snare:[], hat:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+      groove:  { label: "Techno groove", kick:[0, 4, 8, 12], snare:[12], hat:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+      chorus:  { label: "Techno coro", kick:[0, 4, 8, 12], snare:[12], hat:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+      build:  { label: "Techno build", kick:[0, 2, 4, 6, 8, 10, 12, 14], snare:[12, 15], hat:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+      break:  { label: "Techno break", kick:[0, 8], snare:[], hat:[0, 4, 8, 12] },
+    },
+    dnb: {
+      basic:  { label: "Drum & Bass básico", kick:[0, 10], snare:[4, 12], hat:[0, 2, 3, 6, 8, 10, 11, 14] },
+      groove:  { label: "Drum & Bass groove", kick:[0, 10], snare:[4, 7, 12, 15], hat:[0, 2, 3, 6, 8, 10, 11, 14] },
+      chorus:  { label: "Drum & Bass coro", kick:[0, 6, 10], snare:[4, 7, 9, 12, 15], hat:[0, 2, 3, 6, 8, 10, 11, 14] },
+      build:  { label: "Drum & Bass build", kick:[0, 3, 6, 10, 13], snare:[4, 7, 9, 12, 14, 15], hat:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+      break:  { label: "Drum & Bass break", kick:[0, 10], snare:[4, 12], hat:[0, 8] },
+    },
+    dubstep: {
+      basic:  { label: "Dubstep básico", kick:[0, 6], snare:[8], hat:[2, 4, 6, 10, 12, 14] },
+      groove:  { label: "Dubstep groove", kick:[0, 6], snare:[8], hat:[2, 4, 6, 10, 12, 14] },
+      chorus:  { label: "Dubstep coro", kick:[0, 6, 10], snare:[8], hat:[0, 2, 4, 6, 8, 10, 12, 14] },
+      build:  { label: "Dubstep build", kick:[0, 3, 6, 10], snare:[8, 15], hat:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+      break:  { label: "Dubstep break", kick:[0], snare:[8], hat:[0, 8] },
+    },
+    deephouse: {
+      basic:  { label: "Deep House básico", kick:[0, 4, 8, 12], snare:[4, 12], hat:[2, 6, 10, 14] },
+      groove:  { label: "Deep House groove", kick:[0, 4, 8, 12], snare:[4, 12], hat:[2, 6, 10, 14] },
+      chorus:  { label: "Deep House coro", kick:[0, 4, 8, 12], snare:[4, 12], hat:[0, 2, 4, 6, 8, 10, 12, 14] },
+      build:  { label: "Deep House build", kick:[0, 4, 8, 10, 12], snare:[4, 12, 15], hat:[0, 2, 4, 6, 8, 10, 12, 14] },
+      break:  { label: "Deep House break", kick:[0, 8], snare:[4, 12], hat:[2, 6, 10, 14] },
+    },
+    afrobeats: {
+      basic:  { label: "Afrobeats básico", kick:[0, 3, 6, 10, 13], snare:[8], hat:[0, 2, 4, 6, 8, 10, 12, 14] },
+      groove:  { label: "Afrobeats groove", kick:[0, 3, 6, 10, 13], snare:[8], hat:[0, 2, 4, 6, 8, 10, 12, 14] },
+      chorus:  { label: "Afrobeats coro", kick:[0, 3, 6, 10, 13], snare:[8], hat:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+      build:  { label: "Afrobeats build", kick:[0, 3, 6, 9, 10, 13], snare:[8, 15], hat:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+      break:  { label: "Afrobeats break", kick:[0, 6], snare:[8], hat:[0, 4, 8, 12] },
+    },
+    dembow: {
+      basic:  { label: "Dembow básico", kick:[0, 6, 10], snare:[3, 11], hat:[0, 2, 4, 6, 8, 10, 12, 14] },
+      groove:  { label: "Dembow groove", kick:[0, 6, 10], snare:[3, 11], hat:[0, 2, 4, 6, 8, 10, 12, 14] },
+      chorus:  { label: "Dembow coro", kick:[0, 6, 10], snare:[3, 11], hat:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+      build:  { label: "Dembow build", kick:[0, 6, 10, 13], snare:[3, 11, 15], hat:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+      break:  { label: "Dembow break", kick:[0, 10], snare:[3, 11], hat:[0, 4, 8, 12] },
+    },
   };
 
   let state = loadState();
@@ -430,7 +504,18 @@
       ["bossa", "Bossa"],
       ["salsa", "Salsa"],
       ["cumbia", "Cumbia"],
-      ["reggae", "Reggae"]
+      ["reggae", "Reggae"],
+      // Cambio 489: 11 géneros electrónicos nuevos
+      ["trance", "Trance"],
+      ["eurotrance", "Eurotrance"],
+      ["electro", "Electro (UK)"],
+      ["house", "House"],
+      ["techno", "Techno"],
+      ["dnb", "Drum & Bass"],
+      ["dubstep", "Dubstep"],
+      ["deephouse", "Deep House"],
+      ["afrobeats", "Afrobeats"],
+      ["dembow", "Dembow"]
     ], (value) => {
       state.style = value;
       if (state.syncStyle !== false) syncStyleToApp(ctx);
