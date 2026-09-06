@@ -175,6 +175,30 @@ let muteBackingWhileRec = true;
     writeMetaStore(store);
   }
 
+  // Cambio 496: canales "reservados" — un instrumento que el usuario
+  // agregó con el "+" pero todavía no grabó nada. Antes, agregar un
+  // instrumento solo abría el panel de configurar grabación; ahora
+  // también deja el canal VISIBLE de una vez en la Vista Continua,
+  // vacío, listo para grabar con el botón REC principal — mismo
+  // criterio que GarageBand (agregás la pista, después grabás encima).
+  const RESERVED_KEY = 's936_suitepro_reserved_lanes_v1';
+  function readReservedStore() {
+    try { return JSON.parse(localStorage.getItem(RESERVED_KEY) || '{}'); } catch (_) { return {}; }
+  }
+  function writeReservedStore(store) {
+    try { localStorage.setItem(RESERVED_KEY, JSON.stringify(store)); } catch (_) {}
+  }
+  function reserveInstrumentLane(sectionKey, instrumentId) {
+    const store = readReservedStore();
+    if (!store[sectionKey]) store[sectionKey] = [];
+    if (!store[sectionKey].includes(instrumentId)) store[sectionKey].push(instrumentId);
+    writeReservedStore(store);
+  }
+  function listReservedInstruments(sectionKey) {
+    const store = readReservedStore();
+    return store[sectionKey] || [];
+  }
+
   // Cambio 490: editor tijera — modelo de datos real. UNA toma
   // (take.durationSec) puede tener VARIOS "pedazos" (clips) marcados
   // encima — cada corte solo agrega una marca de tiempo, nunca modifica
@@ -587,13 +611,6 @@ let muteBackingWhileRec = true;
 
     saveTakeMeta(sectionKey, take);
 
-    // Cambio 495: avisarle al Chart que hay una toma nueva, para que
-    // redibuje la Vista Continua — antes nada disparaba esto, la fila
-    // solo se dibujaba una vez al cargar la página. Mismo patrón exacto
-    // que ya usa el proyecto para las letras
-    // ("studio936:section-lyrics-updated").
-    try { window.dispatchEvent(new CustomEvent('studio936:take-saved', { detail: { sectionKey, instrument: currentInstrument } })); } catch (_) {}
-
     // Guarda también en memoria para esta sesión, para poder escuchar la
     // toma de una vez sin depender de la carpeta configurada.
     objectUrlsById[id] = pendingObjectUrl;
@@ -657,10 +674,6 @@ let muteBackingWhileRec = true;
     const takes = listTakesForSection(sectionKey);
     const take = takes.find(t => t.id === takeId);
     deleteTakeMeta(sectionKey, takeId);
-    // Cambio 495: mismo aviso que al guardar — si se borra la única
-    // toma de un instrumento, la Vista Continua también tiene que
-    // enterarse para sacar esa fila.
-    try { window.dispatchEvent(new CustomEvent('studio936:take-saved', { detail: { sectionKey, removed: true } })); } catch (_) {}
     if (objectUrlsById[takeId]) {
       try { URL.revokeObjectURL(objectUrlsById[takeId]); } catch (_) {}
       delete objectUrlsById[takeId];
@@ -780,6 +793,7 @@ let muteBackingWhileRec = true;
          vez (esta corrección) porque el ancho del Chart se actualizó
          varias veces sin acordarse de este archivo. */
       .s936tr-lanerow{display:grid;grid-template-columns:320px 1fr;align-items:center;gap:3px;}
+      .s936tr-lanerow.is-selected{background:rgba(0,255,204,.08);border-radius:8px;box-shadow:inset 0 0 0 1px rgba(0,255,204,.35);}
       /* Cambio 426: variante "continuación" — sin columna de nombre, la
          tira de color ocupa el 100% desde el borde, para conectar sin
          corte con la tira de la sección anterior. */
@@ -1381,6 +1395,19 @@ let muteBackingWhileRec = true;
 
     const row = document.createElement('div');
     row.className = 's936tr-lanerow';
+    // Cambio 496: tocar la fila la selecciona como canal activo para
+    // grabar — el botón REC principal (arriba, junto a Play) graba
+    // sobre lo que esté seleccionado acá, mismo criterio que
+    // GarageBand (seleccionás la pista, después le das grabar).
+    row.classList.toggle('is-selected', currentInstrument === instrumentId);
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return; // no robar el click de los botones internos
+      currentInstrument = instrumentId;
+      document.querySelectorAll('.s936tr-lanerow').forEach(r => r.classList.remove('is-selected'));
+      row.classList.add('is-selected');
+      toast('🎙️ Canal "' + info.label + '" seleccionado — el REC principal graba acá.');
+    });
 
     const label = document.createElement('div');
     label.className = 's936tr-lanelabel';
@@ -1694,10 +1721,17 @@ let muteBackingWhileRec = true;
       b.onclick = (e) => {
         e.stopPropagation();
         picker.style.display = 'none';
-        // Reutiliza el panel de grabación real ya construido — no se
-        // duplica lógica de grabar, solo se abre preseleccionado.
+        // Cambio 496: antes esto abría el panel de configurar
+        // grabación. Ahora agrega el canal DE UNA, visible y vacío en
+        // la Vista Continua, y lo deja seleccionado — el botón REC
+        // principal (arriba) graba directo ahí. El panel de siempre
+        // sigue existiendo para configurar cosas (carpeta, silenciar
+        // fondo) o para editar una toma ya grabada (tijera), no para
+        // arrancar a grabar.
         currentInstrument = inst.id;
-        openPanel();
+        reserveInstrumentLane(sectionKey, inst.id);
+        try { window.dispatchEvent(new CustomEvent('studio936:take-saved', { detail: { sectionKey, instrument: inst.id, reserved: true } })); } catch (_) {}
+        toast('🎙️ Canal "' + inst.label + '" agregado — tocalo para seleccionarlo, después dale REC arriba.');
       };
       picker.appendChild(b);
     });
@@ -1736,6 +1770,13 @@ let muteBackingWhileRec = true;
         wrap.appendChild(heading);
       }
       const groups = groupTakesByInstrument(sectionKey);
+      // Cambio 496: los canales "reservados" (agregados con el "+" pero
+      // todavía sin grabar nada) también entran acá, con un array vacío
+      // de tomas — buildLaneRow ya sabe mostrar eso bien (ancho por
+      // defecto, sin duración real todavía).
+      listReservedInstruments(sectionKey).forEach(instrumentId => {
+        if (!groups[instrumentId]) groups[instrumentId] = [];
+      });
       // Cambio 426: opts.hideLabelColumn — para Vista Continua, donde el
       // Chart pidió que la tira de color de cada instrumento sea UNA
       // sola, corrida de punta a punta de toda la canción (no una por
