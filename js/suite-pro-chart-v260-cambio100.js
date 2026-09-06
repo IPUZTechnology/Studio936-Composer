@@ -9966,6 +9966,21 @@ body.s936-chart-stage main{
     });
   }
 
+  // Cambio 495: mismo patrón exacto que el de arriba (letras), pero para
+  // tomas grabadas. Antes de esto, guardar una toma nueva la dejaba
+  // bien guardada, pero la Vista Continua ya se había dibujado una sola
+  // vez al cargar la página — nada le avisaba que había algo nuevo para
+  // mostrar. Val lo reportó: "grabo, pero no agrega canal".
+  if (!window.__s936ChartTakeSavedCambio495Bound) {
+    window.__s936ChartTakeSavedCambio495Bound = true;
+    window.addEventListener("studio936:take-saved", () => {
+      try {
+        const panel = document.getElementById("s936-chart-view-panel");
+        if (panel) render({ container: panel, instrument: _chartInstrument });
+      } catch(_) {}
+    });
+  }
+
   // Cambio 72: diagnóstico manual — compara las claves de sección guardadas
   // en localStorage contra las que el Chart está usando AHORA MISMO en
   // pantalla para dibujar los compases. Si no coinciden, ahí está el bug.

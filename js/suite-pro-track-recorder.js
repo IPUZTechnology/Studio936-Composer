@@ -587,6 +587,13 @@ let muteBackingWhileRec = true;
 
     saveTakeMeta(sectionKey, take);
 
+    // Cambio 495: avisarle al Chart que hay una toma nueva, para que
+    // redibuje la Vista Continua — antes nada disparaba esto, la fila
+    // solo se dibujaba una vez al cargar la página. Mismo patrón exacto
+    // que ya usa el proyecto para las letras
+    // ("studio936:section-lyrics-updated").
+    try { window.dispatchEvent(new CustomEvent('studio936:take-saved', { detail: { sectionKey, instrument: currentInstrument } })); } catch (_) {}
+
     // Guarda también en memoria para esta sesión, para poder escuchar la
     // toma de una vez sin depender de la carpeta configurada.
     objectUrlsById[id] = pendingObjectUrl;
@@ -650,6 +657,10 @@ let muteBackingWhileRec = true;
     const takes = listTakesForSection(sectionKey);
     const take = takes.find(t => t.id === takeId);
     deleteTakeMeta(sectionKey, takeId);
+    // Cambio 495: mismo aviso que al guardar — si se borra la única
+    // toma de un instrumento, la Vista Continua también tiene que
+    // enterarse para sacar esa fila.
+    try { window.dispatchEvent(new CustomEvent('studio936:take-saved', { detail: { sectionKey, removed: true } })); } catch (_) {}
     if (objectUrlsById[takeId]) {
       try { URL.revokeObjectURL(objectUrlsById[takeId]); } catch (_) {}
       delete objectUrlsById[takeId];
