@@ -175,6 +175,33 @@ let muteBackingWhileRec = true;
     writeMetaStore(store);
   }
 
+  // Cambio 483 (RECUPERADO — se había perdido, ver bitácora de la
+  // sesión del 5 de septiembre): API expuesta para la Supraconsola,
+  // para leer/controlar canales grabados por instrumento desde afuera.
+  function getCurrentPlaybackSection(){
+    return currentPlaybackSection;
+  }
+  function listRecordedInstruments(sectionKey){
+    try { return Object.keys(groupTakesByInstrument(sectionKey || currentPlaybackSection || '')); }
+    catch(_) { return []; }
+  }
+  function getLaneStateExternal(sectionKey, instrumentId){
+    try { const s = getLaneState(sectionKey, instrumentId); return { muted:!!s.muted, solo:!!s.solo, pan:s.pan||0, volume:s.volume!=null?s.volume:0.8 }; }
+    catch(_) { return { muted:false, solo:false, pan:0, volume:0.8 }; }
+  }
+  function setLaneVolume(sectionKey, instrumentId, value){
+    try { getLaneState(sectionKey, instrumentId).volume = Math.max(0, Math.min(1, Number(value))); refreshLivePlaybackGains(sectionKey); return true; }
+    catch(_) { return false; }
+  }
+  function setLaneMute(sectionKey, instrumentId, muted){
+    try { getLaneState(sectionKey, instrumentId).muted = !!muted; refreshLivePlaybackGains(sectionKey); return true; }
+    catch(_) { return false; }
+  }
+  function setLanePan(sectionKey, instrumentId, value){
+    try { getLaneState(sectionKey, instrumentId).pan = Math.max(-1, Math.min(1, Number(value))); refreshLivePlaybackGains(sectionKey); return true; }
+    catch(_) { return false; }
+  }
+
   // Cambio 496: canales "reservados" — un instrumento que el usuario
   // agregó con el "+" pero todavía no grabó nada. Antes, agregar un
   // instrumento solo abría el panel de configurar grabación; ahora
@@ -544,6 +571,25 @@ let muteBackingWhileRec = true;
 
   let pendingBlob = null;
   let pendingObjectUrl = null;
+
+  // Cambio 497: CORRECCIÓN — el Centro de Grabación (botón REC
+  // principal) llamaba a stopRecording() directo, pero esa función
+  // SOLO para el micrófono y devuelve el audio — nunca lo guarda. El
+  // guardado real (saveTake()) hasta hoy solo lo disparaba un botón
+  // "Guardar" manual dentro del panel viejo, que el flujo nuevo
+  // (seleccionar canal + REC principal) nunca mostraba. Por eso se
+  // grababa pero no quedaba nada. Esta función hace las dos cosas
+  // juntas, en el orden correcto.
+  async function stopAndSaveTake() {
+    const blob = await stopRecording();
+    if (!blob) return false;
+    pendingBlob = blob;
+    if (pendingObjectUrl) { try { URL.revokeObjectURL(pendingObjectUrl); } catch (_) {} }
+    pendingObjectUrl = URL.createObjectURL(blob);
+    await saveTake();
+    renderPanelBody();
+    return true;
+  }
 
   async function handleRecClick() {
     const live = mediaRecorder && mediaRecorder.state === 'recording';
@@ -1856,5 +1902,7 @@ let muteBackingWhileRec = true;
     openPanel();
   });
 
-  window.Studio936TrackRecorder = { toggle, openPanel, closePanel, renderSectionLanes, buildAddInstrumentControl, isLanesCollapsed, toggleAllLaneWraps, setLanesCollapsed };
+  window.Studio936TrackRecorder = { toggle, openPanel, closePanel, renderSectionLanes, buildAddInstrumentControl, isLanesCollapsed, toggleAllLaneWraps, setLanesCollapsed,
+    getCurrentPlaybackSection, listRecordedInstruments, getLaneStateExternal, setLaneVolume, setLaneMute, setLanePan,
+    startRecording, stopRecording, stopAndSaveTake, isRecordingActive: () => !!(mediaRecorder && mediaRecorder.state === 'recording') };
 })();

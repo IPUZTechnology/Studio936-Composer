@@ -91,7 +91,11 @@
 
     async function stop(){
         const rec=window.Studio936TrackRecorder;
-        try{ await rec?.stopRecording?.(); }catch(_){}
+        // Cambio 497: CORRECCIÓN — stopRecording() sola solo paraba el
+        // micrófono y devolvía el audio, nunca lo guardaba como toma
+        // real (ese paso lo disparaba un botón "Guardar" que este flujo
+        // nunca mostraba). stopAndSaveTake() hace las dos cosas juntas.
+        try{ await rec?.stopAndSaveTake?.(); }catch(_){}
         if(camRecorder && camRecorder.state==='recording') camRecorder.stop();
         recordingMode=null;
         notify();
