@@ -476,10 +476,29 @@ let muteBackingWhileRec = true;
   function startRecordTimer() {
     stopRecordTimer();
     recordSeconds = 0;
+    // Cambio 499: la franja del canal que se está grabando ahora
+    // CRECE en vivo mientras pasa el tiempo — antes se quedaba
+    // "vacía" (o en el ancho por defecto) hasta terminar de grabar,
+    // sin ningún indicio visual de que algo estaba pasando en ese
+    // momento.
+    const liveKey = getCurrentSectionKey() + '::' + currentInstrument;
     recordTimerHandle = setInterval(() => {
       recordSeconds += 1;
       const timerEl = panelEl && panelEl.querySelector('.s936tr-timer');
       if (timerEl) timerEl.textContent = fmtTime(recordSeconds);
+      try {
+        const track = document.querySelector('.s936tr-lanetrack[data-lane-key="' + liveKey + '"]');
+        if (track) {
+          const secondsPerBar = Number(track.dataset.secondsPerBar) || 0;
+          track.classList.remove('is-empty');
+          track.classList.add('is-recording-live');
+          track.textContent = fmtTime(recordSeconds);
+          if (secondsPerBar > 0) {
+            const px = Math.max(24, Math.round((recordSeconds / secondsPerBar) * 320));
+            track.style.width = px + 'px';
+          }
+        }
+      } catch (_) {}
     }, 1000);
   }
 
@@ -964,6 +983,8 @@ let muteBackingWhileRec = true;
          fila (deja ~7px arriba/abajo), leyéndose como un "chip" sólido
          igual de lleno que el del acorde. */
       .s936tr-lanetrack{height:54px;border-radius:4px;cursor:default;width:100%;}
+      .s936tr-lanetrack.is-empty{width:120px !important;flex-shrink:0;background:transparent !important;border:1px dashed rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:.6rem;color:#5e6c6a;opacity:1 !important;}
+      .s936tr-lanetrack.is-recording-live{transition:width .15s linear;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;box-sizing:border-box;overflow:hidden;white-space:nowrap;font-size:.62rem;font-weight:700;color:rgba(255,255,255,.92);text-shadow:0 1px 2px rgba(0,0,0,.6);}
       .s936tr-laneadd{position:relative;padding-left:0;margin-top:2px;}
       .s936tr-laneaddbtn{width:20px;height:20px;padding:0;border-radius:50%;
         border:1px solid rgba(91,232,201,.35);background:rgba(91,232,201,.1);color:#5be8c9;
@@ -1491,6 +1512,8 @@ let muteBackingWhileRec = true;
     const track = document.createElement('div');
     track.className = 's936tr-lanetrack';
     track.title = info.label;
+    track.dataset.laneKey = sectionKey + '::' + instrumentId;
+    track.dataset.secondsPerBar = String(secondsPerBar || 0);
     track.style.backgroundColor = color;
     track.style.backgroundImage = tickBackgroundStyle();
     // Cambio 441: Val volvió a pedir Mute en todos lados (revierte el
@@ -1502,6 +1525,16 @@ let muteBackingWhileRec = true;
       track.style.opacity = state.muted ? '0.12' : String(0.15 + (state.volume != null ? state.volume : 0.8) * 0.4);
     }
     updateTrackOpacity();
+    // Cambio 499: canal vacío (sin tomas, recién "reservado" con el
+    // "+") ahora se ve VACÍO de verdad — Val notó que se veía "lleno
+    // desde el principio", que confundía. Antes de esto, sin
+    // takes.length, el ancho quedaba en el 100% por defecto del CSS —
+    // parecía que ya había algo grabado.
+    if (!takes || !takes.length) {
+      track.classList.add('is-empty');
+      track.textContent = 'Vacío — grabá con REC';
+      track.style.opacity = '1';
+    }
     // Cambio 434: ancho REAL según la duración grabada — Val fue claro
     // en que esto tiene que salir de BPM+compases, no ser decorativo.
     // takes[].durationSec ya se guarda al terminar de grabar (Cambio
