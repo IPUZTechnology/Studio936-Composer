@@ -476,18 +476,18 @@ let muteBackingWhileRec = true;
   function startRecordTimer() {
     stopRecordTimer();
     recordSeconds = 0;
-    // Cambio 499: la franja del canal que se está grabando ahora
-    // CRECE en vivo mientras pasa el tiempo — antes se quedaba
-    // "vacía" (o en el ancho por defecto) hasta terminar de grabar,
-    // sin ningún indicio visual de que algo estaba pasando en ese
-    // momento.
-    const liveKey = getCurrentSectionKey() + '::' + currentInstrument;
+    // Cambio 500: CORRECCIÓN al Cambio 499 — reconstruir la clave de
+    // sección+instrumento podía no coincidir exactamente (el estado de
+    // "sección activa" puede tardar un instante en actualizarse justo
+    // al arrancar Play). Más robusto: buscar directo la fila que el
+    // usuario ya marcó como seleccionada con el clic (Cambio 496,
+    // clase .is-selected) — no depende de reconstruir nada.
     recordTimerHandle = setInterval(() => {
       recordSeconds += 1;
       const timerEl = panelEl && panelEl.querySelector('.s936tr-timer');
       if (timerEl) timerEl.textContent = fmtTime(recordSeconds);
       try {
-        const track = document.querySelector('.s936tr-lanetrack[data-lane-key="' + liveKey + '"]');
+        const track = document.querySelector('.s936tr-lanerow.is-selected .s936tr-lanetrack');
         if (track) {
           const secondsPerBar = Number(track.dataset.secondsPerBar) || 0;
           track.classList.remove('is-empty');
@@ -676,6 +676,14 @@ let muteBackingWhileRec = true;
 
     saveTakeMeta(sectionKey, take);
 
+    // Cambio 500: RECUPERADO — este aviso (Cambio 495) se había perdido
+    // en el camino. Es el más importante de los dos: sin esto, guardar
+    // una toma real nunca le avisaba al Chart que había algo nuevo para
+    // mostrar — la Vista Continua se quedaba mostrando el canal vacío
+    // para siempre, aunque la grabación sí se hubiera guardado bien por
+    // dentro.
+    try { window.dispatchEvent(new CustomEvent('studio936:take-saved', { detail: { sectionKey, instrument: currentInstrument } })); } catch (_) {}
+
     // Guarda también en memoria para esta sesión, para poder escuchar la
     // toma de una vez sin depender de la carpeta configurada.
     objectUrlsById[id] = pendingObjectUrl;
@@ -739,6 +747,10 @@ let muteBackingWhileRec = true;
     const takes = listTakesForSection(sectionKey);
     const take = takes.find(t => t.id === takeId);
     deleteTakeMeta(sectionKey, takeId);
+    // Cambio 500: RECUPERADO — mismo aviso que al guardar, para que la
+    // Vista Continua también se entere si se borra la única toma de un
+    // instrumento.
+    try { window.dispatchEvent(new CustomEvent('studio936:take-saved', { detail: { sectionKey, removed: true } })); } catch (_) {}
     if (objectUrlsById[takeId]) {
       try { URL.revokeObjectURL(objectUrlsById[takeId]); } catch (_) {}
       delete objectUrlsById[takeId];
