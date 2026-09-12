@@ -566,7 +566,13 @@ let muteBackingWhileRec = true;
       window.Studio936SuiteProChart?.startChartSectionPractice?.(null, sectionKey);
     } catch (_) {}
 
-    mediaRecorder.start();
+    // Cambio 502: timeslice de 250ms — sin esto, algunos navegadores
+    // (Safari/iPadOS en particular) pueden no entregar NINGÚN dato de
+    // audio hasta el final, y si el mediaRecorder se detiene en un mal
+    // momento, el blob queda vacío. Con timeslice, entrega pedacitos
+    // cada 250ms de forma confiable. Diagnóstico real recibido hoy
+    // (compartido con otra IA) que apuntó a esto.
+    mediaRecorder.start(250);
     startRecordTimer();
     renderPanelBody();
   }
