@@ -1,26 +1,32 @@
-// Studio 936 Composer — Centro de Grabación (Cambio 487)
+// Studio 936 Composer — Centro de Grabación (Cambio 498)
 //
 // QUÉ ES: la lógica real de REC (instrumento+voz vía
-// suite-pro-track-recorder.js, y cámara nueva vía getUserMedia) vivía
-// duplicada dentro de suite-pro-supraconsole.js. Se centraliza acá para
-// que TANTO el botón principal (junto a Play, arriba) COMO el botón de
-// la Consola llamen a la misma lógica, sin repetirla. Además, ahora
-// pregunta qué grabar en vez de grabar siempre las tres cosas juntas.
+// suite-pro-track-recorder.js) y la cámara (video, vía getUserMedia)
+// viven acá centralizadas. Antes (Cambio 487) el botón REC preguntaba
+// "¿instrumento o instrumento+video?" cada vez — Val pidió simplificar:
+// el REC general graba audio directo, sin preguntar nada, y la cámara
+// pasa a ser su PROPIO control independiente, que vive en la
+// Supraconsola (donde ya estás practicando), no escondido en un menú.
 
 (function(){
     'use strict';
 
     const PANEL_ID = 's936RecordHub';
     let camStream=null, camRecorder=null, camChunks=[];
-    let recordingMode=null; // null | 'instrument' | 'instrument+video'
-    const listeners=[];
+    const audioListeners=[];
+    const videoListeners=[];
 
-    function notify(){ listeners.forEach(fn=>{ try{ fn(isRecording()); }catch(_){} }); }
-    function onChange(fn){ listeners.push(fn); }
+    function notifyAudio(){ audioListeners.forEach(fn=>{ try{ fn(isRecording()); }catch(_){} }); }
+    function notifyVideo(){ videoListeners.forEach(fn=>{ try{ fn(isVideoRecording()); }catch(_){} }); }
+    function onChange(fn){ audioListeners.push(fn); }
+    function onVideoChange(fn){ videoListeners.push(fn); }
 
     function isRecording(){
         const rec=window.Studio936TrackRecorder;
-        return !!(rec?.isRecordingActive?.() || (camRecorder && camRecorder.state==='recording'));
+        return !!rec?.isRecordingActive?.();
+    }
+    function isVideoRecording(){
+        return !!(camRecorder && camRecorder.state==='recording');
     }
 
     function injectStyle(){
@@ -28,12 +34,6 @@
         const style=document.createElement('style');
         style.id=PANEL_ID+'Style';
         style.textContent=`
-#${PANEL_ID}Menu{position:fixed;z-index:10002;background:linear-gradient(180deg,#12161f,#0a0d13);border:1px solid rgba(255,90,90,.4);border-radius:12px;padding:10px;box-shadow:0 16px 40px rgba(0,0,0,.6);display:none;min-width:200px;font-family:inherit;}
-#${PANEL_ID}Menu.is-open{display:block;}
-#${PANEL_ID}Menu .rh-title{font-size:.6rem;color:#ff9d9d;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
-#${PANEL_ID}Menu button{display:block;width:100%;text-align:left;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 10px;color:#e8f4f2;font-size:.66rem;font-weight:700;cursor:pointer;margin-bottom:6px;}
-#${PANEL_ID}Menu button:last-child{margin-bottom:0;}
-#${PANEL_ID}Menu button:hover{background:rgba(255,90,90,.12);border-color:rgba(255,90,90,.4);}
 .sc-cam-preview{position:fixed;bottom:14px;right:14px;width:150px;border-radius:10px;overflow:hidden;border:2px solid #ff5a5a;box-shadow:0 8px 24px rgba(0,0,0,.6);z-index:10001;display:none;}
 .sc-cam-preview.is-active{display:block;}
 .sc-cam-preview video{width:100%;display:block;background:#000;}
@@ -56,6 +56,7 @@
     }
 
     async function startCamera(){
+        injectStyle();
         try{
             camStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:false });
             const preview=ensureCamPreview();
@@ -74,67 +75,45 @@
                 dl.href=url; dl.download='studio936-video-'+Date.now()+'.webm';
                 dl.style.display='block'; dl.textContent='Descargar video';
                 video.srcObject=null; video.src=url; video.muted=false; video.controls=true;
+                notifyVideo();
             };
             camRecorder.start();
+            notifyVideo();
         }catch(err){
             console.warn('Studio936 RecordHub: no se pudo activar la cámara', err);
         }
     }
 
-    async function start(mode){
-        recordingMode=mode;
-        const rec=window.Studio936TrackRecorder;
-        try{ await rec?.startRecording?.(); }catch(_){}
-        if(mode==='instrument+video') await startCamera();
-        notify();
-    }
-
-    async function stop(){
-        const rec=window.Studio936TrackRecorder;
-        // Cambio 497: CORRECCIÓN — stopRecording() sola solo paraba el
-        // micrófono y devolvía el audio, nunca lo guardaba como toma
-        // real (ese paso lo disparaba un botón "Guardar" que este flujo
-        // nunca mostraba). stopAndSaveTake() hace las dos cosas juntas.
-        try{ await rec?.stopAndSaveTake?.(); }catch(_){}
+    function stopCamera(){
         if(camRecorder && camRecorder.state==='recording') camRecorder.stop();
-        recordingMode=null;
-        notify();
     }
 
-    function closeMenu(){
-        const menu=document.getElementById(PANEL_ID+'Menu');
-        if(menu) menu.classList.remove('is-open');
-        document.removeEventListener('click', onOutsideClick, true);
-    }
-    function onOutsideClick(e){
-        const menu=document.getElementById(PANEL_ID+'Menu');
-        if(menu && !menu.contains(e.target)) closeMenu();
+    // Cambio 498: video independiente — su propio botón en la
+    // Supraconsola, no depende para nada de si el REC de audio está
+    // activo o no. Se puede grabar solo video, solo audio, o las dos
+    // cosas juntas si el usuario toca ambos botones.
+    function toggleVideo(){
+        if(isVideoRecording()) stopCamera(); else startCamera();
     }
 
-    // Cambio 487: al tocar REC, si no está grabando, pregunta qué modo
-    // — antes siempre grababa las tres cosas juntas sin preguntar.
-    function toggleFromButton(anchorEl){
-        if(isRecording()){ stop(); return; }
-        injectStyle();
-        let menu=document.getElementById(PANEL_ID+'Menu');
-        if(!menu){
-            menu=document.createElement('div'); menu.id=PANEL_ID+'Menu';
-            const title=document.createElement('div'); title.className='rh-title'; title.textContent='¿Qué querés grabar?';
-            const optInstrument=document.createElement('button'); optInstrument.textContent='🎤 Solo instrumento / voz';
-            optInstrument.onclick=()=>{ closeMenu(); start('instrument'); };
-            const optVideo=document.createElement('button'); optVideo.textContent='🎥 Instrumento/voz + video';
-            optVideo.onclick=()=>{ closeMenu(); start('instrument+video'); };
-            menu.append(title, optInstrument, optVideo);
-            document.body.appendChild(menu);
+    // Cambio 498: REC general — graba directo, sin preguntar nada. El
+    // menú de elección del Cambio 487 se sacó (Val: "el REC general
+    // debería ser para arrancar el ensayo, la cámara aparte").
+    async function toggleFromButton(){
+        const rec=window.Studio936TrackRecorder;
+        if(!rec){
+            console.error('[RecordHub] window.Studio936TrackRecorder no existe — el archivo suite-pro-track-recorder.js no cargó bien.');
+            return;
         }
-        const rect=anchorEl.getBoundingClientRect();
-        menu.style.left=Math.max(4, rect.left)+'px';
-        menu.style.top=(rect.bottom+6)+'px';
-        menu.classList.add('is-open');
-        setTimeout(()=>document.addEventListener('click', onOutsideClick, true), 0);
+        if(isRecording()){
+            try{ await rec.stopAndSaveTake?.(); }catch(e){ console.error('[RecordHub] error al parar/guardar', e); }
+        } else {
+            try{ await rec.startRecording?.(); }catch(e){ console.error('[RecordHub] error al arrancar la grabación', e); }
+        }
+        notifyAudio();
     }
 
-    window.Studio936RecordHub = { toggleFromButton, isRecording, onChange, start, stop };
+    window.Studio936RecordHub = { toggleFromButton, isRecording, onChange, toggleVideo, isVideoRecording, onVideoChange };
 
     // Cambio 487: sincronizar el botón principal (junto a Play) con el
     // estado real de grabación — mismo criterio que el de la Consola.

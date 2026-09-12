@@ -600,12 +600,32 @@ let muteBackingWhileRec = true;
   // grababa pero no quedaba nada. Esta función hace las dos cosas
   // juntas, en el orden correcto.
   async function stopAndSaveTake() {
-    const blob = await stopRecording();
-    if (!blob) return false;
+    // Cambio 501: diagnóstico temporal — si algo falla acá adentro, se
+    // ve en pantalla (toast) y en consola, en vez de fallar en
+    // silencio como puede haber estado pasando hasta ahora.
+    let blob;
+    try {
+      blob = await stopRecording();
+    } catch (e) {
+      console.error('[Track Recorder] stopRecording() falló', e);
+      toast('⚠️ Error al parar la grabación: ' + (e?.message || e));
+      return false;
+    }
+    if (!blob) {
+      console.warn('[Track Recorder] stopRecording() no devolvió audio (blob vacío/null)');
+      toast('⚠️ No se capturó audio — revisá el permiso de micrófono.');
+      return false;
+    }
     pendingBlob = blob;
     if (pendingObjectUrl) { try { URL.revokeObjectURL(pendingObjectUrl); } catch (_) {} }
     pendingObjectUrl = URL.createObjectURL(blob);
-    await saveTake();
+    try {
+      await saveTake();
+    } catch (e) {
+      console.error('[Track Recorder] saveTake() falló', e);
+      toast('⚠️ Error al guardar la toma: ' + (e?.message || e));
+      return false;
+    }
     renderPanelBody();
     return true;
   }
