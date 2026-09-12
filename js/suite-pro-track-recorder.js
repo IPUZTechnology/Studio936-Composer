@@ -606,15 +606,16 @@ let muteBackingWhileRec = true;
   // grababa pero no quedaba nada. Esta función hace las dos cosas
   // juntas, en el orden correcto.
   async function stopAndSaveTake() {
-    // Cambio 501: diagnóstico temporal — si algo falla acá adentro, se
-    // ve en pantalla (toast) y en consola, en vez de fallar en
-    // silencio como puede haber estado pasando hasta ahora.
+    // Cambio 506: rastro paso a paso, con carteles numerados, para ver
+    // hasta dónde llega la ejecución sin necesidad de abrir consola.
+    toast('🔵 PASO 1: se llamó a stopAndSaveTake()');
     let blob;
     try {
       blob = await stopRecording();
+      toast('🔵 PASO 2: stopRecording() terminó, blob=' + (blob ? blob.size + ' bytes' : 'null'));
     } catch (e) {
       console.error('[Track Recorder] stopRecording() falló', e);
-      toast('⚠️ Error al parar la grabación: ' + (e?.message || e));
+      toast('🔴 stopRecording() TIRÓ ERROR: ' + (e?.message || e));
       return false;
     }
     if (!blob || blob.size < 100) {
@@ -625,6 +626,7 @@ let muteBackingWhileRec = true;
     pendingBlob = blob;
     if (pendingObjectUrl) { try { URL.revokeObjectURL(pendingObjectUrl); } catch (_) {} }
     pendingObjectUrl = URL.createObjectURL(blob);
+    toast('🔵 PASO 3: voy a llamar a saveTake()');
     try {
       await saveTake();
     } catch (e) {
@@ -660,8 +662,18 @@ let muteBackingWhileRec = true;
   }
 
   async function saveTake() {
+    toast('🔵 PASO 4: entré a saveTake(), pendingBlob=' + (pendingBlob ? 'SÍ existe' : 'NO, está vacío'));
     if (!pendingBlob) return;
     const sectionKey = getCurrentSectionKey();
+    toast('🔵 PASO 5: sección detectada = "' + sectionKey + '"');
+    // Cambio 505: aviso VISIBLE en pantalla (no solo en consola) si la
+    // toma va a guardarse bajo "__song__" en vez de una sección real —
+    // sospecha principal de por qué el canal queda vacío después de
+    // grabar. Antes esto pasaba en silencio; ahora se ve un cartel
+    // grande y claro, sin necesidad de abrir la consola.
+    if (sectionKey === '__song__') {
+      toast('⚠️ PROBLEMA REAL DETECTADO: la toma se está por guardar como "canción completa" en vez de una sección puntual (Intro, Verso, etc.) — por eso no aparece en el canal. Elegí una sección específica arriba antes de grabar.');
+    }
     const instrumentInfo = INSTRUMENTS.find(i => i.id === currentInstrument) || INSTRUMENTS[0];
     const id = uid();
     const ext = (pendingBlob.type || '').includes('webm') ? 'webm' : 'audio';
@@ -700,6 +712,14 @@ let muteBackingWhileRec = true;
     };
 
     saveTakeMeta(sectionKey, take);
+
+    // Cambio 505: confirmación clara y visible — antes de esto, guardar
+    // bien no daba ningún aviso de éxito local (solo había avisos de la
+    // nube). Ahora se ve un cartel con la sección y el instrumento
+    // reales donde quedó, para confirmar de un vistazo que funcionó.
+    if (sectionKey !== '__song__') {
+      toast('✅ Toma guardada — sección "' + sectionKey + '", instrumento "' + instrumentInfo.label + '".');
+    }
 
     // Cambio 500: RECUPERADO — este aviso (Cambio 495) se había perdido
     // en el camino. Es el más importante de los dos: sin esto, guardar
