@@ -543,7 +543,9 @@
       .s936tr-lanewrap.is-collapsed .s936tr-lanerow{grid-template-columns:56px 1fr;}
       .s936tr-lanewrap.is-collapsed .s936tr-lanename,
       .s936tr-lanewrap.is-collapsed .s936tr-lanevol,
-      .s936tr-lanewrap.is-collapsed .s936tr-lanebtn-lg{display:none;}
+      .s936tr-lanewrap.is-collapsed .s936tr-lanebtn-lg:not(.s936tr-keep-collapsed){display:none;}
+      .s936tr-lanewrap.is-collapsed .s936tr-lanetrack{height:16px !important;font-size:0;}
+      .s936tr-lanewrap.is-collapsed .s936tr-lanerow{min-height:24px;}
       .s936tr-laneheading{font-size:.62rem;color:#7fa8a0;text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:1px;}
       .s936tr-lanerow{display:grid;grid-template-columns:320px 1fr;align-items:center;gap:3px;}
       .s936tr-lanerow.is-selected{background:rgba(0,255,204,.08);border-radius:8px;box-shadow:inset 0 0 0 1px rgba(0,255,204,.35);}
@@ -1018,7 +1020,7 @@
     volWrap.appendChild(volSlider);
     const muteBtn = document.createElement('button');
     muteBtn.type = 'button';
-    muteBtn.className = 's936tr-lanebtn-lg';
+    muteBtn.className = 's936tr-lanebtn-lg s936tr-keep-collapsed';
     muteBtn.textContent = state.muted ? '🔇' : '🔊';
     muteBtn.classList.toggle('is-active', state.muted);
     muteBtn.onclick = (e) => { e.stopPropagation(); state.muted = !state.muted; muteBtn.textContent = state.muted ? '🔇' : '🔊'; muteBtn.classList.toggle('is-active', state.muted); updateTrackOpacity(); refreshLivePlaybackGains(sectionKey); };
@@ -1097,7 +1099,24 @@
       picker.appendChild(b);
     });
     addBtn.onclick = (e) => { e.stopPropagation(); picker.style.display = picker.style.display === 'none' ? 'flex' : 'none'; };
-    wrap.append(addBtn, picker);
+    // Cambio 511: el botón real que faltaba — la función de colapsar
+    // (setLanesCollapsed/toggleAllLaneWraps) ya existía en el código
+    // desde antes, con su CSS y todo, pero nunca se conectó a ningún
+    // control visible. Val pidió justo esto: un botoncito para achicar
+    // los canales a una franja fina (solo ícono + Mute), sin tapar el
+    // Chart cuando no los estás usando.
+    const collapseBtn = document.createElement('button');
+    collapseBtn.type = 'button';
+    collapseBtn.className = 's936tr-laneaddbtn';
+    collapseBtn.title = isLanesCollapsed() ? 'Expandir canales' : 'Colapsar canales a una franja fina';
+    collapseBtn.textContent = isLanesCollapsed() ? '⤢' : '⤡';
+    collapseBtn.onclick = (e) => {
+      e.stopPropagation();
+      toggleAllLaneWraps();
+      collapseBtn.textContent = isLanesCollapsed() ? '⤢' : '⤡';
+      collapseBtn.title = isLanesCollapsed() ? 'Expandir canales' : 'Colapsar canales a una franja fina';
+    };
+    wrap.append(addBtn, collapseBtn, picker);
     return wrap;
   }
 
