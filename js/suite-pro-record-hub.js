@@ -100,23 +100,15 @@
     // menú de elección del Cambio 487 se sacó (Val: "el REC general
     // debería ser para arrancar el ensayo, la cámara aparte").
     async function toggleFromButton(){
-        // Cambio 506: rastro paso a paso — alert() en vez de toast()
-        // porque toast() es privada de otro archivo, no accesible
-        // desde acá. alert() es imposible de no ver, garantiza que
-        // esto se confirme sin ambigüedad.
-        alert('PASO 0: se tocó el botón REC');
         const rec=window.Studio936TrackRecorder;
         if(!rec){
             console.error('[RecordHub] window.Studio936TrackRecorder no existe — el archivo suite-pro-track-recorder.js no cargó bien.');
-            alert('PROBLEMA: window.Studio936TrackRecorder NO EXISTE');
             return;
         }
-        const wasRecording = isRecording();
-        alert('PASO 0.5: isRecording() dice = ' + wasRecording + ' (va a ' + (wasRecording ? 'PARAR' : 'ARRANCAR') + ')');
-        if(wasRecording){
-            try{ await rec.stopAndSaveTake?.(); }catch(e){ console.error('[RecordHub] error al parar/guardar', e); alert('ERROR al parar/guardar: ' + e); }
+        if(isRecording()){
+            try{ await rec.stopAndSaveTake?.(); }catch(e){ console.error('[RecordHub] error al parar/guardar', e); }
         } else {
-            try{ await rec.startRecording?.(); }catch(e){ console.error('[RecordHub] error al arrancar la grabación', e); alert('ERROR al arrancar: ' + e); }
+            try{ await rec.startRecording?.(); }catch(e){ console.error('[RecordHub] error al arrancar la grabación', e); }
         }
         notifyAudio();
     }
