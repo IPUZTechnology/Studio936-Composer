@@ -852,6 +852,19 @@
         const leftPx = (barRect.left - secRect.left) + barRect.width * fracInBar;
         line.style.left = leftPx + 'px';
       } else if (!barEl) {
+        // Cambio 509: antes esto simplemente apagaba la línea para
+        // siempre (por eso "solo funcionaba en la primera sección" —
+        // en Canción completa, al pasar a la sección 2, no había
+        // ningún aviso de que la sección cambió). Ahora, antes de
+        // rendirse, pregunta cuál es la sección REAL que está sonando
+        // ahora — si cambió, la línea se reubica sola ahí.
+        try {
+          const realNow = window.Studio936AppBridge?.getCurrentSectionKeyReal?.();
+          if (realNow && realNow !== sectionKey) {
+            startPlayhead(realNow);
+            return;
+          }
+        } catch (_) {}
         line.style.display = 'none';
         return;
       }
