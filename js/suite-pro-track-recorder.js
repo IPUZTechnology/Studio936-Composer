@@ -617,9 +617,9 @@ let muteBackingWhileRec = true;
       toast('⚠️ Error al parar la grabación: ' + (e?.message || e));
       return false;
     }
-    if (!blob) {
-      console.warn('[Track Recorder] stopRecording() no devolvió audio (blob vacío/null)');
-      toast('⚠️ No se capturó audio — revisá el permiso de micrófono.');
+    if (!blob || blob.size < 100) {
+      console.warn('[Track Recorder] stopRecording() no devolvió audio válido (blob vacío/muy chico)');
+      toast('⚠️ No se capturó audio (grabación muy corta o vacía) — no se guardó nada.');
       return false;
     }
     pendingBlob = blob;
@@ -636,19 +636,18 @@ let muteBackingWhileRec = true;
     return true;
   }
 
+  // Cambio 504: LIMPIEZA REAL — la vez pasada (Cambio 503) arreglé el
+  // síntoma (esta función no guardaba sola) pero dejé la lógica
+  // DUPLICADA, repitiendo lo que ya hace stopAndSaveTake() línea por
+  // línea. Val tuvo razón en marcarlo: eso es exactamente el mismo
+  // error que venimos señalando todo el día, cometido de nuevo por mí
+  // en esta misma sesión. Ahora hay un solo camino real — esta función
+  // solo redirige a él, no repite nada.
   async function handleRecClick() {
     const live = mediaRecorder && mediaRecorder.state === 'recording';
     if (live) {
-      const blob = await stopRecording();
-      if (blob) {
-        pendingBlob = blob;
-        if (pendingObjectUrl) { try { URL.revokeObjectURL(pendingObjectUrl); } catch (_) {} }
-        pendingObjectUrl = URL.createObjectURL(blob);
-      }
-      renderPanelBody();
+      await stopAndSaveTake();
     } else {
-      pendingBlob = null;
-      if (pendingObjectUrl) { try { URL.revokeObjectURL(pendingObjectUrl); } catch (_) {} pendingObjectUrl = null; }
       await startRecording();
     }
   }
