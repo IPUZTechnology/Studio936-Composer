@@ -786,8 +786,88 @@
   window.addEventListener('studio936:chart-practice-start', (ev) => {
     const sectionKey = ev?.detail?.section || getCurrentSectionKey();
     startSyncedPlaybackForSection(sectionKey);
+    startPlayhead(sectionKey);
   });
-  window.addEventListener('studio936:chart-practice-stop', () => { stopSyncedPlayback(); });
+  window.addEventListener('studio936:chart-practice-stop', () => { stopSyncedPlayback(); stopPlayhead(); });
+
+  // Cambio 508: playhead visual real — una línea que cruza TODOS los
+  // canales de la sección (Chart, Lyric, y las pistas grabadas),
+  // moviéndose en sincronía con el reloj real del AudioContext (el
+  // mismo que ya usa el motor de audio para arrancar las tomas
+  // grabadas) — no un mecanismo aparte que se pueda desincronizar.
+  let playheadRafId = null;
+  let playheadStartAt = null;
+  let playheadSectionKey = null;
+
+  function ensurePlayheadStyle() {
+    if (document.getElementById('s936PlayheadStyle')) return;
+    const style = document.createElement('style');
+    style.id = 's936PlayheadStyle';
+    style.textContent = `
+.s936-playhead{position:absolute;top:0;bottom:0;width:2px;pointer-events:none;z-index:50;
+  background:linear-gradient(180deg,#ffe066,#c9a227 60%,#8a6d1a);
+  box-shadow:0 0 8px 1px rgba(255,224,102,.55);
+  transition:left .08s linear;}
+`;
+    document.head.appendChild(style);
+  }
+
+  function getSectionSecondsPerBar() {
+    try {
+      const bpm = Number(window.Studio936AppBridge?.getEditorState?.()?.bpm) || 95;
+      return 4 * (60 / bpm);
+    } catch (_) { return 4 * (60 / 95); }
+  }
+
+  function startPlayhead(sectionKey) {
+    stopPlayhead();
+    const ctx = getPlaybackAudioCtx();
+    if (!ctx) return;
+    const firstBar = document.querySelector('.s936-ch-bar[data-section="' + sectionKey + '"][data-bar="0"]');
+    if (!firstBar) return; // sección no visible en pantalla ahora mismo — nada que animar
+    const sectionEl = firstBar.closest('.s936-ch-sec');
+    if (!sectionEl) return;
+    ensurePlayheadStyle();
+    if (getComputedStyle(sectionEl).position === 'static') sectionEl.style.position = 'relative';
+    let line = sectionEl.querySelector('.s936-playhead');
+    if (!line) {
+      line = document.createElement('div');
+      line.className = 's936-playhead';
+      sectionEl.appendChild(line);
+    }
+    line.style.display = 'block';
+    playheadSectionKey = sectionKey;
+    playheadStartAt = ctx.currentTime + 0.12; // mismo colchón que usa el motor de audio real al arrancar
+    const secondsPerBar = getSectionSecondsPerBar();
+
+    function tick() {
+      const elapsed = ctx.currentTime - playheadStartAt;
+      if (elapsed < 0) { playheadRafId = requestAnimationFrame(tick); return; }
+      const barIndex = Math.floor(elapsed / secondsPerBar);
+      const fracInBar = (elapsed % secondsPerBar) / secondsPerBar;
+      const barEl = document.querySelector('.s936-ch-bar[data-section="' + sectionKey + '"][data-bar="' + barIndex + '"]');
+      if (barEl && sectionEl.isConnected) {
+        const barRect = barEl.getBoundingClientRect();
+        const secRect = sectionEl.getBoundingClientRect();
+        const leftPx = (barRect.left - secRect.left) + barRect.width * fracInBar;
+        line.style.left = leftPx + 'px';
+      } else if (!barEl) {
+        line.style.display = 'none';
+        return;
+      }
+      playheadRafId = requestAnimationFrame(tick);
+    }
+    playheadRafId = requestAnimationFrame(tick);
+  }
+
+  function stopPlayhead() {
+    if (playheadRafId) { cancelAnimationFrame(playheadRafId); playheadRafId = null; }
+    if (playheadSectionKey) {
+      const line = document.querySelector('.s936-ch-sec .s936-playhead');
+      if (line) line.style.display = 'none';
+    }
+    playheadSectionKey = null;
+  }
 
   installStyles();
 

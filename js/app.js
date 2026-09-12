@@ -1872,7 +1872,21 @@ function startStop(){
 // selector de sección (si dice "Toda la canción", toca la canción
 // completa; si no, toca solo la sección elegida en loop).
 function unifiedPlayToggle(){
-    if(isPlaying){ stopPlayback(); return; }
+    // Cambio 508: unificar TODOS los botones Play (el de arriba, el de
+    // la Consola, cualquier otro futuro) en un solo camino real — el
+    // que ya sincroniza las pistas grabadas de verdad
+    // (startChartSectionPractice/stopChartRhythmConsole, el mismo que
+    // usa la Consola desde el Cambio 491). Antes, este botón (el
+    // principal, arriba de todo) tocaba SOLO el groove sintetizado —
+    // por eso Val grababa una voz, pero el Play de arriba nunca la
+    // reproducía, aunque el de la Consola sí.
+    const chart = window.Studio936SuiteProChart;
+    if(isPlaying){
+        if(chart?.stopChartRhythmConsole){ chart.stopChartRhythmConsole({ stopAudio:true, stopBridge:true }); return; }
+        stopPlayback();
+        return;
+    }
+    if(chart?.startChartSectionPractice){ chart.startChartSectionPractice(null, null); return; }
     if(els.sectionSelect && els.sectionSelect.value === '__song__') startFullSong();
     else startStop();
 }
