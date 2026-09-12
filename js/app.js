@@ -3396,8 +3396,20 @@ function installStudio936AppBridge(){
         duplicateEditorChord,
         deleteEditorChord,
         getArrangement: () => safeClone(safe(() => arrangementParts(), [])),
-        startGroove: () => { startStop(); return true; },
-        playFullSong: () => { startFullSong(); return true; },
+        // Cambio 510: startGroove y playFullSong (usados por los botones
+        // "Start Groove"/"Canción completa" de adentro de El Estudio)
+        // llamaban a startStop()/startFullSong() DIRECTO, sin pasar por
+        // unifiedPlayToggle() — la misma clase de bug que unifiedPlayToggle
+        // ya arregló para el botón principal (Cambio 508), pero esta
+        // puerta de entrada distinta seguía sin el arreglo. Ahora las dos
+        // usan el mismo camino real.
+        startGroove: () => { unifiedPlayToggle(); return true; },
+        playFullSong: () => {
+            const chart = window.Studio936SuiteProChart;
+            if (chart?.startChartSectionPractice) { chart.startChartSectionPractice(null, null); return true; }
+            startFullSong();
+            return true;
+        },
         stopPlayback: () => { stopPlayback(); return true; },
         openEditor: () => clickWorkspacePanel('editor'),
         openStructure: () => clickWorkspacePanel('structure'),
