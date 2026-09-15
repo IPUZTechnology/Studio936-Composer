@@ -789,6 +789,39 @@
   });
   window.addEventListener('studio936:chart-practice-stop', () => { stopSyncedPlayback(); stopPlayhead(); });
 
+  // Cambio 514: al elegir una sección distinta arriba (sin darle Play),
+  // el playhead se ubica ahí como referencia visual, quieto — no arranca
+  // ninguna reproducción real, solo marca "estás mirando acá".
+  window.addEventListener('studio936:section-selected', (ev) => {
+    const sectionKey = ev?.detail?.section;
+    if (sectionKey && sectionKey !== '__song__' && !isRecordingActiveNow()) {
+      showStaticPlayheadAtSection(sectionKey);
+    }
+  });
+
+  function isRecordingActiveNow() { return !!(mediaRecorder && mediaRecorder.state === 'recording'); }
+
+  function showStaticPlayheadAtSection(sectionKey) {
+    stopPlayhead();
+    const firstBar = document.querySelector('.s936-ch-bar[data-section="' + sectionKey + '"][data-bar="0"]');
+    if (!firstBar) return;
+    const sectionEl = firstBar.closest('.s936-ch-sec');
+    if (!sectionEl) return;
+    ensurePlayheadStyle();
+    if (getComputedStyle(sectionEl).position === 'static') sectionEl.style.position = 'relative';
+    let line = sectionEl.querySelector('.s936-playhead');
+    if (!line) {
+      line = document.createElement('div');
+      line.className = 's936-playhead';
+      sectionEl.appendChild(line);
+    }
+    const barRect = firstBar.getBoundingClientRect();
+    const secRect = sectionEl.getBoundingClientRect();
+    line.style.left = (barRect.left - secRect.left) + 'px';
+    line.style.display = 'block';
+    playheadSectionKey = sectionKey;
+  }
+
   // Cambio 508: playhead visual real — una línea que cruza TODOS los
   // canales de la sección (Chart, Lyric, y las pistas grabadas),
   // moviéndose en sincronía con el reloj real del AudioContext (el

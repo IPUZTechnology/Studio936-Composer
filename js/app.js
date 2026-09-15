@@ -2337,6 +2337,10 @@ function bind(){
             return;
         }
         saveSoloForSection(lastEditorSection, false); activeSongSection=els.sectionSelect.value; lastEditorSection=els.sectionSelect.value; chordIdx=0; stepInChord=0; renderChordSelect(); loadEditorFromSelected(); renderSectionList(); loadSoloFromSelectedSection(); updateSectionNoteMap(); renderArrangementBuilder(); updateLiveUI(currentItem(),0,1,{}); saveProject(false);
+        // Cambio 514: avisa que la sección seleccionada cambió — Val
+        // pidió que el playhead se ubique ahí como referencia (aunque
+        // no esté sonando nada), no solo durante la reproducción real.
+        try { window.dispatchEvent(new CustomEvent('studio936:section-selected', { detail: { section: els.sectionSelect.value } })); } catch(_) {}
         updatePlayButtonMode();
     };
     els.chordSelect.onchange=()=>{ loadEditorFromSelected(); renderSectionList(); updateSectionNoteMap(); };
