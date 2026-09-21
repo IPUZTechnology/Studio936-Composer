@@ -5686,6 +5686,31 @@ html, body{
     // (mismo que usa el resto de la app) antes de abrir el panel, para que
     // apunte a la sección correcta de esta fila, no a la que estuviera
     // activa antes.
+    //
+    // Bug real (reportado: "veo el instrumento en el canal, grabo, pero
+    // no queda grabado dentro del canal, y no sincroniza con el play
+    // principal"): acá se asignaba `sel.value = s` -- `s` es el
+    // parámetro "song/draft" de partRow(ctx, s, parts, part, index), NO
+    // la sección de esta fila (esa es `part.section`, ya usada bien dos
+    // líneas más arriba en playBtn.onclick). Asignar un objeto a
+    // `.value` de un <select> lo deja en blanco (ninguna <option>
+    // matchea "[object Object]"), sin importar cuál era el valor previo.
+    //
+    // Confirmado en vivo (Playwright, grabación real vía getUserMedia):
+    // con el <select> en blanco, getCurrentSectionKey()
+    // (suite-pro-track-recorder.js) cae en el fallback interno de
+    // app.js -- editorSectionKey() = `els.sectionSelect.value ||
+    // 'intro'` -- así que CADA fila, sin importar en cuál sección real
+    // se hacía clic en REC, terminaba grabando en silencio dentro de la
+    // sección "intro" -- nunca en la sección que el Owner estaba
+    // mirando. Por eso "grabo, pero no queda en el canal": el audio SÍ
+    // se capturaba, pero se archivaba en un canal distinto, invisible
+    // salvo que fueras a revisar Intro.
+    //
+    // Fix: usar `part.section` (la sección real de esta fila, mismo
+    // patrón que playBtn.onclick) y disparar "change" además de asignar
+    // `.value` -- por si algún otro oyente del <select> depende de ese
+    // evento, igual que ya hace playBtn.onclick.
     const recBtn = ctx.el("button", "s936-ckpt-row-action rec");
     recBtn.innerHTML = "REC";
     recBtn.title = "Grabar voz/instrumento para esta sección";
@@ -5693,7 +5718,7 @@ html, body{
       e.stopPropagation();
       try {
         const sel = document.getElementById("sectionSelect");
-        if (sel) { sel.value = s; }
+        if (sel) { sel.value = part.section; sel.dispatchEvent(new Event("change", { bubbles: true })); }
       } catch(_) {}
       if (window.Studio936TrackRecorder?.openPanel) {
         window.Studio936TrackRecorder.openPanel();
