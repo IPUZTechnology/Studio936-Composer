@@ -37,6 +37,16 @@
         display:grid;
         grid-template-columns:1fr 1.25fr 1fr;
         grid-template-rows:auto auto;
+        /* Owner: "los botones principales van arriba con el logo y el
+           tempo, y debajo va la canción con los ritmos" -- fila 1 =
+           logo + botonera de Compose/Chart/Play/Rec/etc (antes vivía
+           abajo, en .status-bar) + tempo; fila 2 = título + selects
+           (Estilo/Instrumento/Sección/Clave), antes repartidos en 2
+           filas separadas. .transport se movió acá en el HTML (ver
+           index.html) -- grid-area no depende del orden en el DOM. */
+        grid-template-areas:
+            "brand transport tempo"
+            "brand song song";
         column-gap:16px;
         row-gap:6px;
         align-items:center;
@@ -51,18 +61,20 @@
     .brand small{color:#666;font-size:.62rem;letter-spacing:1px}
     .lang-btn{margin-top:8px;background:#202020;color:var(--accent);border:1px solid rgba(0,255,204,.35);border-radius:999px;padding:7px 11px;font-size:.68rem;font-weight:950;letter-spacing:.8px;cursor:pointer;text-transform:uppercase;box-shadow:0 0 10px rgba(0,255,204,.08)}
     .lang-btn:hover{background:rgba(0,255,204,.1)}
-    /* Cambio 154: song-center deja de ser una caja propia (flex-column) y
-       pasa a "display:contents" — sus dos hijos (título y fila de selects)
-       se vuelven celdas directas del grid del header, cada una anclada a
-       una fila explícita. Así la fila de selects y la zona de tempo
-       comparten literalmente la misma fila del grid — alineación
-       garantizada por CSS, no por márgenes calculados a ojo.
+    /* Reordenamiento de header (Owner, con captura marcando flechas):
+       "los botones principales arriba con el logo y el tempo, y debajo
+       la canción con los ritmos". .song-center pasa de "display:contents"
+       (repartía sus hijos en 2 filas del grid junto al tempo) a una
+       caja propia (flex-column) que ocupa entera la fila 2 -- título
+       arriba, selects (Estilo/Instrumento/Sección/Clave) debajo, ya no
+       comparte fila con el tempo. .transport (los íconos, movidos acá
+       desde .status-bar -- ver index.html) vive ahora en la fila 1,
+       junto al logo y el tempo.
     */
-    .brand{ grid-column:1; grid-row:1 / 3; justify-self:start; }
-    .song-center{ display:contents; }
-    .song-title-input{ grid-column:2; grid-row:1; }
-    .song-row{ grid-column:2; grid-row:2; }
-    .tempo-zone{ grid-column:3; grid-row:2; align-self:center; }
+    .brand{ grid-area:brand; justify-self:start; }
+    .song-center{ grid-area:song; display:flex; flex-direction:column; gap:8px; min-width:0; }
+    header .transport{ grid-area:transport; }
+    .tempo-zone{ grid-area:tempo; align-self:center; }
     .song-title-input{
         width:100%;
         max-width:680px;
@@ -162,7 +174,9 @@
     .status-bar{
         min-height:72px;
         display:grid;
-        grid-template-columns:1fr 1.4fr 1fr;
+        /* .transport (antes la columna del medio) se mudó a <header> --
+           quedan solo los 2 now-box (Sección actual / Acorde actual). */
+        grid-template-columns:1fr 1fr;
         gap:10px;
         align-items:center;
         background:var(--panel);
@@ -318,8 +332,8 @@
     @media(max-width:1050px){
         body{overflow:auto;height:auto;min-height:100vh}
         header,.status-bar,.editor{grid-template-columns:1fr}
-        header{grid-template-rows:none}
-        .brand,.song-title-input,.song-row,.tempo-zone{grid-column:auto!important;grid-row:auto!important;}
+        header{grid-template-rows:none;grid-template-areas:none}
+        .brand,.song-title-input,.song-row,.tempo-zone,.transport,.song-center{grid-column:auto!important;grid-row:auto!important;grid-area:auto!important;}
         .song-row{grid-template-columns:1fr 1fr 1fr;max-width:100%}
         .tempo-zone{align-items:center;justify-content:center;}.bpm-line,.bpm-presets{justify-content:center}
         .main{grid-template-rows:auto auto}.keyboard{transform:scale(.82);transform-origin:center bottom}.editor{max-height:none}.status-bar{gap:14px}
@@ -374,7 +388,7 @@
 .v19-tool-quick{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:4px}.v19-tool-quick button{padding:7px 9px;border-radius:10px;border:1px solid #3b3b3b;background:#202020;color:#d8d8d8;font-size:.63rem;font-weight:900;text-transform:uppercase;cursor:pointer}.v19-tool-quick button:hover{border-color:var(--accent);color:var(--accent)}
 .v19-flow-panel{margin-top:10px;border-top:1px solid #303030;padding-top:10px}.v19-flow-panel .v19-status{font-size:.68rem;color:#b8b8b8;line-height:1.35;margin-top:7px}.v19-flow-panel .v19-status.good{color:var(--accent)}.v19-flow-panel .v19-status.warn{color:var(--solo)}
 .v19-output-select{width:100%;background:#080808;color:white;border:1px solid #3a3a3a;border-radius:9px;padding:9px 8px;font-size:.72rem;margin-top:6px}
-@media(max-width:1050px){header{grid-template-columns:1fr;grid-template-rows:none;gap:9px;padding:9px 12px}.brand,.song-title-input,.song-row,.tempo-zone{grid-column:auto!important;grid-row:auto!important;}.status-bar{grid-template-columns:1fr;gap:8px}.transport{justify-content:flex-start}.main{grid-template-rows:minmax(305px,1fr) auto}.keyboard{transform:scale(.92);height:220px}.editor{grid-template-columns:1fr;max-height:none}#v19ToolsToggle{top:116px}#v18Suite{top:116px}}
+@media(max-width:1050px){header{grid-template-columns:1fr;grid-template-rows:none;grid-template-areas:none;gap:9px;padding:9px 12px}.brand,.song-title-input,.song-row,.tempo-zone,.transport,.song-center{grid-column:auto!important;grid-row:auto!important;grid-area:auto!important;}.status-bar{grid-template-columns:1fr;gap:8px}.transport{justify-content:flex-start}.main{grid-template-rows:minmax(305px,1fr) auto}.keyboard{transform:scale(.92);height:220px}.editor{grid-template-columns:1fr;max-height:none}#v19ToolsToggle{top:116px}#v18Suite{top:116px}}
 @media(max-width:760px){.transport{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.btn{min-width:0;width:100%;font-size:.6rem;padding:8px 6px}.btn-all{min-width:0}.song-title-input{font-size:.88rem}.author-input{font-size:.72rem}#pianoContainer{padding:10px 4px 12px;overflow:auto;justify-content:flex-start}.keyboard{transform:none;height:205px}.key{width:32px}.key.black{width:20px;margin-left:-10px;margin-right:-10px}.editor{padding:10px}.card{padding:10px}#v18Suite{width:min(340px,90vw)}#v19ToolsToggle.open{left:min(352px,calc(90vw + 12px))}}
 
 
@@ -560,8 +574,8 @@ html.v22-touch .btn,html.v22-touch .mini-btn,html.v22-touch .preset-btn{min-heig
 /* iPhone / narrow mobile: keep it scrollable, but preserve a playable horizontal piano. */
 @media (max-width:719px){
     body{height:auto!important;min-height:100vh!important;min-height:100dvh!important;overflow:auto!important;display:block!important;}
-    header{grid-template-columns:1fr!important;grid-template-rows:none!important;gap:7px!important;padding:8px!important;position:relative!important;}
-    .brand,.song-title-input,.song-row,.tempo-zone{grid-column:auto!important;grid-row:auto!important;}
+    header{grid-template-columns:1fr!important;grid-template-rows:none!important;grid-template-areas:none!important;gap:7px!important;padding:8px!important;position:relative!important;}
+    .brand,.song-title-input,.song-row,.tempo-zone,.transport,.song-center{grid-column:auto!important;grid-row:auto!important;grid-area:auto!important;}
     .song-row{grid-template-columns:1fr!important;gap:6px!important;}
     .tempo-zone{align-items:center!important;}
     .bpm-line,.bpm-presets{justify-content:center!important;}
@@ -679,7 +693,7 @@ body.v25ux-clean .preset-btn{padding:5px 7px !important;font-size:.62rem !import
 body.v25ux-clean .bpm-line{gap:7px !important;}
 body.v25ux-clean .tempo-box{min-width:58px !important;padding:5px 8px !important;}
 body.v25ux-clean #bpmDisplay{font-size:1.15rem !important;}
-body.v25ux-clean .status-bar{min-height:54px !important;padding:7px 12px !important;grid-template-columns:minmax(165px,.8fr) minmax(320px,1.35fr) minmax(210px,.75fr) !important;gap:10px !important;}
+body.v25ux-clean .status-bar{min-height:54px !important;padding:7px 12px !important;grid-template-columns:1fr 1fr !important;gap:10px !important;}
 body.v25ux-clean .now-box{padding:7px 10px !important;min-height:45px !important;}
 body.v25ux-clean .label-small{font-size:.55rem !important;}
 body.v25ux-clean #sectionLabel, body.v25ux-clean #chordLabel{font-size:1rem !important;line-height:1.05 !important;}
@@ -713,8 +727,8 @@ body.v25ux-clean #v19ToolsToggle{display:none !important;}
 body.v25ux-clean #v18Suite{top:154px !important;z-index:76 !important;}
 body.v25ux-clean .v18-suite-title::after{content:' · Pro Suite';color:#777;margin-left:4px;}
 @media(max-width:1180px){
-  body.v25ux-clean header{grid-template-columns:1fr !important;grid-template-rows:none !important;gap:6px !important;}
-  body.v25ux-clean .brand,body.v25ux-clean .song-title-input,body.v25ux-clean .song-row,body.v25ux-clean .tempo-zone{grid-column:auto !important;grid-row:auto !important;}
+  body.v25ux-clean header{grid-template-columns:1fr !important;grid-template-rows:none !important;grid-template-areas:none !important;gap:6px !important;}
+  body.v25ux-clean .brand,body.v25ux-clean .song-title-input,body.v25ux-clean .song-row,body.v25ux-clean .tempo-zone,body.v25ux-clean .transport,body.v25ux-clean .song-center{grid-column:auto !important;grid-row:auto !important;grid-area:auto !important;}
   body.v25ux-clean .tempo-zone{align-items:stretch !important;}
   body.v25ux-clean .bpm-presets{justify-content:center !important;}
   body.v25ux-clean .status-bar{grid-template-columns:1fr !important;}
