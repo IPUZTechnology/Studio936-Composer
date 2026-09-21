@@ -75,21 +75,31 @@
     .song-center{ grid-area:song; display:flex; flex-direction:column; gap:8px; min-width:0; }
     header .transport{ grid-area:transport; }
     .tempo-zone{ grid-area:tempo; align-self:center; }
+    /* Owner: "no quiero que haya un box... como si pudiera cambiar el
+       nombre de la canción -- debería ser sin cuadros, algo como una
+       pantallita, con un play, como una grabadora, un radio, una
+       consola". Sigue siendo el mismo <input> (el nombre se sigue
+       pudiendo editar), pero pierde el aspecto de caja rellena con
+       borde -- ahora es una pantalla integrada al header, con el
+       mismo resplandor teal que ya usa el resto de la consola
+       (#chordLabel, #bpmDisplay), no un formulario. */
     .song-title-input{
         width:100%;
         max-width:680px;
         text-align:center;
-        background:#050505;
-        color:white;
-        border:1px solid #333;
-        border-radius:14px;
-        padding:10px 14px;
+        background:transparent;
+        color:var(--accent);
+        border:none;
+        border-bottom:1px solid rgba(0,255,204,.22);
+        border-radius:0;
+        padding:6px 14px 8px;
         font-weight:800;
-        font-size:1rem;
-        letter-spacing:.5px;
+        font-size:1.05rem;
+        letter-spacing:1px;
+        text-shadow:0 0 12px rgba(0,255,204,.35);
         outline:none;
     }
-    .song-title-input:focus{border-color:var(--accent);box-shadow:0 0 16px rgba(0,255,204,.15)}
+    .song-title-input:focus{border-bottom-color:var(--accent);box-shadow:0 4px 16px -6px rgba(0,255,204,.35)}
     .author-input{
         width:100%;
         max-width:680px;

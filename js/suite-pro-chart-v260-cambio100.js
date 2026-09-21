@@ -81,10 +81,14 @@ window.Studio936SuiteProChart = (() => {
   }
 
   let _chartInstrument = localStorage.getItem("s936_chart_inst_v1") || "piano";
-  // Cambio 260 (paso 1): estado del interruptor de vista continua — vive
-  // solo en memoria (no en localStorage todavía), arranca siempre en
-  // "Vista: Bloques" (la de siempre) al recargar la página.
-  let _chartContinuousViewOn = false;
+  // Owner: "al lado izquierdo donde dice Compose, quiero que al darle
+  // clic me llegue el DAW -- ese que está en una sola línea, ese es el
+  // que quiero que me llegue de primeras". Vista Continua (una fila por
+  // pista -- Chart/Lyric/tomas grabadas) arranca activa por defecto en
+  // vez de Vista Bloques. Sigue viviendo solo en memoria (no
+  // localStorage) -- el botón "Vista: Bloques/Continua" del header del
+  // Chart la sigue alternando en cualquier momento.
+  let _chartContinuousViewOn = true;
   // Cambio 261: estado del péndulo/karaoke de la vista continua — se
   // reconstruye en cada render() de esa vista; solo un listener activo a
   // la vez (se limpia el anterior antes de crear uno nuevo).
