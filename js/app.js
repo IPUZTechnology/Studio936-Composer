@@ -1886,8 +1886,22 @@ function unifiedPlayToggle(){
         stopPlayback();
         return;
     }
+    // Owner: "cuando llega al final de la sección, vuelve otra vez al
+    // comienzo... nunca pasa a la segunda [sección]" -- BUG DE RAÍZ:
+    // el Cambio 508 unificó los botones Play para que SIEMPRE llamaran
+    // a startChartSectionPractice(null, null) -- una práctica de UNA
+    // SOLA SECCIÓN, en loop por defecto -- sin importar si el selector
+    // decía "Toda la canción". Por eso, aunque "Canción completa"
+    // estuviera elegido, apretar Play (y por lo tanto grabar encima)
+    // quedaba encerrado en loop dentro de una sola sección para
+    // siempre. Se restaura el criterio original (Cambio 140): con
+    // "Toda la canción" elegida, se usa startChartSongPractice (el
+    // mismo motor real que sincroniza las pistas grabadas, pero con el
+    // arreglo COMPLETO expandido, no solo una sección).
+    const wantsWholeSong = els.sectionSelect && els.sectionSelect.value === '__song__';
+    if(wantsWholeSong && chart?.startChartSongPractice){ chart.startChartSongPractice(null, { withPulse:false, sourceLabel:'Canción completa' }); return; }
     if(chart?.startChartSectionPractice){ chart.startChartSectionPractice(null, null); return; }
-    if(els.sectionSelect && els.sectionSelect.value === '__song__') startFullSong();
+    if(wantsWholeSong) startFullSong();
     else startStop();
 }
 function updatePlayButtonMode(){
@@ -3408,9 +3422,14 @@ function installStudio936AppBridge(){
         // puerta de entrada distinta seguía sin el arreglo. Ahora las dos
         // usan el mismo camino real.
         startGroove: () => { unifiedPlayToggle(); return true; },
+        // Owner: mismo bug de raíz que unifiedPlayToggle -- "playFullSong"
+        // (¡reproducir la CANCIÓN COMPLETA!) llamaba a
+        // startChartSectionPractice, que es justo lo contrario: SOLO una
+        // sección, en loop. Por su propio nombre, esta función nunca
+        // debería quedar encerrada en una sola sección.
         playFullSong: () => {
             const chart = window.Studio936SuiteProChart;
-            if (chart?.startChartSectionPractice) { chart.startChartSectionPractice(null, null); return true; }
+            if (chart?.startChartSongPractice) { chart.startChartSongPractice(null, { withPulse:false, sourceLabel:'Canción completa' }); return true; }
             startFullSong();
             return true;
         },
