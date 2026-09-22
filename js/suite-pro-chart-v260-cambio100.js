@@ -1440,21 +1440,14 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-cont-viewport{width:100%;overflow:hidden}
 /* Cambio 389: se oculta la barra de scroll NATIVA del navegador (fea,
    pesada, abajo del todo) — el scroll sigue funcionando igual (rueda,
-   touch, arrastre), solo no se dibuja la barra del sistema. Se reemplaza
-   por la barrita propia de arriba (.s936-ch-cont-progress-track). */
+   touch, arrastre), solo no se dibuja la barra del sistema. Antes se
+   reemplazaba por una barrita fina propia arriba
+   (.s936-ch-cont-progress-track/-thumb) -- Owner: "borrar el antiguo
+   péndulo arriba", quedó redundante frente al péndulo real de abajo
+   (.s936-ch-cont-playhead), que ahora cumple las dos funciones
+   (mostrar posición Y arrastrarse). Se retira esa barrita entera. */
 .s936-ch-cont-scroller::-webkit-scrollbar{display:none}
 .s936-ch-cont-scroller{scrollbar-width:none;-ms-overflow-style:none}
-.s936-ch-cont-progress-track{
-  position:relative;height:6px;margin:0 10px 6px;
-  background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;
-  cursor:pointer;
-}
-.s936-ch-cont-progress-thumb{
-  position:absolute;top:0;bottom:0;left:0;
-  background:rgba(0,255,204,.45);border-radius:3px;
-  transition:left .12s linear;
-  pointer-events:none;
-}
 .s936-ch-cont-block{flex-shrink:0;padding:0 10px 0 0;min-width:220px}
 .s936-ch-cont-label{font-size:.55rem;font-weight:800;text-transform:uppercase;
   letter-spacing:.4px;margin-bottom:4px;white-space:nowrap}
@@ -1787,15 +1780,30 @@ window.Studio936SuiteProChart = (() => {
 }
 .s936-ch-cont-cell.lyric{color:#9fd8cc;white-space:normal;word-break:break-word;
   line-height:1.25;min-height:2.4em}
-.s936-ch-cont-playhead{position:absolute;top:0;bottom:0;left:0;width:2px;
-  background:#00ffcc;box-shadow:0 0 8px rgba(0,255,204,.7);
-  /* Cambio 424: display:none por defecto — antes solo se ocultaba
-     DENTRO de tick() (Cambio 395), que solo corre mientras el Play está
-     activo. Antes de la primera vez que se le da Play, no había nada
-     que lo escondiera, así que se veía en su posición inicial (una
-     línea vertical sin motivo aparente, sin filtro ni nada activo). */
-  display:none;
-  transition:transform .12s linear;pointer-events:none;z-index:5}
+/* Owner: "péndulo blanco desde la reglera hasta el último canal...
+   debe viajar con el play, se puede mover manualmente". El elemento
+   de afuera (.s936-ch-cont-playhead) es el ÁREA DE AGARRE -- 14px
+   invisibles, centrados sobre la línea real, para poder arrastrarlo
+   cómodo con el mouse/dedo sin tener que acertarle a un pixel exacto.
+   La línea visible en sí (.s936-ch-cont-playhead-line, 2px, blanca)
+   vive centrada adentro. El playhead es hijo directo de
+   .s936-ch-cont-scroller (position:relative, puesto por JS) -- no de
+   un .s936-ch-cont-block en particular -- así que position:absolute;
+   top:0;bottom:0 lo estira solo (sin JS) al alto real del scroller,
+   que por el flex de sus bloques (align-items:stretch, default) ya
+   iguala al bloque más alto: desde la fila de la reglera hasta la
+   última fila (Chart/Lyric/pistas grabadas). */
+.s936-ch-cont-playhead{position:absolute;top:0;bottom:0;left:0;width:14px;margin-left:-7px;
+  cursor:ew-resize;
+  /* Cambio 424 (antes) lo dejaba display:none hasta el primer Play --
+     correcto cuando era solo decorativo. Ahora es un control real
+     (arrastrable) desde el primer momento, así que tiene que estar
+     visible YA, en su posición inicial (arranque de la melodía, ver
+     el transform inicial puesto por JS al crearlo) -- si no, no hay
+     nada que agarrar para arrastrar antes de darle Play. */
+  transition:transform .12s linear;pointer-events:auto;z-index:9}
+.s936-ch-cont-playhead-line{position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;
+  background:#fff;box-shadow:0 0 8px rgba(255,255,255,.75);pointer-events:none}
 .s936-ch-cont-cell.chord.is-playing{background:rgba(0,255,204,.22);outline:1px solid #00ffcc}
 /* Cambio 388: mismo resaltado, pero a nivel de SEGMENTO (un tiempo
    puntual dentro de un compás con varios acordes) — antes solo existía
@@ -9181,68 +9189,77 @@ body.s936-chart-stage main{
       bodyEl.appendChild(viewportWrap);
       viewportWrap.appendChild(scroller);
 
-      // Cambio 389: barra de progreso propia, arriba del scroller, tenue
-      // y sincronizada con el scroll real — reemplaza la barra de scroll
-      // nativa del navegador (que Val pidió sacar, "muy fea"). La nativa
-      // se oculta por CSS (.s936-ch-cont-scroller::-webkit-scrollbar) sin
-      // perder la función de scroll (sigue andando con touch/rueda/drag,
-      // solo no se ve la barra fea de abajo).
-      const progressTrack = document.createElement("div");
-      progressTrack.className = "s936-ch-cont-progress-track";
-      const progressThumb = document.createElement("div");
-      progressThumb.className = "s936-ch-cont-progress-thumb";
-      progressTrack.appendChild(progressThumb);
-      bodyEl.insertBefore(progressTrack, viewportWrap);
-
-      const syncProgressThumb = () => {
-        const max = scroller.scrollWidth - scroller.clientWidth;
-        const ratio = max > 0 ? scroller.scrollLeft / max : 0;
-        const thumbWidthPct = Math.max(8, (scroller.clientWidth / scroller.scrollWidth) * 100);
-        progressThumb.style.width = thumbWidthPct + "%";
-        progressThumb.style.left = (ratio * (100 - thumbWidthPct)) + "%";
-      };
-      scroller.addEventListener("scroll", syncProgressThumb, { passive: true });
-      // Cambio 389: recalcular también si la ventana cambia de tamaño —
-      // el ancho disponible (y por lo tanto el %) puede cambiar.
-      window.addEventListener("resize", syncProgressThumb, { passive: true });
-      setTimeout(syncProgressThumb, 0);
-
-      // Cambio 397: la barra de progreso ahora se puede ARRASTRAR (clic y
-      // mover, o clic directo en cualquier punto de la barra) para mover
-      // el scroll manualmente hacia adelante o atrás — antes era solo un
-      // indicador visual, sin ninguna interacción.
-      const seekFromClientX = (clientX) => {
-        const rect = progressTrack.getBoundingClientRect();
-        const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-        const max = scroller.scrollWidth - scroller.clientWidth;
-        scroller.scrollLeft = ratio * max;
-      };
-      let draggingProgress = false;
-      progressTrack.addEventListener("mousedown", (e) => {
-        draggingProgress = true;
-        seekFromClientX(e.clientX);
-      });
-      window.addEventListener("mousemove", (e) => {
-        if (draggingProgress) seekFromClientX(e.clientX);
-      });
-      window.addEventListener("mouseup", () => { draggingProgress = false; });
-      progressTrack.addEventListener("touchstart", (e) => {
-        draggingProgress = true;
-        seekFromClientX(e.touches[0].clientX);
-      }, { passive: true });
-      window.addEventListener("touchmove", (e) => {
-        if (draggingProgress && e.touches[0]) seekFromClientX(e.touches[0].clientX);
-      }, { passive: true });
-      window.addEventListener("touchend", () => { draggingProgress = false; });
-
+      // Owner, con captura real: "poner péndulo blanco desde la reglera
+      // hasta el último canal y debe viajar con el play, se puede mover
+      // manualmente" + "borrar el antiguo péndulo arriba". La barrita
+      // fina de progreso (Cambio 389/397, arriba del scroller) queda
+      // reemplazada por el péndulo real de abajo -- ya no hace falta un
+      // indicador aparte, el péndulo mismo cumple las dos funciones
+      // (mostrar posición Y arrastrarse para navegar).
+      //
       // Cambio 261: péndulo + karaoke (a nivel de compás, no de palabra —
       // esta vista muestra un cuadro por compás, no por tiempo/palabra
       // individual como Ly Letra; ese detalle más fino se pierde aquí a
       // propósito, por el diseño compacto).
+      //
+      // Cambio 395/424 lo habían dejado con display:none permanente
+      // ("el resaltado de acorde+letra... ya alcanza") -- se reactiva
+      // acá: blanco (no el teal de antes, para distinguirlo de los
+      // resaltados de acorde/letra) y con un área de agarre más ancha
+      // (.s936-ch-cont-playhead, 14px invisibles) alrededor de la línea
+      // fina real (.s936-ch-cont-playhead-line, 2px) para poder
+      // arrastrarlo con el mouse/dedo sin tener que acertarle a 2px
+      // exactos. position:absolute;top:0;bottom:0 (ya en el CSS) lo
+      // extiende solo -- desde la fila de la reglera hasta la última
+      // fila del bloque (el último canal/pista), sin tocar nada más.
       const playhead = document.createElement("div");
       playhead.className = "s936-ch-cont-playhead";
-      playhead.style.display = "none";
+      const playheadLine = document.createElement("div");
+      playheadLine.className = "s936-ch-cont-playhead-line";
+      playhead.appendChild(playheadLine);
       scroller.appendChild(playhead);
+      // Posición inicial: arranque de la melodía (justo después de la
+      // columna de controles, 320px o 56px colapsada) -- visible desde
+      // ya, no hay que darle Play primero para poder agarrarlo.
+      (() => {
+        const collapsedNow = !!(window.Studio936TrackRecorder && window.Studio936TrackRecorder.isLanesCollapsed && window.Studio936TrackRecorder.isLanesCollapsed());
+        playhead.style.transform = "translateX(" + (collapsedNow ? 56 : 320) + "px)";
+      })();
+
+      // Arrastre manual: agarrar el péndulo y moverlo navega el scroll
+      // (mismo criterio de centrado que ya usa tick() durante el play,
+      // ver más abajo) -- funciona esté sonando o no; si está sonando,
+      // el próximo frame de tick() retoma la posición real del audio
+      // (mismo comportamiento que ya tenía la barra vieja al arrastrarla
+      // durante el play).
+      const seekFromClientX = (clientX) => {
+        const scRect = scroller.getBoundingClientRect();
+        const collapsed = !!(window.Studio936TrackRecorder && window.Studio936TrackRecorder.isLanesCollapsed && window.Studio936TrackRecorder.isLanesCollapsed());
+        const stickyColWidth = collapsed ? 56 : 320;
+        const contentX = (clientX - scRect.left) + scroller.scrollLeft;
+        const visibleTimelineWidth = Math.max(0, scroller.clientWidth - stickyColWidth);
+        scroller.scrollLeft = Math.max(0, contentX - stickyColWidth - visibleTimelineWidth / 2);
+        playhead.style.display = "block";
+        playhead.style.transform = "translateX(" + contentX + "px)";
+      };
+      let draggingPlayhead = false;
+      playhead.addEventListener("mousedown", (e) => {
+        draggingPlayhead = true;
+        seekFromClientX(e.clientX);
+        e.preventDefault();
+      });
+      window.addEventListener("mousemove", (e) => {
+        if (draggingPlayhead) seekFromClientX(e.clientX);
+      });
+      window.addEventListener("mouseup", () => { draggingPlayhead = false; });
+      playhead.addEventListener("touchstart", (e) => {
+        draggingPlayhead = true;
+        if (e.touches[0]) seekFromClientX(e.touches[0].clientX);
+      }, { passive: true });
+      window.addEventListener("touchmove", (e) => {
+        if (draggingPlayhead && e.touches[0]) seekFromClientX(e.touches[0].clientX);
+      }, { passive: true });
+      window.addEventListener("touchend", () => { draggingPlayhead = false; });
 
       // Limpiar cualquier oyente/animación de una vista continua anterior
       // antes de crear la nueva — evita que se acumulen oyentes duplicados
@@ -9278,14 +9295,7 @@ body.s936-chart-stage main{
         const posSec = anchorSec + elapsed;
         const bar = flatTimeline.find(b => posSec >= b.startSec && posSec < b.endSec);
         if (bar) {
-          // Cambio 395: Val pidió sacar la línea larga del playhead — el
-          // resaltado de acorde+letra, junto con el auto-scroll del
-          // Cambio 393, ya alcanza para saber dónde va la reproducción.
-          // Se deja el resto de la lógica intacta (por si se quiere
-          // reactivar más adelante) — solo se saca la línea "display:block".
-          playhead.style.display = "none";
           const left = bar.chordCellEl.offsetLeft;
-          playhead.style.transform = "translateX(" + left + "px)";
           // Cambio 388: resalta el SEGMENTO de acorde y la PALABRA de
           // letra del tiempo exacto (bar.chordSegEl / bar.lyricWordEl),
           // no la celda entera del compás — así, en un compás con varios
@@ -9341,6 +9351,13 @@ body.s936-chart-stage main{
           const stickyColWidth = collapsed ? 56 : 320;
           const visibleTimelineWidth = Math.max(0, scroller.clientWidth - stickyColWidth);
           scroller.scrollLeft = Math.max(0, targetLeft - stickyColWidth - visibleTimelineWidth / 2);
+          // Owner: "péndulo blanco... debe viajar con el play" --
+          // reactivado (Cambio 395/424 lo habían dejado permanentemente
+          // en display:none). Usa targetLeft (la posición YA
+          // interpolada pixel a pixel de arriba), no el "left" crudo del
+          // compás -- se mueve parejo con el tempo real, no a saltos.
+          playhead.style.display = "block";
+          playhead.style.transform = "translateX(" + targetLeft + "px)";
           if (bar.chordCellEl !== activeBarEl) {
             activeBarEl = bar.chordCellEl;
           }
@@ -9382,7 +9399,12 @@ body.s936-chart-stage main{
 
       function onPracticeStop() {
         if (_contPlayheadRAF) { cancelAnimationFrame(_contPlayheadRAF); _contPlayheadRAF = null; }
-        playhead.style.display = "none";
+        // Owner: el péndulo "debe viajar con el play" y "se puede mover
+        // manualmente" -- se lo trata como un marcador de posición real,
+        // no un indicador que aparece/desaparece: al pausar/detener
+        // queda quieto donde iba (no se oculta), como el cabezal de una
+        // grabadora real, listo para arrastrarse o para retomar en el
+        // próximo Play.
         clearHighlight();
       }
 
