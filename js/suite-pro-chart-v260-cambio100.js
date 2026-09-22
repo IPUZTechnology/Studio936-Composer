@@ -1431,13 +1431,30 @@ window.Studio936SuiteProChart = (() => {
    queda limitado a lo visible, y su contenido interno (los bloques de
    sección) es lo que se desborda — ahí sí funciona overflow-x:auto de
    verdad. */
-.s936-ch-cont-scroller{display:flex;width:100%;overflow-x:auto;padding:10px;box-sizing:border-box}
+/* Owner: "el panel de controles de canales no esta ajustado a la
+   izquierda y se ve [contenido] para el scroll" -- causa real: el
+   padding-left de este scroller (10px) MÁS el padding-left del
+   contenedor de arriba (.s936-ch-body, otros 10px) dejaban un hueco de
+   ~18px A LA IZQUIERDA de la columna pegada (Chart/Lyric) que NINGÚN
+   fondo sólido cubría -- ahí se veía pasar el contenido (trastes de
+   guitarra, etc.) al hacer scroll. Se saca el padding-left de acá (el
+   de arriba también se cancela con margin-left en .s936-ch-cont-viewport,
+   ver más abajo) para que la columna pegada quede al ras del borde
+   real, sin hueco. */
+.s936-ch-cont-scroller{display:flex;width:100%;overflow-x:auto;padding:10px 10px 10px 0;box-sizing:border-box}
 /* Cambio 397: Val pidió sacar el límite de "4 compases" — ahora la
    ventana usa todo el ancho disponible de la pantalla (los compases que
    entren, entran; no se fuerza un número fijo). También se agrandó el
    compás en sí (ver .s936-ch-cont-cell, de 150px a 200px) para que los
    mini-mapas se vean más grandes y claros. */
-.s936-ch-cont-viewport{width:100%;overflow:hidden}
+/* Owner: mismo arreglo del hueco a la izquierda (ver
+   .s936-ch-cont-scroller) -- .s936-ch-body (el contenedor de arriba)
+   tiene su propio padding-left de 10px, que empujaba TODO este
+   viewport (y con él, la columna pegada) 10px más a la derecha del
+   borde real. Se cancela con un margin-left negativo, solo para este
+   viewport puntual -- el padding de .s936-ch-body sigue intacto para
+   el resto del Chart (título, metadatos, etc.). */
+.s936-ch-cont-viewport{width:calc(100% + 8px);overflow:hidden;margin-left:-8px}
 /* Cambio 389: se oculta la barra de scroll NATIVA del navegador (fea,
    pesada, abajo del todo) — el scroll sigue funcionando igual (rueda,
    touch, arrastre), solo no se dibuja la barra del sistema. Antes se
@@ -1448,9 +1465,20 @@ window.Studio936SuiteProChart = (() => {
    (mostrar posición Y arrastrarse). Se retira esa barrita entera. */
 .s936-ch-cont-scroller::-webkit-scrollbar{display:none}
 .s936-ch-cont-scroller{scrollbar-width:none;-ms-overflow-style:none}
-.s936-ch-cont-block{flex-shrink:0;padding:0 10px 0 0;min-width:220px}
+.s936-ch-cont-block{flex-shrink:0;padding:0 10px 0 0;min-width:220px;position:relative}
+/* Owner: "el nombre de la sección en la regleta (ej Verso 1) esta muy
+   arriba, bajarlo mas a nivel de titulo de la regleta, asi se ve la
+   regleta menos alta" -- antes esto era una fila propia, aparte, ARRIBA
+   de la regleta (ocupaba sus propios ~14px de alto). Se saca del flujo
+   (position:absolute) y se pone AL MISMO nivel que la fila de la
+   regleta (top:0, igual que .s936-ch-cont-rulerrow) -- ya no agrega su
+   propia altura, la regleta completa queda más baja/compacta. Vive
+   pegado con fondo sólido para que se lea limpio encima del primer
+   compás de la sección (que además, siendo el primero, ya se identifica
+   por este mismo letrero -- no hace falta ver también su número ahí). */
 .s936-ch-cont-label{font-size:.55rem;font-weight:800;text-transform:uppercase;
-  letter-spacing:.4px;margin-bottom:4px;white-space:nowrap}
+  letter-spacing:.4px;white-space:nowrap;position:absolute;top:0;left:2px;
+  z-index:5;background:#0b0d0d;padding:0 4px 0 0;border-radius:3px}
 .s936-ch-cont-row{display:flex;gap:3px;margin-bottom:3px}
 /* Cambio 414: Val aclaró que había pedido duplicar el ALTO, no el ancho
    — se revierte a 320px (posición cero, como antes del Cambio 413). */
@@ -1835,7 +1863,17 @@ window.Studio936SuiteProChart = (() => {
      visible YA, en su posición inicial (arranque de la melodía, ver
      el transform inicial puesto por JS al crearlo) -- si no, no hay
      nada que agarrar para arrastrar antes de darle Play. */
-  transition:transform .12s linear;pointer-events:auto;z-index:9}
+  /* Owner: "cuando esta play se mueve, vibra de miedo" -- causa real:
+     esta transition SEGUÍA viva de cuando el péndulo saltaba de golpe
+     compás por compás (sin interpolar). Desde que tick() ya interpola
+     él mismo, pixel a pixel, con el tiempo real (ver Cambio 396 más
+     abajo), esta transition queda compitiendo con esos ~60 cambios de
+     transform por segundo -- cada frame nuevo le pisa la animación
+     anterior a medio camino, y el resultado visual es un temblor
+     constante en vez de un movimiento parejo. Se saca -- el
+     movimiento ya es suave por sí solo (lo pone tick()), y arrastrarlo
+     a mano responde al instante, sin el retraso de la transition. */
+  pointer-events:auto;z-index:9}
 .s936-ch-cont-playhead-line{position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;
   background:#fff;box-shadow:0 0 8px rgba(255,255,255,.75);pointer-events:none}
 /* Owner: "el pendulo debe tener una cabeza como una mini flecha
@@ -8085,16 +8123,13 @@ body.s936-chart-stage main{
       info.append(titleEl, metaRow);
     }
 
+    // Owner: "en la parte derecha hay letrero que dice Modo guitarra,
+    // quitarlos" -- este badge era solo informativo (mostraba el mismo
+    // instrumento que ya se ve en el selector "Guitar"/"Piano" de
+    // arriba, en el header de la canción) -- redundante, se saca. El
+    // toggle real (Vista: Continua/Bloques) es el único que queda acá.
     const instWrap = document.createElement("div");
     instWrap.className = "s936-ch-inst-wrap main-controlled";
-    const instBtn = document.createElement("div");
-    instBtn.className = "s936-ch-inst-btn main-controlled";
-    instBtn.textContent = "Vista: " + chartInstrumentLabel(inst);
-    instBtn.title = "Controlado por el selector de instrumento superior del Main.";
-    const instHint = document.createElement("small");
-    instHint.className = "s936-ch-inst-main-hint";
-    instHint.textContent = "Selector superior";
-    instWrap.append(instBtn, instHint);
 
     // Cambio 260 (paso 1): botón para alternar entre la vista de siempre
     // (bloques apilados) y la vista nueva (línea continua, solo lectura
