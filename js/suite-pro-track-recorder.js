@@ -393,15 +393,19 @@
     track.appendChild(makeHandle('right'));
   }
 
-  // Owner: "cuando le dé clic derecho, debe mostrar unos menús como los
-  // que ve en la figura del medio [GarageBand]" -- Cortar/Copiar/Pegar/
-  // Renombrar/Seleccionar todo/Dividir/Borrar/Ajustes, todos con efecto
-  // real (nada decorativo): Cortar y Copiar usan un portapapeles real
-  // (_clipClipboard) que Pegar vuelve a traer con ensureTakePlayable()
-  // y re-guarda como una toma independiente (nunca comparte el mismo
-  // object URL entre dos tomas). Dividir reutiliza el mismo
-  // splitClipsAt() del editor de tijera, en el punto exacto del clic
-  // derecho.
+  // Owner: "esa ventana no debe existir... cualquier cosa que yo haga
+  // de edición es sobre el mismo canal, no tiene que abrirme ninguna
+  // ventana" -- el menú de clic derecho YA NO abre ningún panel (se
+  // quitaron "Dividir aquí" -- el clic simple ya corta ahí mismo, ver
+  // buildLaneRow -- y "Ajustes/Editar", que abría el panel viejo).
+  // Todo lo que queda actúa directo sobre el canal: Cortar/Copiar usan
+  // un portapapeles real (_clipClipboard) que Pegar vuelve a traer con
+  // ensureTakePlayable() y re-guarda como una toma independiente (nunca
+  // comparte el mismo object URL entre dos tomas). "Borrar este pedazo"
+  // es NUEVO -- antes solo existía adentro del panel (la listita de
+  // "Pedazo 1/Pedazo 2" con botón Borrar/Recuperar); ahora, si el clic
+  // derecho cae sobre un pedazo ya cortado, el menú deja
+  // borrar/recuperar ESE pedazo puntual, sin abrir nada.
   function openClipContextMenu(x, y, sectionKey, take, cutSec, onChange) {
     document.querySelectorAll('.s936tr-clipmenu').forEach(m => m.remove());
     const menu = document.createElement('div');
@@ -444,13 +448,15 @@
       take.clips = full; updateTakeClips(sectionKey, take.id, full); onChange();
     });
     sep();
-    item('÷ Dividir aquí', () => {
-      const clips2 = splitClipsAt(getEffectiveClips(take), cutSec);
-      take.clips = clips2; updateTakeClips(sectionKey, take.id, clips2); onChange();
-    });
-    item('🗑 Borrar', () => { removeTake(sectionKey, take.id); }, { danger: true });
-    sep();
-    item('⚙ Ajustes / Editar', () => { currentInstrument = take.instrument; openPanel(sectionKey); });
+    const clipsNow = getEffectiveClips(take);
+    const clickedClip = clipsNow.length > 1 ? clipsNow.find(c => cutSec >= c.startSec && cutSec < c.endSec) : null;
+    if (clickedClip) {
+      item(clickedClip.deleted ? '↺ Recuperar este pedazo' : '🗑 Borrar este pedazo', () => {
+        const updated = clipsNow.map(c => c.id === clickedClip.id ? { ...c, deleted: !c.deleted } : c);
+        take.clips = updated; updateTakeClips(sectionKey, take.id, updated); onChange();
+      });
+    }
+    item('🗑 Borrar toda la pista', () => { removeTake(sectionKey, take.id); }, { danger: true });
 
     document.body.appendChild(menu);
     const mw = menu.offsetWidth || 170, mh = menu.offsetHeight || 260;
@@ -1581,29 +1587,19 @@
       track.style.opacity = '1';
     } else {
       // Owner: "no tiene edición el track grabado, para cortar/split, o
-      // no se ve" -- el editor de tijera (cortar/partir/borrar pedazos)
-      // ya existía, pero solo dentro del panel flotante "Pistas por
-      // sección" -- no había forma de llegar ahí desde el propio bloque
-      // grabado en Vista Continua. Un clic en la barra grabada abre ese
-      // panel directo en la sección/canal correctos (sin tener que ir a
-      // buscar el ícono del micrófono ni cambiar la sección a mano).
-      track.style.cursor = "pointer";
-      track.title = (track.title || info.label) + " — clic para editar, clic derecho para más opciones";
-      track.addEventListener("click", (e) => {
-        if (e.target.closest('.s936tr-trimhandle')) return;
-        e.stopPropagation();
-        // Owner: antes esto intentaba sincronizar el <select> viejo y
-        // dejaba que openPanel() adivinara la sección con
-        // getCurrentSectionKey() -- eso ya no alcanza desde que
-        // getCurrentSectionKey() prioriza la posición REAL del péndulo
-        // (necesario para que Grabar arranque bien, ver Intento 0 más
-        // arriba): si hacés clic en una toma de "Coro BIS" mientras el
-        // péndulo está en otra parte de la canción, adivinaría mal. Se
-        // pasa sectionKey (la instancia exacta de ESTA fila, capturada
-        // por buildLaneRow) directo a openPanel(), sin adivinar nada.
-        currentInstrument = instrumentId;
-        openPanel(sectionKey);
-      });
+      // no se ve" -- YA NO se abre ningún panel/ventana para editar.
+      // Owner: "esa ventana no debe existir -- eso existía porque
+      // pretendíamos grabar notas de voz y salvarlas. Ahora cualquier
+      // cosa que yo haga de edición es sobre el mismo canal. Ahí me
+      // pone la tijerita y hace lo que estoy haciendo pero en el mismo
+      // canal." -- clic sobre la forma de onda corta ahí mismo (mismo
+      // gesto que ya usaba el viejo editor de tijera -- "Tocá sobre la
+      // forma de onda para cortar ahí", solo que ahora es directo
+      // sobre el canal, no en una ventana aparte); clic derecho abre un
+      // menú puntual (Cortar/Copiar/Pegar/Renombrar/Borrar este pedazo
+      // o toda la pista), nunca un panel.
+      track.style.cursor = "crosshair";
+      track.title = (track.title || info.label) + " — clic para cortar ahí, clic derecho para más opciones";
       // Owner: "primero que todo, se debe ver el sonido en el canal
       // como lo tienes en la ventana" -- antes el canal solo mostraba
       // una franja de color lisa (rayada), y la forma de onda real
@@ -1621,15 +1617,24 @@
           track.style.backgroundImage = 'none';
           layoutClipVisual(track, canvas, buffer, getEffectiveClips(primaryTake), secondsPerBar, sectionMaxWidthPx);
           attachTrimHandles(track, canvas, sectionKey, primaryTake, secondsPerBar, sectionMaxWidthPx, buffer);
-          track.addEventListener('contextmenu', (e) => {
-            e.preventDefault(); e.stopPropagation();
+          function cutSecFromEvent(e) {
             const pxPerSec = secondsPerBar > 0 ? (320 / secondsPerBar) : 32;
             const rect = track.getBoundingClientRect();
             const clipsNow = getEffectiveClips(primaryTake);
-            const cutSec = clipsNow[0].startSec + (e.clientX - rect.left) / pxPerSec;
-            openClipContextMenu(e.clientX, e.clientY, sectionKey, primaryTake, cutSec, () => {
-              layoutClipVisual(track, canvas, buffer, getEffectiveClips(primaryTake), secondsPerBar, sectionMaxWidthPx);
-            });
+            return clipsNow[0].startSec + (e.clientX - rect.left) / pxPerSec;
+          }
+          function redraw() { layoutClipVisual(track, canvas, buffer, getEffectiveClips(primaryTake), secondsPerBar, sectionMaxWidthPx); }
+          track.addEventListener('click', (e) => {
+            if (e.target.closest('.s936tr-trimhandle')) return;
+            e.stopPropagation();
+            currentInstrument = instrumentId;
+            const clips2 = splitClipsAt(getEffectiveClips(primaryTake), cutSecFromEvent(e));
+            primaryTake.clips = clips2; updateTakeClips(sectionKey, primaryTake.id, clips2);
+            redraw();
+          });
+          track.addEventListener('contextmenu', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            openClipContextMenu(e.clientX, e.clientY, sectionKey, primaryTake, cutSecFromEvent(e), redraw);
           });
         });
       }).catch(() => {});
