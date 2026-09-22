@@ -1464,7 +1464,17 @@ window.Studio936SuiteProChart = (() => {
    sigue reservando su propio espacio en el flujo (nada se corre), pero
    ya no se va de la pantalla. Fondo sólido para que las celdas de
    compás no se transparenten por debajo al pasar. */
-.s936-ch-cont-headerspacer{width:320px;flex-shrink:0;transition:width .15s ease;position:sticky;left:0;z-index:7;background:#0b0d0d}
+/* Owner: el panel de controles (Chart/Lyric/pistas) se perdía después de
+   cierto compás -- position:sticky solo puede quedarse "pegado" dentro
+   de los límites de SU PROPIA fila (la fila vive solo en el primer
+   bloque/sección, con el ancho de ESA sección nada más). En cuanto el
+   scroll avanza más que ese ancho, sticky se queda sin margen para
+   seguir pegado y se suelta, arrastrado fuera de pantalla para siempre
+   (no vuelve a aparecer en ninguna sección después de la primera). Se
+   cambia a position:relative -- el desplazamiento real ahora lo pone
+   JS por transform (ver syncStickyHeaderColumn más abajo), que no
+   tiene ese límite y funciona en TODO el rango de scroll. */
+.s936-ch-cont-headerspacer{width:320px;flex-shrink:0;transition:width .15s ease;position:relative;z-index:7;background:#0b0d0d}
 /* Cambio 433: cuando el botón único de track-recorder.js colapsa TODAS
    las columnas de nombre a la vez (incluida esta, la de Chart/Lyric),
    320px → 56px — mismo ancho que la columna colapsada de instrumento,
@@ -1715,12 +1725,23 @@ window.Studio936SuiteProChart = (() => {
    verticalmente con el acorde de abajo, sin cálculo de sincronización
    aparte (se mueve con el mismo scroll horizontal porque es parte del
    mismo bloque de sección). */
-.s936-ch-cont-rulerrow{margin-bottom:5px;opacity:.75}
+/* Owner: el panel de controles (ver .s936-ch-cont-headerspacer) se veía
+   tapado por el contenido de secciones más adelante, aunque ya estaba
+   bien pegado -- causa real encontrada: "opacity" en el CONTENEDOR de
+   la fila (acá) crea su propio contexto de apilamiento y ATRAPA el
+   z-index alto del espaciador adentro de él -- ese contexto completo
+   (fila 1, con todo y espaciador) termina perdiendo contra la fila de
+   CUALQUIER sección siguiente (más adelante en el HTML), sin importar
+   qué z-index tenga el espaciador por dentro. Se saca el opacity de la
+   fila y se pone en cada celda/badge por separado -- mismo look visual
+   (regla más tenue), sin atrapar nada.  */
+.s936-ch-cont-rulerrow{margin-bottom:5px}
 .s936-ch-cont-rulercell{
   width:320px;max-width:320px;flex-shrink:0;box-sizing:border-box;
   font-size:.55rem;font-weight:700;color:#7fa8a0;text-align:center;
   letter-spacing:.3px;font-variant-numeric:tabular-nums;
   border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:2px;
+  opacity:.75;
 }
 /* Owner: marcas de tiempo (4 por compás) debajo del número de compás,
    como una regla de GarageBand — cada columna del grid ocupa un tiempo
@@ -1732,7 +1753,7 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-cont-tempo-badge{
   display:flex;align-items:center;justify-content:center;height:100%;
   font-size:.56rem;font-weight:800;color:#7fa8a0;letter-spacing:.4px;
-  font-variant-numeric:tabular-nums;
+  font-variant-numeric:tabular-nums;opacity:.75;
 }
 .s936-ch-cont-headerspacer.is-collapsed .s936-ch-cont-tempo-badge{font-size:.46rem}
 .s936-ch-cont-cell{background:rgba(255,255,255,.05);border-radius:5px;
@@ -9230,6 +9251,31 @@ body.s936-chart-stage main{
       viewportWrap.className = "s936-ch-cont-viewport";
       bodyEl.appendChild(viewportWrap);
       viewportWrap.appendChild(scroller);
+
+      // Owner: "el panel de controles cuando hace play se queda fijo
+      // cierto tiempo, después se esconde y se pierde... parece que
+      // después de cierto compás... quizás no las incluye todas [las
+      // secciones]" -- confirmado: .s936-ch-cont-headerspacer y
+      // .s936tr-lanelabel solo viven dentro de la fila de la PRIMERA
+      // sección (arrIndex===0), y position:sticky solo puede quedarse
+      // pegado mientras el scroll no supere el ancho de ESA fila (el
+      // ancho de esa sección nada más) -- pasado ese punto, sticky se
+      // queda sin margen, se suelta y se arrastra fuera de pantalla para
+      // siempre (nunca vuelve, ni en la sección 2, 3, etc). Se reemplaza
+      // por un "sticky manual": en cada scroll se lee scrollLeft y se
+      // aplica ese mismo desplazamiento vía transform -- transform no
+      // tiene ese límite de contenedor, así que el panel queda pegado en
+      // TODO el rango de scroll, sin importar cuántas secciones/compases
+      // tenga la canción.
+      function syncStickyHeaderColumn() {
+        const x = Math.round(scroller.scrollLeft);
+        const t = "translateX(" + x + "px)";
+        scroller.querySelectorAll(".s936-ch-cont-headerspacer, .s936tr-lanelabel").forEach((el) => {
+          el.style.transform = t;
+        });
+      }
+      scroller.addEventListener("scroll", syncStickyHeaderColumn, { passive: true });
+      syncStickyHeaderColumn();
 
       // Owner, con captura real: "poner péndulo blanco desde la reglera
       // hasta el último canal y debe viajar con el play, se puede mover

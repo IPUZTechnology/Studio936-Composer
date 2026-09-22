@@ -559,7 +559,14 @@
          por debajo al pasar. Sin ancestro con scroll horizontal (ej. el
          panel flotante "Pistas por sección"), sticky no cambia nada --
          mismo resultado visual de siempre. */
-      .s936tr-lanelabel{display:flex;align-items:center;gap:5px;overflow:hidden;background:#121212;border-radius:5px;box-sizing:border-box;min-height:68px;padding:0 8px;position:sticky;left:0;z-index:7;}
+      /* Owner: el panel se perdía después de cierto compás -- sticky solo
+         puede quedarse "pegado" dentro de los límites de SU PROPIA fila
+         (la fila vive solo en la primera sección, con el ancho de ESA
+         sección nada más). Se cambia a position:relative -- el
+         desplazamiento real lo pone JS por transform
+         (syncStickyHeaderColumn, en suite-pro-chart-...js), que no tiene
+         ese límite y funciona en TODO el rango de scroll. */
+      .s936tr-lanelabel{display:flex;align-items:center;gap:5px;overflow:hidden;background:#121212;border-radius:5px;box-sizing:border-box;min-height:68px;padding:0 8px;position:relative;z-index:7;}
       .s936tr-laneicon{display:flex;align-items:center;justify-content:center;width:29px;height:29px;cursor:default;font-size:.95rem;flex-shrink:0;border-radius:6px;}
       .s936tr-lanebtn-lg{width:29px;height:29px;padding:0;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;color:rgba(255,255,255,.75);font-size:15px;line-height:1;}
       .s936tr-lanebtn-lg:hover{background:rgba(255,255,255,.1);}
