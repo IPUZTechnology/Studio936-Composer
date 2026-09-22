@@ -964,7 +964,26 @@ window.Studio936SuiteProChart = (() => {
       try {
         const bridge = window.Studio936AppBridge;
         const edState = bridge?.getEditorState?.() || {};
-        arrangement = Array.isArray(edState.arrangement) ? edState.arrangement : [];
+        // Owner: "arranca bien y en 3 compases se devuelve al inicio" --
+        // causa real encontrada: esto leía edState.arrangement, una
+        // propiedad que NUNCA existió en getEditorState() (se puede
+        // confirmar: Object.keys(getEditorState()) no la trae) -- así
+        // que arrangement quedaba siempre vacío, y esta función caía
+        // siempre al respaldo de más abajo (readStructureDraftSnapshot,
+        // que lee un snapshot de borrador en localStorage que puede
+        // quedar viejo/corto -- ej. con solo la sección "intro" de
+        // cuando se creó la canción, antes de agregar Verso/Coro/etc).
+        // Vista Continua (el timeline que se ve en pantalla) SÍ usa la
+        // fuente correcta y en vivo (bridge.getArrangement()) -- por
+        // eso el timeline se veía completo, pero el audio real (armado
+        // acá) sonaba solo esas primeras secciones cortas del borrador
+        // viejo y volvía a empezar (se le acababan los pasos). Se prueba
+        // primero bridge.getArrangement() (la misma fuente real que ya
+        // usa el timeline) antes de caer a los respaldos de siempre.
+        const liveArrangement = bridge?.getArrangement?.();
+        arrangement = Array.isArray(liveArrangement) && liveArrangement.length
+          ? liveArrangement
+          : (Array.isArray(edState.arrangement) ? edState.arrangement : []);
         sections = edState.sections || {};
       } catch(_) {}
       if (!arrangement.length) {
