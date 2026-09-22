@@ -460,10 +460,23 @@
         recordStartSongSec = bridge?.getSongPositionSeconds?.(sectionKey, idx) ?? 0;
       }
     } catch (_) { recordStartSongSec = 0; }
-    try {
-      const sectionKey = getCurrentSectionKey();
-      window.Studio936SuiteProChart?.startChartSectionPractice?.(null, sectionKey);
-    } catch (_) {}
+    // Owner: "se volvió loca, se montó al chart y salió por otro canal
+    // de lyric" -- causa real encontrada: esta función SIEMPRE llamaba
+    // a startChartSectionPractice(), que por dentro para lo que sea que
+    // ya estuviera sonando (incluida la Vista Continua siguiendo al
+    // péndulo) y arranca un motor VIEJO y APARTE (consola de práctica
+    // por pasos, Cambio 27/28) limitado a UNA sola sección, en loop,
+    // desde su primer paso -- sin ninguna relación con dónde estaba
+    // realmente el péndulo. Por eso, apenas se apretaba Grabar, la vista
+    // "saltaba" sola a otra sección y se quedaba dando vueltas ahí (el
+    // mismo síntoma de "Loop" reportado al principio, pero ahora
+    // disparado por Grabar en vez de por Reproducir). El audio grabado
+    // en sí nunca estuvo mal (usa recordStartSongSec, ya capturado
+    // arriba) -- lo que estaba mal era este efecto secundario que
+    // secuestraba la reproducción/resaltado en pantalla. Se quita: si
+    // ya había algo sonando, ahora sigue sonando sin interrupción; si no
+    // había nada sonando, grabar simplemente no arranca nada por su
+    // cuenta (el usuario controla el Play aparte).
     mediaRecorder.start(250);
     startRecordTimer();
     renderPanelBody();
@@ -479,7 +492,15 @@
         resolve(blob);
       };
       mediaRecorder.stop();
-      try { window.Studio936SuiteProChart?.stopChartRhythmConsole?.({ stopAudio: true, stopBridge: true }); } catch (_) {}
+      // Owner: pareja del quite en startRecording() -- antes esto
+      // paraba la consola de práctica/reproducción CADA VEZ que se
+      // detenía una grabación, aunque hubiera sido el usuario el que la
+      // puso a sonar aparte (con Play) antes de grabar. Resultado: cada
+      // "grabo un pedazo, sigo grabando el siguiente" cortaba la
+      // canción a la fuerza, obligando a re-arrancar el Play y
+      // reposicionar el péndulo a mano entre toma y toma. Detener
+      // grabar ahora solo detiene el micrófono -- la reproducción (si
+      // había) sigue exactamente igual que si nunca se hubiera grabado.
       restoreBackingChannels();
     });
   }
