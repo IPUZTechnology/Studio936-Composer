@@ -103,6 +103,14 @@ window.Studio936SuiteProChart = (() => {
   // karaoke) y se expone via getSongSectionBoundaries() en la API
   // pública, más abajo.
   let _lastSongSectionBoundaries = [];
+  // Owner: "si quiero grabar a continuación, posiciono el péndulo y no
+  // graba a partir de ahí" -- posición real (en segundos de LA CANCIÓN)
+  // de donde está el péndulo AHORA MISMO, se mueva a mano (arrastre,
+  // seekFromClientX) o solo (tick(), durante el play). track-recorder.js
+  // la usa para que "grabar" arranque de verdad desde ahí -- antes
+  // siempre arrancaba del inicio de la sección "actual" del selector,
+  // ignorando por completo a dónde se había arrastrado el péndulo.
+  let _currentPendulumSongSec = 0;
   let _activeBeatEl = null;
   let _activeBarEl = null;
   let _activeLyricWordEl = null; // Cambio 51: palabra de letra resaltada tipo karaoke
@@ -1825,6 +1833,11 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-cont-cell.chord{font-weight:700;color:#e8f4f2;cursor:pointer;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .s936-ch-cont-cell.chord:hover{background:rgba(0,255,204,.1)}
+/* Owner: "en esta vista DAW debe verse la nota" -- ya no se esconde el
+   acorde detrás de "%" en un compás repetido (ver JS) -- esto solo
+   atenúa un poco el bloque completo para distinguir a simple vista
+   "sigue el mismo acorde" de "acá cambia", sin ocultar la nota real. */
+.s936-ch-cont-cell.chord.is-repeat{opacity:.62}
 .s936-ch-cont-chordname{overflow:hidden;text-overflow:ellipsis;font-size:.6rem}
 .s936-ch-cont-segwrap{
   display:grid;
@@ -9006,7 +9019,19 @@ body.s936-chart-stage main{
             return !!beatsData[key] || !!rhythmData[key];
           });
           const isRepeatBar = info?.isFirst === false && !hasExplicitBeatInBar;
-          const baseChordVal = isRepeatBar ? "" : (info?.chord?.name || "");
+          // Owner: "el chart no estaba trayendo todas las notas y las %
+          // como si fueran todas iguales... en esta vista DAW debe verse
+          // la nota" -- antes, un compás "repetido" (sin cambio real de
+          // acorde) mostraba solo "%" y NO dibujaba el mini piano/diapasón
+          // -- Vista Bloques sí usa "%" a propósito (notación de
+          // partitura real), pero en esta vista (Vista Continua, más
+          // tipo DAW) Val pidió ver la nota real siempre, aunque se
+          // repita. Se deja de vaciar el acorde en el repetido -- ahora
+          // se dibuja igual que un compás normal (ver más abajo, ya no
+          // hay rama aparte para isRepeatBar); is-repeat solo atenúa un
+          // poco el bloque para distinguir visualmente "sigue igual" de
+          // "cambia acá", sin esconder la nota.
+          const baseChordVal = info?.chord?.name || "";
 
           // Cambio 434: celda de regla para ESTE compás — cursorSec en
           // este punto todavía es el segundo real donde empieza (recién
@@ -9052,7 +9077,7 @@ body.s936-chart-stage main{
           const realSegments = segments.filter(s => s.name);
 
           const chordCell = document.createElement("div");
-          chordCell.className = "s936-ch-cont-cell chord";
+          chordCell.className = "s936-ch-cont-cell chord" + (isRepeatBar ? " is-repeat" : "");
           chordCell.title = "Clic para editar este acorde";
 
           // Cambio 388: mapa tiempo→elemento real (1 de los 4 tiempos del
@@ -9062,13 +9087,7 @@ body.s936-chart-stage main{
           // en vez de por compás completo (ver flatTimeline más abajo).
           const beatChordEls = [null, null, null, null];
 
-          if (isRepeatBar) {
-            const nameEl = document.createElement("div");
-            nameEl.className = "s936-ch-cont-chordname";
-            nameEl.textContent = "%";
-            chordCell.appendChild(nameEl);
-            for (let bb = 0; bb < 4; bb++) beatChordEls[bb] = chordCell;
-          } else if (!realSegments.length) {
+          if (!realSegments.length) {
             const nameEl = document.createElement("div");
             nameEl.className = "s936-ch-cont-chordname";
             nameEl.textContent = "—";
@@ -9416,6 +9435,12 @@ body.s936-chart-stage main{
         scroller.scrollLeft = Math.max(0, contentX - stickyColWidth - visibleTimelineWidth / 2);
         playhead.style.display = "block";
         playhead.style.transform = "translateX(" + contentX + "px)";
+        // Owner: "posiciono el péndulo y no graba a partir de ahí" --
+        // se guarda la posición real (segundos de canción) a la que
+        // acaba de arrastrarse el péndulo -- contentX está en el mismo
+        // sistema de coordenadas que bar.chordCellEl.offsetLeft (320px
+        // por compás, empezando justo después de la columna pegada).
+        _currentPendulumSongSec = Math.max(0, (contentX - stickyColWidth) / 320 * secondsPerBar);
       };
       let draggingPlayhead = false;
       playhead.addEventListener("mousedown", (e) => {
@@ -9423,8 +9448,21 @@ body.s936-chart-stage main{
         seekFromClientX(e.clientX);
         e.preventDefault();
       });
+      // Owner: "posiciono el péndulo y no graba a partir de ahí" -- causa
+      // real encontrada: si el mouseup se pierde alguna vez (el mouse se
+      // suelta fuera de la ventana, un modal roba el foco, etc.),
+      // draggingPlayhead se queda pegado en true PARA SIEMPRE -- después,
+      // CUALQUIER movimiento del mouse en CUALQUIER parte de la página
+      // (ej. moviéndose hacia el botón de Grabar) reposiciona el péndulo
+      // solo, sin que el usuario esté arrastrando nada a propósito. Se
+      // agrega una red de seguridad: si llega un mousemove con
+      // e.buttons===0 (ningún botón apretado) mientras se creía que se
+      // estaba arrastrando, es que el arrastre ya terminó de verdad (el
+      // mouseup no llegó) -- se corta ahí, no se sigue moviendo el péndulo.
       window.addEventListener("mousemove", (e) => {
-        if (draggingPlayhead) seekFromClientX(e.clientX);
+        if (!draggingPlayhead) return;
+        if (e.buttons === 0) { draggingPlayhead = false; return; }
+        seekFromClientX(e.clientX);
       });
       window.addEventListener("mouseup", () => { draggingPlayhead = false; });
       playhead.addEventListener("touchstart", (e) => {
@@ -9468,6 +9506,10 @@ body.s936-chart-stage main{
         const nowSec = ctx ? ctx.currentTime : (Date.now() / 1000);
         const elapsed = nowSec - wallStart;
         const posSec = anchorSec + elapsed;
+        // Owner: mismo motivo que en seekFromClientX -- mientras el
+        // péndulo avanza solo (play normal), también se guarda su
+        // posición real para que "grabar" pueda arrancar de ahí.
+        _currentPendulumSongSec = Math.max(0, posSec);
         const bar = flatTimeline.find(b => posSec >= b.startSec && posSec < b.endSec);
         if (bar) {
           const left = bar.chordCellEl.offsetLeft;
@@ -10262,6 +10304,12 @@ body.s936-chart-stage main{
     // "Pre-coro BIS" comparten section:"prechorus" pero son dos
     // entradas separadas con su propio tramo de segundos).
     getSongSectionBoundaries: () => _lastSongSectionBoundaries.slice(),
-    getCurrentChartBpm
+    getCurrentChartBpm,
+    // Owner: "posiciono el péndulo y no graba a partir de ahí" --
+    // track-recorder.js usa esto para que grabar arranque de verdad
+    // desde donde está el péndulo (arrastrado a mano o avanzando solo
+    // durante el play), en vez de siempre saltar al inicio de la
+    // sección del selector de arriba.
+    getCurrentPendulumSongSec: () => _currentPendulumSongSec
   };
 })();

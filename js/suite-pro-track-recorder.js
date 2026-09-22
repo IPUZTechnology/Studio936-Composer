@@ -437,20 +437,28 @@
     recordAnchorCtxTime = ctx ? ctx.currentTime : null;
     recordStartedAt = Date.now();
     muteBackingChannels();
-    // Owner: "un canal se graba donde se necesite... si pasa de sección
-    // a sección debe empalmar" -- se guarda AQUÍ (al arrancar, no al
-    // guardar) la posición absoluta en segundos de LA CANCIÓN donde
-    // arranca esta toma -- startChartSectionPractice() de la línea de
-    // abajo lleva el playhead exactamente a ese mismo punto (el inicio
-    // real de la sección actual), así que coincide con lo que de verdad
-    // se va a grabar. Si la grabación sigue más allá del final de esta
-    // sección, esta ancla es la que permite partirla en pedazos exactos
-    // por sección al guardar (ver splitRecordingIntoSectionTakes()).
+    // Owner: "si quiero grabar a continuación, posiciono el péndulo y
+    // no graba a partir de ahí" -- causa real: esto SIEMPRE usaba el
+    // inicio fijo de la sección del selector de arriba, ignorando por
+    // completo a dónde se había arrastrado el péndulo a mano (o hasta
+    // dónde había avanzado solo, si venía sonando). Se prefiere la
+    // posición REAL del péndulo (getCurrentPendulumSongSec, viva,
+    // actualizada tanto al arrastrarlo como durante el play) -- así
+    // "grabar a continuación" arranca de verdad donde lo dejaste. Si
+    // la grabación sigue más allá del final de esa sección, esta ancla
+    // es la que permite partirla en pedazos exactos por sección al
+    // guardar (ver splitRecordingIntoSectionTakes()).
     try {
-      const bridge = window.Studio936AppBridge;
-      const sectionKey = getCurrentSectionKey();
-      const idx = bridge?.getCurrentSongSectionIndex?.();
-      recordStartSongSec = bridge?.getSongPositionSeconds?.(sectionKey, idx) ?? 0;
+      const chart = window.Studio936SuiteProChart;
+      const pendulumSec = chart?.getCurrentPendulumSongSec?.();
+      if (typeof pendulumSec === 'number' && pendulumSec >= 0) {
+        recordStartSongSec = pendulumSec;
+      } else {
+        const bridge = window.Studio936AppBridge;
+        const sectionKey = getCurrentSectionKey();
+        const idx = bridge?.getCurrentSongSectionIndex?.();
+        recordStartSongSec = bridge?.getSongPositionSeconds?.(sectionKey, idx) ?? 0;
+      }
     } catch (_) { recordStartSongSec = 0; }
     try {
       const sectionKey = getCurrentSectionKey();
@@ -597,8 +605,18 @@
   async function saveTake() {
     if (!pendingBlob) return;
     const currentSectionKey = getCurrentSectionKey();
-    // CAMBIO 506: abortar si no hay sección real
-    if (!currentSectionKey || currentSectionKey === '__song__') {
+    // CAMBIO 506: abortar si no hay sección real -- Owner: pero si el
+    // selector de arriba está en "Canción completa" (__song__), todavía
+    // podemos saber la sección real de verdad a partir de dónde está el
+    // péndulo (recordStartSongSec + los límites reales de la canción) --
+    // antes esto rechazaba la toma igual, aunque el péndulo SÍ estuviera
+    // sobre una sección concreta.
+    let hasRealSection = !!currentSectionKey && currentSectionKey !== '__song__';
+    if (!hasRealSection) {
+      const boundaries = window.Studio936SuiteProChart?.getSongSectionBoundaries?.() || [];
+      hasRealSection = boundaries.some(b => recordStartSongSec >= b.startSec - 0.05 && recordStartSongSec < b.endSec + 0.05);
+    }
+    if (!hasRealSection) {
       toast('⚠️ Elegí una sección concreta (Verso, Coro, etc.) antes de grabar — no se guardó nada.');
       if (pendingObjectUrl) { try { URL.revokeObjectURL(pendingObjectUrl); } catch (_) {} }
       pendingBlob = null;
@@ -1209,6 +1227,28 @@
       track.classList.add('is-empty');
       track.textContent = 'Vacío — grabá con REC';
       track.style.opacity = '1';
+    } else {
+      // Owner: "no tiene edición el track grabado, para cortar/split, o
+      // no se ve" -- el editor de tijera (cortar/partir/borrar pedazos)
+      // ya existía, pero solo dentro del panel flotante "Pistas por
+      // sección" -- no había forma de llegar ahí desde el propio bloque
+      // grabado en Vista Continua. Un clic en la barra grabada abre ese
+      // panel directo en la sección/canal correctos (sin tener que ir a
+      // buscar el ícono del micrófono ni cambiar la sección a mano).
+      track.style.cursor = "pointer";
+      track.title = (track.title || info.label) + " — clic para cortar/editar esta grabación";
+      track.addEventListener("click", (e) => {
+        e.stopPropagation();
+        try {
+          const sel = document.getElementById("sectionSelect");
+          if (sel && sel.value !== sectionKey && sel.querySelector('option[value="' + CSS.escape(sectionKey) + '"]')) {
+            sel.value = sectionKey;
+            sel.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        } catch (_) {}
+        currentInstrument = instrumentId;
+        openPanel();
+      });
     }
     if (secondsPerBar > 0 && takes && takes.length) {
       const longestSec = takes.reduce((max, t) => Math.max(max, Number(t.durationSec) || 0), 0);
