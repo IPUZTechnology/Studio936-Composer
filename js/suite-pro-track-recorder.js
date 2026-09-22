@@ -47,6 +47,19 @@
   let recordSeconds = 0;
   let currentInstrument = 'voz';
   const objectUrlsById = {};
+  // Owner: portapapeles real para "Cortar/Copiar/Pegar" del menú
+  // contextual sobre una pista grabada (ver openClipContextMenu) --
+  // guarda una copia de los METADATOS de la toma; el audio real se
+  // vuelve a traer con ensureTakePlayable() al pegar, nunca se comparte
+  // el mismo object URL entre dos tomas (revocar uno rompería al otro).
+  let _clipClipboard = null;
+  // Owner: "la grabación no se ve en el canal, sino hasta cuando uno
+  // termina -- tiene que irse viendo ahí" -- nodo análisis en vivo
+  // sobre el stream del mic, para dibujar una forma de onda real
+  // MIENTRAS se graba (ver startLiveWaveform/stopLiveWaveform), no solo
+  // un contador de texto.
+  let _liveWaveformRAF = null;
+  let _liveWaveformAnalyser = null;
 
   function getMainAudioCtx() { return window.__studio936AudioCtx || null; }
 
@@ -292,6 +305,177 @@
       g.fillStyle = 'rgba(226,75,74,.35)';
       g.fillRect(x0, 0, Math.max(1, x1 - x0), h);
     });
+    // Owner: "achicarlo de una punta y de la otra" -- recortar desde un
+    // borde (ver attachTrimHandles) no crea un pedazo "borrado" explícito,
+    // solo achica el startSec/endSec del primer/último clip -- lo que
+    // queda AFUERA de todos los clips (los huecos en las puntas) también
+    // se tiene que ver apagado, igual que un pedazo borrado a mano.
+    const covered = clips.filter(c => !c.deleted).map(c => [c.startSec, c.endSec]).sort((a, b) => a[0] - b[0]);
+    let cursor = 0;
+    g.fillStyle = 'rgba(5,7,10,.62)';
+    covered.forEach(([s, e]) => {
+      if (s > cursor + 0.02) g.fillRect((cursor / dur) * w, 0, Math.max(1, ((s - cursor) / dur) * w), h);
+      cursor = Math.max(cursor, e);
+    });
+    if (cursor < dur - 0.02) g.fillRect((cursor / dur) * w, 0, Math.max(1, w - (cursor / dur) * w), h);
+  }
+
+  // Owner: dibuja el bloque de una toma DENTRO del canal mismo (Vista
+  // Continua), no solo dentro del editor de tijera -- "primero que todo
+  // se debe ver el sonido en el canal". El canvas representa el AUDIO
+  // COMPLETO (no solo lo recortado) para poder "deslizarlo" con
+  // translateX cuando se arrastra un borde (ver attachTrimHandles) --
+  // el contenedor recorta (overflow:hidden) a solo la ventana visible
+  // recortada, igual que GarageBand.
+  function layoutClipVisual(track, canvas, buffer, clips, secondsPerBar, sectionMaxWidthPx) {
+    const pxPerSec = secondsPerBar > 0 ? (320 / secondsPerBar) : 32;
+    const first = clips[0], last = clips[clips.length - 1];
+    const visStart = first.startSec, visEnd = last.endSec;
+    const trimmedDur = Math.max(0.05, visEnd - visStart);
+    let trackPx = Math.max(24, Math.round(trimmedDur * pxPerSec));
+    if (sectionMaxWidthPx > 0) trackPx = Math.min(trackPx, sectionMaxWidthPx);
+    track.style.width = trackPx + 'px';
+    track.style.flexShrink = '0';
+    const fullPx = Math.max(trackPx, Math.round((buffer.duration || trimmedDur) * pxPerSec));
+    canvas.style.width = fullPx + 'px';
+    canvas.style.height = '100%';
+    canvas.style.transform = 'translateX(' + (-(visStart * pxPerSec)) + 'px)';
+    drawWaveform(canvas, buffer, clips);
+  }
+
+  // Owner: "podría cortarlo o achicarlo de una punta y de la otra" --
+  // dos agarraderas (izquierda/derecha) sobre el propio bloque del
+  // canal, estilo GarageBand: arrastrar la derecha hacia adentro achica
+  // el final (endSec del último clip); arrastrar la izquierda hacia
+  // adentro achica el principio (startSec del primer clip) -- recorte
+  // no destructivo (el audio original no se toca, solo se guarda qué
+  // rango se usa, en take.clips, igual que ya hacía el editor de
+  // tijera).
+  function attachTrimHandles(track, canvas, sectionKey, take, secondsPerBar, sectionMaxWidthPx, buffer) {
+    const pxPerSec = secondsPerBar > 0 ? (320 / secondsPerBar) : 32;
+    function makeHandle(side) {
+      const h = document.createElement('div');
+      h.className = 's936tr-trimhandle ' + side;
+      h.title = side === 'left' ? 'Arrastrá para recortar el inicio' : 'Arrastrá para recortar el final';
+      h.addEventListener('click', (e) => e.stopPropagation());
+      h.addEventListener('pointerdown', (e) => {
+        e.stopPropagation(); e.preventDefault();
+        h.setPointerCapture(e.pointerId);
+        h.classList.add('is-dragging');
+        const startX = e.clientX;
+        const clipsAtStart = getEffectiveClips(take).map(c => ({ ...c }));
+        const first = clipsAtStart[0], last = clipsAtStart[clipsAtStart.length - 1];
+        const startVal = side === 'left' ? first.startSec : last.endSec;
+        const onMove = (ev) => {
+          const deltaSec = (ev.clientX - startX) / pxPerSec;
+          const updated = clipsAtStart.map(c => ({ ...c }));
+          if (side === 'left') {
+            updated[0].startSec = Math.max(0, Math.min(updated[updated.length - 1].endSec - 0.15, startVal + deltaSec));
+          } else {
+            updated[updated.length - 1].endSec = Math.max(updated[0].startSec + 0.15, Math.min(buffer.duration, startVal + deltaSec));
+          }
+          take.clips = updated;
+          layoutClipVisual(track, canvas, buffer, updated, secondsPerBar, sectionMaxWidthPx);
+        };
+        const onUp = () => {
+          try { h.releasePointerCapture(e.pointerId); } catch (_) {}
+          h.classList.remove('is-dragging');
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+          updateTakeClips(sectionKey, take.id, take.clips);
+        };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+      });
+      return h;
+    }
+    track.appendChild(makeHandle('left'));
+    track.appendChild(makeHandle('right'));
+  }
+
+  // Owner: "cuando le dé clic derecho, debe mostrar unos menús como los
+  // que ve en la figura del medio [GarageBand]" -- Cortar/Copiar/Pegar/
+  // Renombrar/Seleccionar todo/Dividir/Borrar/Ajustes, todos con efecto
+  // real (nada decorativo): Cortar y Copiar usan un portapapeles real
+  // (_clipClipboard) que Pegar vuelve a traer con ensureTakePlayable()
+  // y re-guarda como una toma independiente (nunca comparte el mismo
+  // object URL entre dos tomas). Dividir reutiliza el mismo
+  // splitClipsAt() del editor de tijera, en el punto exacto del clic
+  // derecho.
+  function openClipContextMenu(x, y, sectionKey, take, cutSec, onChange) {
+    document.querySelectorAll('.s936tr-clipmenu').forEach(m => m.remove());
+    const menu = document.createElement('div');
+    menu.className = 's936tr-clipmenu';
+    function item(label, onClick, opts) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 's936tr-clipmenubtn' + (opts && opts.danger ? ' danger' : '');
+      b.textContent = label;
+      if (opts && opts.disabled) { b.disabled = true; }
+      else { b.onclick = (e) => { e.stopPropagation(); closeMenu(); onClick(); }; }
+      menu.appendChild(b);
+      return b;
+    }
+    function sep() { menu.appendChild(el('div', 's936tr-clipmenu-sep')); }
+    function closeMenu() { menu.remove(); document.removeEventListener('mousedown', onDocDown, true); }
+    function onDocDown(e) { if (!menu.contains(e.target)) closeMenu(); }
+
+    item('✂️ Cortar', () => {
+      _clipClipboard = { take: JSON.parse(JSON.stringify(take)) };
+      removeTake(sectionKey, take.id);
+      toast('✂️ Pista cortada — "Pegar" la trae de vuelta.');
+    });
+    item('📋 Copiar', () => {
+      _clipClipboard = { take: JSON.parse(JSON.stringify(take)) };
+      toast('📋 Pista copiada.');
+    });
+    item('📄 Pegar', () => { pasteClipboardInto(sectionKey); }, { disabled: !_clipClipboard });
+    sep();
+    item('✎ Renombrar', () => {
+      const next = window.prompt('Nombre de la pista:', take.label || '');
+      if (next != null && next.trim()) {
+        updateTakeMeta(sectionKey, take.id, { label: next.trim() });
+        try { window.dispatchEvent(new CustomEvent('studio936:take-saved', { detail: { sectionKey } })); } catch (_) {}
+        onChange();
+      }
+    });
+    item('▤ Seleccionar todo', () => {
+      const full = [{ id: 'full', startSec: 0, endSec: Number(take.durationSec) || 0, deleted: false }];
+      take.clips = full; updateTakeClips(sectionKey, take.id, full); onChange();
+    });
+    sep();
+    item('÷ Dividir aquí', () => {
+      const clips2 = splitClipsAt(getEffectiveClips(take), cutSec);
+      take.clips = clips2; updateTakeClips(sectionKey, take.id, clips2); onChange();
+    });
+    item('🗑 Borrar', () => { removeTake(sectionKey, take.id); }, { danger: true });
+    sep();
+    item('⚙ Ajustes / Editar', () => { currentInstrument = take.instrument; openPanel(sectionKey); });
+
+    document.body.appendChild(menu);
+    const mw = menu.offsetWidth || 170, mh = menu.offsetHeight || 260;
+    menu.style.left = Math.max(6, Math.min(x, window.innerWidth - mw - 8)) + 'px';
+    menu.style.top = Math.max(6, Math.min(y, window.innerHeight - mh - 8)) + 'px';
+    setTimeout(() => document.addEventListener('mousedown', onDocDown, true), 0);
+  }
+
+  async function pasteClipboardInto(targetSectionKey) {
+    if (!_clipClipboard) return;
+    const src = _clipClipboard.take;
+    const url = await ensureTakePlayable(src);
+    if (!url) { toast('⚠️ No se pudo pegar: el audio original ya no está disponible.'); return; }
+    let blob;
+    try { blob = await (await fetch(url)).blob(); }
+    catch (_) { toast('⚠️ No se pudo pegar: falló al leer el audio.'); return; }
+    const prevInstrument = currentInstrument;
+    currentInstrument = src.instrument;
+    const newTake = await saveOneSegmentTake(targetSectionKey, blob, src.startSec, src.durationSec, '(copia)', uid(), 0, 1);
+    currentInstrument = prevInstrument;
+    if (newTake && Array.isArray(src.clips)) {
+      updateTakeMeta(targetSectionKey, newTake.id, { clips: src.clips.map(c => ({ ...c })) });
+      try { window.dispatchEvent(new CustomEvent('studio936:take-saved', { detail: { sectionKey: targetSectionKey } })); } catch (_) {}
+    }
+    toast('📄 Pista pegada.');
   }
 
   function buildScissorsEditor(sectionKey, take, audioUrl) {
@@ -407,6 +591,65 @@
     } catch (e) { toast('⚠️ No se pudo acceder al micrófono/entrada de audio.'); return null; }
   }
 
+  // Owner: "la grabación no se ve en el canal, sino hasta cuando uno
+  // termina -- tiene que irse viendo ahí" -- analiza el stream del mic
+  // EN VIVO (AnalyserNode, sin conectar a los parlantes -- solo mide,
+  // no se escucha a sí mismo) y dibuja una forma de onda real que va
+  // creciendo hacia la derecha, frame a frame (rAF), en vez de solo un
+  // contador de segundos en texto. El canvas se crea con un ancho de
+  // reserva grande desde el inicio (nunca se cambia canvas.width
+  // durante la grabación, eso borraría lo ya dibujado) -- el track
+  // (overflow:hidden) recorta a lo que ya "pasó" el reloj, igual que la
+  // barra de progreso de siempre.
+  function startLiveWaveform(stream) {
+    try {
+      if (_liveWaveformAnalyser) { try { _liveWaveformAnalyser.disconnect(); } catch (_) {} _liveWaveformAnalyser = null; }
+      const ctx = getMainAudioCtx() || new (window.AudioContext || window.webkitAudioContext)();
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      source.connect(analyser);
+      _liveWaveformAnalyser = analyser;
+      const dataArray = new Uint8Array(analyser.fftSize);
+      const dpr = window.devicePixelRatio || 1;
+      let canvas = null, g = null, drawX = 0;
+      function ensureCanvas(track) {
+        if (canvas && track.contains(canvas)) return;
+        track.querySelectorAll('.s936tr-clip-wave,.s936tr-live-wave').forEach(c => c.remove());
+        canvas = document.createElement('canvas');
+        canvas.className = 's936tr-live-wave';
+        const maxWidthPx = Number(track.dataset.maxWidthPx) || 3200;
+        canvas.width = Math.max(1, Math.round(maxWidthPx * dpr));
+        canvas.height = Math.max(1, Math.round(54 * dpr));
+        canvas.style.width = maxWidthPx + 'px';
+        canvas.style.height = '100%';
+        track.appendChild(canvas);
+        g = canvas.getContext('2d');
+        g.scale(dpr, dpr);
+        drawX = 0;
+      }
+      function frame() {
+        _liveWaveformRAF = requestAnimationFrame(frame);
+        const track = document.querySelector('.s936tr-lanerow.is-selected .s936tr-lanetrack');
+        if (!track) return;
+        ensureCanvas(track);
+        analyser.getByteTimeDomainData(dataArray);
+        let min = 255, max = 0;
+        for (let i = 0; i < dataArray.length; i++) { const v = dataArray[i]; if (v < min) min = v; if (v > max) max = v; }
+        const h = 54;
+        const yMin = (min / 255) * h, yMax = (max / 255) * h;
+        g.fillStyle = 'rgba(255,255,255,.88)';
+        g.fillRect(drawX, Math.min(yMin, yMax), 1.6, Math.max(1, Math.abs(yMax - yMin)));
+        drawX += 1.6;
+      }
+      frame();
+    } catch (_) {}
+  }
+  function stopLiveWaveform() {
+    if (_liveWaveformRAF) { try { cancelAnimationFrame(_liveWaveformRAF); } catch (_) {} _liveWaveformRAF = null; }
+    if (_liveWaveformAnalyser) { try { _liveWaveformAnalyser.disconnect(); } catch (_) {} _liveWaveformAnalyser = null; }
+  }
+
   function stopRecordTimer() { if (recordTimerHandle) { clearInterval(recordTimerHandle); recordTimerHandle = null; } }
   function startRecordTimer() {
     stopRecordTimer();
@@ -419,9 +662,21 @@
         const track = document.querySelector('.s936tr-lanerow.is-selected .s936tr-lanetrack');
         if (track) {
           const secondsPerBar = Number(track.dataset.secondsPerBar) || 0;
+          // Owner: buildLaneRow deja el texto "Vacío — grabá con REC"
+          // como texto directo del track (is-empty) -- si solo se le
+          // quita la clase sin limpiar ese texto, el nodo de texto
+          // viejo se queda ahí PEGADO, tapando/superpuesto con la forma
+          // de onda en vivo y la etiqueta del cronómetro que se agregan
+          // después. Se limpia UNA sola vez, justo en la transición
+          // (mientras is-empty todavía está puesto), nunca en los demás
+          // ticks -- así no se borra el canvas ni la etiqueta ya
+          // agregados.
+          if (track.classList.contains('is-empty')) track.textContent = '';
           track.classList.remove('is-empty');
           track.classList.add('is-recording-live');
-          track.textContent = fmtTime(recordSeconds);
+          let liveLabel = track.querySelector('.s936tr-live-timerlabel');
+          if (!liveLabel) { liveLabel = document.createElement('span'); liveLabel.className = 's936tr-live-timerlabel'; track.appendChild(liveLabel); }
+          liveLabel.textContent = fmtTime(recordSeconds);
           if (secondsPerBar > 0) {
             // Owner: "se abre como las aguas del mar, se despega la
             // línea... queda en la línea de las lyrics" -- esta barra EN
@@ -520,8 +775,25 @@
     // ya había algo sonando, ahora sigue sonando sin interrupción; si no
     // había nada sonando, grabar simplemente no arranca nada por su
     // cuenta (el usuario controla el Play aparte).
+    // Owner: "la grabación no se ve en el canal... tiene que irse
+    // viendo ahí" -- la forma de onda en vivo se dibuja DENTRO de la
+    // fila del canal (.s936tr-lanerow), pero esa fila solo existe en
+    // el DOM si el canal ya está "reservado" (o ya tiene una toma
+    // previa) -- si es la primera vez que se graba en este canal, la
+    // fila todavía no existe y no hay dónde dibujar nada. Se reserva
+    // acá (antes de arrancar) para que la fila ya esté lista cuando
+    // arranque la forma de onda en vivo.
+    try {
+      const currentSectionForRecord = getCurrentSectionKey();
+      const alreadyReserved = listReservedInstruments(currentSectionForRecord).includes(currentInstrument);
+      if (!alreadyReserved) {
+        reserveInstrumentLane(currentSectionForRecord, currentInstrument);
+        window.dispatchEvent(new CustomEvent('studio936:take-saved', { detail: { sectionKey: currentSectionForRecord, instrument: currentInstrument, reserved: true } }));
+      }
+    } catch (_) {}
     mediaRecorder.start(250);
     startRecordTimer();
+    startLiveWaveform(stream);
     renderPanelBody();
   }
 
@@ -530,6 +802,7 @@
       if (!mediaRecorder || mediaRecorder.state === 'inactive') { resolve(null); return; }
       mediaRecorder.onstop = () => {
         stopRecordTimer();
+        stopLiveWaveform();
         const mimeType = mediaRecorder.mimeType || 'audio/webm';
         const blob = new Blob(recordedChunks, { type: mimeType });
         resolve(blob);
@@ -832,9 +1105,23 @@
       .s936tr-lanemenubtn{padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#c9d8d5;font-size:.68rem;cursor:pointer;text-align:left;}
       .s936tr-lanemenubtn.danger{color:#ff9d9d;border-color:rgba(255,120,120,.3);}
       .s936tr-lanemore-wrap{position:relative;flex-shrink:0;}
-      .s936tr-lanetrack{height:54px;border-radius:4px;cursor:default;width:100%;}
+      .s936tr-lanetrack{height:54px;border-radius:4px;cursor:default;width:100%;position:relative;overflow:hidden;}
+      .s936tr-clip-wave{position:absolute;top:0;left:0;height:100%;pointer-events:none;}
+      .s936tr-trimhandle{position:absolute;top:0;bottom:0;width:9px;cursor:ew-resize;background:rgba(255,255,255,.16);z-index:5;touch-action:none;}
+      .s936tr-trimhandle:hover,.s936tr-trimhandle.is-dragging{background:rgba(255,255,255,.4);}
+      .s936tr-trimhandle.left{left:0;border-radius:4px 0 0 4px;}
+      .s936tr-trimhandle.right{right:0;border-radius:0 4px 4px 0;}
+      .s936tr-trimhandle::after{content:'';position:absolute;top:50%;left:50%;width:2px;height:18px;background:rgba(0,0,0,.55);transform:translate(-50%,-50%);border-radius:1px;}
+      .s936tr-clipmenu{position:fixed;background:#0d1a1a;border:1px solid rgba(91,232,201,.3);border-radius:9px;padding:6px;z-index:99999;box-shadow:0 10px 28px rgba(0,0,0,.55);min-width:172px;display:flex;flex-direction:column;gap:1px;}
+      .s936tr-clipmenubtn{padding:7px 10px;border-radius:6px;border:none;background:none;color:#e8f4f2;font-size:.76rem;cursor:pointer;text-align:left;}
+      .s936tr-clipmenubtn:hover{background:rgba(91,232,201,.14);}
+      .s936tr-clipmenubtn.danger{color:#ff9d9d;}
+      .s936tr-clipmenubtn:disabled{color:#556360;cursor:not-allowed;}
+      .s936tr-clipmenu-sep{height:1px;background:rgba(255,255,255,.08);margin:4px 3px;}
       .s936tr-lanetrack.is-empty{width:120px !important;flex-shrink:0;background:transparent !important;border:1px dashed rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:.6rem;color:#5e6c6a;opacity:1 !important;}
-      .s936tr-lanetrack.is-recording-live{transition:width .15s linear;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;box-sizing:border-box;overflow:hidden;white-space:nowrap;font-size:.62rem;font-weight:700;color:rgba(255,255,255,.92);text-shadow:0 1px 2px rgba(0,0,0,.6);}
+      .s936tr-lanetrack.is-recording-live{transition:width .15s linear;box-sizing:border-box;}
+      .s936tr-live-wave{position:absolute;top:0;left:0;height:100%;pointer-events:none;}
+      .s936tr-live-timerlabel{position:absolute;right:6px;bottom:4px;font-size:.62rem;font-weight:700;color:rgba(255,255,255,.92);text-shadow:0 1px 2px rgba(0,0,0,.6);z-index:6;pointer-events:none;white-space:nowrap;}
       .s936tr-laneadd{position:relative;padding-left:0;margin-top:2px;}
       .s936tr-laneaddbtn{width:20px;height:20px;padding:0;border-radius:50%;border:1px solid rgba(91,232,201,.35);background:rgba(91,232,201,.1);color:#5be8c9;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;line-height:1;}
       .s936tr-lanepicker{display:none;position:absolute;left:26px;top:0;background:#0d1a1a;border:1px solid rgba(91,232,201,.3);border-radius:8px;padding:3px;gap:2px;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.5);}
@@ -1301,8 +1588,9 @@
       // panel directo en la sección/canal correctos (sin tener que ir a
       // buscar el ícono del micrófono ni cambiar la sección a mano).
       track.style.cursor = "pointer";
-      track.title = (track.title || info.label) + " — clic para cortar/editar esta grabación";
+      track.title = (track.title || info.label) + " — clic para editar, clic derecho para más opciones";
       track.addEventListener("click", (e) => {
+        if (e.target.closest('.s936tr-trimhandle')) return;
         e.stopPropagation();
         // Owner: antes esto intentaba sincronizar el <select> viejo y
         // dejaba que openPanel() adivinara la sección con
@@ -1316,6 +1604,35 @@
         currentInstrument = instrumentId;
         openPanel(sectionKey);
       });
+      // Owner: "primero que todo, se debe ver el sonido en el canal
+      // como lo tienes en la ventana" -- antes el canal solo mostraba
+      // una franja de color lisa (rayada), y la forma de onda real
+      // vivía escondida adentro del editor de tijera. Se dibuja la
+      // MISMA forma de onda (drawWaveform, reusada tal cual) directo
+      // acá, más las agarraderas de recorte y el menú de clic derecho.
+      const primaryTake = takes[0];
+      const canvas = document.createElement('canvas');
+      canvas.className = 's936tr-clip-wave';
+      track.appendChild(canvas);
+      ensureTakePlayable(primaryTake).then((url) => {
+        if (!url) return;
+        const ctx = getMainAudioCtx() || new (window.AudioContext || window.webkitAudioContext)();
+        return fetch(url).then(r => r.arrayBuffer()).then(buf => ctx.decodeAudioData(buf)).then((buffer) => {
+          track.style.backgroundImage = 'none';
+          layoutClipVisual(track, canvas, buffer, getEffectiveClips(primaryTake), secondsPerBar, sectionMaxWidthPx);
+          attachTrimHandles(track, canvas, sectionKey, primaryTake, secondsPerBar, sectionMaxWidthPx, buffer);
+          track.addEventListener('contextmenu', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            const pxPerSec = secondsPerBar > 0 ? (320 / secondsPerBar) : 32;
+            const rect = track.getBoundingClientRect();
+            const clipsNow = getEffectiveClips(primaryTake);
+            const cutSec = clipsNow[0].startSec + (e.clientX - rect.left) / pxPerSec;
+            openClipContextMenu(e.clientX, e.clientY, sectionKey, primaryTake, cutSec, () => {
+              layoutClipVisual(track, canvas, buffer, getEffectiveClips(primaryTake), secondsPerBar, sectionMaxWidthPx);
+            });
+          });
+        });
+      }).catch(() => {});
     }
     if (secondsPerBar > 0 && takes && takes.length) {
       const longestSec = takes.reduce((max, t) => Math.max(max, Number(t.durationSec) || 0), 0);
