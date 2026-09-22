@@ -103,6 +103,37 @@ window.Studio936SuiteProChart = (() => {
   // karaoke) y se expone via getSongSectionBoundaries() en la API
   // pública, más abajo.
   let _lastSongSectionBoundaries = [];
+  // Owner: Val -- "tengo un diseño hecho para componer: compongo la
+  // intro una vez y donde se repite ya sale igual (Coro/Coro BIS,
+  // Pre-coro/Pre-coro BIS) -- eso está atado a la letra y no se puede
+  // perder." Los acordes y la letra siguen exactamente así: se guardan
+  // por TIPO de sección (SECTION_LYRICS_KEY, más abajo) y por eso
+  // "BIS" siempre hereda lo compuesto en el original -- esto NO se
+  // toca.
+  // El bug real reportado ("grabo en Pre-coro y sale clonado en Pre-coro
+  // BIS") es otra cosa: las TOMAS DE VOZ grabadas (track-recorder.js)
+  // usaban esa MISMA llave de tipo para guardarse, así que dos
+  // secciones que sólo COMPARTEN acordes/letra por diseño terminaban
+  // también compartiendo, sin querer, el audio grabado -- que sí debe
+  // ser independiente por cada ocurrencia (cada "Coro BIS" es su propia
+  // toma, puede tener una voz distinta o ninguna).
+  // Esta función da, para cada aparición real de una sección en el
+  // arreglo, una llave única SOLO para lo que graba track-recorder.js
+  // (tomas, canales reservados, mute/solo por canal) -- nunca para
+  // acordes/letra. La primera aparición de cada tipo conserva la llave
+  // vieja tal cual (ej. "chorus"), así que ninguna toma ya grabada se
+  // pierde ni hay que migrar nada; solo las repeticiones (2da en
+  // adelante) reciben una llave nueva y propia (ej. "chorus__occ1"),
+  // arrancando vacías -- listas para grabar algo propio ahí.
+  function computeSectionInstanceKey(arrangement, arrIndex) {
+    const item = arrangement[arrIndex];
+    const type = item?.section || "";
+    let occurrenceIndex = 0;
+    for (let i = 0; i < arrIndex; i++) {
+      if (arrangement[i]?.section === type) occurrenceIndex++;
+    }
+    return occurrenceIndex === 0 ? type : (type + "__occ" + occurrenceIndex);
+  }
   // Owner: "si quiero grabar a continuación, posiciono el péndulo y no
   // graba a partir de ahí" -- posición real (en segundos de LA CANCIÓN)
   // de donde está el péndulo AHORA MISMO, se mueva a mano (arrastre,
@@ -8911,6 +8942,7 @@ body.s936-chart-stage main{
         const color = SECTION_COLORS[sectionVisualType] || DEFAULT_SECTION_COLOR;
         sectionAnchors[item.section] = cursorSec;
         const _itemStartSec = cursorSec;
+        const _itemInstanceKey = computeSectionInstanceKey(arrangement, arrIndex);
 
         const block = document.createElement("div");
         block.className = "s936-ch-cont-block";
@@ -9294,6 +9326,7 @@ body.s936-chart-stage main{
 
         _lastSongSectionBoundaries.push({
           section: item.section,
+          instanceKey: _itemInstanceKey,
           label: item.label || item.section,
           startSec: _itemStartSec,
           endSec: cursorSec
@@ -9330,7 +9363,7 @@ body.s936-chart-stage main{
         // solo mientras se está grabando; al guardar, el corte real
         // (sample-accurate, ver splitRecordingIntoSectionTakes) ya
         // quedaba bien, por eso "se ajusta" al apagar.
-        try { window.Studio936TrackRecorder?.renderSectionLanes?.(block, item.section, { hideHeader: true, hideLabelColumn: arrIndex !== 0, secondsPerBar: secondsPerBar, sectionBars: totalMeasures }); } catch(_) {}
+        try { window.Studio936TrackRecorder?.renderSectionLanes?.(block, _itemInstanceKey, { hideHeader: true, hideLabelColumn: arrIndex !== 0, secondsPerBar: secondsPerBar, sectionBars: totalMeasures }); } catch(_) {}
         // Cambio 436: riel único de colapso — Val pidió sacar el botón
         // ◀/▶ (le parecía feo, sobre todo la flecha en estado cerrado) y
         // reemplazarlo por un riel angosto de punta a punta, al estilo
@@ -9651,7 +9684,8 @@ body.s936-chart-stage main{
     if (_chartContinuousViewOn) {
       renderContinuousTimelineView(body);
     } else {
-    arrangement.forEach(item => {
+    arrangement.forEach((item, arrIndex) => {
+      const _itemInstanceKey = computeSectionInstanceKey(arrangement, arrIndex);
       let chords = sections[item.section] || [];
       const totalMeasures = sectionBars[item.section]
         || Number(item.bars)
@@ -9776,7 +9810,7 @@ body.s936-chart-stage main{
       // archivo no gana lógica nueva, solo avisa "aquí termina la sección,
       // dibuja lo tuyo si quieres". Envuelto en try/catch: si ese módulo no
       // está cargado o falla, el Chart sigue funcionando exactamente igual.
-      try { window.Studio936TrackRecorder?.renderSectionLanes?.(sec, item.section); } catch(_) {}
+      try { window.Studio936TrackRecorder?.renderSectionLanes?.(sec, _itemInstanceKey); } catch(_) {}
       body.appendChild(sec);
     });
     }

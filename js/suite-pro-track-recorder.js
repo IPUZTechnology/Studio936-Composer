@@ -19,6 +19,15 @@
   ];
 
   let panelEl = null;
+  // Owner: llave forzada por el clic-para-editar sobre una barra
+  // grabada (ver buildLaneRow) -- garantiza que el panel abra en la
+  // sección/instancia EXACTA en la que se hizo clic, sin depender de
+  // dónde esté el péndulo en ese momento (getCurrentSectionKey() ahora
+  // prioriza al péndulo, lo cual es correcto para Grabar, pero NO para
+  // "quiero editar ESTA toma puntual"). Se limpia cada vez que el panel
+  // se abre por cualquier otro camino (ícono de mic, atajo, etc.) para
+  // no quedar pegada.
+  let _panelForcedSectionKey = null;
   let mediaStream = null;
   let mediaRecorder = null;
   let recordedChunks = [];
@@ -42,6 +51,27 @@
   function getMainAudioCtx() { return window.__studio936AudioCtx || null; }
 
   function getCurrentSectionKey() {
+    // Intento 0: dónde está el péndulo AHORA MISMO, de verdad, contra
+    // los límites reales de Vista Continua -- Owner: Val explicó que
+    // Coro/Coro BIS (o Pre-coro/Pre-coro BIS) comparten acordes y letra
+    // A PROPÓSITO (así diseñó la composición: compone una vez, la
+    // repetición hereda todo), pero una GRABACIÓN DE VOZ no debe
+    // heredarse igual -- cada "BIS" necesita su propia toma. Los límites
+    // de sección ya traen instanceKey (ver computeSectionInstanceKey en
+    // el Chart) que distingue una ocurrencia de otra sin tocar en
+    // absoluto el acorde/letra compartidos. Este intento va primero
+    // porque es el único que sabe, con el péndulo real, EN CUÁL
+    // ocurrencia estás parado ahora -- los intentos de abajo (selector
+    // viejo, primera sección con acordes) no distinguen repeticiones.
+    try {
+      const chart = window.Studio936SuiteProChart;
+      const pendulumSec = chart?.getCurrentPendulumSongSec?.();
+      const boundaries = chart?.getSongSectionBoundaries?.() || [];
+      if (typeof pendulumSec === 'number' && pendulumSec >= 0 && boundaries.length) {
+        const hit = boundaries.find(b => pendulumSec >= b.startSec - 0.05 && pendulumSec < b.endSec + 0.05);
+        if (hit) return hit.instanceKey || hit.section;
+      }
+    } catch (_) {}
     // Intento 1: el Bridge real (app.js)
     try {
       const real = window.Studio936AppBridge?.getCurrentSectionKeyReal?.();
@@ -70,7 +100,20 @@
     return null;
   }
 
-  function getCurrentSectionLabel() {
+  function getCurrentSectionLabel(forSectionKey) {
+    // Owner: si se pide la etiqueta de una llave puntual (ej. al abrir
+    // el panel con clic-para-editar sobre "Coro BIS"), se busca su
+    // etiqueta real en los límites de Vista Continua -- el <select>
+    // viejo no tiene una opción por cada REPETICIÓN, solo por tipo, así
+    // que para "chorus__occ1" mostraría "Coro" a secas (confuso, se
+    // vería igual que la primera ocurrencia).
+    if (forSectionKey) {
+      try {
+        const boundaries = window.Studio936SuiteProChart?.getSongSectionBoundaries?.() || [];
+        const hit = boundaries.find(b => (b.instanceKey || b.section) === forSectionKey);
+        if (hit && hit.label) return hit.label;
+      } catch (_) {}
+    }
     try {
       const sel = document.getElementById('sectionSelect');
       const opt = sel && sel.options[sel.selectedIndex];
@@ -611,7 +654,7 @@
     const pieces = overlapping.map((b) => {
       const segStartSong = Math.max(b.startSec, recordStartSongSec);
       const segEndSong = Math.min(b.endSec, recordEndSongSec);
-      return { sectionKey: b.section, sectionLabel: b.label, startSec: segStartSong, durationSec: segEndSong - segStartSong };
+      return { sectionKey: b.instanceKey || b.section, sectionLabel: b.label, startSec: segStartSong, durationSec: segEndSong - segStartSong };
     }).filter(p => p.durationSec > EPS);
 
     if (pieces.length <= 1) return [{ sectionKey: pieces[0]?.sectionKey || fallbackSectionKey, blob, startSec: recordStartSongSec, durationSec: recordSeconds }];
@@ -805,9 +848,9 @@
     const body = panelEl.querySelector('.s936tr-body');
     if (!body) return;
     body.innerHTML = '';
-    const sectionKey = getCurrentSectionKey();
+    const sectionKey = _panelForcedSectionKey || getCurrentSectionKey();
     const sectionInfo = el('div', 's936tr-section');
-    sectionInfo.innerHTML = 'Sección actual: <b>' + getCurrentSectionLabel() + '</b>';
+    sectionInfo.innerHTML = 'Sección actual: <b>' + getCurrentSectionLabel(_panelForcedSectionKey) + '</b>';
     body.appendChild(sectionInfo);
     const hasFolder = !!localStorage.getItem('s936_library_dir_name');
     const folderRow = el('div', 's936tr-folder-row');
@@ -912,8 +955,9 @@
     body.appendChild(listWrap);
   }
 
-  function openPanel() {
+  function openPanel(forceSectionKey) {
     installStyles();
+    _panelForcedSectionKey = forceSectionKey || null;
     if (panelEl) { panelEl.style.display = 'block'; renderPanelBody(); return; }
     panelEl = el('div', 's936tr-panel');
     const head = el('div', 's936tr-head');
@@ -942,7 +986,7 @@
     head.addEventListener('pointerup', () => { dragging = false; });
   }
 
-  function closePanel() { if (panelEl) panelEl.style.display = 'none'; }
+  function closePanel() { if (panelEl) panelEl.style.display = 'none'; _panelForcedSectionKey = null; }
 
   let lanesCollapsed = false;
   function setLanesCollapsed(collapsed) {
@@ -1260,15 +1304,17 @@
       track.title = (track.title || info.label) + " — clic para cortar/editar esta grabación";
       track.addEventListener("click", (e) => {
         e.stopPropagation();
-        try {
-          const sel = document.getElementById("sectionSelect");
-          if (sel && sel.value !== sectionKey && sel.querySelector('option[value="' + CSS.escape(sectionKey) + '"]')) {
-            sel.value = sectionKey;
-            sel.dispatchEvent(new Event("change", { bubbles: true }));
-          }
-        } catch (_) {}
+        // Owner: antes esto intentaba sincronizar el <select> viejo y
+        // dejaba que openPanel() adivinara la sección con
+        // getCurrentSectionKey() -- eso ya no alcanza desde que
+        // getCurrentSectionKey() prioriza la posición REAL del péndulo
+        // (necesario para que Grabar arranque bien, ver Intento 0 más
+        // arriba): si hacés clic en una toma de "Coro BIS" mientras el
+        // péndulo está en otra parte de la canción, adivinaría mal. Se
+        // pasa sectionKey (la instancia exacta de ESTA fila, capturada
+        // por buildLaneRow) directo a openPanel(), sin adivinar nada.
         currentInstrument = instrumentId;
-        openPanel();
+        openPanel(sectionKey);
       });
     }
     if (secondsPerBar > 0 && takes && takes.length) {
