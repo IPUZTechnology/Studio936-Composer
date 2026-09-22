@@ -7986,6 +7986,7 @@ body.s936-chart-stage main{
       const raw = JSON.parse(localStorage.getItem("s936_suitepro_structure_v4") || "{}");
       const draft = raw?.draft && typeof raw.draft === "object" ? raw.draft : {};
       const parts = Array.isArray(draft.parts) ? draft.parts : [];
+      const clones = draft.clones && typeof draft.clones === "object" ? draft.clones : {};
       const meta = draft.meta || {};
       if (!parts.length) return null;
       // Cambio 239: verificar si es canción nueva para no generar acordes por defecto
@@ -8002,7 +8003,17 @@ body.s936-chart-stage main{
       const sections = {};
       arrangement.forEach((part) => {
         const sectionKey = part.section;
-        const existing = Array.isArray(part.items) ? part.items : null;
+        // Owner: "compongo una sección a mano en el editor y no se ve
+        // en Vista Continua" -- BUG DE RAÍZ: este código buscaba los
+        // acordes en part.items, pero "part" es la entrada mapeada de
+        // arriba (arrangement.map), que nunca tuvo ese campo -- los
+        // acordes reales que el editor de Estructura guarda al
+        // "+ Añadir Sección" viven en draft.clones[sección].items, un
+        // lugar completamente distinto que este código nunca miraba.
+        // Por eso una sección compuesta a mano seguía mostrando
+        // acordes de relleno (o "—" en canción nueva) en vez de lo que
+        // realmente se escribió.
+        const existing = clones[sectionKey] && Array.isArray(clones[sectionKey].items) ? clones[sectionKey].items : null;
         if (existing && existing.length) {
           sections[sectionKey] = existing.map((item) => ({
             name: item.name || item.chord || item.label || "C",

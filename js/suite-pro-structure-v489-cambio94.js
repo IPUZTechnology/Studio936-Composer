@@ -3699,6 +3699,16 @@ html, body{
         independent: false
       }));
     }
+    // Owner: "el DAW gobierna la creación, pero ¿dónde se define cuántas
+    // secciones y qué tan larga es la canción? En el editor de canción,
+    // ahí se crean las secciones" -- newSong() declara 11 claves de
+    // sección VACÍAS por compatibilidad con el resto del código (nunca
+    // se usan como partes reales) -- antes, este fallback las tomaba
+    // una por una y las convertía en 11 "partes" inventadas (76
+    // compases de la nada, todos con acordes de relleno). Una canción
+    // nueva arranca en cero: el primer paso real de componer es crear
+    // una sección a mano acá mismo, con "+ Añadir Sección".
+    if (s.project && s.project.isNewSong) return [];
     const sections = s.sections || {};
     return Object.keys(sections).map((key) => ({
       section: key,
@@ -3714,7 +3724,12 @@ html, body{
     if (!state.draft || !Array.isArray(state.draft.parts)) {
       state.draft = {
         createdAt: new Date().toISOString(),
-        parts: current.length ? current : defaultParts(),
+        // Owner: mismo criterio que readArrangement() -- una canción
+        // nueva no recibe la plantilla de 7 partes por defecto sola;
+        // esa plantilla queda para cuando el usuario la pida a propósito
+        // (una acción "Usar plantilla" explícita), no como arranque
+        // automático de cada canción en blanco.
+        parts: current.length ? current : (s.project && s.project.isNewSong ? [] : defaultParts()),
         clones: {},
         notes: {},
         meta: {
@@ -6587,6 +6602,14 @@ ${measures}  </part>
 
     const meta = state.draft?.meta || {};
     const project = Object.assign({}, current, {
+      // Owner: BUG DE RAÍZ encontrado -- esto nunca apagaba isNewSong,
+      // así que después de "Aplicar Estructura" (con un arreglo real ya
+      // armado), al recargar la página normalizeArrangement() (song-
+      // model.js) seguía viendo isNewSong:true y devolvía SIEMPRE []
+      // -- el arreglo recién aplicado se borraba solo en la primera
+      // recarga. Se apaga acá porque este es el momento exacto en que
+      // la canción deja de estar en blanco.
+      isNewSong: false,
       title: String(meta.title || current.title || s.title || "Canción sin nombre").trim(),
       style: meta.style || current.style || s.style || "pop",
       bpm: Math.max(50, Math.min(180, Number(meta.bpm || current.bpm || s.bpm || 95))),
