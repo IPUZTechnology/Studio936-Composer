@@ -9299,7 +9299,19 @@ body.s936-chart-stage main{
         // BPM real de la canción) — track-recorder.js lo usa para dibujar
         // el ancho REAL de cada grabación (duración real / secondsPerBar
         // * 320px), alineado a la misma regla de compases de esta vista.
-        try { window.Studio936TrackRecorder?.renderSectionLanes?.(block, item.section, { hideHeader: true, hideLabelColumn: arrIndex !== 0, secondsPerBar: secondsPerBar }); } catch(_) {}
+        // Owner: "se abre como las aguas del mar, se despega la línea y
+        // sigue grabando... queda en la línea de las lyrics" -- se manda
+        // también totalMeasures (sectionBars) para que la barra EN VIVO
+        // de una grabación no pueda crecer más allá del ancho real de
+        // ESTA sección -- sin este límite, al grabar cruzando de sección
+        // la barra crecía sin freno y se desbordaba visualmente sobre el
+        // bloque de la sección siguiente, cayendo encima de CUALQUIER
+        // fila que hubiera ahí (la de letra, si esa sección no tenía
+        // todavía su propio canal de Voz reservado) -- un lío visual
+        // solo mientras se está grabando; al guardar, el corte real
+        // (sample-accurate, ver splitRecordingIntoSectionTakes) ya
+        // quedaba bien, por eso "se ajusta" al apagar.
+        try { window.Studio936TrackRecorder?.renderSectionLanes?.(block, item.section, { hideHeader: true, hideLabelColumn: arrIndex !== 0, secondsPerBar: secondsPerBar, sectionBars: totalMeasures }); } catch(_) {}
         // Cambio 436: riel único de colapso — Val pidió sacar el botón
         // ◀/▶ (le parecía feo, sobre todo la flecha en estado cerrado) y
         // reemplazarlo por un riel angosto de punta a punta, al estilo

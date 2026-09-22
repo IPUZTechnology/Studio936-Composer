@@ -380,7 +380,22 @@
           track.classList.add('is-recording-live');
           track.textContent = fmtTime(recordSeconds);
           if (secondsPerBar > 0) {
-            const px = Math.max(24, Math.round((recordSeconds / secondsPerBar) * 320));
+            // Owner: "se abre como las aguas del mar, se despega la
+            // línea... queda en la línea de las lyrics" -- esta barra EN
+            // VIVO crecía sin freno (nada la topaba en el ancho real de
+            // la sección) -- al cruzar de sección seguía estirándose por
+            // pixeles y se desbordaba sobre el bloque de la sección
+            // siguiente, cayendo encima de CUALQUIER fila que hubiera
+            // ahí (la de letra, si esa sección no tenía su propio canal
+            // de Voz todavía). Se topa acá al ancho real de la sección
+            // (sectionMaxWidthPx, mandado desde Vista Continua) -- la
+            // barra en vivo ya no se desborda; al soltar REC, el corte
+            // real por sección (splitRecordingIntoSectionTakes) sí
+            // sigue grabando y empalmando bien más allá de este límite
+            // visual, esto es solo la vista MIENTRAS se graba.
+            const maxWidthPx = Number(track.dataset.maxWidthPx) || 0;
+            let px = Math.max(24, Math.round((recordSeconds / secondsPerBar) * 320));
+            if (maxWidthPx > 0) px = Math.min(px, maxWidthPx);
             track.style.width = px + 'px';
           }
         }
@@ -1150,7 +1165,7 @@
     }
   }
 
-  function buildLaneRow(sectionKey, instrumentId, takes, secondsPerBar) {
+  function buildLaneRow(sectionKey, instrumentId, takes, secondsPerBar, sectionMaxWidthPx) {
     const info = INSTRUMENTS.find(i => i.id === instrumentId) || INSTRUMENTS[INSTRUMENTS.length - 1];
     const color = LANE_COLORS[instrumentId] || LANE_COLORS.otro;
     const icon = LANE_ICONS[instrumentId] || LANE_ICONS.otro;
@@ -1183,6 +1198,7 @@
     track.title = info.label;
     track.dataset.laneKey = sectionKey + '::' + instrumentId;
     track.dataset.secondsPerBar = String(secondsPerBar || 0);
+    track.dataset.maxWidthPx = String(sectionMaxWidthPx || 0);
     track.style.backgroundColor = color;
     track.style.backgroundImage = tickBackgroundStyle();
     function updateTrackOpacity() {
@@ -1197,7 +1213,8 @@
     if (secondsPerBar > 0 && takes && takes.length) {
       const longestSec = takes.reduce((max, t) => Math.max(max, Number(t.durationSec) || 0), 0);
       if (longestSec > 0) {
-        const px = Math.max(24, Math.round((longestSec / secondsPerBar) * 320));
+        let px = Math.max(24, Math.round((longestSec / secondsPerBar) * 320));
+        if (sectionMaxWidthPx > 0) px = Math.min(px, sectionMaxWidthPx);
         track.style.width = px + 'px';
         track.style.flexShrink = '0';
       }
@@ -1341,9 +1358,15 @@
       listReservedInstruments(sectionKey).forEach(instrumentId => { if (!groups[instrumentId]) groups[instrumentId] = []; });
       const hideLabelColumn = !!(opts && opts.hideLabelColumn);
       const secondsPerBar = Number(opts && opts.secondsPerBar) > 0 ? Number(opts.secondsPerBar) : 0;
+      // Owner: "se abre como las aguas del mar... queda en la línea de
+      // las lyrics" -- ancho máximo real de ESTA sección (en px, 320 por
+      // compás) para que la barra EN VIVO de una grabación (ver
+      // startRecordTimer) nunca pueda crecer más allá de su propio
+      // bloque y desbordarse sobre el de la siguiente sección.
+      const sectionMaxWidthPx = Number(opts && opts.sectionBars) > 0 ? Number(opts.sectionBars) * 320 : 0;
       if (lanesCollapsed && !hideHeader) rowsBox.style.display = 'none';
       Object.keys(groups).forEach(instrumentId => {
-        const row = buildLaneRow(sectionKey, instrumentId, groups[instrumentId], secondsPerBar);
+        const row = buildLaneRow(sectionKey, instrumentId, groups[instrumentId], secondsPerBar, sectionMaxWidthPx);
         if (hideLabelColumn) row.classList.add("s936tr-lanerow-continuation");
         rowsBox.appendChild(row);
       });
