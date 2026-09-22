@@ -9363,7 +9363,7 @@ body.s936-chart-stage main{
         // solo mientras se está grabando; al guardar, el corte real
         // (sample-accurate, ver splitRecordingIntoSectionTakes) ya
         // quedaba bien, por eso "se ajusta" al apagar.
-        try { window.Studio936TrackRecorder?.renderSectionLanes?.(block, _itemInstanceKey, { hideHeader: true, hideLabelColumn: arrIndex !== 0, secondsPerBar: secondsPerBar, sectionBars: totalMeasures }); } catch(_) {}
+        try { window.Studio936TrackRecorder?.renderSectionLanes?.(block, _itemInstanceKey, { hideHeader: true, hideLabelColumn: arrIndex !== 0, secondsPerBar: secondsPerBar, sectionBars: totalMeasures, sectionStartSec: _itemStartSec }); } catch(_) {}
         // Cambio 436: riel único de colapso — Val pidió sacar el botón
         // ◀/▶ (le parecía feo, sobre todo la flecha en estado cerrado) y
         // reemplazarlo por un riel angosto de punta a punta, al estilo

@@ -607,6 +607,30 @@
   // durante la grabación, eso borraría lo ya dibujado) -- el track
   // (overflow:hidden) recorta a lo que ya "pasó" el reloj, igual que la
   // barra de progreso de siempre.
+  // Owner: "reanudar grabación no inicia con otra entidad en el mismo
+  // canal" -- la grabación EN VIVO ya no crece encima de todo el
+  // carril: vive en su PROPIA entidad (clipBox), ubicada en su
+  // posición real (recordStartSongSec - inicio de la sección), igual
+  // que las tomas ya guardadas. Así una segunda grabación en el mismo
+  // canal aparece como su propia franja, al lado de la anterior, en
+  // vez de taparla o pisarla.
+  function ensureLiveClipBox(track) {
+    let box = track.querySelector('.s936tr-clipbox.is-recording-live');
+    if (box) return box;
+    if (track.classList.contains('is-empty')) { track.textContent = ''; track.classList.remove('is-empty'); }
+    box = document.createElement('div');
+    box.className = 's936tr-clipbox is-recording-live';
+    const instrumentId = (track.dataset.laneKey || '').split('::')[1] || 'otro';
+    box.style.backgroundColor = LANE_COLORS[instrumentId] || LANE_COLORS.otro;
+    const secondsPerBar = Number(track.dataset.secondsPerBar) || 0;
+    const sectionStartSec = Number(track.dataset.sectionStartSec) || 0;
+    const pxPerSec = secondsPerBar > 0 ? (320 / secondsPerBar) : 32;
+    const leftPx = Math.max(0, Math.round((recordStartSongSec - sectionStartSec) * pxPerSec));
+    box.style.left = leftPx + 'px';
+    box.style.width = '24px';
+    track.appendChild(box);
+    return box;
+  }
   function startLiveWaveform(stream) {
     try {
       if (_liveWaveformAnalyser) { try { _liveWaveformAnalyser.disconnect(); } catch (_) {} _liveWaveformAnalyser = null; }
@@ -619,17 +643,18 @@
       const dataArray = new Uint8Array(analyser.fftSize);
       const dpr = window.devicePixelRatio || 1;
       let canvas = null, g = null, drawX = 0;
-      function ensureCanvas(track) {
-        if (canvas && track.contains(canvas)) return;
-        track.querySelectorAll('.s936tr-clip-wave,.s936tr-live-wave').forEach(c => c.remove());
+      function ensureCanvas(box) {
+        if (canvas && box.contains(canvas)) return;
+        box.querySelectorAll('.s936tr-clip-wave,.s936tr-live-wave').forEach(c => c.remove());
         canvas = document.createElement('canvas');
         canvas.className = 's936tr-live-wave';
-        const maxWidthPx = Number(track.dataset.maxWidthPx) || 3200;
+        const track = box.closest('.s936tr-lanetrack');
+        const maxWidthPx = Number(track && track.dataset.maxWidthPx) || 3200;
         canvas.width = Math.max(1, Math.round(maxWidthPx * dpr));
         canvas.height = Math.max(1, Math.round(54 * dpr));
         canvas.style.width = maxWidthPx + 'px';
         canvas.style.height = '100%';
-        track.appendChild(canvas);
+        box.appendChild(canvas);
         g = canvas.getContext('2d');
         g.scale(dpr, dpr);
         drawX = 0;
@@ -638,7 +663,8 @@
         _liveWaveformRAF = requestAnimationFrame(frame);
         const track = document.querySelector('.s936tr-lanerow.is-selected .s936tr-lanetrack');
         if (!track) return;
-        ensureCanvas(track);
+        const box = ensureLiveClipBox(track);
+        ensureCanvas(box);
         analyser.getByteTimeDomainData(dataArray);
         let min = 255, max = 0;
         for (let i = 0; i < dataArray.length; i++) { const v = dataArray[i]; if (v < min) min = v; if (v > max) max = v; }
@@ -668,20 +694,9 @@
         const track = document.querySelector('.s936tr-lanerow.is-selected .s936tr-lanetrack');
         if (track) {
           const secondsPerBar = Number(track.dataset.secondsPerBar) || 0;
-          // Owner: buildLaneRow deja el texto "Vacío — grabá con REC"
-          // como texto directo del track (is-empty) -- si solo se le
-          // quita la clase sin limpiar ese texto, el nodo de texto
-          // viejo se queda ahí PEGADO, tapando/superpuesto con la forma
-          // de onda en vivo y la etiqueta del cronómetro que se agregan
-          // después. Se limpia UNA sola vez, justo en la transición
-          // (mientras is-empty todavía está puesto), nunca en los demás
-          // ticks -- así no se borra el canvas ni la etiqueta ya
-          // agregados.
-          if (track.classList.contains('is-empty')) track.textContent = '';
-          track.classList.remove('is-empty');
-          track.classList.add('is-recording-live');
-          let liveLabel = track.querySelector('.s936tr-live-timerlabel');
-          if (!liveLabel) { liveLabel = document.createElement('span'); liveLabel.className = 's936tr-live-timerlabel'; track.appendChild(liveLabel); }
+          const box = ensureLiveClipBox(track);
+          let liveLabel = box.querySelector('.s936tr-live-timerlabel');
+          if (!liveLabel) { liveLabel = document.createElement('span'); liveLabel.className = 's936tr-live-timerlabel'; box.appendChild(liveLabel); }
           liveLabel.textContent = fmtTime(recordSeconds);
           if (secondsPerBar > 0) {
             // Owner: "se abre como las aguas del mar, se despega la
@@ -689,18 +704,18 @@
             // VIVO crecía sin freno (nada la topaba en el ancho real de
             // la sección) -- al cruzar de sección seguía estirándose por
             // pixeles y se desbordaba sobre el bloque de la sección
-            // siguiente, cayendo encima de CUALQUIER fila que hubiera
-            // ahí (la de letra, si esa sección no tenía su propio canal
-            // de Voz todavía). Se topa acá al ancho real de la sección
-            // (sectionMaxWidthPx, mandado desde Vista Continua) -- la
-            // barra en vivo ya no se desborda; al soltar REC, el corte
-            // real por sección (splitRecordingIntoSectionTakes) sí
-            // sigue grabando y empalmando bien más allá de este límite
-            // visual, esto es solo la vista MIENTRAS se graba.
+            // siguiente. Se topa acá al espacio real que queda DESDE la
+            // posición donde empezó esta grabación hasta el final de la
+            // sección (sectionMaxWidthPx menos el offset de esta
+            // entidad) -- la barra en vivo ya no se desborda; al soltar
+            // REC, el corte real por sección (splitRecordingIntoSectionTakes)
+            // sí sigue grabando y empalmando bien más allá de este
+            // límite visual, esto es solo la vista MIENTRAS se graba.
             const maxWidthPx = Number(track.dataset.maxWidthPx) || 0;
+            const leftPx = Number(box.style.left.replace('px', '')) || 0;
             let px = Math.max(24, Math.round((recordSeconds / secondsPerBar) * 320));
-            if (maxWidthPx > 0) px = Math.min(px, maxWidthPx);
-            track.style.width = px + 'px';
+            if (maxWidthPx > 0) px = Math.min(px, Math.max(24, maxWidthPx - leftPx));
+            box.style.width = px + 'px';
           }
         }
       } catch (_) {}
@@ -1112,6 +1127,7 @@
       .s936tr-lanemenubtn.danger{color:#ff9d9d;border-color:rgba(255,120,120,.3);}
       .s936tr-lanemore-wrap{position:relative;flex-shrink:0;}
       .s936tr-lanetrack{height:54px;border-radius:4px;cursor:default;width:100%;position:relative;overflow:hidden;}
+      .s936tr-clipbox{position:absolute;top:0;height:100%;border-radius:4px;overflow:hidden;box-sizing:border-box;}
       .s936tr-clip-wave{position:absolute;top:0;left:0;height:100%;pointer-events:none;}
       .s936tr-trimhandle{position:absolute;top:0;bottom:0;width:9px;cursor:ew-resize;background:rgba(255,255,255,.16);z-index:5;touch-action:none;}
       .s936tr-trimhandle:hover,.s936tr-trimhandle.is-dragging{background:rgba(255,255,255,.4);}
@@ -1125,7 +1141,7 @@
       .s936tr-clipmenubtn:disabled{color:#556360;cursor:not-allowed;}
       .s936tr-clipmenu-sep{height:1px;background:rgba(255,255,255,.08);margin:4px 3px;}
       .s936tr-lanetrack.is-empty{width:120px !important;flex-shrink:0;background:transparent !important;border:1px dashed rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:.6rem;color:#5e6c6a;opacity:1 !important;}
-      .s936tr-lanetrack.is-recording-live{transition:width .15s linear;box-sizing:border-box;}
+      .s936tr-clipbox.is-recording-live{transition:width .15s linear;}
       .s936tr-live-wave{position:absolute;top:0;left:0;height:100%;pointer-events:none;}
       .s936tr-live-timerlabel{position:absolute;right:6px;bottom:4px;font-size:.62rem;font-weight:700;color:rgba(255,255,255,.92);text-shadow:0 1px 2px rgba(0,0,0,.6);z-index:6;pointer-events:none;white-space:nowrap;}
       .s936tr-laneadd{position:relative;padding-left:0;margin-top:2px;}
@@ -1541,7 +1557,7 @@
     }
   }
 
-  function buildLaneRow(sectionKey, instrumentId, takes, secondsPerBar, sectionMaxWidthPx) {
+  function buildLaneRow(sectionKey, instrumentId, takes, secondsPerBar, sectionMaxWidthPx, sectionStartSec) {
     const info = INSTRUMENTS.find(i => i.id === instrumentId) || INSTRUMENTS[INSTRUMENTS.length - 1];
     const color = LANE_COLORS[instrumentId] || LANE_COLORS.otro;
     const icon = LANE_ICONS[instrumentId] || LANE_ICONS.otro;
@@ -1575,79 +1591,104 @@
     track.dataset.laneKey = sectionKey + '::' + instrumentId;
     track.dataset.secondsPerBar = String(secondsPerBar || 0);
     track.dataset.maxWidthPx = String(sectionMaxWidthPx || 0);
-    track.style.backgroundColor = color;
-    track.style.backgroundImage = tickBackgroundStyle();
-    function updateTrackOpacity() {
-      track.style.opacity = state.muted ? '0.12' : String(0.15 + (state.volume != null ? state.volume : 0.8) * 0.4);
+    track.dataset.sectionStartSec = String(sectionStartSec || 0);
+    // Owner: "reanudar grabación no inicia con otra entidad en el mismo
+    // canal... parece que se vuelve toda loca" -- causa real: el canal
+    // SOLO dibujaba takes[0] -- si grababas una segunda vez en el mismo
+    // canal, la toma nueva se guardaba bien (el arreglo de tomas crecía
+    // de verdad) pero NUNCA se veía, porque siempre se redibujaba la
+    // primera toma encima. Ahora se recorre TODO el arreglo de tomas y
+    // cada una se dibuja como su propia "entidad" (clipBox) indepen-
+    // diente, ubicada en su posición real dentro de la sección
+    // (take.startSec - sectionStartSec) -- cada una con su propia forma
+    // de onda, sus propias agarraderas de recorte y su propio menú de
+    // clic derecho. "track" ya no es una toma, es el CARRIL donde viven
+    // todas las de este canal.
+    const clipBoxes = [];
+    function applyOpacityToClips() {
+      const op = state.muted ? '0.12' : String(0.15 + (state.volume != null ? state.volume : 0.8) * 0.4);
+      clipBoxes.forEach(cb => { cb.style.opacity = op; });
     }
-    updateTrackOpacity();
+    // Owner: antes el ancho del carril solo se fijaba cuando YA había
+    // tomas -- un canal recién reservado (sin nada grabado todavía)
+    // quedaba con el ancho por defecto (100% de la columna), no el
+    // ancho real de la sección -- la primera grabación en vivo no
+    // tenía dónde crecer de forma predecible. Se fija siempre que se
+    // conozca el ancho real de la sección.
+    if (secondsPerBar > 0 && sectionMaxWidthPx > 0) {
+      track.style.width = sectionMaxWidthPx + 'px';
+      track.style.flexShrink = '0';
+    }
     if (!takes || !takes.length) {
       track.classList.add('is-empty');
       track.textContent = 'Vacío — grabá con REC';
-      track.style.opacity = '1';
     } else {
-      // Owner: "no tiene edición el track grabado, para cortar/split, o
-      // no se ve" -- YA NO se abre ningún panel/ventana para editar.
-      // Owner: "esa ventana no debe existir -- eso existía porque
-      // pretendíamos grabar notas de voz y salvarlas. Ahora cualquier
-      // cosa que yo haga de edición es sobre el mismo canal. Ahí me
-      // pone la tijerita y hace lo que estoy haciendo pero en el mismo
-      // canal." -- clic sobre la forma de onda corta ahí mismo (mismo
-      // gesto que ya usaba el viejo editor de tijera -- "Tocá sobre la
-      // forma de onda para cortar ahí", solo que ahora es directo
-      // sobre el canal, no en una ventana aparte); clic derecho abre un
-      // menú puntual (Cortar/Copiar/Pegar/Renombrar/Borrar este pedazo
-      // o toda la pista), nunca un panel.
-      track.style.cursor = "crosshair";
-      track.title = (track.title || info.label) + " — clic para cortar ahí, clic derecho para más opciones";
-      // Owner: "primero que todo, se debe ver el sonido en el canal
-      // como lo tienes en la ventana" -- antes el canal solo mostraba
-      // una franja de color lisa (rayada), y la forma de onda real
-      // vivía escondida adentro del editor de tijera. Se dibuja la
-      // MISMA forma de onda (drawWaveform, reusada tal cual) directo
-      // acá, más las agarraderas de recorte y el menú de clic derecho.
-      const primaryTake = takes[0];
-      const canvas = document.createElement('canvas');
-      canvas.className = 's936tr-clip-wave';
-      track.appendChild(canvas);
-      ensureTakePlayable(primaryTake).then((url) => {
-        if (!url) return;
-        const ctx = getMainAudioCtx() || new (window.AudioContext || window.webkitAudioContext)();
-        return fetch(url).then(r => r.arrayBuffer()).then(buf => ctx.decodeAudioData(buf)).then((buffer) => {
-          track.style.backgroundImage = 'none';
-          layoutClipVisual(track, canvas, buffer, getEffectiveClips(primaryTake), secondsPerBar, sectionMaxWidthPx);
-          attachTrimHandles(track, canvas, sectionKey, primaryTake, secondsPerBar, sectionMaxWidthPx, buffer);
-          function cutSecFromEvent(e) {
-            const pxPerSec = secondsPerBar > 0 ? (320 / secondsPerBar) : 32;
-            const rect = track.getBoundingClientRect();
-            const clipsNow = getEffectiveClips(primaryTake);
-            return clipsNow[0].startSec + (e.clientX - rect.left) / pxPerSec;
-          }
-          function redraw() { layoutClipVisual(track, canvas, buffer, getEffectiveClips(primaryTake), secondsPerBar, sectionMaxWidthPx); }
-          track.addEventListener('click', (e) => {
-            if (e.target.closest('.s936tr-trimhandle')) return;
-            e.stopPropagation();
-            currentInstrument = instrumentId;
-            const clips2 = splitClipsAt(getEffectiveClips(primaryTake), cutSecFromEvent(e));
-            primaryTake.clips = clips2; updateTakeClips(sectionKey, primaryTake.id, clips2);
-            redraw();
+      const pxPerSec = secondsPerBar > 0 ? (320 / secondsPerBar) : 32;
+      let neededWidthPx = 0;
+      takes.forEach((take) => {
+        // Owner: "no tiene edición el track grabado... esa ventana no
+        // debe existir -- cualquier cosa que yo haga de edición es
+        // sobre el mismo canal" -- clic sobre la forma de onda corta
+        // ahí mismo (mismo gesto del viejo editor de tijera -- "Tocá
+        // sobre la forma de onda para cortar ahí" -- ahora directo
+        // sobre el canal); clic derecho abre un menú puntual (Cortar/
+        // Copiar/Pegar/Renombrar/Borrar este pedazo o toda la pista),
+        // nunca un panel.
+        const clipBox = document.createElement('div');
+        clipBox.className = 's936tr-clipbox';
+        clipBox.style.backgroundColor = color;
+        clipBox.style.backgroundImage = tickBackgroundStyle();
+        clipBox.style.cursor = 'crosshair';
+        clipBox.title = info.label + ' — clic para cortar ahí, clic derecho para más opciones';
+        const relStartSec = secondsPerBar > 0 ? Math.max(0, (Number(take.startSec) || 0) - (sectionStartSec || 0)) : 0;
+        const leftPx = Math.round(relStartSec * pxPerSec);
+        clipBox.style.left = leftPx + 'px';
+        const fallbackWidthPx = Math.max(24, Math.round((Number(take.durationSec) || 0) * pxPerSec));
+        clipBox.style.width = fallbackWidthPx + 'px';
+        neededWidthPx = Math.max(neededWidthPx, leftPx + fallbackWidthPx);
+        const canvas = document.createElement('canvas');
+        canvas.className = 's936tr-clip-wave';
+        clipBox.appendChild(canvas);
+        track.appendChild(clipBox);
+        clipBoxes.push(clipBox);
+        // Owner: "primero que todo, se debe ver el sonido en el canal
+        // como lo tienes en la ventana" -- se dibuja la MISMA forma de
+        // onda (drawWaveform, reusada tal cual) directo en ESTA
+        // entidad, más sus propias agarraderas de recorte y menú.
+        ensureTakePlayable(take).then((url) => {
+          if (!url) return;
+          const ctx = getMainAudioCtx() || new (window.AudioContext || window.webkitAudioContext)();
+          return fetch(url).then(r => r.arrayBuffer()).then(buf => ctx.decodeAudioData(buf)).then((buffer) => {
+            clipBox.style.backgroundImage = 'none';
+            layoutClipVisual(clipBox, canvas, buffer, getEffectiveClips(take), secondsPerBar, 0);
+            attachTrimHandles(clipBox, canvas, sectionKey, take, secondsPerBar, 0, buffer);
+            function cutSecFromEvent(e) {
+              const rect = clipBox.getBoundingClientRect();
+              const clipsNow = getEffectiveClips(take);
+              return clipsNow[0].startSec + (e.clientX - rect.left) / pxPerSec;
+            }
+            function redraw() { layoutClipVisual(clipBox, canvas, buffer, getEffectiveClips(take), secondsPerBar, 0); }
+            clipBox.addEventListener('click', (e) => {
+              if (e.target.closest('.s936tr-trimhandle')) return;
+              e.stopPropagation();
+              currentInstrument = instrumentId;
+              const clips2 = splitClipsAt(getEffectiveClips(take), cutSecFromEvent(e));
+              take.clips = clips2; updateTakeClips(sectionKey, take.id, clips2);
+              redraw();
+            });
+            clipBox.addEventListener('contextmenu', (e) => {
+              e.preventDefault(); e.stopPropagation();
+              openClipContextMenu(e.clientX, e.clientY, sectionKey, take, cutSecFromEvent(e), redraw);
+            });
           });
-          track.addEventListener('contextmenu', (e) => {
-            e.preventDefault(); e.stopPropagation();
-            openClipContextMenu(e.clientX, e.clientY, sectionKey, primaryTake, cutSecFromEvent(e), redraw);
-          });
-        });
-      }).catch(() => {});
-    }
-    if (secondsPerBar > 0 && takes && takes.length) {
-      const longestSec = takes.reduce((max, t) => Math.max(max, Number(t.durationSec) || 0), 0);
-      if (longestSec > 0) {
-        let px = Math.max(24, Math.round((longestSec / secondsPerBar) * 320));
-        if (sectionMaxWidthPx > 0) px = Math.min(px, sectionMaxWidthPx);
-        track.style.width = px + 'px';
+        }).catch(() => {});
+      });
+      if (secondsPerBar > 0 && sectionMaxWidthPx <= 0) {
+        track.style.width = neededWidthPx + 'px';
         track.style.flexShrink = '0';
       }
     }
+    applyOpacityToClips();
     const soloBtn = document.createElement('button');
     soloBtn.type = 'button';
     soloBtn.className = 's936tr-lanebtn-lg';
@@ -1662,14 +1703,14 @@
     volSlider.type = 'range';
     volSlider.min = '0'; volSlider.max = '1'; volSlider.step = '0.01';
     volSlider.value = String(state.volume != null ? state.volume : 0.8);
-    volSlider.oninput = () => { state.volume = Number(volSlider.value); updateTrackOpacity(); refreshLivePlaybackGains(sectionKey); };
+    volSlider.oninput = () => { state.volume = Number(volSlider.value); applyOpacityToClips(); refreshLivePlaybackGains(sectionKey); };
     volWrap.appendChild(volSlider);
     const muteBtn = document.createElement('button');
     muteBtn.type = 'button';
     muteBtn.className = 's936tr-lanebtn-lg';
     muteBtn.textContent = state.muted ? '🔇' : '🔊';
     muteBtn.classList.toggle('is-active', state.muted);
-    muteBtn.onclick = (e) => { e.stopPropagation(); state.muted = !state.muted; muteBtn.textContent = state.muted ? '🔇' : '🔊'; muteBtn.classList.toggle('is-active', state.muted); updateTrackOpacity(); refreshLivePlaybackGains(sectionKey); };
+    muteBtn.onclick = (e) => { e.stopPropagation(); state.muted = !state.muted; muteBtn.textContent = state.muted ? '🔇' : '🔊'; muteBtn.classList.toggle('is-active', state.muted); applyOpacityToClips(); refreshLivePlaybackGains(sectionKey); };
     const moreWrap = document.createElement('div');
     moreWrap.className = 's936tr-lanemore-wrap';
     const moreBtn = document.createElement('button');
@@ -1793,9 +1834,15 @@
       // startRecordTimer) nunca pueda crecer más allá de su propio
       // bloque y desbordarse sobre el de la siguiente sección.
       const sectionMaxWidthPx = Number(opts && opts.sectionBars) > 0 ? Number(opts.sectionBars) * 320 : 0;
+      // Owner: "reanudar grabación no inicia con otra entidad en el
+      // mismo canal" -- para ubicar CADA toma en su posición real
+      // dentro de la sección (y no todas apiladas en el mismo punto),
+      // buildLaneRow necesita saber dónde empieza esta sección en
+      // segundos absolutos de la canción.
+      const sectionStartSec = Number(opts && opts.sectionStartSec) || 0;
       if (lanesCollapsed && !hideHeader) rowsBox.style.display = 'none';
       Object.keys(groups).forEach(instrumentId => {
-        const row = buildLaneRow(sectionKey, instrumentId, groups[instrumentId], secondsPerBar, sectionMaxWidthPx);
+        const row = buildLaneRow(sectionKey, instrumentId, groups[instrumentId], secondsPerBar, sectionMaxWidthPx, sectionStartSec);
         if (hideLabelColumn) row.classList.add("s936tr-lanerow-continuation");
         rowsBox.appendChild(row);
       });
