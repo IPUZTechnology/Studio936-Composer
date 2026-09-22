@@ -23,6 +23,12 @@
   let mediaRecorder = null;
   let recordedChunks = [];
   let recordStartedAt = null;
+  // Owner: "un canal se graba donde se necesite... si pasa de sección a
+  // sección debe empalmar" -- posición absoluta (en segundos de LA
+  // CANCIÓN completa, no de la sección) donde arrancó ESTA grabación.
+  // Se captura en startRecording() y se usa al guardar para partir el
+  // audio en pedazos exactos por sección (ver saveTake()/splitRecordingBySections()).
+  let recordStartSongSec = 0;
 
   function getPlaybackAudioCtx() { return window.__studio936AudioCtx || null; }
   const decodedBuffersById = {};
@@ -154,6 +160,67 @@
     });
     return result.sort((a, b) => a.startSec - b.startSec);
   }
+
+  // Owner: "un canal se graba donde se necesite... si pasa de sección a
+  // sección debe empalmar" -- una grabación larga (que cruza de una
+  // sección a la siguiente) se guarda como VARIAS tomas independientes,
+  // una por sección real, cada una recortada del audio original con
+  // AudioBuffer (sample-accurate) y re-codificada a WAV -- así cada
+  // pedazo es un archivo normal y corriente, compatible con TODO lo que
+  // ya existe (reproducción, tijera/editor, descarga, nube) sin tocar
+  // ese código. No se usa MediaRecorder por pedazo (cortaría con un
+  // click audible) -- se graba UNA sola toma continua de punta a punta
+  // y se corta en software, en el sample exacto del límite real de
+  // cada sección, así el empalme queda sin hueco ni corte.
+  function sliceAudioBuffer(ctx, buffer, startSec, endSec) {
+    const sampleRate = buffer.sampleRate;
+    const startSample = Math.max(0, Math.floor(startSec * sampleRate));
+    const endSample = Math.min(buffer.length, Math.ceil(endSec * sampleRate));
+    const frameCount = Math.max(1, endSample - startSample);
+    const sliced = ctx.createBuffer(buffer.numberOfChannels, frameCount, sampleRate);
+    for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+      const src = buffer.getChannelData(ch).subarray(startSample, startSample + frameCount);
+      sliced.copyToChannel(src, ch);
+    }
+    return sliced;
+  }
+
+  function audioBufferToWavBlob(buffer) {
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const frameCount = buffer.length;
+    const bytesPerSample = 2; // 16-bit PCM
+    const blockAlign = numChannels * bytesPerSample;
+    const dataSize = frameCount * blockAlign;
+    const bufferArr = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(bufferArr);
+    function writeStr(offset, str) { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); }
+    writeStr(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bytesPerSample * 8, true);
+    writeStr(36, 'data');
+    view.setUint32(40, dataSize, true);
+    const channels = [];
+    for (let ch = 0; ch < numChannels; ch++) channels.push(buffer.getChannelData(ch));
+    let offset = 44;
+    for (let i = 0; i < frameCount; i++) {
+      for (let ch = 0; ch < numChannels; ch++) {
+        const sample = Math.max(-1, Math.min(1, channels[ch][i]));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+        offset += 2;
+      }
+    }
+    return new Blob([bufferArr], { type: 'audio/wav' });
+  }
+
   function drawWaveform(canvas, buffer, clips) {
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -355,6 +422,21 @@
     recordAnchorCtxTime = ctx ? ctx.currentTime : null;
     recordStartedAt = Date.now();
     muteBackingChannels();
+    // Owner: "un canal se graba donde se necesite... si pasa de sección
+    // a sección debe empalmar" -- se guarda AQUÍ (al arrancar, no al
+    // guardar) la posición absoluta en segundos de LA CANCIÓN donde
+    // arranca esta toma -- startChartSectionPractice() de la línea de
+    // abajo lleva el playhead exactamente a ese mismo punto (el inicio
+    // real de la sección actual), así que coincide con lo que de verdad
+    // se va a grabar. Si la grabación sigue más allá del final de esta
+    // sección, esta ancla es la que permite partirla en pedazos exactos
+    // por sección al guardar (ver splitRecordingIntoSectionTakes()).
+    try {
+      const bridge = window.Studio936AppBridge;
+      const sectionKey = getCurrentSectionKey();
+      const idx = bridge?.getCurrentSongSectionIndex?.();
+      recordStartSongSec = bridge?.getSongPositionSeconds?.(sectionKey, idx) ?? 0;
+    } catch (_) { recordStartSongSec = 0; }
     try {
       const sectionKey = getCurrentSectionKey();
       window.Studio936SuiteProChart?.startChartSectionPractice?.(null, sectionKey);
@@ -412,11 +494,96 @@
     renderPanelBody();
   }
 
+  // Owner: "un canal se graba donde se necesite... si pasa de sección a
+  // sección debe empalmar" -- guarda UN pedazo (de una posible serie,
+  // si la grabación cruzó varias secciones) como una toma normal,
+  // reutilizando EXACTAMENTE el mismo camino de siempre (disco, nube,
+  // metadata, evento) -- así cada pedazo funciona con todo lo que ya
+  // existe (reproducción, tijera/editor, descarga) sin cambiar nada más.
+  async function saveOneSegmentTake(sectionKey, blob, startSec, durationSec, extraLabel, groupId, groupIndex, groupTotal) {
+    const instrumentInfo = INSTRUMENTS.find(i => i.id === currentInstrument) || INSTRUMENTS[0];
+    const id = uid();
+    const ext = (blob.type || '').includes('webm') ? 'webm' : ((blob.type || '').includes('wav') ? 'wav' : 'audio');
+    const fileName = `pista-${sectionKey}-${currentInstrument}-${id}.${ext}`;
+    const savedToDisk = await tryWriteBlobToConfiguredFolder(fileName, blob);
+    const take = {
+      id, section: sectionKey, startSec,
+      instrument: currentInstrument,
+      instrumentLabel: instrumentInfo.label,
+      label: instrumentInfo.label + ' · ' + fmtTime(durationSec) + (extraLabel ? ' · ' + extraLabel : ''),
+      fileName: savedToDisk ? fileName : null,
+      savedToDisk: !!savedToDisk, savedToCloud: false,
+      cloudTrackId: null, cloudFileUrl: null,
+      createdAt: Date.now(), durationSec,
+      anchorAudioCtxTime: recordAnchorCtxTime,
+      // Owner: pedazos de UNA misma grabación que cruzó de sección --
+      // se guardan enlazados (mismo groupId, con su posición dentro del
+      // grupo) para que a futuro se puedan identificar/tratar como una
+      // sola toma continua (ej. al arrastrar o al mostrar "empalma con
+      // la siguiente sección").
+      groupId: groupId || id,
+      groupIndex: groupIndex || 0,
+      groupTotal: groupTotal || 1
+    };
+    saveTakeMeta(sectionKey, take);
+    objectUrlsById[id] = URL.createObjectURL(blob);
+    try { window.dispatchEvent(new CustomEvent('studio936:take-saved', { detail: { sectionKey, instrument: currentInstrument } })); } catch (_) {}
+    const cloudResult = await tryUploadTrackToCloud(sectionKey, currentInstrument, take.label, blob, durationSec);
+    if (cloudResult.ok) {
+      updateTakeMeta(sectionKey, id, { savedToCloud: true, cloudTrackId: cloudResult.cloudTrackId, cloudFileUrl: cloudResult.cloudFileUrl });
+    }
+    return take;
+  }
+
+  // Owner: "la grabación puede cruzar de una sección a la siguiente sin
+  // parar... debe empalmar" -- si la toma completa cruzó el límite de
+  // una o más secciones, se corta en software (sample-accurate, sin
+  // click audible) exactamente en cada límite real de sección y se
+  // guarda un pedazo por cada una -- así cada pedazo queda del tamaño
+  // real que se grabó ahí (medio compás, un compás, la sección entera,
+  // lo que sea) y, al reproducirse juntos, empalman sin hueco ni corte.
+  // Si no hay límites de canción disponibles (ej. Chart no montado) o
+  // el audio no se puede decodificar, se guarda todo como ANTES -- una
+  // sola toma bajo la sección actual, sin re-codificar.
+  async function splitRecordingIntoSectionTakes(blob) {
+    const fallbackSectionKey = getCurrentSectionKey();
+    const boundaries = window.Studio936SuiteProChart?.getSongSectionBoundaries?.() || [];
+    if (!boundaries.length) return [{ sectionKey: fallbackSectionKey, blob, startSec: recordStartSongSec, durationSec: recordSeconds }];
+
+    let decoded = null;
+    let decodeCtx = null;
+    try {
+      decodeCtx = getMainAudioCtx() || new (window.AudioContext || window.webkitAudioContext)();
+      const arrBuf = await blob.arrayBuffer();
+      decoded = await decodeCtx.decodeAudioData(arrBuf);
+    } catch (_) { decoded = null; }
+    if (!decoded) return [{ sectionKey: fallbackSectionKey, blob, startSec: recordStartSongSec, durationSec: recordSeconds }];
+
+    const recordEndSongSec = recordStartSongSec + decoded.duration;
+    const EPS = 0.05;
+    const overlapping = boundaries.filter(b => b.endSec > recordStartSongSec + EPS && b.startSec < recordEndSongSec - EPS);
+    if (!overlapping.length) return [{ sectionKey: fallbackSectionKey, blob, startSec: recordStartSongSec, durationSec: recordSeconds }];
+
+    const pieces = overlapping.map((b) => {
+      const segStartSong = Math.max(b.startSec, recordStartSongSec);
+      const segEndSong = Math.min(b.endSec, recordEndSongSec);
+      return { sectionKey: b.section, sectionLabel: b.label, startSec: segStartSong, durationSec: segEndSong - segStartSong };
+    }).filter(p => p.durationSec > EPS);
+
+    if (pieces.length <= 1) return [{ sectionKey: pieces[0]?.sectionKey || fallbackSectionKey, blob, startSec: recordStartSongSec, durationSec: recordSeconds }];
+
+    return pieces.map((p) => {
+      const offsetInBuffer = p.startSec - recordStartSongSec;
+      const sliced = sliceAudioBuffer(decodeCtx, decoded, offsetInBuffer, offsetInBuffer + p.durationSec);
+      return { sectionKey: p.sectionKey, sectionLabel: p.sectionLabel, blob: audioBufferToWavBlob(sliced), startSec: p.startSec, durationSec: p.durationSec };
+    });
+  }
+
   async function saveTake() {
     if (!pendingBlob) return;
-    const sectionKey = getCurrentSectionKey();
+    const currentSectionKey = getCurrentSectionKey();
     // CAMBIO 506: abortar si no hay sección real
-    if (!sectionKey || sectionKey === '__song__') {
+    if (!currentSectionKey || currentSectionKey === '__song__') {
       toast('⚠️ Elegí una sección concreta (Verso, Coro, etc.) antes de grabar — no se guardó nada.');
       if (pendingObjectUrl) { try { URL.revokeObjectURL(pendingObjectUrl); } catch (_) {} }
       pendingBlob = null;
@@ -424,41 +591,26 @@
       recordSeconds = 0;
       return;
     }
-    const instrumentInfo = INSTRUMENTS.find(i => i.id === currentInstrument) || INSTRUMENTS[0];
-    const id = uid();
-    const ext = (pendingBlob.type || '').includes('webm') ? 'webm' : 'audio';
-    const fileName = `pista-${sectionKey}-${currentInstrument}-${id}.${ext}`;
-    const savedToDisk = await tryWriteBlobToConfiguredFolder(fileName, pendingBlob);
-    let startSec = 0;
-    try {
-      const bridge = window.Studio936AppBridge;
-      const idx = bridge?.getCurrentSongSectionIndex?.();
-      startSec = bridge?.getSongPositionSeconds?.(sectionKey, idx) ?? 0;
-    } catch (_) {}
-    const take = {
-      id, section: sectionKey, startSec,
-      instrument: currentInstrument,
-      instrumentLabel: instrumentInfo.label,
-      label: instrumentInfo.label + ' · ' + fmtTime(recordSeconds),
-      fileName: savedToDisk ? fileName : null,
-      savedToDisk: !!savedToDisk, savedToCloud: false,
-      cloudTrackId: null, cloudFileUrl: null,
-      createdAt: Date.now(), durationSec: recordSeconds,
-      anchorAudioCtxTime: recordAnchorCtxTime
-    };
-    saveTakeMeta(sectionKey, take);
-    toast('✅ Toma guardada — sección "' + sectionKey + '", instrumento "' + instrumentInfo.label + '".');
-    try { window.dispatchEvent(new CustomEvent('studio936:take-saved', { detail: { sectionKey, instrument: currentInstrument } })); } catch (_) {}
-    objectUrlsById[id] = pendingObjectUrl;
-    const blobForCloud = pendingBlob;
+    const blobForSplit = pendingBlob;
+    if (pendingObjectUrl) { try { URL.revokeObjectURL(pendingObjectUrl); } catch (_) {} }
     pendingObjectUrl = null;
     pendingBlob = null;
+    const savedRecordSeconds = recordSeconds;
     recordSeconds = 0;
     renderPanelBody();
-    const cloudResult = await tryUploadTrackToCloud(sectionKey, currentInstrument, take.label, blobForCloud, take.durationSec);
-    if (cloudResult.ok) {
-      updateTakeMeta(sectionKey, id, { savedToCloud: true, cloudTrackId: cloudResult.cloudTrackId, cloudFileUrl: cloudResult.cloudFileUrl });
-      toast('☁️ Pista también guardada en la nube.');
+
+    const pieces = await splitRecordingIntoSectionTakes(blobForSplit);
+    const groupId = uid();
+    const lastSection = pieces[pieces.length - 1].sectionKey;
+    for (let i = 0; i < pieces.length; i++) {
+      const p = pieces[i];
+      const extraLabel = pieces.length > 1 ? (p.sectionLabel || p.sectionKey) : '';
+      await saveOneSegmentTake(p.sectionKey, p.blob, p.startSec, p.durationSec || savedRecordSeconds, extraLabel, groupId, i, pieces.length);
+    }
+    if (pieces.length > 1) {
+      toast('✅ Grabación guardada en ' + pieces.length + ' pedazos (cruzó de sección) — instrumento "' + (INSTRUMENTS.find(i => i.id === currentInstrument)?.label || currentInstrument) + '".');
+    } else {
+      toast('✅ Toma guardada — sección "' + lastSection + '", instrumento "' + (INSTRUMENTS.find(i => i.id === currentInstrument)?.label || currentInstrument) + '".');
     }
     renderPanelBody();
   }

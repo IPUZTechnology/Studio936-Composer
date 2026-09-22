@@ -94,6 +94,15 @@ window.Studio936SuiteProChart = (() => {
   // la vez (se limpia el anterior antes de crear uno nuevo).
   let _contPlayheadRAF = null;
   let _contPlayheadCleanup = null;
+  // Owner: "un canal se graba donde se necesite... si pasa de sección a
+  // sección debe empalmar" -- track-recorder.js necesita los límites
+  // reales (en segundos, con el BPM real) de cada sección de la canción
+  // para poder partir una grabación larga en pedazos exactos por
+  // sección al guardarla, sin hueco ni corte entre una y otra. Se llena
+  // en cada render() de Vista Continua (mismo reloj plano que ya usa el
+  // karaoke) y se expone via getSongSectionBoundaries() en la API
+  // pública, más abajo.
+  let _lastSongSectionBoundaries = [];
   let _activeBeatEl = null;
   let _activeBarEl = null;
   let _activeLyricWordEl = null; // Cambio 51: palabra de letra resaltada tipo karaoke
@@ -8853,6 +8862,7 @@ body.s936-chart-stage main{
       const flatTimeline = [];
       let cursorSec = 0;
       const sectionAnchors = {}; // sectionKey -> segundo donde empieza esa sección en el reloj plano
+      _lastSongSectionBoundaries = [];
       // Cambio 434: contador de compás REAL, de punta a punta de toda la
       // canción (no se reinicia por sección) — usado por la regla nueva
       // de arriba (número de compás + mm:ss real, calculado con el BPM
@@ -8887,6 +8897,7 @@ body.s936-chart-stage main{
         const sectionVisualType = String(item.type || item.section || "").toLowerCase();
         const color = SECTION_COLORS[sectionVisualType] || DEFAULT_SECTION_COLOR;
         sectionAnchors[item.section] = cursorSec;
+        const _itemStartSec = cursorSec;
 
         const block = document.createElement("div");
         block.className = "s936-ch-cont-block";
@@ -9261,6 +9272,13 @@ body.s936-chart-stage main{
           }
           cursorSec += secondsPerBar;
         }
+
+        _lastSongSectionBoundaries.push({
+          section: item.section,
+          label: item.label || item.section,
+          startSec: _itemStartSec,
+          endSec: cursorSec
+        });
 
         block.append(chordRow, lyricRow);
         // Cambio 365: BUG encontrado — la vista "Continua" (Vista:
@@ -10223,6 +10241,15 @@ body.s936-chart-stage main{
     setFocusSection,
     clearFocusSection,
     openVoicingEditor,
-    debugLyrics
+    debugLyrics,
+    // Owner: "un canal se graba donde se necesite... si pasa de sección
+    // a sección debe empalmar" -- track-recorder.js usa esto para
+    // partir una grabación larga en pedazos exactos por sección al
+    // guardarla (sin hueco ni corte). Lista en el mismo orden del
+    // arreglo real (soporta secciones repetidas, ej. "Pre-coro" y
+    // "Pre-coro BIS" comparten section:"prechorus" pero son dos
+    // entradas separadas con su propio tramo de segundos).
+    getSongSectionBoundaries: () => _lastSongSectionBoundaries.slice(),
+    getCurrentChartBpm
   };
 })();
