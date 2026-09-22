@@ -548,7 +548,18 @@
       .s936tr-lanerow.is-selected{background:rgba(0,255,204,.08);border-radius:8px;box-shadow:inset 0 0 0 1px rgba(0,255,204,.35);}
       .s936tr-lanerow-continuation{grid-template-columns:0 1fr;gap:0}
       .s936tr-lanerow-continuation .s936tr-lanelabel{display:none}
-      .s936tr-lanelabel{display:flex;align-items:center;gap:5px;overflow:hidden;background:rgba(255,255,255,.05);border-radius:5px;box-sizing:border-box;min-height:68px;padding:0 8px;}
+      /* Owner: "la barra de controles de canales se debe quedar inmóvil
+         cuando el play camina y la canción pasa por debajo" -- esta
+         columna (nombre + 🎧 + volumen + 🔊 + ⋮) vive dentro de la
+         misma fila horizontalmente scrolleable que el Chart (Vista
+         Continua, ver .s936-ch-cont-headerspacer) -- position:sticky
+         la clava al borde izquierdo real del contenedor con scroll, sin
+         quitarle su espacio reservado en el flujo. Fondo sólido (ya no
+         translúcido) para que los bloques de pista no se transparenten
+         por debajo al pasar. Sin ancestro con scroll horizontal (ej. el
+         panel flotante "Pistas por sección"), sticky no cambia nada --
+         mismo resultado visual de siempre. */
+      .s936tr-lanelabel{display:flex;align-items:center;gap:5px;overflow:hidden;background:#121212;border-radius:5px;box-sizing:border-box;min-height:68px;padding:0 8px;position:sticky;left:0;z-index:7;}
       .s936tr-laneicon{display:flex;align-items:center;justify-content:center;width:29px;height:29px;cursor:default;font-size:.95rem;flex-shrink:0;border-radius:6px;}
       .s936tr-lanebtn-lg{width:29px;height:29px;padding:0;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;color:rgba(255,255,255,.75);font-size:15px;line-height:1;}
       .s936tr-lanebtn-lg:hover{background:rgba(255,255,255,.1);}

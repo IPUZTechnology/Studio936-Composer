@@ -1461,7 +1461,17 @@ window.Studio936SuiteProChart = (() => {
 .s936-ch-cont-row{display:flex;gap:3px;margin-bottom:3px}
 /* Cambio 414: Val aclaró que había pedido duplicar el ALTO, no el ancho
    — se revierte a 320px (posición cero, como antes del Cambio 413). */
-.s936-ch-cont-headerspacer{width:320px;flex-shrink:0;transition:width .15s ease}
+/* Owner, con captura real: "la barra de controles de canales se debe
+   quedar inmóvil cuando el play camina y la canción pasa por debajo".
+   Antes este espaciador (con el mini-panel de Chart/Lyric adentro) era
+   un hijo flex más de la fila -- al scrollear (el auto-scroll de
+   práctica, o manual), se iba con el resto del contenido como cualquier
+   otra celda. position:sticky lo clava al borde izquierdo real del
+   scroller (.s936-ch-cont-scroller, el ancestro con overflow-x:auto) --
+   sigue reservando su propio espacio en el flujo (nada se corre), pero
+   ya no se va de la pantalla. Fondo sólido para que las celdas de
+   compás no se transparenten por debajo al pasar. */
+.s936-ch-cont-headerspacer{width:320px;flex-shrink:0;transition:width .15s ease;position:sticky;left:0;z-index:7;background:#0b0d0d}
 /* Cambio 433: cuando el botón único de track-recorder.js colapsa TODAS
    las columnas de nombre a la vez (incluida esta, la de Chart/Lyric),
    320px → 56px — mismo ancho que la columna colapsada de instrumento,
@@ -1493,7 +1503,11 @@ window.Studio936SuiteProChart = (() => {
    alineación vertical) para que se vea unánime con el resto de la fila. */
 .s936-ch-mini-sesion-spacer{
   display:flex;align-items:center;justify-content:center;
-  background:rgba(255,255,255,.05);border-radius:5px;
+  /* Fondo sólido (no el rgba(255,255,255,.05) traslúcido de antes) --
+     ahora que la columna es sticky (ver .s936-ch-cont-headerspacer),
+     necesita taparle el paso de verdad a las celdas de compás que
+     scrollean por debajo, si no se transparentaban encima. */
+  background:#0b0d0d;border-radius:5px;
   box-sizing:border-box;
   /* Cambio 408: revierte el Cambio 407 — Val aclaró que NO quiere que se
      centre respecto a toda la celda (nombre del acorde + diagrama
@@ -9313,7 +9327,20 @@ body.s936-chart-stage main{
           // practica mira fijo el centro, y la letra/acorde se van
           // corriendo por debajo de ese punto fijo, escondiendo lo ya
           // leído y trayendo lo que sigue.
-          scroller.scrollLeft = Math.max(0, targetLeft - scroller.clientWidth / 2);
+          //
+          // Owner: "el péndulo debe empezar donde empieza la melodía,
+          // después de los controles de cada canal". El centro real ya
+          // NO es la mitad de todo el scroller -- la columna de
+          // controles (.s936-ch-cont-headerspacer, sticky) tapa
+          // permanentemente sus primeros 320px (56px colapsada), así
+          // que el área realmente visible del timeline arranca ahí. Se
+          // descuenta ese ancho fijo antes de calcular el centro, para
+          // que la posición que suena quede centrada en el espacio
+          // visible de verdad, no en el ancho total del scroller.
+          const collapsed = !!(window.Studio936TrackRecorder && window.Studio936TrackRecorder.isLanesCollapsed && window.Studio936TrackRecorder.isLanesCollapsed());
+          const stickyColWidth = collapsed ? 56 : 320;
+          const visibleTimelineWidth = Math.max(0, scroller.clientWidth - stickyColWidth);
+          scroller.scrollLeft = Math.max(0, targetLeft - stickyColWidth - visibleTimelineWidth / 2);
           if (bar.chordCellEl !== activeBarEl) {
             activeBarEl = bar.chordCellEl;
           }

@@ -3301,19 +3301,16 @@ function normalizeNoteName(value) {
     // colapsado) hay que limpiarlo, si no el Chart nace corrido.
     clearChartDockFlex();
     render();
-    // Cambio 356: mostrar la barra de íconos junto con el panel — es
-    // aditiva, no reemplaza las pestañas COMPOSE/Mapa Maestro de arriba
-    // (Val pidió explícitamente NO desactivar lo anterior todavía, tener
-    // "doble barra" mientras se decide qué hacer con la principal).
-    ensureHoverRail();
-    const rail = document.getElementById("s936HoverRail");
-    if (rail) rail.style.display = "flex";
-    // Cambio 374: marcar en el body que la barra de íconos está
-    // realmente visible — el Chart la usa para agregarle un padding
-    // interno al contenido (SIN mover ni redimensionar el panel en sí,
-    // que ya quedó bien e igual en Play y en Compose) y así el primer
-    // acorde/compás no nazca tapado debajo de la barra.
-    document.body.classList.add("s936-rail-visible");
+    // Cambio 356 (mostraba la "doble barra" de íconos junto al panel,
+    // "mientras se decide qué hacer con la principal") -- Owner, con
+    // captura real marcando el bug: "remover esa barra que sale a la
+    // izquierda". Ya se decidió: la barra principal del header (Compose/
+    // Chart/Play/Rec/etc, unificada junto al logo y el tempo) cubre lo
+    // mismo -- esta segunda barra flotante quedó redundante y, con el
+    // header nuevo más bajo, se superponía visualmente encima del logo.
+    // ensureHoverRail()/showDockOnHover()/scheduleHideDockOnHover seguen
+    // existiendo (por si se necesita reactivar), simplemente no se
+    // muestran más acá.
     return panel;
   }
 
