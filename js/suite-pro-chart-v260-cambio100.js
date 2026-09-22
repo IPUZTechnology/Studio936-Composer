@@ -1722,6 +1722,19 @@ window.Studio936SuiteProChart = (() => {
   letter-spacing:.3px;font-variant-numeric:tabular-nums;
   border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:2px;
 }
+/* Owner: marcas de tiempo (4 por compás) debajo del número de compás,
+   como una regla de GarageBand — cada columna del grid ocupa un tiempo
+   exacto (320px/4), así que la rayita queda alineada con el tiempo real
+   sin ningún cálculo aparte. */
+.s936-ch-cont-rulerbeats{display:grid;grid-template-columns:repeat(4,1fr);height:6px;margin-top:2px}
+.s936-ch-cont-rulerbeat{border-left:1px solid rgba(255,255,255,.16);height:100%}
+.s936-ch-cont-rulerbeat.is-downbeat{border-left-color:rgba(255,255,255,.42);border-left-width:2px}
+.s936-ch-cont-tempo-badge{
+  display:flex;align-items:center;justify-content:center;height:100%;
+  font-size:.56rem;font-weight:800;color:#7fa8a0;letter-spacing:.4px;
+  font-variant-numeric:tabular-nums;
+}
+.s936-ch-cont-headerspacer.is-collapsed .s936-ch-cont-tempo-badge{font-size:.46rem}
 .s936-ch-cont-cell{background:rgba(255,255,255,.05);border-radius:5px;
   padding:4px 6px;font-size:.62rem;text-align:center;
   /* Cambio 389: ancho FIJO (no solo mínimo) — antes con min-width:150px,
@@ -1804,6 +1817,15 @@ window.Studio936SuiteProChart = (() => {
   transition:transform .12s linear;pointer-events:auto;z-index:9}
 .s936-ch-cont-playhead-line{position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;
   background:#fff;box-shadow:0 0 8px rgba(255,255,255,.75);pointer-events:none}
+/* Owner: "el pendulo debe tener una cabeza como una mini flecha
+   apuntando hacia donde va, parecido al de garageband" — triangulito
+   sólido pegado arriba de la línea, apuntando a la derecha (el sentido
+   en que translateX crece mientras avanza la canción). */
+.s936-ch-cont-playhead-head{
+  position:absolute;top:0;left:50%;width:0;height:0;
+  border-top:5px solid transparent;border-bottom:5px solid transparent;
+  border-left:8px solid #fff;
+  filter:drop-shadow(0 0 3px rgba(255,255,255,.7));pointer-events:none}
 .s936-ch-cont-cell.chord.is-playing{background:rgba(0,255,204,.22);outline:1px solid #00ffcc}
 /* Cambio 388: mismo resaltado, pero a nivel de SEGMENTO (un tiempo
    puntual dentro de un compás con varios acordes) — antes solo existía
@@ -8824,6 +8846,13 @@ body.s936-chart-stage main{
           if (window.Studio936TrackRecorder && window.Studio936TrackRecorder.isLanesCollapsed && window.Studio936TrackRecorder.isLanesCollapsed()) {
             rulerSpacer.classList.add("is-collapsed");
           }
+          // Owner: "la regleta... el tempo seleccionado alli" — se
+          // muestra el BPM real (mismo que usa secondsPerBar arriba)
+          // una sola vez, al inicio de la regleta.
+          const tempoBadge = document.createElement("div");
+          tempoBadge.className = "s936-ch-cont-tempo-badge";
+          tempoBadge.textContent = "♩ " + bpm;
+          rulerSpacer.appendChild(tempoBadge);
           rulerRow.appendChild(rulerSpacer);
         }
         block.appendChild(rulerRow);
@@ -8901,6 +8930,19 @@ body.s936-chart-stage main{
           rulerCell.className = "s936-ch-cont-rulercell";
           rulerCell.textContent = globalBarCounter + " · " + formatMMSS(cursorSec);
           rulerCell.dataset.bar = String(globalBarCounter);
+          // Owner: "la regleta esta por compas, quisiera... señal de 4
+          // tempos" — se agregan 4 marcas (una por tiempo del compás,
+          // igual que secondsPerBeat = secondsPerBar/4 más abajo) debajo
+          // del número de compás; la primera (tiempo 1, "el golpe
+          // fuerte") se ve más marcada que las otras 3.
+          const rulerBeats = document.createElement("div");
+          rulerBeats.className = "s936-ch-cont-rulerbeats";
+          for (let bt = 0; bt < 4; bt++) {
+            const beatTick = document.createElement("div");
+            beatTick.className = "s936-ch-cont-rulerbeat" + (bt === 0 ? " is-downbeat" : "");
+            rulerBeats.appendChild(beatTick);
+          }
+          rulerCell.appendChild(rulerBeats);
           rulerRow.appendChild(rulerCell);
           globalBarCounter++;
 
@@ -9214,6 +9256,9 @@ body.s936-chart-stage main{
       // fila del bloque (el último canal/pista), sin tocar nada más.
       const playhead = document.createElement("div");
       playhead.className = "s936-ch-cont-playhead";
+      const playheadHead = document.createElement("div");
+      playheadHead.className = "s936-ch-cont-playhead-head";
+      playhead.appendChild(playheadHead);
       const playheadLine = document.createElement("div");
       playheadLine.className = "s936-ch-cont-playhead-line";
       playhead.appendChild(playheadLine);
