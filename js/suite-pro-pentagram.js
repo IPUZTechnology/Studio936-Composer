@@ -178,6 +178,14 @@
       .s936pg-big-backdrop{position:fixed;inset:0;z-index:9990;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);}
       .s936pg-big-card{background:#0f111a;border:1px solid rgba(255,255,255,.15);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.85);width:min(96vw,1320px);height:min(90vh,860px);display:flex;flex-direction:column;overflow:hidden;}
       .s936pg-big-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.1);background:#14151f;flex-shrink:0;}
+      .s936pg-big-meta{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.08);background:#14151f;flex-wrap:wrap;flex-shrink:0;}
+      .s936pg-meta-field{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:6px 10px;}
+      .s936pg-meta-field input{background:transparent;border:none;color:#e5e7eb;font-size:12px;font-weight:600;outline:none;}
+      .s936pg-meta-field input::placeholder{color:rgba(255,255,255,.35);}
+      .s936pg-meta-field span{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;opacity:.7;}
+      .s936pg-meta-title input{width:200px;}
+      .s936pg-meta-author input{width:140px;}
+      .s936pg-meta-bpm-input{width:40px;font-weight:800;}
       .s936pg-big-title{color:#fff;font-weight:700;font-size:14px;}
       .s936pg-big-sub{color:#9ca3af;font-size:10px;margin-top:2px;}
       .s936pg-big-close{background:rgba(255,255,255,.08);color:#c5c6c7;border:none;border-radius:7px;width:28px;height:28px;font-size:14px;cursor:pointer;}
@@ -972,6 +980,44 @@ Return strictly valid JSON and nothing else.`;
     closeBtn.onclick = () => backdrop.remove();
     head.append(headText, closeBtn);
 
+    // Owner: "aquí es donde nace la canción, es la cabeza de todo" (Val,
+    // con captura del original) -- el header del prototipo trae Nombre de
+    // Canción/Autor/BPM bien visibles, y Val marcó que faltaban. Son los
+    // mismos project.title/project.author/project.bpm reales (no un campo
+    // suelto): esto lee y escribe la MISMA canción que ya gobierna el
+    // resto del DAW, vía los getters/setters nuevos del bridge.
+    const bridge = window.Studio936AppBridge;
+    const metaBar = document.createElement('div');
+    metaBar.className = 's936pg-big-meta';
+    const titleField = document.createElement('div');
+    titleField.className = 's936pg-meta-field s936pg-meta-title';
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.placeholder = 'Nombre de Canción';
+    titleInput.value = bridge?.getTitle?.() || '';
+    titleInput.addEventListener('change', () => bridge?.setTitle?.(titleInput.value));
+    titleField.appendChild(titleInput);
+    const authorField = document.createElement('div');
+    authorField.className = 's936pg-meta-field s936pg-meta-author';
+    const authorInput = document.createElement('input');
+    authorInput.type = 'text';
+    authorInput.placeholder = 'Autor';
+    authorInput.value = bridge?.getAuthor?.() || '';
+    authorInput.addEventListener('change', () => bridge?.setAuthor?.(authorInput.value));
+    authorField.appendChild(authorInput);
+    const bpmField = document.createElement('div');
+    bpmField.className = 's936pg-meta-field';
+    const bpmLabel = document.createElement('span');
+    bpmLabel.textContent = 'BPM:';
+    const bpmInput = document.createElement('input');
+    bpmInput.type = 'number';
+    bpmInput.className = 's936pg-meta-bpm-input';
+    bpmInput.min = '40'; bpmInput.max = '240';
+    bpmInput.value = bridge?.getBpm?.() || 95;
+    bpmInput.addEventListener('change', () => bridge?.setBPM?.(bpmInput.value));
+    bpmField.append(bpmLabel, bpmInput);
+    metaBar.append(titleField, authorField, bpmField);
+
     // Panel de acciones 2x2, igual al actionPanel del prototipo.
     const actions = document.createElement('div');
     actions.className = 's936pg-big-actions';
@@ -1064,7 +1110,7 @@ Return strictly valid JSON and nothing else.`;
 
     scorePanel.append(scoreHead, scoreBody);
     columns.append(lyricsPanel, scorePanel);
-    card.append(head, actions, columns);
+    card.append(head, metaBar, actions, columns);
     backdrop.appendChild(card);
     document.body.appendChild(backdrop);
     backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) backdrop.remove(); });

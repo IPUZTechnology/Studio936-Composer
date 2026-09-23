@@ -2539,6 +2539,36 @@ function installStudio936AppBridge(){
     function getBpm(){
         return safe(() => Number(project.bpm) || 95, 95);
     }
+    // Owner: "aquí es donde nace la canción, es la cabeza de todo" (Val) --
+    // el editor grande del pentagrama (suite-pro-pentagram.js) necesita
+    // mostrar/editar Título y Autor reales en su propia cabecera, igual
+    // que el prototipo original -- no un campo de texto suelto y separado,
+    // sino el mismo project.title/project.author que ya gobierna el resto
+    // de la app (mismo patrón que setBPM: actualiza el campo real y guarda).
+    function getTitle(){
+        return safe(() => String(project.title || ''), '');
+    }
+    function setTitle(value){
+        return safe(() => {
+            const val = String(value || '').trim() || 'Canción sin nombre';
+            project.title = val;
+            if (els.songTitle) els.songTitle.value = val;
+            saveProject(false);
+            return true;
+        }, false);
+    }
+    function getAuthor(){
+        return safe(() => String(project.author || ''), '');
+    }
+    function setAuthor(value){
+        return safe(() => {
+            const val = String(value || '').trim() || 'Autor no definido';
+            project.author = val;
+            if (els.songAuthor) els.songAuthor.value = val;
+            saveProject(false);
+            return true;
+        }, false);
+    }
     function getStyle(){
         return safe(() => String(project.style || ''), '');
     }
@@ -3432,6 +3462,10 @@ function installStudio936AppBridge(){
         setKey,
         setBPM: (v) => { setBPM(v); return true; },
         getBpm,
+        getTitle,
+        setTitle,
+        getAuthor,
+        setAuthor,
         getStyle,
         setStyle,
         isMainPlaying,
