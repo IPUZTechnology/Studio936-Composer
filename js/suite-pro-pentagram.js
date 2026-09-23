@@ -176,15 +176,46 @@
       .s936pg-bigeditor{position:absolute;top:2px;right:2px;z-index:2;background:rgba(255,255,255,.1);color:#e5e7eb;border:1px solid rgba(255,255,255,.18);border-radius:5px;font-size:12px;line-height:1;padding:3px 6px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.35);}
       .s936pg-bigeditor:hover{background:rgba(255,255,255,.2);}
       .s936pg-big-backdrop{position:fixed;inset:0;z-index:9990;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);}
-      .s936pg-big-card{background:#14151f;border:1px solid rgba(255,255,255,.15);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.85);width:min(96vw,1200px);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;}
-      .s936pg-big-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.1);}
+      .s936pg-big-card{background:#0f111a;border:1px solid rgba(255,255,255,.15);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.85);width:min(96vw,1320px);height:min(90vh,860px);display:flex;flex-direction:column;overflow:hidden;}
+      .s936pg-big-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.1);background:#14151f;flex-shrink:0;}
       .s936pg-big-title{color:#fff;font-weight:700;font-size:14px;}
       .s936pg-big-sub{color:#9ca3af;font-size:10px;margin-top:2px;}
       .s936pg-big-close{background:rgba(255,255,255,.08);color:#c5c6c7;border:none;border-radius:7px;width:28px;height:28px;font-size:14px;cursor:pointer;}
       .s936pg-big-close:hover{background:rgba(255,255,255,.18);}
-      .s936pg-big-toolbar{display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid rgba(255,255,255,.08);flex-wrap:wrap;}
-      .s936pg-big-hint{color:#7fa8a0;font-size:10px;margin-left:auto;}
-      .s936pg-big-body{overflow:auto;padding:18px;background:#0a0b10;}
+      .s936pg-big-hint{color:#7fa8a0;font-size:10px;}
+      /* Owner: "el Editor... debe dejarlo idéntico... mismo diseño mismo
+         botones, ya está hecho" (Val) -- layout de 2 columnas + panel de
+         acciones, calcado del prototipo "Studio936 DAW - Master Edition"
+         (actionPanel 2x2 + aside "LETRA Y COMPASES" + main con el
+         pentagrama), no una reinvención. */
+      .s936pg-big-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 16px;flex-shrink:0;}
+      .s936pg-actbtn{border-radius:6px;font-size:11px;font-weight:700;padding:9px 10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid transparent;}
+      .s936pg-actbtn:hover{filter:brightness(1.2);}
+      .s936pg-actbtn.rec{background:rgba(16,185,129,.18);color:#34d399;border-color:rgba(16,185,129,.45);}
+      .s936pg-actbtn.rec.is-recording{background:#dc2626;color:#fff;border-color:#ef4444;animation:s936pg-pulse 1.1s infinite;}
+      .s936pg-actbtn.upload{background:rgba(168,85,247,.12);color:#c084fc;border-color:rgba(168,85,247,.4);}
+      .s936pg-actbtn.chords{background:rgba(37,99,235,.15);color:#60a5fa;border-color:rgba(37,99,235,.45);font-size:10px;padding:6px 8px;}
+      .s936pg-actbtn.vibe{background:rgba(99,102,241,.12);color:#a5b4fc;border-color:rgba(99,102,241,.4);font-size:10px;padding:6px 8px;}
+      .s936pg-big-columns{display:flex;gap:10px;flex:1;min-height:0;padding:0 16px 16px;}
+      .s936pg-big-lyricspanel{width:340px;flex-shrink:0;display:flex;flex-direction:column;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:#0a0b10;overflow:hidden;}
+      .s936pg-big-panelhead{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.08);background:#14151f;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.8;}
+      .s936pg-big-lyriclist{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:6px;}
+      .s936pg-lyricrow{display:flex;align-items:center;gap:8px;}
+      .s936pg-lyricrow-label{font-size:9px;width:24px;flex-shrink:0;text-align:right;opacity:.6;font-weight:700;}
+      .s936pg-lyricrow-grid{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;min-width:0;}
+      .s936pg-lyric-input{width:100%;box-sizing:border-box;text-align:center;border-radius:4px;font-size:10px;padding:5px 2px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.12);color:#c5c6c7;}
+      .s936pg-lyric-input::placeholder{color:rgba(255,255,255,.25);}
+      .s936pg-lyric-input.has-syllable{font-weight:700;border-color:rgba(59,130,246,.45);background:rgba(59,130,246,.12);color:#93c5fd;}
+      .s936pg-big-scorepanel{flex:1;display:flex;flex-direction:column;min-width:0;border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden;background:#0a0b10;}
+      .s936pg-big-scorehead{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.08);background:#14151f;flex-wrap:wrap;flex-shrink:0;}
+      .s936pg-big-scoretitle{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:6px;white-space:nowrap;}
+      .s936pg-big-scoretitle small{font-weight:400;text-transform:none;opacity:.6;letter-spacing:0;}
+      .s936pg-big-playbtn{background:rgba(16,185,129,.18);color:#34d399;border:1px solid rgba(16,185,129,.4);border-radius:6px;padding:5px 12px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;}
+      .s936pg-big-playbtn.is-playing{background:#dc2626;color:#fff;border-color:#ef4444;}
+      .s936pg-big-iconbtn{width:26px;height:26px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#c5c6c7;font-size:11px;cursor:pointer;flex-shrink:0;}
+      .s936pg-big-iconbtn:hover{background:rgba(255,255,255,.16);}
+      .s936pg-big-figures{display:flex;align-items:center;gap:1px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:2px 4px;}
+      .s936pg-big-scorebody{flex:1;overflow:auto;padding:16px;}
       .s936pg-oido{position:fixed;z-index:9998;display:flex;align-items:center;gap:4px;background:rgba(10,11,16,.95);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:5px 8px;box-shadow:0 8px 24px rgba(0,0,0,.5);backdrop-filter:blur(6px);}
       .s936pg-oido-btn{border-radius:6px;border:1px solid transparent;font-size:11px;font-weight:700;padding:5px 9px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;}
       .s936pg-oido-key{background:rgba(255,255,255,.06);color:#c5c6c7;border-color:rgba(255,255,255,.12);}
@@ -200,6 +231,7 @@
       .s936pg-modal-icon{width:48px;height:48px;border-radius:999px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:20px;}
       .s936pg-modal-icon.brain{background:rgba(168,85,247,.2);color:#c084fc;animation:s936pg-spin 1.4s linear infinite;}
       .s936pg-modal-icon.warn{background:rgba(245,158,11,.2);color:#fbbf24;}
+      .s936pg-modal-icon.info{background:rgba(99,102,241,.18);color:#a5b4fc;}
       @keyframes s936pg-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
       .s936pg-modal-title{color:#fff;font-weight:700;font-size:13px;margin-bottom:6px;}
       .s936pg-modal-body{color:#9ca3af;font-size:11px;margin-bottom:0;}
@@ -530,8 +562,10 @@ Return strictly valid JSON and nothing else.`;
     backdrop.className = 's936pg-modal-backdrop';
     const card = document.createElement('div');
     card.className = 's936pg-modal-card';
+    const known = icon === 'brain' || icon === 'warn';
+    const glyph = icon === 'brain' ? '🧠' : icon === 'warn' ? '⚠️' : icon;
     card.innerHTML =
-      '<div class="s936pg-modal-icon ' + icon + '">' + (icon === 'brain' ? '🧠' : '⚠️') + '</div>' +
+      '<div class="s936pg-modal-icon ' + (known ? icon : 'info') + '">' + glyph + '</div>' +
       '<div class="s936pg-modal-title"></div>' +
       '<div class="s936pg-modal-body"></div>';
     card.querySelector('.s936pg-modal-title').textContent = title;
@@ -810,11 +844,110 @@ Return strictly valid JSON and nothing else.`;
     setTimeout(() => { btn.textContent = label; btn.classList.remove('is-busy'); }, 1400);
   }
 
+  // Owner: "LETRA Y COMPASES" -- calcado del prototipo original: una fila
+  // por compás, una grilla de 4 casillas de texto (una por tiempo). Si el
+  // tiempo ya tiene una nota, muestra/edita su sílaba; si no tiene nota y
+  // se escribe algo, crea una nota nueva ahí mismo (midi 60 por defecto,
+  // igual que el prototipo) -- exactamente la misma lógica, no una versión
+  // simplificada.
+  function buildLyricGrid(listEl, sectionKey, totalBars, redrawCanvas) {
+    listEl.innerHTML = '';
+    const notes = getNotes(sectionKey);
+    for (let bar = 0; bar < totalBars; bar++) {
+      const row = document.createElement('div');
+      row.className = 's936pg-lyricrow';
+      const label = document.createElement('span');
+      label.className = 's936pg-lyricrow-label';
+      label.textContent = 'C ' + (bar + 1);
+      const grid = document.createElement('div');
+      grid.className = 's936pg-lyricrow-grid';
+      for (let b = 0; b < 4; b++) {
+        const beatNotes = notes.filter(n => n.bar === bar && Math.floor(n.beat) === b);
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 's936pg-lyric-input';
+        if (beatNotes.length) {
+          input.value = beatNotes.map(n => n.syllable).filter(Boolean).join('-');
+          input.classList.add('has-syllable');
+        } else {
+          input.placeholder = 'T' + (b + 1);
+        }
+        input.addEventListener('change', (e) => {
+          const val = e.target.value.trim();
+          const current = getNotes(sectionKey).slice();
+          const targetIdx = current.findIndex(n => n.bar === bar && Math.floor(n.beat) === b);
+          if (targetIdx !== -1) {
+            current[targetIdx] = Object.assign({}, current[targetIdx], { syllable: val });
+          } else if (val) {
+            current.push({ bar, beat: b, duration: 1, midi: 60, syllable: val });
+            playPreviewNote(60, 0.5);
+          } else {
+            return;
+          }
+          setNotes(sectionKey, current);
+          buildLyricGrid(listEl, sectionKey, totalBars, redrawCanvas);
+          redrawCanvas();
+        });
+        grid.appendChild(input);
+      }
+      row.append(label, grid);
+      listEl.appendChild(row);
+    }
+  }
+
+  // Owner: "▶ PLAY" del prototipo -- recorre las notas de esta sección en
+  // orden (compás, tiempo) y las suena una tras otra respetando el BPM
+  // real de la canción, para poder escuchar lo que se compuso.
+  let _bigPlayTimer = null;
+  function playSectionNotes(sectionKey, btn) {
+    if (_bigPlayTimer) {
+      clearTimeout(_bigPlayTimer); _bigPlayTimer = null;
+      btn.textContent = '▶ PLAY'; btn.classList.remove('is-playing');
+      return;
+    }
+    const notes = getNotes(sectionKey).slice().sort((a, b) => (a.bar * 4 + a.beat) - (b.bar * 4 + b.beat));
+    if (!notes.length) return;
+    const bpm = Number(window.Studio936AppBridge?.getBpm?.()) || 95;
+    const secPerBeat = 60 / bpm;
+    btn.textContent = '⏹ Detener'; btn.classList.add('is-playing');
+    let i = 0;
+    const step = () => {
+      if (i >= notes.length) { btn.textContent = '▶ PLAY'; btn.classList.remove('is-playing'); _bigPlayTimer = null; return; }
+      const n = notes[i];
+      playPreviewNote(n.midi, Math.min(n.duration * secPerBeat, 1.2));
+      i++;
+      const next = notes[i];
+      const delay = next ? Math.max(80, ((next.bar * 4 + next.beat) - (n.bar * 4 + n.beat)) * secPerBeat * 1000) : 400;
+      _bigPlayTimer = setTimeout(step, delay);
+    };
+    step();
+  }
+
+  // Owner: "🧑‍🚀 Analizar Vibe" del prototipo -- ahí también era un
+  // análisis simple/cosmético (no una IA real), así que se deja igual de
+  // liviano: un par de acordes menores vs. mayores + el BPM real.
+  function analyzeVibeText(sectionKey, totalBars) {
+    const notes = getNotes(sectionKey);
+    if (!notes.length) return 'Todavía no hay notas en este pentagrama para analizar.';
+    const chords = computeChordsForSection(sectionKey, totalBars) || [];
+    const minorish = chords.filter(c => /m(?!aj)/.test(c.name)).length;
+    const bpm = Number(window.Studio936AppBridge?.getBpm?.()) || 95;
+    const mood = chords.length && minorish > chords.length / 2 ? 'introspectivo / melancólico' : 'luminoso / positivo';
+    const energy = bpm >= 120 ? 'alta energía' : bpm >= 90 ? 'energía media' : 'energía baja, calmado';
+    return 'Vibe detectado: ' + mood + ', ' + energy + ' (' + bpm + ' BPM).';
+  }
+
   // Owner: "el panel de edición grande con letra y pentagrama, como te lo
-  // di" (Val) -- un modal amplio, autocontenido, con el mismo pentagrama
-  // pero dibujado más grande (fácil de leer/hacer clic con precisión) y
-  // doble clic para escribir la sílaba de cada nota (así aparece la letra
-  // pegada a la nota, igual que en el prototipo original).
+  // di" (Val) -- ESTE modal es "el Editor / el cerebro" que definió Val en
+  // su prototipo ("Studio936 DAW - Master Edition"): panel de acciones 2x2
+  // (Grabar/Subir/Auto-Acordes/Analizar Vibe), columna "LETRA Y COMPASES",
+  // y el pentagrama con su propia cabecera (título, PLAY, figuras,
+  // imprimir/exportar/config IA). No es una reinvención -- es el mismo
+  // diseño y los mismos botones del HTML que trajo, adaptado a UNA sección
+  // (las demás secciones/canción entera se siguen gobernando en Estructura
+  // y en el panel flotante de Oído IA). Lo único realmente nuevo es la
+  // conexión real: "Auto-Acordes" de acá escribe el acorde sugerido
+  // directo en el Chart real -- de ahí en más, ese acorde se edita en Chart.
   function openBigEditor(sectionKey, totalBars, sectionLabel) {
     installStyles();
     const backdrop = document.createElement('div');
@@ -839,43 +972,136 @@ Return strictly valid JSON and nothing else.`;
     closeBtn.onclick = () => backdrop.remove();
     head.append(headText, closeBtn);
 
-    const toolbar = document.createElement('div');
-    toolbar.className = 's936pg-big-toolbar';
-    const autoBtn = document.createElement('button');
-    autoBtn.type = 'button';
-    autoBtn.className = 's936pg-oido-btn s936pg-oido-key';
-    autoBtn.textContent = '🎼 Auto-Acordes';
-    autoBtn.onclick = () => runAutoChords(sectionKey, totalBars, autoBtn);
-    const hint = document.createElement('div');
-    hint.className = 's936pg-big-hint';
-    // Owner: Oído IA (Grabar/Subir) transcribe y reemplaza LA CANCIÓN
-    // ENTERA (secciones + acordes + notas), no solo esta sección -- por
-    // eso no se duplica ese botón acá adentro (sería engañoso pensar que
-    // "Grabar" desde el editor de "Coro" solo toca el Coro). El panel
-    // flotante de arriba a la derecha sigue siendo el único lugar para eso.
-    hint.textContent = 'Clic: poner/quitar nota · Doble clic en una nota: escribir su letra · Oído IA (crear toda la canción por voz) está arriba a la derecha';
-    toolbar.append(autoBtn, hint);
+    // Panel de acciones 2x2, igual al actionPanel del prototipo.
+    const actions = document.createElement('div');
+    actions.className = 's936pg-big-actions';
+    const recBtn = document.createElement('button');
+    recBtn.type = 'button';
+    recBtn.className = 's936pg-actbtn rec';
+    recBtn.textContent = '● Grabar con Oído IA';
+    const uploadBtn = document.createElement('label');
+    uploadBtn.className = 's936pg-actbtn upload';
+    uploadBtn.textContent = '✨ Subir Audio IA';
+    const uploadInput = document.createElement('input');
+    uploadInput.type = 'file';
+    uploadInput.accept = 'audio/*';
+    uploadInput.hidden = true;
+    uploadInput.onchange = async (e) => {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (file) { await transcribeAudioWithAI(file); refreshAll(); }
+    };
+    uploadBtn.appendChild(uploadInput);
+    const chordsBtn = document.createElement('button');
+    chordsBtn.type = 'button';
+    chordsBtn.className = 's936pg-actbtn chords';
+    chordsBtn.textContent = '🎸 Auto-Acordes';
+    chordsBtn.title = 'Calcular acordes desde las notas y aplicarlos al Chart real';
+    chordsBtn.onclick = () => runAutoChords(sectionKey, totalBars, chordsBtn);
+    const vibeBtn = document.createElement('button');
+    vibeBtn.type = 'button';
+    vibeBtn.className = 's936pg-actbtn vibe';
+    vibeBtn.textContent = '🧑‍🚀 Analizar Vibe';
+    vibeBtn.onclick = () => showOidoModal('🧑‍🚀', 'Analizar Vibe', analyzeVibeText(sectionKey, totalBars), true);
+    actions.append(recBtn, uploadBtn, chordsBtn, vibeBtn);
 
-    const body = document.createElement('div');
-    body.className = 's936pg-big-body';
+    // Columnas: LETRA Y COMPASES (izquierda) + pentagrama (derecha).
+    const columns = document.createElement('div');
+    columns.className = 's936pg-big-columns';
+
+    const lyricsPanel = document.createElement('aside');
+    lyricsPanel.className = 's936pg-big-lyricspanel';
+    const lyricsHead = document.createElement('div');
+    lyricsHead.className = 's936pg-big-panelhead';
+    lyricsHead.textContent = 'LETRA Y COMPASES';
+    const lyricsList = document.createElement('div');
+    lyricsList.className = 's936pg-big-lyriclist';
+    lyricsPanel.append(lyricsHead, lyricsList);
+
+    const scorePanel = document.createElement('div');
+    scorePanel.className = 's936pg-big-scorepanel';
+    const scoreHead = document.createElement('div');
+    scoreHead.className = 's936pg-big-scorehead';
+    const scoreTitle = document.createElement('span');
+    scoreTitle.className = 's936pg-big-scoretitle';
+    scoreTitle.innerHTML = PENTAGRAM_ICON_SVG + ' PENTAGRAMA TRADICIONAL <small>(Haz clic para dibujar)</small>';
+    const playBtn = document.createElement('button');
+    playBtn.type = 'button';
+    playBtn.className = 's936pg-big-playbtn';
+    playBtn.textContent = '▶ PLAY';
+    playBtn.onclick = () => playSectionNotes(sectionKey, playBtn);
+    const figures = document.createElement('div');
+    figures.className = 's936pg-big-figures';
+    const keyBtn = document.createElement('button');
+    keyBtn.type = 'button';
+    keyBtn.className = 's936pg-big-iconbtn';
+    keyBtn.textContent = '🔑';
+    keyBtn.title = 'Configurar API Key de Gemini';
+    keyBtn.onclick = openApiKeyPrompt;
+    const printBtn = document.createElement('button');
+    printBtn.type = 'button';
+    printBtn.className = 's936pg-big-iconbtn';
+    printBtn.textContent = '🖨️';
+    printBtn.title = 'Imprimir partitura (próximo cambio)';
+    printBtn.onclick = () => alert('Imprimir partitura: próximo cambio.');
+    const exportBtn = document.createElement('button');
+    exportBtn.type = 'button';
+    exportBtn.className = 's936pg-big-iconbtn';
+    exportBtn.textContent = '📤';
+    exportBtn.title = 'Exportar proyecto (próximo cambio)';
+    exportBtn.onclick = () => alert('Exportar proyecto DAW: próximo cambio.');
+    scoreHead.append(scoreTitle, playBtn, figures, keyBtn, printBtn, exportBtn);
+
+    const scoreBody = document.createElement('div');
+    scoreBody.className = 's936pg-big-scorebody';
     const canvas = document.createElement('canvas');
     canvas.className = 's936pg-canvas';
     const geo = makeGeo(1.6);
     canvas.style.width = (geo.pxPerBar * totalBars) + 'px';
     canvas.style.height = '170px';
-    canvas.title = 'Pentagrama — clic para poner/quitar una nota, doble clic para escribir la letra';
-    body.appendChild(canvas);
+    canvas.title = 'Pentagrama — clic para poner/quitar una nota';
+    scoreBody.appendChild(canvas);
 
-    card.append(head, toolbar, body);
+    scorePanel.append(scoreHead, scoreBody);
+    columns.append(lyricsPanel, scorePanel);
+    card.append(head, actions, columns);
     backdrop.appendChild(card);
     document.body.appendChild(backdrop);
     backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) backdrop.remove(); });
 
     function redraw() { drawPentagram(canvas, getNotes(sectionKey), totalBars, geo); }
-    attachClickHandler(canvas, sectionKey, totalBars, redraw, geo);
-    attachSyllableEditor(canvas, sectionKey, totalBars, redraw, geo);
-    redraw();
-    ensureFiguresToolbar();
+    function refreshAll() {
+      redraw();
+      buildLyricGrid(lyricsList, sectionKey, totalBars, redraw);
+    }
+    attachClickHandler(canvas, sectionKey, totalBars, refreshAll, geo);
+    recBtn.onclick = async () => { await toggleOidoRecording(recBtn); refreshAll(); };
+
+    // Owner: misma barra de figuras global de siempre (⠿ arrastrable la
+    // deja el hilo de arriba), acá se clona chiquita para vivir adentro del
+    // editor grande sin duplicar el estado de `selectedDuration`.
+    const figureDefs = [
+      { d: 4, glyph: '𝅝' }, { d: 2, glyph: '𝅗𝅥' }, { d: 3, glyph: '𝅗𝅥.' }, { d: 1, glyph: '♩' },
+      { d: 1.5, glyph: '♩.' }, { d: 0.5, glyph: '♪' }, { d: 0.333, glyph: '3♪' }, { d: 0.25, glyph: '♬' }
+    ];
+    figureDefs.forEach((f) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 's936pg-figbtn' + (f.d === selectedDuration ? ' is-active' : '');
+      b.textContent = f.glyph;
+      b.style.fontSize = '13px';
+      b.onclick = () => {
+        selectedDuration = f.d;
+        figures.querySelectorAll('.s936pg-figbtn').forEach((x) => x.classList.remove('is-active'));
+        b.classList.add('is-active');
+        document.querySelectorAll('.s936pg-toolbar .s936pg-figbtn').forEach((x) => {
+          x.classList.toggle('is-active', x.textContent === f.glyph);
+        });
+      };
+      figures.appendChild(b);
+    });
+
+    refreshAll();
   }
 
   // Owner: "debe tener un icono de pentagrama limpio SVG" (Val) -- el
