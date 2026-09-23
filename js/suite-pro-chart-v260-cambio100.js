@@ -9343,7 +9343,15 @@ body.s936-chart-stage main{
           endSec: cursorSec
         });
 
-        block.append(chordRow, lyricRow);
+        // Owner: "el actual lyric (carril 2) que tenemos después de chart
+        // ya no sirve, queda fuera" (Val, decisión explícita) -- ahora que
+        // la letra vive PEGADA a cada nota del pentagrama (sílaba debajo de
+        // la nota, editable con doble clic o por Oído IA), el carril viejo
+        // de Lyric queda redundante. Se deja de agregar al DOM (lyricRow
+        // sigue construyéndose arriba sin romper nada que dependa de esas
+        // funciones, solo no se muestra) en vez de borrar todo ese código,
+        // por si hace falta revertir esta decisión.
+        block.append(chordRow);
         // Owner: "hay que ponerle el pentagrama... debajo de Chart y
         // karaoke" -- Val trajo un prototipo aparte con un pentagrama
         // real (Studio936 DAW Master Edition) y pidió mantener

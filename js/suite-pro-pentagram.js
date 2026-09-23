@@ -160,7 +160,8 @@
     style.id = 's936pg-styles';
     style.textContent = `
       .s936pg-lanerow{display:flex;gap:3px;}
-      .s936pg-labelspacer{width:320px;max-width:320px;flex-shrink:0;box-sizing:border-box;background:#0a0b10;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;padding:0 10px;font-size:10px;font-weight:700;color:#c5c6c7;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .s936pg-labelspacer{width:320px;max-width:320px;flex-shrink:0;box-sizing:border-box;background:#0a0b10;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:7px;padding:0 10px;font-size:10px;font-weight:700;color:#c5c6c7;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
+      .s936pg-labelspacer:hover{background:rgba(94,234,212,.08);color:#5eead4;}
       .s936pg-wrap{position:relative;background:#0a0b10;border-top:1px solid rgba(255,255,255,.06);}
       .s936pg-canvas{display:block;height:96px;cursor:crosshair;}
       .s936pg-toolbar{position:fixed;z-index:9998;display:flex;align-items:center;gap:4px;background:rgba(10,11,16,.95);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:5px 8px;box-shadow:0 8px 24px rgba(0,0,0,.5);backdrop-filter:blur(6px);}
@@ -847,7 +848,12 @@ Return strictly valid JSON and nothing else.`;
     autoBtn.onclick = () => runAutoChords(sectionKey, totalBars, autoBtn);
     const hint = document.createElement('div');
     hint.className = 's936pg-big-hint';
-    hint.textContent = 'Clic: poner/quitar nota · Doble clic en una nota: escribir su letra';
+    // Owner: Oído IA (Grabar/Subir) transcribe y reemplaza LA CANCIÓN
+    // ENTERA (secciones + acordes + notas), no solo esta sección -- por
+    // eso no se duplica ese botón acá adentro (sería engañoso pensar que
+    // "Grabar" desde el editor de "Coro" solo toca el Coro). El panel
+    // flotante de arriba a la derecha sigue siendo el único lugar para eso.
+    hint.textContent = 'Clic: poner/quitar nota · Doble clic en una nota: escribir su letra · Oído IA (crear toda la canción por voz) está arriba a la derecha';
     toolbar.append(autoBtn, hint);
 
     const body = document.createElement('div');
@@ -872,6 +878,22 @@ Return strictly valid JSON and nothing else.`;
     ensureFiguresToolbar();
   }
 
+  // Owner: "debe tener un icono de pentagrama limpio SVG" (Val) -- el
+  // emoji 🎼 no combinaba con los íconos reales (SVG) del resto de la app.
+  // Un pentagrama de 5 líneas + dos notas, en el mismo tono cian de los
+  // demás íconos de la barra superior.
+  const PENTAGRAM_ICON_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">' +
+    '<line x1="1" y1="6" x2="23" y2="6" stroke="#5eead4" stroke-width="1.4"/>' +
+    '<line x1="1" y1="9.5" x2="23" y2="9.5" stroke="#5eead4" stroke-width="1.4"/>' +
+    '<line x1="1" y1="13" x2="23" y2="13" stroke="#5eead4" stroke-width="1.4"/>' +
+    '<line x1="1" y1="16.5" x2="23" y2="16.5" stroke="#5eead4" stroke-width="1.4"/>' +
+    '<line x1="1" y1="20" x2="23" y2="20" stroke="#5eead4" stroke-width="1.4"/>' +
+    '<circle cx="8.5" cy="16.5" r="2.1" fill="#5eead4"/>' +
+    '<line x1="10.4" y1="16.5" x2="10.4" y2="6.5" stroke="#5eead4" stroke-width="1.3"/>' +
+    '<circle cx="16.5" cy="13" r="2.1" fill="#5eead4"/>' +
+    '<line x1="18.4" y1="13" x2="18.4" y2="3" stroke="#5eead4" stroke-width="1.3"/>' +
+    '</svg>';
+
   function renderSectionPentagram(block, sectionKey, opts) {
     try {
       if (!block || !sectionKey) return;
@@ -892,7 +914,9 @@ Return strictly valid JSON and nothing else.`;
       if (!(opts && opts.hideLabelColumn)) {
         const spacer = document.createElement('div');
         spacer.className = 's936pg-labelspacer';
-        spacer.textContent = '🎼 Pentagrama';
+        spacer.innerHTML = PENTAGRAM_ICON_SVG + '<span>Pentagrama</span>';
+        spacer.title = 'Abrir editor grande (letra + pentagrama)';
+        spacer.addEventListener('click', () => openBigEditor(sectionKey, totalBars, sectionLabel));
         row.appendChild(spacer);
       }
 
