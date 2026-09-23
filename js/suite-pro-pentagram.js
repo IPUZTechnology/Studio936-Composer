@@ -413,11 +413,26 @@
   // sección (a diferencia del prototipo original, que lo partía en sistemas
   // verticales de 4 compases -- acá tiene que alinear con Chart/Lyric/Voz, que ya
   // son horizontales, 320px por compás).
-  function drawPentagram(canvas, notes, totalBars, geo, drawClef) {
+  // Owner: BUG DE RAÍZ encontrado en vivo -- algunas secciones (ej.
+  // "Pre-coro" más adelante en la canción) quedaban con el pentagrama
+  // TOTALMENTE en blanco, ni siquiera las líneas del pentagrama, sin clic
+  // que lo arreglara esta vez (a diferencia del bug anterior, un
+  // requestAnimationFrame no alcanzaba siempre). Causa real: este dibujo
+  // dependía de canvas.clientWidth/clientHeight, que necesitan que el
+  // navegador ya haya hecho layout -- en una vista tan larga (11+
+  // secciones, cientos de compases) el layout de una fila que cae más
+  // abajo puede tardar más en resolverse que el de la primera, así que un
+  // solo rAF no siempre alcanzaba a tiempo para todas. Se elimina la
+  // dependencia del todo: el ancho/alto ya se conocen de antemano (los
+  // puso el mismo código que crea el canvas un momento antes), así que se
+  // pasan directo en vez de leerlos de vuelta del DOM.
+  function drawPentagram(canvas, notes, totalBars, geo, opts) {
     geo = geo || DEFAULT_GEO;
-    if (drawClef === undefined) drawClef = true;
+    opts = opts || {};
+    const drawClef = opts.drawClef !== false;
     const dpr = window.devicePixelRatio || 1;
-    const w = canvas.clientWidth, h = canvas.clientHeight;
+    const w = opts.width || (geo.pxPerBar * totalBars);
+    const h = opts.height || 96;
     if (!w || !h) return;
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
     const g = canvas.getContext('2d');
@@ -1049,7 +1064,7 @@ Return strictly valid JSON and nothing else.`;
     title.className = 's936pg-big-title';
     const sub = document.createElement('div');
     sub.className = 's936pg-big-sub';
-    sub.textContent = 'Editor grande — letra y pentagrama';
+    sub.textContent = 'Editor grande — letra y voz';
     headText.append(title, sub);
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
@@ -1239,7 +1254,7 @@ Return strictly valid JSON and nothing else.`;
     function mountScoreForSelection() {
       scoreBody.innerHTML = '';
       title.textContent = '🎼 ' + currentPartLabel();
-      scoreTitle.innerHTML = PENTAGRAM_ICON_SVG + ' PENTAGRAMA TRADICIONAL <small>(' + currentPartLabel() + ' — Haz clic para dibujar)</small>';
+      scoreTitle.innerHTML = PENTAGRAM_ICON_SVG + ' VOZ — PARTITURA <small>(' + currentPartLabel() + ' — Haz clic para dibujar)</small>';
       if (!parts.length) return;
       const key = currentSectionKey();
       const bars = currentTotalBars();
@@ -1248,11 +1263,11 @@ Return strictly valid JSON and nothing else.`;
       const geo = makeGeo(1.6);
       canvas.style.width = (geo.pxPerBar * bars) + 'px';
       canvas.style.height = '220px';
-      canvas.title = 'Pentagrama — clic para poner/quitar una nota';
+      canvas.title = 'Voz — clic para poner/quitar una nota';
       scoreBody.appendChild(canvas);
-      function redraw() { drawPentagram(canvas, getNotes(key), bars, geo); }
+      function redraw() { drawPentagram(canvas, getNotes(key), bars, geo, { width: geo.pxPerBar * bars, height: 220 }); }
       attachClickHandler(canvas, key, bars, redraw, geo);
-      requestAnimationFrame(redraw);
+      redraw();
     }
 
     recBtn.onclick = async () => {
@@ -1468,7 +1483,12 @@ Return strictly valid JSON and nothing else.`;
       if (!(opts && opts.hideLabelColumn)) {
         const spacer = document.createElement('div');
         spacer.className = 's936pg-labelspacer';
-        spacer.innerHTML = PENTAGRAM_ICON_SVG + '<span>Pentagrama</span>';
+        // Owner: "no se debe llamar Pentagrama, esta es la Voz cantante"
+        // (Val) -- este carril ES la voz (la melodía cantada, notada),
+        // no un instrumento genérico aparte; se llama igual que la voz
+        // real de siempre para que quede claro que es la misma cosa,
+        // solo vista como partitura en vez de forma de onda.
+        spacer.innerHTML = PENTAGRAM_ICON_SVG + '<span>Voz</span>';
         spacer.title = 'Abrir editor grande (letra + pentagrama)';
         spacer.addEventListener('click', () => openBigEditor(sectionKey, totalBars, sectionLabel));
         row.appendChild(spacer);
@@ -1479,7 +1499,7 @@ Return strictly valid JSON and nothing else.`;
       const canvas = document.createElement('canvas');
       canvas.className = 's936pg-canvas';
       canvas.style.width = (PX_PER_BAR * totalBars) + 'px';
-      canvas.title = 'Pentagrama — clic para poner/quitar una nota';
+      canvas.title = 'Voz — clic para poner/quitar una nota';
       const autoBtn = document.createElement('button');
       autoBtn.type = 'button';
       autoBtn.className = 's936pg-autochords';
@@ -1502,17 +1522,10 @@ Return strictly valid JSON and nothing else.`;
       row.appendChild(wrap);
       block.appendChild(row);
       const drawClef = !(opts && opts.hideLabelColumn);
-      function redraw() { drawPentagram(canvas, getNotes(sectionKey), totalBars, DEFAULT_GEO, drawClef); }
+      function redraw() { drawPentagram(canvas, getNotes(sectionKey), totalBars, DEFAULT_GEO, { drawClef, width: PX_PER_BAR * totalBars, height: 96 }); }
       attachClickHandler(canvas, sectionKey, totalBars, redraw);
       attachSyllableEditor(canvas, sectionKey, totalBars, redraw);
-      // Owner: BUG encontrado al verificar -- el canvas recién insertado
-      // todavía no tiene layout (clientWidth/clientHeight en 0) en el mismo
-      // instante en que se arma todo Vista Continua de una sola pasada, así
-      // que este primer redraw() se salía vacío (el guard `if(!w||!h)
-      // return` de drawPentagram) y el pentagrama quedaba en blanco hasta
-      // el primer clic -- por eso a veces "aparecía" y a veces no. Un
-      // requestAnimationFrame alcanza para que el layout ya esté listo.
-      requestAnimationFrame(redraw);
+      redraw();
       ensureFiguresToolbar();
       ensureOidoIAPanel();
     } catch (e) {
