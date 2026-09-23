@@ -135,6 +135,42 @@
     } catch (_) { return false; }
   }
 
+  // Owner: "acá se define la estructura de la canción... pero no debe
+  // cambiar la lógica para verlo lineal" (Val) -- estas funciones leen y
+  // escriben EXACTAMENTE el mismo `draft.parts` que ya usa Vista Continua
+  // (readStructureDraftSnapshot en el Chart) para dibujarse lineal, con el
+  // mismo instanceKey (computeInstanceKeyForPart == computeSectionInstanceKey
+  // del Chart). El editor grande solo AGREGA/QUITA/REORDENA entradas de esa
+  // misma lista -- el Chart la vuelve a leer tal cual, sin tocar cómo la
+  // dibuja.
+  function readStructureParts() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(STRUCTURE_DRAFT_KEY) || '{}');
+      return (raw.draft && Array.isArray(raw.draft.parts)) ? raw.draft.parts : [];
+    } catch (_) { return []; }
+  }
+  function writeStructureParts(parts) {
+    try {
+      const raw = JSON.parse(localStorage.getItem(STRUCTURE_DRAFT_KEY) || '{}');
+      raw.draft = raw.draft && typeof raw.draft === 'object' ? raw.draft : {};
+      raw.draft.parts = parts;
+      localStorage.setItem(STRUCTURE_DRAFT_KEY, JSON.stringify(raw));
+    } catch (_) {}
+  }
+  function computeInstanceKeyForPart(parts, idx) {
+    const type = (parts[idx] && parts[idx].section) || '';
+    let occ = 0;
+    for (let i = 0; i < idx; i++) { if (parts[i] && parts[i].section === type) occ++; }
+    return occ === 0 ? type : (type + '__occ' + occ);
+  }
+  const SECTION_TYPE_LABELS = {
+    intro: 'Intro', verse: 'Verso', verse1: 'Verso 1', verse2: 'Verso 2', verse3: 'Verso 3', verse4: 'Verso 4',
+    prechorus: 'Pre-coro', chorus: 'Coro', bridge: 'Puente', interlude: 'Interludio', solo: 'Solo', outro: 'Outro'
+  };
+  function labelForType(type) {
+    return SECTION_TYPE_LABELS[type] || String(type || 'Sección').replace(/[-_]+/g, ' ').replace(/\b\w/g, (x) => x.toUpperCase());
+  }
+
   function playPreviewNote(midi, durationSec) {
     try {
       const ctx = window.__studio936AudioCtx || new (window.AudioContext || window.webkitAudioContext)();
@@ -215,6 +251,28 @@
       .s936pg-lyric-input{width:100%;box-sizing:border-box;text-align:center;border-radius:4px;font-size:10px;padding:5px 2px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.12);color:#c5c6c7;}
       .s936pg-lyric-input::placeholder{color:rgba(255,255,255,.25);}
       .s936pg-lyric-input.has-syllable{font-weight:700;border-color:rgba(59,130,246,.45);background:rgba(59,130,246,.12);color:#93c5fd;}
+      /* Owner: una tarjeta por sección real (LETRA Y COMPASES muestra TODA
+         la canción, no solo la sección abierta -- "no hay sección" era
+         justamente esto lo que faltaba). */
+      .s936pg-secblock{border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:6px;background:rgba(255,255,255,.02);}
+      .s936pg-secblock.is-selected{border-color:rgba(94,234,212,.5);background:rgba(94,234,212,.05);}
+      .s936pg-sec-header{display:flex;align-items:center;gap:5px;margin-bottom:6px;flex-wrap:wrap;}
+      .s936pg-sec-moves{display:flex;flex-direction:column;gap:0;}
+      .s936pg-sec-moves button{background:none;border:none;color:#7f8a8a;font-size:8px;cursor:pointer;line-height:1;padding:1px;}
+      .s936pg-sec-moves button:disabled{opacity:.25;cursor:default;}
+      .s936pg-sec-namewrap{display:flex;align-items:center;gap:2px;flex:1;min-width:0;color:#c084fc;font-weight:700;font-size:10px;letter-spacing:.04em;text-transform:uppercase;}
+      .s936pg-sec-name{background:transparent;border:none;border-bottom:1px dashed transparent;color:#c084fc;font-weight:700;font-size:10px;letter-spacing:.04em;text-transform:uppercase;width:84px;min-width:0;padding:2px 0;}
+      .s936pg-sec-name:hover,.s936pg-sec-name:focus{border-bottom-color:rgba(192,132,252,.5);outline:none;}
+      .s936pg-sec-view,.s936pg-sec-dup{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#c5c6c7;border-radius:4px;font-size:9px;font-weight:700;padding:3px 6px;cursor:pointer;white-space:nowrap;}
+      .s936pg-sec-view:hover,.s936pg-sec-dup:hover{background:rgba(255,255,255,.14);}
+      .s936pg-sec-bars{background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.12);color:#c5c6c7;border-radius:4px;font-size:9px;padding:3px;}
+      .s936pg-sec-del{background:none;border:none;color:rgba(239,68,68,.7);cursor:pointer;font-size:11px;padding:2px;}
+      .s936pg-sec-del:hover{color:#ef4444;}
+      .s936pg-sec-lyricgrid{padding-left:8px;border-left:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:4px;}
+      .s936pg-sec-empty{color:#7f8a8a;font-size:10px;text-align:center;padding:20px 10px;}
+      .s936pg-add-section{margin:8px 10px 10px;padding:8px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#c5c6c7;font-size:10px;font-weight:700;cursor:pointer;}
+      .s936pg-add-section:hover{background:rgba(255,255,255,.12);}
+      .s936pg-addsec-card{max-width:300px;text-align:left;}
       .s936pg-big-scorepanel{flex:1;display:flex;flex-direction:column;min-width:0;border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden;background:#0a0b10;}
       .s936pg-big-scorehead{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.08);background:#14151f;flex-wrap:wrap;flex-shrink:0;}
       .s936pg-big-scoretitle{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:6px;white-space:nowrap;}
@@ -964,12 +1022,21 @@ Return strictly valid JSON and nothing else.`;
     const card = document.createElement('div');
     card.className = 's936pg-big-card';
 
+    // Owner: "no hay sección... la lógica 100% del render que te di debe
+    // ser igual" (Val, con captura) -- el prototipo original muestra TODAS
+    // las secciones de la canción en LETRA Y COMPASES (con "+ Añadir
+    // Sección" para crear más), no solo la que se abrió. Esto lee el
+    // arreglo REAL (mismo draft.parts que ya usan Auto-Acordes/Oído IA),
+    // y cualquier alta/baja/reordenar que se haga acá escribe ahí mismo --
+    // el Chart ya lo muestra apenas se guarda (misma fuente de siempre).
+    let parts = readStructureParts();
+    let selectedIdx = Math.max(0, parts.findIndex((p, i) => computeInstanceKeyForPart(parts, i) === sectionKey));
+
     const head = document.createElement('div');
     head.className = 's936pg-big-head';
     const headText = document.createElement('div');
     const title = document.createElement('div');
     title.className = 's936pg-big-title';
-    title.textContent = '🎼 ' + (sectionLabel || sectionKey);
     const sub = document.createElement('div');
     sub.className = 's936pg-big-sub';
     sub.textContent = 'Editor grande — letra y pentagrama';
@@ -1036,7 +1103,7 @@ Return strictly valid JSON and nothing else.`;
     uploadInput.onchange = async (e) => {
       const file = e.target.files && e.target.files[0];
       e.target.value = '';
-      if (file) { await transcribeAudioWithAI(file); refreshAll(); }
+      if (file) { await transcribeAudioWithAI(file); parts = readStructureParts(); renderSectionsList(); }
     };
     uploadBtn.appendChild(uploadInput);
     const chordsBtn = document.createElement('button');
@@ -1044,12 +1111,12 @@ Return strictly valid JSON and nothing else.`;
     chordsBtn.className = 's936pg-actbtn chords';
     chordsBtn.textContent = '🎸 Auto-Acordes';
     chordsBtn.title = 'Calcular acordes desde las notas y aplicarlos al Chart real';
-    chordsBtn.onclick = () => runAutoChords(sectionKey, totalBars, chordsBtn);
+    chordsBtn.onclick = () => runAutoChords(currentSectionKey(), currentTotalBars(), chordsBtn);
     const vibeBtn = document.createElement('button');
     vibeBtn.type = 'button';
     vibeBtn.className = 's936pg-actbtn vibe';
     vibeBtn.textContent = '🧑‍🚀 Analizar Vibe';
-    vibeBtn.onclick = () => showOidoModal('🧑‍🚀', 'Analizar Vibe', analyzeVibeText(sectionKey, totalBars), true);
+    vibeBtn.onclick = () => showOidoModal('🧑‍🚀', 'Analizar Vibe', analyzeVibeText(currentSectionKey(), currentTotalBars()), true);
     actions.append(recBtn, uploadBtn, chordsBtn, vibeBtn);
 
     // Owner: "los 4 botones estaban muy grandes, ponerlos a la izquierda...
@@ -1077,7 +1144,12 @@ Return strictly valid JSON and nothing else.`;
     lyricsHead.textContent = 'LETRA Y COMPASES';
     const lyricsList = document.createElement('div');
     lyricsList.className = 's936pg-big-lyriclist';
-    lyricsPanel.append(lyricsHead, lyricsList);
+    const addSectionBtn = document.createElement('button');
+    addSectionBtn.type = 'button';
+    addSectionBtn.className = 's936pg-add-section';
+    addSectionBtn.textContent = '+ Añadir Sección';
+    addSectionBtn.onclick = openAddSectionModal;
+    lyricsPanel.append(lyricsHead, lyricsList, addSectionBtn);
     leftCol.appendChild(lyricsPanel);
 
     const scorePanel = document.createElement('div');
@@ -1086,12 +1158,11 @@ Return strictly valid JSON and nothing else.`;
     scoreHead.className = 's936pg-big-scorehead';
     const scoreTitle = document.createElement('span');
     scoreTitle.className = 's936pg-big-scoretitle';
-    scoreTitle.innerHTML = PENTAGRAM_ICON_SVG + ' PENTAGRAMA TRADICIONAL <small>(Haz clic para dibujar)</small>';
     const playBtn = document.createElement('button');
     playBtn.type = 'button';
     playBtn.className = 's936pg-big-playbtn';
     playBtn.textContent = '▶ PLAY';
-    playBtn.onclick = () => playSectionNotes(sectionKey, playBtn);
+    playBtn.onclick = () => playSectionNotes(currentSectionKey(), playBtn);
     const figures = document.createElement('div');
     figures.className = 's936pg-big-figures';
     const keyBtn = document.createElement('button');
@@ -1116,13 +1187,6 @@ Return strictly valid JSON and nothing else.`;
 
     const scoreBody = document.createElement('div');
     scoreBody.className = 's936pg-big-scorebody';
-    const canvas = document.createElement('canvas');
-    canvas.className = 's936pg-canvas';
-    const geo = makeGeo(1.6);
-    canvas.style.width = (geo.pxPerBar * totalBars) + 'px';
-    canvas.style.height = '220px';
-    canvas.title = 'Pentagrama — clic para poner/quitar una nota';
-    scoreBody.appendChild(canvas);
 
     scorePanel.append(scoreHead, scoreBody);
     columns.append(leftCol, scorePanel);
@@ -1130,14 +1194,6 @@ Return strictly valid JSON and nothing else.`;
     backdrop.appendChild(card);
     document.body.appendChild(backdrop);
     backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) backdrop.remove(); });
-
-    function redraw() { drawPentagram(canvas, getNotes(sectionKey), totalBars, geo); }
-    function refreshAll() {
-      redraw();
-      buildLyricGrid(lyricsList, sectionKey, totalBars, redraw);
-    }
-    attachClickHandler(canvas, sectionKey, totalBars, refreshAll, geo);
-    recBtn.onclick = async () => { await toggleOidoRecording(recBtn); refreshAll(); };
 
     // Owner: misma barra de figuras global de siempre (⠿ arrastrable la
     // deja el hilo de arriba), acá se clona chiquita para vivir adentro del
@@ -1163,7 +1219,207 @@ Return strictly valid JSON and nothing else.`;
       figures.appendChild(b);
     });
 
-    refreshAll();
+    function currentSectionKey() { return computeInstanceKeyForPart(parts, selectedIdx); }
+    function currentTotalBars() { return Math.max(1, Number(parts[selectedIdx]?.bars) || 4); }
+    function currentPartLabel() { return parts[selectedIdx]?.label || currentSectionKey(); }
+
+    // Owner: cada sección tiene su propio pentagrama -- al elegir otra en
+    // LETRA Y COMPASES, el canvas de la derecha se reconstruye entero (así
+    // no queda ningún listener/estado de la sección anterior colgado).
+    function mountScoreForSelection() {
+      scoreBody.innerHTML = '';
+      title.textContent = '🎼 ' + currentPartLabel();
+      scoreTitle.innerHTML = PENTAGRAM_ICON_SVG + ' PENTAGRAMA TRADICIONAL <small>(' + currentPartLabel() + ' — Haz clic para dibujar)</small>';
+      if (!parts.length) return;
+      const key = currentSectionKey();
+      const bars = currentTotalBars();
+      const canvas = document.createElement('canvas');
+      canvas.className = 's936pg-canvas';
+      const geo = makeGeo(1.6);
+      canvas.style.width = (geo.pxPerBar * bars) + 'px';
+      canvas.style.height = '220px';
+      canvas.title = 'Pentagrama — clic para poner/quitar una nota';
+      scoreBody.appendChild(canvas);
+      function redraw() { drawPentagram(canvas, getNotes(key), bars, geo); }
+      attachClickHandler(canvas, key, bars, redraw, geo);
+      redraw();
+    }
+
+    recBtn.onclick = async () => {
+      await toggleOidoRecording(recBtn);
+      parts = readStructureParts();
+      selectedIdx = 0;
+      renderSectionsList();
+    };
+
+    function persistParts() {
+      writeStructureParts(parts);
+      try { window.dispatchEvent(new CustomEvent('studio936:section-chords-updated', { detail: { full: true } })); } catch (_) {}
+    }
+
+    function selectSection(idx) {
+      selectedIdx = Math.max(0, Math.min(parts.length - 1, idx));
+      mountScoreForSelection();
+      renderSectionsList();
+    }
+
+    // Owner: "LETRA Y COMPASES" -- una tarjeta por sección REAL, calcada
+    // del prototipo (nombre editable, ↻ x2 para duplicar -- misma
+    // convención de "Coro"/"Coro BIS" que ya usa el resto de la app --,
+    // compases, subir/bajar, borrar), con su propia grilla de letra debajo.
+    function buildSectionCard(part, idx) {
+      const block = document.createElement('div');
+      block.className = 's936pg-secblock' + (idx === selectedIdx ? ' is-selected' : '');
+      const header = document.createElement('div');
+      header.className = 's936pg-sec-header';
+
+      const moves = document.createElement('div');
+      moves.className = 's936pg-sec-moves';
+      const upBtn = document.createElement('button');
+      upBtn.type = 'button'; upBtn.textContent = '▲'; upBtn.disabled = idx === 0;
+      upBtn.onclick = () => {
+        [parts[idx - 1], parts[idx]] = [parts[idx], parts[idx - 1]];
+        if (selectedIdx === idx) selectedIdx = idx - 1; else if (selectedIdx === idx - 1) selectedIdx = idx;
+        persistParts(); renderSectionsList(); mountScoreForSelection();
+      };
+      const downBtn = document.createElement('button');
+      downBtn.type = 'button'; downBtn.textContent = '▼'; downBtn.disabled = idx === parts.length - 1;
+      downBtn.onclick = () => {
+        [parts[idx + 1], parts[idx]] = [parts[idx], parts[idx + 1]];
+        if (selectedIdx === idx) selectedIdx = idx + 1; else if (selectedIdx === idx + 1) selectedIdx = idx;
+        persistParts(); renderSectionsList(); mountScoreForSelection();
+      };
+      moves.append(upBtn, downBtn);
+
+      const nameWrap = document.createElement('div');
+      nameWrap.className = 's936pg-sec-namewrap';
+      const bracketL = document.createElement('span'); bracketL.textContent = '[';
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.className = 's936pg-sec-name';
+      nameInput.value = part.label || labelForType(part.section);
+      nameInput.addEventListener('change', () => {
+        part.label = nameInput.value.trim() || labelForType(part.section);
+        persistParts();
+        if (idx === selectedIdx) mountScoreForSelection();
+      });
+      const bracketR = document.createElement('span'); bracketR.textContent = ']';
+      nameWrap.append(bracketL, nameInput, bracketR);
+
+      const dupBtn = document.createElement('button');
+      dupBtn.type = 'button';
+      dupBtn.className = 's936pg-sec-dup';
+      dupBtn.textContent = '↻ x2';
+      dupBtn.title = 'Duplicar esta sección (queda como "BIS", comparte los mismos acordes)';
+      dupBtn.onclick = () => {
+        parts.splice(idx + 1, 0, Object.assign({}, part));
+        persistParts(); renderSectionsList();
+      };
+
+      const barsSelect = document.createElement('select');
+      barsSelect.className = 's936pg-sec-bars';
+      [2, 4, 8, 12, 16].forEach((n) => {
+        const opt = document.createElement('option');
+        opt.value = String(n); opt.textContent = n + ' Cmp';
+        if (Number(part.bars) === n) opt.selected = true;
+        barsSelect.appendChild(opt);
+      });
+      barsSelect.addEventListener('change', () => {
+        part.bars = Number(barsSelect.value) || 4;
+        persistParts(); renderSectionsList();
+        if (idx === selectedIdx) mountScoreForSelection();
+      });
+
+      const viewBtn = document.createElement('button');
+      viewBtn.type = 'button';
+      viewBtn.className = 's936pg-sec-view';
+      viewBtn.textContent = '🎼';
+      viewBtn.title = 'Ver el pentagrama de esta sección';
+      viewBtn.onclick = () => selectSection(idx);
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 's936pg-sec-del';
+      delBtn.textContent = '🗑';
+      delBtn.title = 'Borrar esta sección';
+      delBtn.onclick = () => {
+        if (parts.length <= 1) { alert('La canción necesita al menos una sección.'); return; }
+        if (!window.confirm('¿Borrar la sección "' + (part.label || labelForType(part.section)) + '"? Esto la quita del arreglo.')) return;
+        parts.splice(idx, 1);
+        if (selectedIdx >= parts.length) selectedIdx = parts.length - 1;
+        persistParts(); renderSectionsList(); mountScoreForSelection();
+      };
+
+      header.append(moves, nameWrap, viewBtn, dupBtn, barsSelect, delBtn);
+      block.appendChild(header);
+
+      const grid = document.createElement('div');
+      grid.className = 's936pg-sec-lyricgrid';
+      const key = computeInstanceKeyForPart(parts, idx);
+      const bars = Math.max(1, Number(part.bars) || 4);
+      buildLyricGrid(grid, key, bars, () => { if (idx === selectedIdx) mountScoreForSelection(); });
+      block.appendChild(grid);
+
+      block.addEventListener('click', (e) => {
+        if (e.target === block || e.target === header) selectSection(idx);
+      });
+
+      return block;
+    }
+
+    function renderSectionsList() {
+      lyricsList.innerHTML = '';
+      if (!parts.length) {
+        const empty = document.createElement('div');
+        empty.className = 's936pg-sec-empty';
+        empty.textContent = 'Esta canción todavía no tiene secciones. Usá "+ Añadir Sección" para crear la primera.';
+        lyricsList.appendChild(empty);
+        return;
+      }
+      parts.forEach((part, idx) => lyricsList.appendChild(buildSectionCard(part, idx)));
+    }
+
+    // Owner: "+ Añadir Sección" -- mismo modal simple del prototipo
+    // (Nombre + Compases, Cancelar/Crear), no un formulario de tipos nuevo.
+    function openAddSectionModal() {
+      const modalBackdrop = document.createElement('div');
+      modalBackdrop.className = 's936pg-modal-backdrop';
+      const modalCard = document.createElement('div');
+      modalCard.className = 's936pg-modal-card s936pg-addsec-card';
+      modalCard.innerHTML =
+        '<div class="s936pg-modal-title" style="text-align:left">Añadir Nueva Sección</div>' +
+        '<div class="s936pg-key-field"><label>Nombre</label><input type="text" value="Verso" /></div>' +
+        '<div class="s936pg-key-field"><label>Compases</label>' +
+        '<select><option value="2">2 Compases</option><option value="4" selected>4 Compases</option>' +
+        '<option value="8">8 Compases</option><option value="12">12 Compases</option><option value="16">16 Compases</option></select></div>' +
+        '<div class="s936pg-key-actions"><button type="button" class="s936pg-key-cancel">Cancelar</button><button type="button" class="s936pg-key-save">Crear</button></div>';
+      const nameInput = modalCard.querySelector('input');
+      const barsSelect = modalCard.querySelector('select');
+      modalCard.querySelector('.s936pg-key-cancel').onclick = () => modalBackdrop.remove();
+      modalCard.querySelector('.s936pg-key-save').onclick = () => {
+        const name = nameInput.value.trim() || 'Sección';
+        const bars = Number(barsSelect.value) || 4;
+        const type = inferSectionType(name);
+        const used = new Set(parts.map((p) => p.section));
+        let key = String(name).toLowerCase().replace(/[^a-z0-9]+/g, '') || 'seccion';
+        let n = 2;
+        while (used.has(key)) { key = key.replace(/\d+$/, '') + n; n++; }
+        const newPart = { section: key, label: name, bars, repeat: 1, independent: true, type };
+        parts.push(newPart);
+        persistParts();
+        selectedIdx = parts.length - 1;
+        renderSectionsList();
+        mountScoreForSelection();
+        modalBackdrop.remove();
+      };
+      modalBackdrop.appendChild(modalCard);
+      document.body.appendChild(modalBackdrop);
+      nameInput.focus();
+      nameInput.select();
+    }
+
+    renderSectionsList();
+    mountScoreForSelection();
   }
 
   // Owner: "debe tener un icono de pentagrama limpio SVG" (Val) -- el
