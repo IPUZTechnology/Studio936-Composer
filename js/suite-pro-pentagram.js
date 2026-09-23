@@ -29,6 +29,13 @@
   // en los dos lugares para que se vea siempre, exista o no un borrador.
   const STRUCTURE_DRAFT_KEY = 's936_suitepro_structure_v4';
   const PX_PER_BAR = 320; // mismo ancho por compás que ya usa toda Vista Continua
+  // Owner: mismo padding-right que .s936-ch-cont-block deja después de
+  // cada sección en Vista Continua (Chart no lo nota por su fondo oscuro
+  // parejo, pero el pentagrama sí lo mostraba como un corte real en sus
+  // líneas) -- se extiende el canvas de cada sección esa misma distancia
+  // para que las líneas del pentagrama sigan "pegadas" de una sección a
+  // la siguiente.
+  const BLOCK_TRAILING_GAP_PX = 10;
   const LINE_GAP = 8;
   const TOP_PAD = 30;
   const WHITE_KEYS = [48,50,52,53,55,57,59,60,62,64,65,67,69,71,72,74,76,77,79,81,83,84,86,88,89,91,93,95,96];
@@ -283,6 +290,12 @@
       .s936pg-big-iconbtn:hover{background:rgba(255,255,255,.16);}
       .s936pg-big-figures{display:flex;align-items:center;gap:1px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:2px 4px;}
       .s936pg-big-scorebody{flex:1;overflow:auto;padding:16px;}
+      /* Owner: "tal como está ahí abajo" (Val) -- la hoja del compositor
+         dibuja TODAS las secciones apiladas, cada una como su propio
+         sistema (clave propia, "[ Nombre ]" arriba), igual que el
+         prototipo -- no una sección aislada a la vez. */
+      .s936pg-score-system{margin-bottom:22px;}
+      .s936pg-score-seclabel{color:#c084fc;font-weight:700;font-size:11px;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px;}
       .s936pg-oido{position:fixed;z-index:9998;display:flex;align-items:center;gap:4px;background:rgba(10,11,16,.95);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:5px 8px;box-shadow:0 8px 24px rgba(0,0,0,.5);backdrop-filter:blur(6px);}
       .s936pg-oido-btn{border-radius:6px;border:1px solid transparent;font-size:11px;font-weight:700;padding:5px 9px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;}
       .s936pg-oido-key{background:rgba(255,255,255,.06);color:#c5c6c7;border-color:rgba(255,255,255,.12);}
@@ -987,47 +1000,6 @@ Return strictly valid JSON and nothing else.`;
     }
   }
 
-  // Owner: "▶ PLAY" del prototipo -- recorre las notas de esta sección en
-  // orden (compás, tiempo) y las suena una tras otra respetando el BPM
-  // real de la canción, para poder escuchar lo que se compuso.
-  let _bigPlayTimer = null;
-  function playSectionNotes(sectionKey, btn) {
-    if (_bigPlayTimer) {
-      clearTimeout(_bigPlayTimer); _bigPlayTimer = null;
-      btn.textContent = '▶ PLAY'; btn.classList.remove('is-playing');
-      return;
-    }
-    const notes = getNotes(sectionKey).slice().sort((a, b) => (a.bar * 4 + a.beat) - (b.bar * 4 + b.beat));
-    if (!notes.length) return;
-    const bpm = Number(window.Studio936AppBridge?.getBpm?.()) || 95;
-    const secPerBeat = 60 / bpm;
-    btn.textContent = '⏹ Detener'; btn.classList.add('is-playing');
-    let i = 0;
-    const step = () => {
-      if (i >= notes.length) { btn.textContent = '▶ PLAY'; btn.classList.remove('is-playing'); _bigPlayTimer = null; return; }
-      const n = notes[i];
-      playPreviewNote(n.midi, Math.min(n.duration * secPerBeat, 1.2));
-      i++;
-      const next = notes[i];
-      const delay = next ? Math.max(80, ((next.bar * 4 + next.beat) - (n.bar * 4 + n.beat)) * secPerBeat * 1000) : 400;
-      _bigPlayTimer = setTimeout(step, delay);
-    };
-    step();
-  }
-
-  // Owner: "🧑‍🚀 Analizar Vibe" del prototipo -- ahí también era un
-  // análisis simple/cosmético (no una IA real), así que se deja igual de
-  // liviano: un par de acordes menores vs. mayores + el BPM real.
-  function analyzeVibeText(sectionKey, totalBars) {
-    const notes = getNotes(sectionKey);
-    if (!notes.length) return 'Todavía no hay notas en este pentagrama para analizar.';
-    const chords = computeChordsForSection(sectionKey, totalBars) || [];
-    const minorish = chords.filter(c => /m(?!aj)/.test(c.name)).length;
-    const bpm = Number(window.Studio936AppBridge?.getBpm?.()) || 95;
-    const mood = chords.length && minorish > chords.length / 2 ? 'introspectivo / melancólico' : 'luminoso / positivo';
-    const energy = bpm >= 120 ? 'alta energía' : bpm >= 90 ? 'energía media' : 'energía baja, calmado';
-    return 'Vibe detectado: ' + mood + ', ' + energy + ' (' + bpm + ' BPM).';
-  }
 
   // Owner: "el panel de edición grande con letra y pentagrama, como te lo
   // di" (Val) -- ESTE modal es "el Editor / el cerebro" que definió Val en
@@ -1055,7 +1027,7 @@ Return strictly valid JSON and nothing else.`;
     // y cualquier alta/baja/reordenar que se haga acá escribe ahí mismo --
     // el Chart ya lo muestra apenas se guarda (misma fuente de siempre).
     let parts = readStructureParts();
-    let selectedIdx = Math.max(0, parts.findIndex((p, i) => computeInstanceKeyForPart(parts, i) === sectionKey));
+    const initialIdx = Math.max(0, parts.findIndex((p, i) => computeInstanceKeyForPart(parts, i) === sectionKey));
 
     const head = document.createElement('div');
     head.className = 's936pg-big-head';
@@ -1135,13 +1107,29 @@ Return strictly valid JSON and nothing else.`;
     chordsBtn.type = 'button';
     chordsBtn.className = 's936pg-actbtn chords';
     chordsBtn.textContent = '🎸 Auto-Acordes';
-    chordsBtn.title = 'Calcular acordes desde las notas y aplicarlos al Chart real';
-    chordsBtn.onclick = () => runAutoChords(currentSectionKey(), currentTotalBars(), chordsBtn);
+    chordsBtn.title = 'Calcular acordes desde las notas de TODAS las secciones y aplicarlos al Chart real';
+    // Owner: en el prototipo, "Auto-Acordes" corre sobre AppState.sections
+    // ENTERO (todas las secciones de una), no una sola -- acá igual.
+    chordsBtn.onclick = () => {
+      const label = chordsBtn.textContent;
+      parts.forEach((part, idx) => {
+        const key = computeInstanceKeyForPart(parts, idx);
+        const bars = Math.max(1, Number(part.bars) || 4);
+        const chords = computeChordsForSection(key, bars);
+        if (!chords) return;
+        const target = baseSectionType(key);
+        writeChordsIntoStructureDraft(target, chords);
+        window.Studio936AppBridge?.applyPentagramChords?.(target, chords);
+      });
+      try { window.dispatchEvent(new CustomEvent('studio936:section-chords-updated', { detail: { full: true } })); } catch (_) {}
+      chordsBtn.textContent = '✓ Aplicado a toda la canción';
+      setTimeout(() => { chordsBtn.textContent = label; }, 1600);
+    };
     const vibeBtn = document.createElement('button');
     vibeBtn.type = 'button';
     vibeBtn.className = 's936pg-actbtn vibe';
     vibeBtn.textContent = '🧑‍🚀 Analizar Vibe';
-    vibeBtn.onclick = () => showOidoModal('🧑‍🚀', 'Analizar Vibe', analyzeVibeText(currentSectionKey(), currentTotalBars()), true);
+    vibeBtn.onclick = () => showOidoModal('🧑‍🚀', 'Analizar Vibe', analyzeVibeAllText(), true);
     actions.append(recBtn, uploadBtn, chordsBtn, vibeBtn);
 
     // Owner: "los 4 botones estaban muy grandes, ponerlos a la izquierda...
@@ -1183,11 +1171,12 @@ Return strictly valid JSON and nothing else.`;
     scoreHead.className = 's936pg-big-scorehead';
     const scoreTitle = document.createElement('span');
     scoreTitle.className = 's936pg-big-scoretitle';
+    scoreTitle.innerHTML = PENTAGRAM_ICON_SVG + ' VOZ — PARTITURA <small>(Haz clic para dibujar)</small>';
     const playBtn = document.createElement('button');
     playBtn.type = 'button';
     playBtn.className = 's936pg-big-playbtn';
     playBtn.textContent = '▶ PLAY';
-    playBtn.onclick = () => playSectionNotes(currentSectionKey(), playBtn);
+    playBtn.onclick = () => playAllSections(playBtn);
     const figures = document.createElement('div');
     figures.className = 's936pg-big-figures';
     const keyBtn = document.createElement('button');
@@ -1244,37 +1233,97 @@ Return strictly valid JSON and nothing else.`;
       figures.appendChild(b);
     });
 
-    function currentSectionKey() { return computeInstanceKeyForPart(parts, selectedIdx); }
-    function currentTotalBars() { return Math.max(1, Number(parts[selectedIdx]?.bars) || 4); }
-    function currentPartLabel() { return parts[selectedIdx]?.label || currentSectionKey(); }
-
-    // Owner: cada sección tiene su propio pentagrama -- al elegir otra en
-    // LETRA Y COMPASES, el canvas de la derecha se reconstruye entero (así
-    // no queda ningún listener/estado de la sección anterior colgado).
-    function mountScoreForSelection() {
+    // Owner: "tal como está ahí abajo" (Val, con captura del HTML real) --
+    // el prototipo dibuja TODAS las secciones como sistemas apilados, cada
+    // uno con su propia clave (es una partitura real: cada sistema nuevo
+    // lleva su clave) y su "[ Nombre ]" arriba -- no una sola sección a la
+    // vez. Esto arma esa misma hoja de trabajo completa.
+    function mountAllSections() {
       scoreBody.innerHTML = '';
-      title.textContent = '🎼 ' + currentPartLabel();
-      scoreTitle.innerHTML = PENTAGRAM_ICON_SVG + ' VOZ — PARTITURA <small>(' + currentPartLabel() + ' — Haz clic para dibujar)</small>';
       if (!parts.length) return;
-      const key = currentSectionKey();
-      const bars = currentTotalBars();
-      const canvas = document.createElement('canvas');
-      canvas.className = 's936pg-canvas';
-      const geo = makeGeo(1.6);
-      canvas.style.width = (geo.pxPerBar * bars) + 'px';
-      canvas.style.height = '220px';
-      canvas.title = 'Voz — clic para poner/quitar una nota';
-      scoreBody.appendChild(canvas);
-      function redraw() { drawPentagram(canvas, getNotes(key), bars, geo, { width: geo.pxPerBar * bars, height: 220 }); }
-      attachClickHandler(canvas, key, bars, redraw, geo);
-      redraw();
+      parts.forEach((part, idx) => {
+        const key = computeInstanceKeyForPart(parts, idx);
+        const bars = Math.max(1, Number(part.bars) || 4);
+        const sys = document.createElement('div');
+        sys.className = 's936pg-score-system';
+        sys.dataset.sectionIdx = String(idx);
+        const label = document.createElement('div');
+        label.className = 's936pg-score-seclabel';
+        label.textContent = '[ ' + (part.label || labelForType(part.section)) + ' ]';
+        const canvas = document.createElement('canvas');
+        canvas.className = 's936pg-canvas';
+        const geo = makeGeo(1.6);
+        canvas.style.width = (geo.pxPerBar * bars) + 'px';
+        canvas.style.height = '160px';
+        canvas.style.display = 'block';
+        canvas.title = 'Voz — clic para poner/quitar una nota';
+        sys.append(label, canvas);
+        scoreBody.appendChild(sys);
+        function redraw() { drawPentagram(canvas, getNotes(key), bars, geo, { width: geo.pxPerBar * bars, height: 160, drawClef: true }); }
+        attachClickHandler(canvas, key, bars, redraw, geo);
+        redraw();
+      });
+    }
+
+    // Owner: "▶ PLAY" del prototipo reproduce LA CANCIÓN COMPLETA de
+    // corrido (todas las secciones, en orden), no una sección aislada.
+    let _allPlayTimer = null;
+    function playAllSections(btn) {
+      if (_allPlayTimer) {
+        clearTimeout(_allPlayTimer); _allPlayTimer = null;
+        btn.textContent = '▶ PLAY'; btn.classList.remove('is-playing');
+        return;
+      }
+      let barOffset = 0;
+      const allNotes = [];
+      parts.forEach((part, idx) => {
+        const key = computeInstanceKeyForPart(parts, idx);
+        const bars = Math.max(1, Number(part.bars) || 4);
+        getNotes(key).forEach((n) => allNotes.push({ midi: n.midi, duration: n.duration, globalBeat: (n.bar + barOffset) * 4 + n.beat }));
+        barOffset += bars;
+      });
+      allNotes.sort((a, b) => a.globalBeat - b.globalBeat);
+      if (!allNotes.length) return;
+      const bpm = Number(window.Studio936AppBridge?.getBpm?.()) || 95;
+      const secPerBeat = 60 / bpm;
+      btn.textContent = '⏹ STOP'; btn.classList.add('is-playing');
+      let i = 0;
+      const step = () => {
+        if (i >= allNotes.length) { btn.textContent = '▶ PLAY'; btn.classList.remove('is-playing'); _allPlayTimer = null; return; }
+        const n = allNotes[i];
+        playPreviewNote(n.midi, Math.min(n.duration * secPerBeat, 1.2));
+        i++;
+        const next = allNotes[i];
+        const delay = next ? Math.max(80, (next.globalBeat - n.globalBeat) * secPerBeat * 1000) : 400;
+        _allPlayTimer = setTimeout(step, delay);
+      };
+      step();
+    }
+
+    // Owner: "Analizar Vibe" también corre sobre la canción entera en el
+    // prototipo (no una sección aislada).
+    function analyzeVibeAllText() {
+      let totalNotes = 0, minorish = 0, totalChords = 0;
+      parts.forEach((part, idx) => {
+        const key = computeInstanceKeyForPart(parts, idx);
+        const bars = Math.max(1, Number(part.bars) || 4);
+        totalNotes += getNotes(key).length;
+        const chords = computeChordsForSection(key, bars) || [];
+        totalChords += chords.length;
+        minorish += chords.filter((c) => /m(?!aj)/.test(c.name)).length;
+      });
+      if (!totalNotes) return 'Todavía no hay notas en la canción para analizar.';
+      const bpm = Number(window.Studio936AppBridge?.getBpm?.()) || 95;
+      const mood = totalChords && minorish > totalChords / 2 ? 'introspectivo / melancólico' : 'luminoso / positivo';
+      const energy = bpm >= 120 ? 'alta energía' : bpm >= 90 ? 'energía media' : 'energía baja, calmado';
+      return 'Vibe detectado en toda la canción: ' + mood + ', ' + energy + ' (' + bpm + ' BPM).';
     }
 
     recBtn.onclick = async () => {
       await toggleOidoRecording(recBtn);
       parts = readStructureParts();
-      selectedIdx = 0;
       renderSectionsList();
+      mountAllSections();
     };
 
     function persistParts() {
@@ -1282,10 +1331,12 @@ Return strictly valid JSON and nothing else.`;
       try { window.dispatchEvent(new CustomEvent('studio936:section-chords-updated', { detail: { full: true } })); } catch (_) {}
     }
 
-    function selectSection(idx) {
-      selectedIdx = Math.max(0, Math.min(parts.length - 1, idx));
-      mountScoreForSelection();
-      renderSectionsList();
+    // Owner: el 🎼 de cada tarjeta ya no "cambia de sección" (ahora se ven
+    // TODAS a la vez) -- se convierte en un salto directo a su sistema en
+    // la hoja de la derecha.
+    function scrollToSection(idx) {
+      const sys = scoreBody.querySelector('[data-section-idx="' + idx + '"]');
+      if (sys) sys.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     // Owner: "LETRA Y COMPASES" -- una tarjeta por sección REAL, calcada
@@ -1294,7 +1345,7 @@ Return strictly valid JSON and nothing else.`;
     // compases, subir/bajar, borrar), con su propia grilla de letra debajo.
     function buildSectionCard(part, idx) {
       const block = document.createElement('div');
-      block.className = 's936pg-secblock' + (idx === selectedIdx ? ' is-selected' : '');
+      block.className = 's936pg-secblock';
       const header = document.createElement('div');
       header.className = 's936pg-sec-header';
 
@@ -1304,15 +1355,13 @@ Return strictly valid JSON and nothing else.`;
       upBtn.type = 'button'; upBtn.textContent = '▲'; upBtn.disabled = idx === 0;
       upBtn.onclick = () => {
         [parts[idx - 1], parts[idx]] = [parts[idx], parts[idx - 1]];
-        if (selectedIdx === idx) selectedIdx = idx - 1; else if (selectedIdx === idx - 1) selectedIdx = idx;
-        persistParts(); renderSectionsList(); mountScoreForSelection();
+        persistParts(); renderSectionsList(); mountAllSections();
       };
       const downBtn = document.createElement('button');
       downBtn.type = 'button'; downBtn.textContent = '▼'; downBtn.disabled = idx === parts.length - 1;
       downBtn.onclick = () => {
         [parts[idx + 1], parts[idx]] = [parts[idx], parts[idx + 1]];
-        if (selectedIdx === idx) selectedIdx = idx + 1; else if (selectedIdx === idx + 1) selectedIdx = idx;
-        persistParts(); renderSectionsList(); mountScoreForSelection();
+        persistParts(); renderSectionsList(); mountAllSections();
       };
       moves.append(upBtn, downBtn);
 
@@ -1326,7 +1375,7 @@ Return strictly valid JSON and nothing else.`;
       nameInput.addEventListener('change', () => {
         part.label = nameInput.value.trim() || labelForType(part.section);
         persistParts();
-        if (idx === selectedIdx) mountScoreForSelection();
+        mountAllSections();
       });
       const bracketR = document.createElement('span'); bracketR.textContent = ']';
       nameWrap.append(bracketL, nameInput, bracketR);
@@ -1338,7 +1387,7 @@ Return strictly valid JSON and nothing else.`;
       dupBtn.title = 'Duplicar esta sección (queda como "BIS", comparte los mismos acordes)';
       dupBtn.onclick = () => {
         parts.splice(idx + 1, 0, Object.assign({}, part));
-        persistParts(); renderSectionsList();
+        persistParts(); renderSectionsList(); mountAllSections();
       };
 
       const barsSelect = document.createElement('select');
@@ -1351,16 +1400,15 @@ Return strictly valid JSON and nothing else.`;
       });
       barsSelect.addEventListener('change', () => {
         part.bars = Number(barsSelect.value) || 4;
-        persistParts(); renderSectionsList();
-        if (idx === selectedIdx) mountScoreForSelection();
+        persistParts(); renderSectionsList(); mountAllSections();
       });
 
       const viewBtn = document.createElement('button');
       viewBtn.type = 'button';
       viewBtn.className = 's936pg-sec-view';
       viewBtn.textContent = '🎼';
-      viewBtn.title = 'Ver el pentagrama de esta sección';
-      viewBtn.onclick = () => selectSection(idx);
+      viewBtn.title = 'Ir al pentagrama de esta sección';
+      viewBtn.onclick = () => scrollToSection(idx);
 
       const delBtn = document.createElement('button');
       delBtn.type = 'button';
@@ -1371,8 +1419,7 @@ Return strictly valid JSON and nothing else.`;
         if (parts.length <= 1) { alert('La canción necesita al menos una sección.'); return; }
         if (!window.confirm('¿Borrar la sección "' + (part.label || labelForType(part.section)) + '"? Esto la quita del arreglo.')) return;
         parts.splice(idx, 1);
-        if (selectedIdx >= parts.length) selectedIdx = parts.length - 1;
-        persistParts(); renderSectionsList(); mountScoreForSelection();
+        persistParts(); renderSectionsList(); mountAllSections();
       };
 
       header.append(moves, nameWrap, viewBtn, dupBtn, barsSelect, delBtn);
@@ -1382,11 +1429,11 @@ Return strictly valid JSON and nothing else.`;
       grid.className = 's936pg-sec-lyricgrid';
       const key = computeInstanceKeyForPart(parts, idx);
       const bars = Math.max(1, Number(part.bars) || 4);
-      buildLyricGrid(grid, key, bars, () => { if (idx === selectedIdx) mountScoreForSelection(); });
+      buildLyricGrid(grid, key, bars, () => mountAllSections());
       block.appendChild(grid);
 
       block.addEventListener('click', (e) => {
-        if (e.target === block || e.target === header) selectSection(idx);
+        if (e.target === block || e.target === header) scrollToSection(idx);
       });
 
       return block;
@@ -1432,10 +1479,10 @@ Return strictly valid JSON and nothing else.`;
         const newPart = { section: key, label: name, bars, repeat: 1, independent: true, type };
         parts.push(newPart);
         persistParts();
-        selectedIdx = parts.length - 1;
         renderSectionsList();
-        mountScoreForSelection();
+        mountAllSections();
         modalBackdrop.remove();
+        scrollToSection(parts.length - 1);
       };
       modalBackdrop.appendChild(modalCard);
       document.body.appendChild(modalBackdrop);
@@ -1443,8 +1490,10 @@ Return strictly valid JSON and nothing else.`;
       nameInput.select();
     }
 
+    title.textContent = '🎼 ' + (bridge?.getTitle?.() || 'Canción');
     renderSectionsList();
-    mountScoreForSelection();
+    mountAllSections();
+    if (initialIdx > 0) requestAnimationFrame(() => scrollToSection(initialIdx));
   }
 
   // Owner: "debe tener un icono de pentagrama limpio SVG" (Val) -- el
@@ -1498,7 +1547,17 @@ Return strictly valid JSON and nothing else.`;
       wrap.className = 's936pg-wrap';
       const canvas = document.createElement('canvas');
       canvas.className = 's936pg-canvas';
-      canvas.style.width = (PX_PER_BAR * totalBars) + 'px';
+      // Owner: "las secciones se ven pero todo está pegado, no como está
+      // ahora" (Val, con captura) -- Chart deja 10px de padding-right en
+      // cada bloque de sección (.s936-ch-cont-block) antes de que arranque
+      // el siguiente; en las filas de Chart no se nota (fondo oscuro
+      // parejo), pero en el pentagrama esos 10px partían las líneas del
+      // pentagrama en dos, con un corte visible justo en cada cambio de
+      // sección. Se extiende el canvas esos mismos 10px para que las
+      // líneas sigan de largo hasta pegar con el próximo -- los clics ahí
+      // no hacen nada (quedan fuera de cualquier compás real).
+      const canvasWidth = PX_PER_BAR * totalBars + BLOCK_TRAILING_GAP_PX;
+      canvas.style.width = canvasWidth + 'px';
       canvas.title = 'Voz — clic para poner/quitar una nota';
       const autoBtn = document.createElement('button');
       autoBtn.type = 'button';
@@ -1522,10 +1581,31 @@ Return strictly valid JSON and nothing else.`;
       row.appendChild(wrap);
       block.appendChild(row);
       const drawClef = !(opts && opts.hideLabelColumn);
-      function redraw() { drawPentagram(canvas, getNotes(sectionKey), totalBars, DEFAULT_GEO, { drawClef, width: PX_PER_BAR * totalBars, height: 96 }); }
+      let fillWidth = canvasWidth;
+      function redraw() { drawPentagram(canvas, getNotes(sectionKey), totalBars, DEFAULT_GEO, { drawClef, width: fillWidth, height: 96 }); }
       attachClickHandler(canvas, sectionKey, totalBars, redraw);
       attachSyllableEditor(canvas, sectionKey, totalBars, redraw);
       redraw();
+      // Owner: el +10px de arriba a veces no alcanzaba -- .s936pg-lanerow
+      // (sin ancho propio) en realidad se estira para llenar TODO el ancho
+      // real del bloque de Chart (que a veces es un poco más ancho que
+      // compases*320px por redondeos de la regla de tiempo/otros carriles),
+      // así que sobraba espacio real DESPUÉS del canvas. Este segundo paso
+      // mide ese ancho real una vez que el layout ya está listo y estira
+      // el canvas hasta ahí -- si por lo que sea todavía no se puede medir
+      // bien, se queda con el dibujo ya correcto de arriba (nunca en
+      // blanco, solo el corte volvería a su tamaño original de 10px).
+      requestAnimationFrame(() => {
+        try {
+          const spacerWidth = (opts && opts.hideLabelColumn) ? 0 : 323;
+          const available = row.getBoundingClientRect().width - spacerWidth;
+          if (available > fillWidth + 1) {
+            fillWidth = available;
+            canvas.style.width = fillWidth + 'px';
+            redraw();
+          }
+        } catch (_) {}
+      });
       ensureFiguresToolbar();
       ensureOidoIAPanel();
     } catch (e) {
