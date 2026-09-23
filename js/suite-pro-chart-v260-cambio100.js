@@ -9352,7 +9352,7 @@ body.s936-chart-stage main{
         // leyendo/escribiendo la instancia real de esta sección (misma
         // instanceKey que ya usa Voz, para que las repeticiones no
         // compartan pentagrama sin querer).
-        try { window.Studio936Pentagram?.renderSectionPentagram?.(block, _itemInstanceKey, { totalMeasures: totalMeasures }); } catch(_) {}
+        try { window.Studio936Pentagram?.renderSectionPentagram?.(block, _itemInstanceKey, { totalMeasures: totalMeasures, hideLabelColumn: arrIndex !== 0, sectionLabel: item.label || item.section }); } catch(_) {}
         // Cambio 365: BUG encontrado — la vista "Continua" (Vista:
         // Continua/Bloques) es una función de dibujo completamente
         // aparte de la vista normal de bloques, y nunca tuvo esta llamada

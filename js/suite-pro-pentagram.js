@@ -159,6 +159,8 @@
     const style = document.createElement('style');
     style.id = 's936pg-styles';
     style.textContent = `
+      .s936pg-lanerow{display:flex;gap:3px;}
+      .s936pg-labelspacer{width:320px;max-width:320px;flex-shrink:0;box-sizing:border-box;background:#0a0b10;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;padding:0 10px;font-size:10px;font-weight:700;color:#c5c6c7;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
       .s936pg-wrap{position:relative;background:#0a0b10;border-top:1px solid rgba(255,255,255,.06);}
       .s936pg-canvas{display:block;height:96px;cursor:crosshair;}
       .s936pg-toolbar{position:fixed;z-index:9998;display:flex;align-items:center;gap:4px;background:rgba(10,11,16,.95);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:5px 8px;box-shadow:0 8px 24px rgba(0,0,0,.5);backdrop-filter:blur(6px);}
@@ -170,6 +172,18 @@
       .s936pg-autochords{position:absolute;top:2px;left:2px;z-index:2;background:rgba(37,99,235,.85);color:#fff;border:none;border-radius:5px;font-size:10px;font-weight:700;letter-spacing:.02em;padding:2px 7px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.35);}
       .s936pg-autochords:hover{background:#2563eb;}
       .s936pg-autochords.is-busy{opacity:.6;pointer-events:none;}
+      .s936pg-bigeditor{position:absolute;top:2px;right:2px;z-index:2;background:rgba(255,255,255,.1);color:#e5e7eb;border:1px solid rgba(255,255,255,.18);border-radius:5px;font-size:12px;line-height:1;padding:3px 6px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.35);}
+      .s936pg-bigeditor:hover{background:rgba(255,255,255,.2);}
+      .s936pg-big-backdrop{position:fixed;inset:0;z-index:9990;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);}
+      .s936pg-big-card{background:#14151f;border:1px solid rgba(255,255,255,.15);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.85);width:min(96vw,1200px);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;}
+      .s936pg-big-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.1);}
+      .s936pg-big-title{color:#fff;font-weight:700;font-size:14px;}
+      .s936pg-big-sub{color:#9ca3af;font-size:10px;margin-top:2px;}
+      .s936pg-big-close{background:rgba(255,255,255,.08);color:#c5c6c7;border:none;border-radius:7px;width:28px;height:28px;font-size:14px;cursor:pointer;}
+      .s936pg-big-close:hover{background:rgba(255,255,255,.18);}
+      .s936pg-big-toolbar{display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid rgba(255,255,255,.08);flex-wrap:wrap;}
+      .s936pg-big-hint{color:#7fa8a0;font-size:10px;margin-left:auto;}
+      .s936pg-big-body{overflow:auto;padding:18px;background:#0a0b10;}
       .s936pg-oido{position:fixed;z-index:9998;display:flex;align-items:center;gap:4px;background:rgba(10,11,16,.95);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:5px 8px;box-shadow:0 8px 24px rgba(0,0,0,.5);backdrop-filter:blur(6px);}
       .s936pg-oido-btn{border-radius:6px;border:1px solid transparent;font-size:11px;font-weight:700;padding:5px 9px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;}
       .s936pg-oido-key{background:rgba(255,255,255,.06);color:#c5c6c7;border-color:rgba(255,255,255,.12);}
@@ -200,65 +214,84 @@
     document.head.appendChild(style);
   }
 
-  function drawLedgerLines(g, midi, nx, c4Y, staffTop) {
+  // Owner: "panel de edición grande" (Val) necesita el mismo pentagrama pero
+  // más grande/legible para trabajar con precisión -- en vez de duplicar el
+  // dibujo, todas las funciones de acá reciben un `geo` con un factor de
+  // escala. La fila normal (inline, en Vista Continua) usa escala 1 (los
+  // mismos números de siempre); el editor grande usa una escala mayor.
+  function makeGeo(scale) {
+    scale = scale || 1;
+    return {
+      scale,
+      pxPerBar: PX_PER_BAR * scale,
+      lineGap: LINE_GAP * scale,
+      topPad: TOP_PAD * scale
+    };
+  }
+  const DEFAULT_GEO = makeGeo(1);
+
+  function drawLedgerLines(g, midi, nx, c4Y, staffTop, geo) {
+    const halfW = 8 * geo.scale;
     if (midi <= 60) {
       g.beginPath(); g.strokeStyle = 'rgba(255,255,255,.3)'; g.lineWidth = 1;
-      g.moveTo(nx - 8, c4Y); g.lineTo(nx + 8, c4Y); g.stroke();
+      g.moveTo(nx - halfW, c4Y); g.lineTo(nx + halfW, c4Y); g.stroke();
     } else if (midi >= 81) {
-      const topLedger = staffTop - LINE_GAP;
+      const topLedger = staffTop - geo.lineGap;
       g.beginPath(); g.strokeStyle = 'rgba(255,255,255,.3)'; g.lineWidth = 1;
-      g.moveTo(nx - 8, topLedger); g.lineTo(nx + 8, topLedger); g.stroke();
+      g.moveTo(nx - halfW, topLedger); g.lineTo(nx + halfW, topLedger); g.stroke();
     }
   }
 
-  function drawIndividualNotes(g, group, barStartX, c4Y, bottomLineY, staffTop) {
+  function drawIndividualNotes(g, group, barStartX, c4Y, bottomLineY, staffTop, geo) {
+    const s = geo.scale;
     group.forEach((note) => {
       const stepOffset = getMidiYOffset(note.midi);
-      const nx = barStartX + note.beat * (PX_PER_BAR / 4) + 18;
-      const ny = c4Y - stepOffset * (LINE_GAP / 2);
-      drawLedgerLines(g, note.midi, nx, c4Y, staffTop);
+      const nx = barStartX + note.beat * (geo.pxPerBar / 4) + 18 * s;
+      const ny = c4Y - stepOffset * (geo.lineGap / 2);
+      drawLedgerLines(g, note.midi, nx, c4Y, staffTop, geo);
       g.beginPath();
       if (note.duration >= 2) {
-        g.ellipse(nx, ny, 5, 3.5, -0.2, 0, Math.PI * 2);
+        g.ellipse(nx, ny, 5 * s, 3.5 * s, -0.2, 0, Math.PI * 2);
         g.strokeStyle = '#e2e8f0'; g.lineWidth = 2; g.stroke();
       } else {
-        g.ellipse(nx, ny, 5, 3.5, -0.2, 0, Math.PI * 2);
+        g.ellipse(nx, ny, 5 * s, 3.5 * s, -0.2, 0, Math.PI * 2);
         g.fillStyle = '#e2e8f0'; g.fill();
       }
       if (note.duration === 3 || note.duration === 1.5) {
-        g.beginPath(); g.arc(nx + 10, ny, 2.5, 0, Math.PI * 2); g.fillStyle = '#e2e8f0'; g.fill();
+        g.beginPath(); g.arc(nx + 10 * s, ny, 2.5 * s, 0, Math.PI * 2); g.fillStyle = '#e2e8f0'; g.fill();
       }
       if (note.duration < 4) {
         const stemsUp = note.midi < 71;
-        const stemX = stemsUp ? nx + 4.5 : nx - 4.5;
-        const stemYEnd = stemsUp ? ny - 25 : ny + 25;
+        const stemX = stemsUp ? nx + 4.5 * s : nx - 4.5 * s;
+        const stemYEnd = stemsUp ? ny - 25 * s : ny + 25 * s;
         g.beginPath(); g.strokeStyle = '#e2e8f0'; g.lineWidth = 1.5;
         g.moveTo(stemX, ny); g.lineTo(stemX, stemYEnd); g.stroke();
       }
       if (note.syllable) {
-        g.textAlign = 'center'; g.fillStyle = '#93c5fd'; g.font = 'bold 11px Inter, sans-serif';
-        g.fillText(note.syllable, nx, bottomLineY + 26);
+        g.textAlign = 'center'; g.fillStyle = '#93c5fd'; g.font = 'bold ' + Math.round(11 * s) + 'px Inter, sans-serif';
+        g.fillText(note.syllable, nx, bottomLineY + 26 * s);
       }
     });
   }
 
-  function drawBeamedGroup(g, group, barStartX, c4Y, bottomLineY, staffTop) {
+  function drawBeamedGroup(g, group, barStartX, c4Y, bottomLineY, staffTop, geo) {
+    const s = geo.scale;
     const avgMidi = group.reduce((sum, n) => sum + n.midi, 0) / group.length;
     const stemsUp = avgMidi < 71;
     const stemDir = stemsUp ? -1 : 1;
-    const stemXOff = stemsUp ? 4.5 : -4.5;
-    const beamHeight = 22;
+    const stemXOff = stemsUp ? 4.5 * s : -4.5 * s;
+    const beamHeight = 22 * s;
     const beamPoints = [];
     let firstNx = 0, lastNx = 0;
     group.forEach((note, idx) => {
       const stepOffset = getMidiYOffset(note.midi);
-      const nx = barStartX + note.beat * (PX_PER_BAR / 4) + 18;
+      const nx = barStartX + note.beat * (geo.pxPerBar / 4) + 18 * s;
       if (idx === 0) firstNx = nx;
       if (idx === group.length - 1) lastNx = nx;
-      const ny = c4Y - stepOffset * (LINE_GAP / 2);
-      drawLedgerLines(g, note.midi, nx, c4Y, staffTop);
+      const ny = c4Y - stepOffset * (geo.lineGap / 2);
+      drawLedgerLines(g, note.midi, nx, c4Y, staffTop, geo);
       g.beginPath();
-      g.ellipse(nx, ny, 5, 3.5, -0.2, 0, Math.PI * 2);
+      g.ellipse(nx, ny, 5 * s, 3.5 * s, -0.2, 0, Math.PI * 2);
       g.fillStyle = '#e2e8f0'; g.fill();
       const stemEnd = ny + beamHeight * stemDir;
       g.beginPath(); g.strokeStyle = '#e2e8f0'; g.lineWidth = 1.5;
@@ -271,8 +304,8 @@
     g.stroke();
     const first = group[0];
     if (first.syllable) {
-      g.textAlign = 'center'; g.fillStyle = '#93c5fd'; g.font = 'bold 11px Inter, sans-serif';
-      g.fillText(first.syllable, (firstNx + lastNx) / 2, bottomLineY + 26);
+      g.textAlign = 'center'; g.fillStyle = '#93c5fd'; g.font = 'bold ' + Math.round(11 * s) + 'px Inter, sans-serif';
+      g.fillText(first.syllable, (firstNx + lastNx) / 2, bottomLineY + 26 * s);
     }
   }
 
@@ -280,7 +313,8 @@
   // sección (a diferencia del prototipo original, que lo partía en sistemas
   // verticales de 4 compases -- acá tiene que alinear con Chart/Lyric/Voz, que ya
   // son horizontales, 320px por compás).
-  function drawPentagram(canvas, notes, totalBars) {
+  function drawPentagram(canvas, notes, totalBars, geo) {
+    geo = geo || DEFAULT_GEO;
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.clientWidth, h = canvas.clientHeight;
     if (!w || !h) return;
@@ -289,21 +323,21 @@
     g.scale(dpr, dpr);
     g.clearRect(0, 0, w, h);
 
-    const staffTop = TOP_PAD;
-    const bottomLineY = staffTop + 4 * LINE_GAP;
-    const c4Y = bottomLineY + LINE_GAP;
+    const staffTop = geo.topPad;
+    const bottomLineY = staffTop + 4 * geo.lineGap;
+    const c4Y = bottomLineY + geo.lineGap;
 
     g.strokeStyle = 'rgba(255,255,255,.28)'; g.lineWidth = 1;
     g.beginPath();
-    for (let i = 0; i < 5; i++) { const ly = staffTop + i * LINE_GAP; g.moveTo(0, ly); g.lineTo(w, ly); }
+    for (let i = 0; i < 5; i++) { const ly = staffTop + i * geo.lineGap; g.moveTo(0, ly); g.lineTo(w, ly); }
     g.stroke();
 
-    g.fillStyle = 'rgba(255,255,255,.85)'; g.font = '26px serif'; g.textAlign = 'left';
+    g.fillStyle = 'rgba(255,255,255,.85)'; g.font = Math.round(26 * geo.scale) + 'px serif'; g.textAlign = 'left';
     g.fillText('𝄞', 2, bottomLineY + 4);
 
     g.strokeStyle = 'rgba(255,255,255,.12)';
     for (let b = 0; b <= totalBars; b++) {
-      const x = b * PX_PER_BAR;
+      const x = b * geo.pxPerBar;
       g.beginPath(); g.moveTo(x, staffTop); g.lineTo(x, bottomLineY); g.stroke();
     }
 
@@ -311,38 +345,48 @@
       const barNotes = notes.filter(n => n.bar === bar);
       const beats = { 0: [], 1: [], 2: [], 3: [] };
       barNotes.forEach(n => { const bi = Math.floor(n.beat); if (bi >= 0 && bi <= 3) beats[bi].push(n); });
-      const barStartX = bar * PX_PER_BAR;
+      const barStartX = bar * geo.pxPerBar;
       for (let b = 0; b < 4; b++) {
         const group = beats[b].sort((a, c) => a.beat - c.beat);
         if (!group.length) continue;
         const needsBeaming = group.length > 1 && group.every(n => n.duration < 1);
-        if (needsBeaming) drawBeamedGroup(g, group, barStartX, c4Y, bottomLineY, staffTop);
-        else drawIndividualNotes(g, group, barStartX, c4Y, bottomLineY, staffTop);
+        if (needsBeaming) drawBeamedGroup(g, group, barStartX, c4Y, bottomLineY, staffTop, geo);
+        else drawIndividualNotes(g, group, barStartX, c4Y, bottomLineY, staffTop, geo);
       }
     }
   }
 
-  function attachClickHandler(canvas, sectionKey, totalBars, redraw) {
+  function hitTestNote(notes, bar, exactBeat, midi) {
+    return notes.findIndex(n => n.bar === bar && exactBeat >= n.beat && exactBeat <= (n.beat + n.duration) && Math.abs(midi - n.midi) <= 2);
+  }
+
+  function pointToBarBeatMidi(canvas, clientX, clientY, geo) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.clientWidth ? rect.width / canvas.clientWidth : 1;
+    const scaleY = canvas.clientHeight ? rect.height / canvas.clientHeight : 1;
+    const x = (clientX - rect.left) / scaleX, y = (clientY - rect.top) / scaleY;
+    const bar = Math.floor(x / geo.pxPerBar);
+    const xInBar = x - bar * geo.pxPerBar;
+    const exactBeat = xInBar / (geo.pxPerBar / 4);
+    const staffTop = geo.topPad, bottomLineY = staffTop + 4 * geo.lineGap, c4Y = bottomLineY + geo.lineGap;
+    const spaceOffset = (c4Y - y) / (geo.lineGap / 2);
+    let midiIdx = Math.round(spaceOffset);
+    midiIdx = Math.max(0, Math.min(midiIdx, WHITE_KEYS.length - 1));
+    return { bar, exactBeat, midi: WHITE_KEYS[midiIdx] };
+  }
+
+  function attachClickHandler(canvas, sectionKey, totalBars, redraw, geo) {
+    geo = geo || DEFAULT_GEO;
     canvas.addEventListener('mousedown', (e) => {
       e.stopPropagation();
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left, y = e.clientY - rect.top;
-      const bar = Math.floor(x / PX_PER_BAR);
+      const { bar, exactBeat, midi } = pointToBarBeatMidi(canvas, e.clientX, e.clientY, geo);
       if (bar < 0 || bar >= totalBars) return;
-      const xInBar = x - bar * PX_PER_BAR;
-      const exactBeat = xInBar / (PX_PER_BAR / 4);
       const snap = selectedDuration;
       const beat = Math.floor(exactBeat / snap) * snap;
       if (beat + snap > 4) return;
 
-      const staffTop = TOP_PAD, bottomLineY = staffTop + 4 * LINE_GAP, c4Y = bottomLineY + LINE_GAP;
-      const spaceOffset = (c4Y - y) / (LINE_GAP / 2);
-      let midiIdx = Math.round(spaceOffset);
-      midiIdx = Math.max(0, Math.min(midiIdx, WHITE_KEYS.length - 1));
-      const midi = WHITE_KEYS[midiIdx];
-
       let notes = getNotes(sectionKey).slice();
-      const clickedIdx = notes.findIndex(n => n.bar === bar && exactBeat >= n.beat && exactBeat <= (n.beat + n.duration) && Math.abs(midi - n.midi) <= 2);
+      const clickedIdx = hitTestNote(notes, bar, exactBeat, midi);
       if (clickedIdx !== -1) {
         notes.splice(clickedIdx, 1);
       } else {
@@ -357,6 +401,28 @@
           playPreviewNote(midi, Math.min(snap * 0.4, 1));
         }
       }
+      setNotes(sectionKey, notes);
+      redraw();
+    });
+  }
+
+  // Owner: "letra y pentagrama" (Val) -- en el prototipo original la letra
+  // vive PEGADA a cada nota (la sílaba se dibuja debajo, como en una
+  // partitura de coro real), no en un cuadro de texto aparte. Doble clic
+  // sobre una nota ya puesta permite escribir/editar esa sílaba sin
+  // necesidad del editor grande (aunque ahí es más cómodo por el tamaño).
+  function attachSyllableEditor(canvas, sectionKey, totalBars, redraw, geo) {
+    geo = geo || DEFAULT_GEO;
+    canvas.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      const { bar, exactBeat, midi } = pointToBarBeatMidi(canvas, e.clientX, e.clientY, geo);
+      if (bar < 0 || bar >= totalBars) return;
+      const notes = getNotes(sectionKey).slice();
+      const idx = hitTestNote(notes, bar, exactBeat, midi);
+      if (idx === -1) return;
+      const typed = window.prompt('Sílaba/letra para esta nota:', notes[idx].syllable || '');
+      if (typed === null) return;
+      notes[idx] = Object.assign({}, notes[idx], { syllable: typed.trim() });
       setNotes(sectionKey, notes);
       redraw();
     });
@@ -723,12 +789,113 @@ Return strictly valid JSON and nothing else.`;
     drag.addEventListener('pointerup', () => { dragging = false; });
   }
 
+  // Owner: un solo lugar para el click de "Auto-Acordes" -- lo usan tanto el
+  // botón chiquito de la fila inline como el del editor grande.
+  function runAutoChords(sectionKey, totalBars, btn) {
+    if (btn.classList.contains('is-busy')) return;
+    const chords = computeChordsForSection(sectionKey, totalBars);
+    const label = btn.textContent;
+    if (!chords) {
+      btn.textContent = 'Sin notas';
+    } else {
+      const target = baseSectionType(sectionKey);
+      const draftWritten = writeChordsIntoStructureDraft(target, chords);
+      const result = window.Studio936AppBridge?.applyPentagramChords?.(target, chords);
+      const bridgeOk = !result || result.ok !== false;
+      btn.textContent = (draftWritten || bridgeOk) ? '✓ Aplicado' : '⚠ ' + (result?.message || 'Error');
+      try { window.dispatchEvent(new CustomEvent('studio936:section-chords-updated', { detail: { sectionKey: target } })); } catch (_) {}
+    }
+    btn.classList.add('is-busy');
+    setTimeout(() => { btn.textContent = label; btn.classList.remove('is-busy'); }, 1400);
+  }
+
+  // Owner: "el panel de edición grande con letra y pentagrama, como te lo
+  // di" (Val) -- un modal amplio, autocontenido, con el mismo pentagrama
+  // pero dibujado más grande (fácil de leer/hacer clic con precisión) y
+  // doble clic para escribir la sílaba de cada nota (así aparece la letra
+  // pegada a la nota, igual que en el prototipo original).
+  function openBigEditor(sectionKey, totalBars, sectionLabel) {
+    installStyles();
+    const backdrop = document.createElement('div');
+    backdrop.className = 's936pg-big-backdrop';
+    const card = document.createElement('div');
+    card.className = 's936pg-big-card';
+
+    const head = document.createElement('div');
+    head.className = 's936pg-big-head';
+    const headText = document.createElement('div');
+    const title = document.createElement('div');
+    title.className = 's936pg-big-title';
+    title.textContent = '🎼 ' + (sectionLabel || sectionKey);
+    const sub = document.createElement('div');
+    sub.className = 's936pg-big-sub';
+    sub.textContent = 'Editor grande — letra y pentagrama';
+    headText.append(title, sub);
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 's936pg-big-close';
+    closeBtn.textContent = '✕';
+    closeBtn.onclick = () => backdrop.remove();
+    head.append(headText, closeBtn);
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 's936pg-big-toolbar';
+    const autoBtn = document.createElement('button');
+    autoBtn.type = 'button';
+    autoBtn.className = 's936pg-oido-btn s936pg-oido-key';
+    autoBtn.textContent = '🎼 Auto-Acordes';
+    autoBtn.onclick = () => runAutoChords(sectionKey, totalBars, autoBtn);
+    const hint = document.createElement('div');
+    hint.className = 's936pg-big-hint';
+    hint.textContent = 'Clic: poner/quitar nota · Doble clic en una nota: escribir su letra';
+    toolbar.append(autoBtn, hint);
+
+    const body = document.createElement('div');
+    body.className = 's936pg-big-body';
+    const canvas = document.createElement('canvas');
+    canvas.className = 's936pg-canvas';
+    const geo = makeGeo(1.6);
+    canvas.style.width = (geo.pxPerBar * totalBars) + 'px';
+    canvas.style.height = '170px';
+    canvas.title = 'Pentagrama — clic para poner/quitar una nota, doble clic para escribir la letra';
+    body.appendChild(canvas);
+
+    card.append(head, toolbar, body);
+    backdrop.appendChild(card);
+    document.body.appendChild(backdrop);
+    backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) backdrop.remove(); });
+
+    function redraw() { drawPentagram(canvas, getNotes(sectionKey), totalBars, geo); }
+    attachClickHandler(canvas, sectionKey, totalBars, redraw, geo);
+    attachSyllableEditor(canvas, sectionKey, totalBars, redraw, geo);
+    redraw();
+    ensureFiguresToolbar();
+  }
+
   function renderSectionPentagram(block, sectionKey, opts) {
     try {
       if (!block || !sectionKey) return;
       installStyles();
       const totalBars = Number(opts && opts.totalMeasures) || 0;
       if (!(totalBars > 0)) return;
+      const sectionLabel = (opts && opts.sectionLabel) || sectionKey;
+
+      // Owner: "el pentagrama debe iniciar en el mismo punto que el primer
+      // tiempo del Chart" (Val, con captura) -- Chart/Lyric/Voz reservan
+      // 320px de columna de controles SOLO en la primera sección de la
+      // canción (arrIndex === 0) y las demás arrancan pegadas al borde;
+      // el pentagrama no tenía ese mismo espaciador, así que su compás 1
+      // quedaba corrido hacia la izquierda, debajo de esa columna, en vez
+      // de alinear con el compás 1 real de Chart.
+      const row = document.createElement('div');
+      row.className = 's936pg-lanerow';
+      if (!(opts && opts.hideLabelColumn)) {
+        const spacer = document.createElement('div');
+        spacer.className = 's936pg-labelspacer';
+        spacer.textContent = '🎼 Pentagrama';
+        row.appendChild(spacer);
+      }
+
       const wrap = document.createElement('div');
       wrap.className = 's936pg-wrap';
       const canvas = document.createElement('canvas');
@@ -742,26 +909,23 @@ Return strictly valid JSON and nothing else.`;
       autoBtn.title = 'Calcular acordes a partir de las notas de este pentagrama y aplicarlos a la sección';
       autoBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (autoBtn.classList.contains('is-busy')) return;
-        const chords = computeChordsForSection(sectionKey, totalBars);
-        const label = autoBtn.textContent;
-        if (!chords) {
-          autoBtn.textContent = 'Sin notas';
-        } else {
-          const target = baseSectionType(sectionKey);
-          const draftWritten = writeChordsIntoStructureDraft(target, chords);
-          const result = window.Studio936AppBridge?.applyPentagramChords?.(target, chords);
-          const bridgeOk = !result || result.ok !== false;
-          autoBtn.textContent = (draftWritten || bridgeOk) ? '✓ Aplicado' : '⚠ ' + (result?.message || 'Error');
-          try { window.dispatchEvent(new CustomEvent('studio936:section-chords-updated', { detail: { sectionKey: target } })); } catch (_) {}
-        }
-        autoBtn.classList.add('is-busy');
-        setTimeout(() => { autoBtn.textContent = label; autoBtn.classList.remove('is-busy'); }, 1400);
+        runAutoChords(sectionKey, totalBars, autoBtn);
       });
-      wrap.append(canvas, autoBtn);
-      block.appendChild(wrap);
+      const bigBtn = document.createElement('button');
+      bigBtn.type = 'button';
+      bigBtn.className = 's936pg-bigeditor';
+      bigBtn.textContent = '⛶';
+      bigBtn.title = 'Abrir editor grande (letra + pentagrama)';
+      bigBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openBigEditor(sectionKey, totalBars, sectionLabel);
+      });
+      wrap.append(canvas, autoBtn, bigBtn);
+      row.appendChild(wrap);
+      block.appendChild(row);
       function redraw() { drawPentagram(canvas, getNotes(sectionKey), totalBars); }
       attachClickHandler(canvas, sectionKey, totalBars, redraw);
+      attachSyllableEditor(canvas, sectionKey, totalBars, redraw);
       redraw();
       ensureFiguresToolbar();
       ensureOidoIAPanel();
