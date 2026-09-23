@@ -3282,6 +3282,38 @@ function installStudio936AppBridge(){
         try { window.dispatchEvent(new CustomEvent('studio936:section-chords-updated', { detail:{ sectionKey:key } })); } catch(_) {}
         return { ok:true, message:'Acordes de "'+key+'" actualizados desde Auto-Acordes.' };
     }
+    // Owner: paso 3/3 del pentagrama -- "Oído IA" transcribe un audio
+    // completo (Gemini) y detecta la canción ENTERA (secciones + acordes)
+    // desde cero, a diferencia de Auto-Acordes que solo toca UNA sección ya
+    // existente. Reemplaza project.sections por las secciones detectadas
+    // (el borrador de Estructura, que es lo que realmente gobierna Vista
+    // Continua, se reescribe aparte desde suite-pro-pentagram.js) y apaga
+    // isNewSong para que no se borre al recargar (mismo bug que arregló el
+    // Cambio 239/90c7121).
+    function replaceSongFromAI(sectionsPayload){
+        if(!Array.isArray(sectionsPayload) || !sectionsPayload.length){
+            return { ok:false, message:'Oído IA no detectó secciones para crear.' };
+        }
+        const newSections = {};
+        sectionsPayload.forEach(s => {
+            const key = String(s.key || '').trim();
+            if(!key) return;
+            newSections[key] = (Array.isArray(s.chords) ? s.chords : []).map(c => MusicTheory.chord(
+                String(c.name || 'C'),
+                String(c.bass || ''),
+                String(c.notes || ''),
+                Math.max(1, Number(c.bars) || 1)
+            ));
+        });
+        if(!Object.keys(newSections).length){
+            return { ok:false, message:'Oído IA no devolvió secciones válidas.' };
+        }
+        project.sections = newSections;
+        project.isNewSong = false;
+        saveProject(false);
+        try { window.dispatchEvent(new CustomEvent('studio936:section-chords-updated', { detail:{ full:true } })); } catch(_) {}
+        return { ok:true, message:'Canción creada desde Oído IA ('+Object.keys(newSections).length+' secciones).' };
+    }
     function duplicateEditorChord(sectionKey, index){
         const seq = project.sections?.[sectionKey];
         if(!Array.isArray(seq) || !seq.length) return { ok:false, message:'No hay acorde para duplicar.' };
@@ -3435,6 +3467,7 @@ function installStudio936AppBridge(){
         applyEditorChord,
         addEditorChord,
         applyPentagramChords,
+        replaceSongFromAI,
         duplicateEditorChord,
         deleteEditorChord,
         getArrangement: () => safeClone(safe(() => arrangementParts(), [])),

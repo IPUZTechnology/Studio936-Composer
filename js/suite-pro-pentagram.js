@@ -12,9 +12,9 @@
 // track-recorder.js para Voz, para que "Coro"/"Coro BIS" no compartan pentagrama sin
 // querer).
 //
-// Este es el PASO 1 (el más grande y la base de todo lo demás): el dibujo del
-// pentagrama + poner notas a mano con clic, igual que el prototipo. Auto-Acordes y
-// Oído IA llegan en commits siguientes, sobre esta misma base de datos.
+// PASO 1: el dibujo del pentagrama + poner notas a mano con clic, igual que el
+// prototipo. PASO 2 (Auto-Acordes) y PASO 3 (Oído IA) están más abajo en este
+// mismo archivo, sobre esta misma base de datos.
 (function () {
   'use strict';
 
@@ -170,6 +170,32 @@
       .s936pg-autochords{position:absolute;top:2px;left:2px;z-index:2;background:rgba(37,99,235,.85);color:#fff;border:none;border-radius:5px;font-size:10px;font-weight:700;letter-spacing:.02em;padding:2px 7px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.35);}
       .s936pg-autochords:hover{background:#2563eb;}
       .s936pg-autochords.is-busy{opacity:.6;pointer-events:none;}
+      .s936pg-oido{position:fixed;z-index:9998;display:flex;align-items:center;gap:4px;background:rgba(10,11,16,.95);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:5px 8px;box-shadow:0 8px 24px rgba(0,0,0,.5);backdrop-filter:blur(6px);}
+      .s936pg-oido-btn{border-radius:6px;border:1px solid transparent;font-size:11px;font-weight:700;padding:5px 9px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;}
+      .s936pg-oido-key{background:rgba(255,255,255,.06);color:#c5c6c7;border-color:rgba(255,255,255,.12);}
+      .s936pg-oido-key:hover{background:rgba(255,255,255,.12);}
+      .s936pg-oido-rec{background:rgba(16,185,129,.15);color:#34d399;border-color:rgba(16,185,129,.4);}
+      .s936pg-oido-rec:hover{background:rgba(16,185,129,.25);}
+      .s936pg-oido-rec.is-recording{background:#dc2626;color:#fff;border-color:#ef4444;animation:s936pg-pulse 1.1s infinite;}
+      .s936pg-oido-upload{background:rgba(168,85,247,.12);color:#c084fc;border-color:rgba(168,85,247,.35);}
+      .s936pg-oido-upload:hover{background:rgba(168,85,247,.22);}
+      @keyframes s936pg-pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.55)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}
+      .s936pg-modal-backdrop{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35);}
+      .s936pg-modal-card{background:#14151f;border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:22px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.8);max-width:360px;}
+      .s936pg-modal-icon{width:48px;height:48px;border-radius:999px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:20px;}
+      .s936pg-modal-icon.brain{background:rgba(168,85,247,.2);color:#c084fc;animation:s936pg-spin 1.4s linear infinite;}
+      .s936pg-modal-icon.warn{background:rgba(245,158,11,.2);color:#fbbf24;}
+      @keyframes s936pg-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+      .s936pg-modal-title{color:#fff;font-weight:700;font-size:13px;margin-bottom:6px;}
+      .s936pg-modal-body{color:#9ca3af;font-size:11px;margin-bottom:0;}
+      .s936pg-modal-btn{margin-top:14px;padding:8px 16px;font-size:11px;font-weight:700;border:none;border-radius:7px;background:#2563eb;color:#fff;cursor:pointer;}
+      .s936pg-key-field{text-align:left;margin-top:12px;}
+      .s936pg-key-field label{display:block;font-size:10px;color:#9ca3af;margin-bottom:4px;}
+      .s936pg-key-field input{width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:8px;color:#e5e7eb;font-size:11px;}
+      .s936pg-key-actions{display:flex;gap:8px;margin-top:14px;justify-content:flex-end;}
+      .s936pg-key-actions button{padding:7px 14px;font-size:11px;font-weight:700;border-radius:7px;border:none;cursor:pointer;}
+      .s936pg-key-cancel{background:rgba(255,255,255,.08);color:#c5c6c7;}
+      .s936pg-key-save{background:#2563eb;color:#fff;}
     `;
     document.head.appendChild(style);
   }
@@ -396,6 +422,307 @@
     drag.addEventListener('pointerup', () => { dragging = false; });
   }
 
+  // ── PASO 3/3: Oído IA ────────────────────────────────────────────────────
+  // Owner: graba (o sube) audio, lo manda a Gemini con el mismo prompt del
+  // prototipo (pedir secciones + acordes por compás + notas exactas
+  // cantadas/tocadas), y con la respuesta CREA la canción completa: escribe
+  // el arreglo y los acordes en el borrador de Estructura (misma fuente que
+  // ya usa Auto-Acordes), y las notas en el pentagrama de cada sección. Solo
+  // Gemini está realmente conectado (igual que en el prototipo -- ahí OpenAI
+  // y los demás tiraban "no configurado").
+  const GEMINI_KEY_STORAGE = 'studio936_gemini_key';
+  const GEMINI_PROMPT = `Listen very carefully to this entire musical recording from start to finish.
+CRITICAL STRUCTURAL & TRANSCRIPTION RULES:
+1. SECTIONS: Divide the song into natural musical sections based on the audio (e.g., "Intro", "Verso 1", "Coro").
+2. MEASURE ALIGNMENT: The very first musical sound of the instrument at 0.0 seconds MUST start at measure index 0 of the first section (Intro).
+3. INTRO vs VOCALS:
+   - For instrumental intro measures: detect and provide the correct "chord", set "notes": [].
+   - When vocals start: detect exact sung melodic pitches (MIDI note numbers like 60 for C4, 62 for D4, etc.) and assign exact word/syllable to "syllable".
+4. TIME SIGNATURE 4/4: Each measure has 4 beats (0.0 to 3.0).
+Return a strict JSON array of section objects:
+[
+  {
+    "sectionName": "Intro",
+    "repeat": false,
+    "measures": [
+      { "measure": 0, "chord": "Cmaj7", "notes": [] }
+    ]
+  }
+]
+Return strictly valid JSON and nothing else.`;
+
+  function getGeminiKey() {
+    try { return localStorage.getItem(GEMINI_KEY_STORAGE) || ''; } catch (_) { return ''; }
+  }
+  function setGeminiKey(key) {
+    try { localStorage.setItem(GEMINI_KEY_STORAGE, key); } catch (_) {}
+  }
+
+  function showOidoModal(icon, title, body, dismissible) {
+    const backdrop = document.createElement('div');
+    backdrop.className = 's936pg-modal-backdrop';
+    const card = document.createElement('div');
+    card.className = 's936pg-modal-card';
+    card.innerHTML =
+      '<div class="s936pg-modal-icon ' + icon + '">' + (icon === 'brain' ? '🧠' : '⚠️') + '</div>' +
+      '<div class="s936pg-modal-title"></div>' +
+      '<div class="s936pg-modal-body"></div>';
+    card.querySelector('.s936pg-modal-title').textContent = title;
+    card.querySelector('.s936pg-modal-body').textContent = body;
+    if (dismissible) {
+      const btn = document.createElement('button');
+      btn.className = 's936pg-modal-btn';
+      btn.type = 'button';
+      btn.textContent = 'Entendido';
+      btn.onclick = () => backdrop.remove();
+      card.appendChild(btn);
+    }
+    backdrop.appendChild(card);
+    document.body.appendChild(backdrop);
+    return backdrop;
+  }
+
+  function openApiKeyPrompt() {
+    const backdrop = document.createElement('div');
+    backdrop.className = 's936pg-modal-backdrop';
+    const card = document.createElement('div');
+    card.className = 's936pg-modal-card';
+    card.innerHTML =
+      '<div class="s936pg-modal-title">Oído IA (Gemini)</div>' +
+      '<div class="s936pg-modal-body">Necesita tu API Key de Google AI Studio para escuchar y transcribir el audio.</div>' +
+      '<div class="s936pg-key-field"><label>API Key de Gemini</label><input type="password" placeholder="Pega tu API Key aquí..." /></div>' +
+      '<div class="s936pg-key-actions"><button type="button" class="s936pg-key-cancel">Cancelar</button><button type="button" class="s936pg-key-save">Guardar</button></div>';
+    const input = card.querySelector('input');
+    input.value = getGeminiKey();
+    card.querySelector('.s936pg-key-cancel').onclick = () => backdrop.remove();
+    card.querySelector('.s936pg-key-save').onclick = () => {
+      setGeminiKey(input.value.trim());
+      backdrop.remove();
+    };
+    backdrop.appendChild(card);
+    document.body.appendChild(backdrop);
+  }
+
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(String(reader.result).split(',')[1] || '');
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function inferSectionType(name) {
+    const n = String(name || '').toLowerCase();
+    if (n.includes('pre')) return 'prechorus';
+    if (n.includes('coro') || n.includes('chorus')) return 'chorus';
+    if (n.includes('puente') || n.includes('bridge')) return 'bridge';
+    if (n.includes('interlud')) return 'interlude';
+    if (n.includes('solo')) return 'solo';
+    if (n.includes('outro') || n.includes('final')) return 'outro';
+    if (n.includes('intro')) return 'intro';
+    return 'verse';
+  }
+
+  function uniqueAiSectionKey(name, used) {
+    const type = inferSectionType(name);
+    let key = type, n = 2;
+    while (used.has(key)) { key = type + n; n++; }
+    used.add(key);
+    return key;
+  }
+
+  // Owner: mismo criterio de fusión que Auto-Acordes -- un compás sin
+  // acorde detectado sostiene el anterior, y compases consecutivos con el
+  // mismo acorde se funden en una sola entrada más larga.
+  function mergeChordsFromMeasures(measures) {
+    const names = measures.map(m => String((m && m.chord) || '').trim());
+    let lastName = '';
+    const filled = names.map(n => { if (n) lastName = n; return n || lastName || 'C'; });
+    const chords = [];
+    filled.forEach((name) => {
+      const prev = chords[chords.length - 1];
+      if (prev && prev.name === name) { prev.bars += 1; return; }
+      chords.push({ name, bass: '', notes: '', bars: 1 });
+    });
+    return chords;
+  }
+
+  function pentagramNotesFromMeasures(measures) {
+    const notes = [];
+    measures.forEach((m, barIdx) => {
+      if (!m || !Array.isArray(m.notes)) return;
+      m.notes.forEach((n) => {
+        const midi = Number(n.midi);
+        if (!Number.isFinite(midi) || midi <= 0) return;
+        notes.push({
+          bar: barIdx,
+          beat: Number(n.beat) || 0,
+          duration: Math.max(0.25, Number(n.duration) || 1),
+          midi: Math.round(midi),
+          syllable: n.syllable || ''
+        });
+      });
+    });
+    return notes;
+  }
+
+  // Owner: escribe la canción DETECTADA POR IA en los mismos dos lugares
+  // que ya usa Auto-Acordes (borrador de Estructura + project.sections),
+  // pero reemplazando el arreglo entero -- Oído IA "crea la canción, hace
+  // las secciones", no agrega acordes a una que ya existe.
+  function applyAiSongResult(parsedSections) {
+    const used = new Set();
+    const parts = [];
+    const clones = {};
+    const sectionsForBridge = [];
+    const pentagramWrites = [];
+    parsedSections.forEach((secObj) => {
+      const measures = Array.isArray(secObj.measures) && secObj.measures.length ? secObj.measures : [{ chord: 'C', notes: [] }];
+      const key = uniqueAiSectionKey(secObj.sectionName, used);
+      const label = secObj.sectionName || key;
+      parts.push({ section: key, label, bars: measures.length, repeat: 1, independent: true, type: inferSectionType(secObj.sectionName) });
+      const chords = mergeChordsFromMeasures(measures);
+      clones[key] = { source: '', items: chords, createdAt: new Date().toISOString() };
+      sectionsForBridge.push({ key, chords });
+      pentagramWrites.push({ key, notes: pentagramNotesFromMeasures(measures) });
+    });
+
+    try {
+      const raw = JSON.parse(localStorage.getItem(STRUCTURE_DRAFT_KEY) || '{}');
+      raw.draft = raw.draft && typeof raw.draft === 'object' ? raw.draft : {};
+      raw.draft.parts = parts;
+      raw.draft.clones = clones;
+      localStorage.setItem(STRUCTURE_DRAFT_KEY, JSON.stringify(raw));
+    } catch (_) {}
+
+    pentagramWrites.forEach((w) => setNotes(w.key, w.notes));
+
+    window.Studio936AppBridge?.replaceSongFromAI?.(sectionsForBridge);
+    try { window.dispatchEvent(new CustomEvent('studio936:section-chords-updated', { detail: { full: true } })); } catch (_) {}
+  }
+
+  async function transcribeAudioWithAI(blob) {
+    const apiKey = getGeminiKey();
+    if (!apiKey) { openApiKeyPrompt(); return; }
+    const raw = (() => { try { return JSON.parse(localStorage.getItem(STRUCTURE_DRAFT_KEY) || '{}'); } catch (_) { return {}; } })();
+    const hasExisting = !!(raw.draft && Array.isArray(raw.draft.parts) && raw.draft.parts.length);
+    if (hasExisting && !window.confirm('Oído IA va a reemplazar TODA la estructura, acordes y pentagramas de la canción actual con lo que detecte en este audio. ¿Continuar?')) {
+      return;
+    }
+    const loading = showOidoModal('brain', 'Oído IA (Gemini) analizando audio...', 'Mapeando secciones musicales y melodía exacta...');
+    try {
+      const base64Data = await blobToBase64(blob);
+      const mimeType = blob.type || 'audio/webm';
+      const payload = {
+        contents: [{ role: 'user', parts: [{ text: GEMINI_PROMPT }, { inlineData: { mimeType, data: base64Data } }] }],
+        generationConfig: { responseMimeType: 'application/json' }
+      };
+      const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(apiKey);
+      const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const result = await response.json();
+      let jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!jsonText) throw new Error((result?.error?.message) || 'Gemini no devolvió transcripción.');
+      jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(jsonText);
+      if (!Array.isArray(parsed) || !parsed.length) throw new Error('Gemini no detectó secciones válidas en el audio.');
+      applyAiSongResult(parsed);
+      loading.remove();
+    } catch (err) {
+      loading.remove();
+      showOidoModal('warn', 'Aviso de Oído IA', err?.message || 'No se pudo transcribir el audio.', true);
+    }
+  }
+
+  let _oidoPanelEl = null;
+  let _oidoRecorder = null;
+  let _oidoChunks = [];
+  async function toggleOidoRecording(btn) {
+    if (!getGeminiKey()) { openApiKeyPrompt(); return; }
+    if (_oidoRecorder && _oidoRecorder.state === 'recording') {
+      _oidoRecorder.stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      _oidoChunks = [];
+      const mr = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mr.ondataavailable = (e) => { if (e.data && e.data.size) _oidoChunks.push(e.data); };
+      mr.onstop = async () => {
+        btn.textContent = '🎙️ Grabar';
+        btn.classList.remove('is-recording');
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(_oidoChunks, { type: 'audio/webm' });
+        await transcribeAudioWithAI(blob);
+      };
+      _oidoRecorder = mr;
+      mr.start();
+      btn.textContent = '⏹ Detener';
+      btn.classList.add('is-recording');
+    } catch (e) {
+      showOidoModal('warn', 'Micrófono no disponible', e?.message || 'No se pudo acceder al micrófono.', true);
+    }
+  }
+
+  function ensureOidoIAPanel() {
+    if (_oidoPanelEl) return;
+    installStyles();
+    const panel = document.createElement('div');
+    panel.className = 's936pg-oido';
+    panel.style.top = '8px';
+    panel.style.right = '24px';
+    const drag = document.createElement('span');
+    drag.className = 's936pg-drag';
+    drag.textContent = '⠿';
+    const label = document.createElement('span');
+    label.className = 's936pg-toolbar-label';
+    label.textContent = 'Oído IA:';
+    const keyBtn = document.createElement('button');
+    keyBtn.type = 'button';
+    keyBtn.className = 's936pg-oido-btn s936pg-oido-key';
+    keyBtn.title = 'Configurar API Key de Gemini';
+    keyBtn.textContent = '🔑';
+    keyBtn.onclick = openApiKeyPrompt;
+    const recBtn = document.createElement('button');
+    recBtn.type = 'button';
+    recBtn.className = 's936pg-oido-btn s936pg-oido-rec';
+    recBtn.title = 'Grabar con Oído IA';
+    recBtn.textContent = '🎙️ Grabar';
+    recBtn.onclick = () => toggleOidoRecording(recBtn);
+    const uploadLabel = document.createElement('label');
+    uploadLabel.className = 's936pg-oido-btn s936pg-oido-upload';
+    uploadLabel.title = 'Subir un audio para transcribir';
+    uploadLabel.textContent = '📁 Subir';
+    const uploadInput = document.createElement('input');
+    uploadInput.type = 'file';
+    uploadInput.accept = 'audio/*';
+    uploadInput.hidden = true;
+    uploadInput.onchange = (e) => {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (file) transcribeAudioWithAI(file);
+    };
+    uploadLabel.appendChild(uploadInput);
+    panel.append(drag, label, keyBtn, recBtn, uploadLabel);
+    document.body.appendChild(panel);
+    _oidoPanelEl = panel;
+
+    let dragging = false, startX = 0, startY = 0, panelStartLeft = 0, panelStartTop = 0;
+    drag.addEventListener('pointerdown', (e) => {
+      dragging = true; drag.setPointerCapture(e.pointerId);
+      startX = e.clientX; startY = e.clientY;
+      const r = panel.getBoundingClientRect();
+      panelStartLeft = r.left; panelStartTop = r.top;
+    });
+    drag.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      panel.style.right = 'auto';
+      panel.style.left = Math.max(0, panelStartLeft + (e.clientX - startX)) + 'px';
+      panel.style.top = Math.max(0, panelStartTop + (e.clientY - startY)) + 'px';
+    });
+    drag.addEventListener('pointerup', () => { dragging = false; });
+  }
+
   function renderSectionPentagram(block, sectionKey, opts) {
     try {
       if (!block || !sectionKey) return;
@@ -437,6 +764,7 @@
       attachClickHandler(canvas, sectionKey, totalBars, redraw);
       redraw();
       ensureFiguresToolbar();
+      ensureOidoIAPanel();
     } catch (e) {
       console.error('[Pentagrama] renderSectionPentagram falló:', e);
     }
@@ -446,6 +774,7 @@
     renderSectionPentagram,
     getNotes,
     setNotes,
-    calculateChordForNotes
+    calculateChordForNotes,
+    transcribeAudioWithAI
   };
 })();
