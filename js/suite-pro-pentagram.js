@@ -413,8 +413,9 @@
   // sección (a diferencia del prototipo original, que lo partía en sistemas
   // verticales de 4 compases -- acá tiene que alinear con Chart/Lyric/Voz, que ya
   // son horizontales, 320px por compás).
-  function drawPentagram(canvas, notes, totalBars, geo) {
+  function drawPentagram(canvas, notes, totalBars, geo, drawClef) {
     geo = geo || DEFAULT_GEO;
+    if (drawClef === undefined) drawClef = true;
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.clientWidth, h = canvas.clientHeight;
     if (!w || !h) return;
@@ -432,8 +433,17 @@
     for (let i = 0; i < 5; i++) { const ly = staffTop + i * geo.lineGap; g.moveTo(0, ly); g.lineTo(w, ly); }
     g.stroke();
 
-    g.fillStyle = 'rgba(255,255,255,.85)'; g.font = Math.round(26 * geo.scale) + 'px serif'; g.textAlign = 'left';
-    g.fillText('𝄞', 2, bottomLineY + 4);
+    // Owner: "el canal es solo uno... mi lógica es lo mismo canal con marca
+    // de dónde hasta dónde es cada parte" (Val) -- un pentagrama real solo
+    // lleva la clave UNA vez al principio de la línea, no repetida en cada
+    // sección; repetirla hacía que pareciera un pentagrama nuevo y
+    // desconectado en cada compás de cambio de sección ("se vuelve loco"),
+    // en vez de UN SOLO canal continuo con las secciones ya marcadas arriba
+    // (el "● VERSO 1" que ya pinta Chart en Vista Continua).
+    if (drawClef) {
+      g.fillStyle = 'rgba(255,255,255,.85)'; g.font = Math.round(26 * geo.scale) + 'px serif'; g.textAlign = 'left';
+      g.fillText('𝄞', 2, bottomLineY + 4);
+    }
 
     g.strokeStyle = 'rgba(255,255,255,.12)';
     for (let b = 0; b <= totalBars; b++) {
@@ -1242,7 +1252,7 @@ Return strictly valid JSON and nothing else.`;
       scoreBody.appendChild(canvas);
       function redraw() { drawPentagram(canvas, getNotes(key), bars, geo); }
       attachClickHandler(canvas, key, bars, redraw, geo);
-      redraw();
+      requestAnimationFrame(redraw);
     }
 
     recBtn.onclick = async () => {
@@ -1491,10 +1501,18 @@ Return strictly valid JSON and nothing else.`;
       wrap.append(canvas, autoBtn, bigBtn);
       row.appendChild(wrap);
       block.appendChild(row);
-      function redraw() { drawPentagram(canvas, getNotes(sectionKey), totalBars); }
+      const drawClef = !(opts && opts.hideLabelColumn);
+      function redraw() { drawPentagram(canvas, getNotes(sectionKey), totalBars, DEFAULT_GEO, drawClef); }
       attachClickHandler(canvas, sectionKey, totalBars, redraw);
       attachSyllableEditor(canvas, sectionKey, totalBars, redraw);
-      redraw();
+      // Owner: BUG encontrado al verificar -- el canvas recién insertado
+      // todavía no tiene layout (clientWidth/clientHeight en 0) en el mismo
+      // instante en que se arma todo Vista Continua de una sola pasada, así
+      // que este primer redraw() se salía vacío (el guard `if(!w||!h)
+      // return` de drawPentagram) y el pentagrama quedaba en blanco hasta
+      // el primer clic -- por eso a veces "aparecía" y a veces no. Un
+      // requestAnimationFrame alcanza para que el layout ya esté listo.
+      requestAnimationFrame(redraw);
       ensureFiguresToolbar();
       ensureOidoIAPanel();
     } catch (e) {
