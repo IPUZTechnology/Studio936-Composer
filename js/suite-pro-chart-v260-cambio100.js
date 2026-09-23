@@ -9344,6 +9344,15 @@ body.s936-chart-stage main{
         });
 
         block.append(chordRow, lyricRow);
+        // Owner: "hay que ponerle el pentagrama... debajo de Chart y
+        // karaoke" -- Val trajo un prototipo aparte con un pentagrama
+        // real (Studio936 DAW Master Edition) y pidió mantener
+        // exactamente ese diseño visual, pero horizontal a lo largo de
+        // esta sección (no en sistemas verticales como el original) y
+        // leyendo/escribiendo la instancia real de esta sección (misma
+        // instanceKey que ya usa Voz, para que las repeticiones no
+        // compartan pentagrama sin querer).
+        try { window.Studio936Pentagram?.renderSectionPentagram?.(block, _itemInstanceKey, { totalMeasures: totalMeasures }); } catch(_) {}
         // Cambio 365: BUG encontrado — la vista "Continua" (Vista:
         // Continua/Bloques) es una función de dibujo completamente
         // aparte de la vista normal de bloques, y nunca tuvo esta llamada
