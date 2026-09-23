@@ -19,6 +19,15 @@
   'use strict';
 
   const PENTAGRAM_KEY = 's936_section_pentagram_v1';
+  // Owner: BUG DE RAÍZ encontrado al verificar Auto-Acordes -- escribir
+  // acordes solo en project.sections (vía el bridge) no bastaba, porque el
+  // Chart (readStructureDraftSnapshot, mismo archivo que ya arregló el
+  // Cambio 422) usa SIEMPRE el borrador de Estructura como fuente
+  // PRIMARIA de acordes en cuanto existe (draft.clones[sección].items) --
+  // project.sections queda como último recurso. Sin escribir acá también,
+  // "Auto-Acordes" guardaba bien pero no se veía en pantalla. Se escribe
+  // en los dos lugares para que se vea siempre, exista o no un borrador.
+  const STRUCTURE_DRAFT_KEY = 's936_suitepro_structure_v4';
   const PX_PER_BAR = 320; // mismo ancho por compás que ya usa toda Vista Continua
   const LINE_GAP = 8;
   const TOP_PAD = 30;
@@ -71,6 +80,61 @@
     return rootName + 'maj7';
   }
 
+  // Owner: paso 2/3 -- toma las notas ya puestas a mano en el pentagrama de
+  // ESTA sección (una repetición concreta, ej. "Coro BIS"), las agrupa por
+  // compás, corre calculateChordForNotes() en cada uno, y arma la secuencia
+  // de acordes final: un compás sin notas sostiene el acorde del compás
+  // anterior (silencio = sigue sonando lo mismo), y compases consecutivos
+  // con el mismo acorde se funden en una sola entrada más larga (igual que
+  // ya hace el Chart con `bars` en cada acorde real).
+  function computeChordsForSection(sectionKey, totalBars) {
+    const notes = getNotes(sectionKey);
+    if (!notes.length) return null;
+    const midiToNote = (window.Studio936MusicTheory || {}).midiToNote || (m => 'C4');
+    const perBar = [];
+    for (let bar = 0; bar < totalBars; bar++) {
+      const barNotes = notes.filter(n => n.bar === bar);
+      perBar.push({ name: calculateChordForNotes(barNotes), barNotes });
+    }
+    let lastName = '';
+    perBar.forEach(b => { if (b.name) lastName = b.name; else b.name = lastName || 'C'; });
+    const chords = [];
+    perBar.forEach(b => {
+      const prev = chords[chords.length - 1];
+      if (prev && prev.name === b.name) { prev.bars += 1; return; }
+      const midis = b.barNotes.map(n => n.midi).sort((x, y) => x - y);
+      const bass = midis.length ? midiToNote(midis[0]) : '';
+      const notesStr = midis.length ? midis.map(midiToNote).join(' ') : '';
+      chords.push({ name: b.name, bass, notes: notesStr, bars: 1 });
+    });
+    return chords;
+  }
+
+  // Owner: el pentagrama está guardado por instanceKey (cada repetición,
+  // "Coro"/"Coro BIS", tiene sus propias notas), pero los acordes reales de
+  // la canción se guardan por TIPO de sección compartido entre repeticiones
+  // -- así ya funcionan Chart/Structure hoy (BIS secciones), así que
+  // Auto-Acordes sigue esa misma regla en vez de inventar una nueva.
+  function baseSectionType(instanceKey) {
+    return String(instanceKey || '').split('__occ')[0];
+  }
+
+  function writeChordsIntoStructureDraft(sectionKey, chords) {
+    try {
+      const raw = JSON.parse(localStorage.getItem(STRUCTURE_DRAFT_KEY) || '{}');
+      if (!raw.draft || typeof raw.draft !== 'object') return false;
+      if (!raw.draft.clones || typeof raw.draft.clones !== 'object') raw.draft.clones = {};
+      const prevSource = (raw.draft.clones[sectionKey] && raw.draft.clones[sectionKey].source) || '';
+      raw.draft.clones[sectionKey] = {
+        source: prevSource,
+        items: chords.map(c => ({ name: c.name, bars: c.bars, bass: c.bass || '', notes: c.notes || '' })),
+        createdAt: new Date().toISOString()
+      };
+      localStorage.setItem(STRUCTURE_DRAFT_KEY, JSON.stringify(raw));
+      return true;
+    } catch (_) { return false; }
+  }
+
   function playPreviewNote(midi, durationSec) {
     try {
       const ctx = window.__studio936AudioCtx || new (window.AudioContext || window.webkitAudioContext)();
@@ -103,6 +167,9 @@
       .s936pg-figbtn:hover{background:rgba(255,255,255,.08);}
       .s936pg-figbtn.is-active{background:#2563eb;color:#fff;}
       .s936pg-drag{cursor:move;color:#7fa8a0;font-size:11px;padding:0 4px;}
+      .s936pg-autochords{position:absolute;top:2px;left:2px;z-index:2;background:rgba(37,99,235,.85);color:#fff;border:none;border-radius:5px;font-size:10px;font-weight:700;letter-spacing:.02em;padding:2px 7px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.35);}
+      .s936pg-autochords:hover{background:#2563eb;}
+      .s936pg-autochords.is-busy{opacity:.6;pointer-events:none;}
     `;
     document.head.appendChild(style);
   }
@@ -341,7 +408,30 @@
       canvas.className = 's936pg-canvas';
       canvas.style.width = (PX_PER_BAR * totalBars) + 'px';
       canvas.title = 'Pentagrama — clic para poner/quitar una nota';
-      wrap.appendChild(canvas);
+      const autoBtn = document.createElement('button');
+      autoBtn.type = 'button';
+      autoBtn.className = 's936pg-autochords';
+      autoBtn.textContent = '🎼 Auto-Acordes';
+      autoBtn.title = 'Calcular acordes a partir de las notas de este pentagrama y aplicarlos a la sección';
+      autoBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (autoBtn.classList.contains('is-busy')) return;
+        const chords = computeChordsForSection(sectionKey, totalBars);
+        const label = autoBtn.textContent;
+        if (!chords) {
+          autoBtn.textContent = 'Sin notas';
+        } else {
+          const target = baseSectionType(sectionKey);
+          const draftWritten = writeChordsIntoStructureDraft(target, chords);
+          const result = window.Studio936AppBridge?.applyPentagramChords?.(target, chords);
+          const bridgeOk = !result || result.ok !== false;
+          autoBtn.textContent = (draftWritten || bridgeOk) ? '✓ Aplicado' : '⚠ ' + (result?.message || 'Error');
+          try { window.dispatchEvent(new CustomEvent('studio936:section-chords-updated', { detail: { sectionKey: target } })); } catch (_) {}
+        }
+        autoBtn.classList.add('is-busy');
+        setTimeout(() => { autoBtn.textContent = label; autoBtn.classList.remove('is-busy'); }, 1400);
+      });
+      wrap.append(canvas, autoBtn);
       block.appendChild(wrap);
       function redraw() { drawPentagram(canvas, getNotes(sectionKey), totalBars); }
       attachClickHandler(canvas, sectionKey, totalBars, redraw);

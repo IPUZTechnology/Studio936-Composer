@@ -10305,6 +10305,20 @@ body.s936-chart-stage main{
     });
   }
 
+  // Owner: mismo patrón -- "Auto-Acordes" (paso 2/3 del pentagrama) escribe
+  // acordes nuevos en project.sections vía el bridge, pero la Vista Continua
+  // ya estaba dibujada; sin este listener el acorde quedaba guardado pero
+  // invisible hasta recargar la página.
+  if (!window.__s936ChartPentagramChordsBound) {
+    window.__s936ChartPentagramChordsBound = true;
+    window.addEventListener("studio936:section-chords-updated", () => {
+      try {
+        const panel = document.getElementById("s936-chart-view-panel");
+        if (panel) render({ container: panel, instrument: _chartInstrument });
+      } catch(_) {}
+    });
+  }
+
   // Cambio 72: diagnóstico manual — compara las claves de sección guardadas
   // en localStorage contra las que el Chart está usando AHORA MISMO en
   // pantalla para dibujar los compases. Si no coinciden, ahí está el bug.

@@ -3259,6 +3259,29 @@ function installStudio936AppBridge(){
             state:getEditorState()
         };
     }
+    // Owner: paso 2/3 del pentagrama -- "Auto-Acordes" calcula los acordes
+    // desde las notas puestas a mano (o por IA, paso 3) en el pentagrama de
+    // Vista Continua, y esto los escribe en el mismo `project.sections`
+    // real que ya lee todo lo demás (Chart, editor, exportación), en vez de
+    // inventar un almacén paralelo.
+    function applyPentagramChords(sectionKey, chords){
+        const key = String(sectionKey || '');
+        if(!project.sections || !Array.isArray(project.sections[key])){
+            return { ok:false, message:'La sección "'+key+'" no existe en la canción actual.' };
+        }
+        if(!Array.isArray(chords) || !chords.length){
+            return { ok:false, message:'No hay acordes para aplicar.' };
+        }
+        project.sections[key] = chords.map(c => MusicTheory.chord(
+            String(c.name || 'C'),
+            String(c.bass || ''),
+            String(c.notes || ''),
+            Math.max(1, Number(c.bars) || 1)
+        ));
+        saveProject(false);
+        try { window.dispatchEvent(new CustomEvent('studio936:section-chords-updated', { detail:{ sectionKey:key } })); } catch(_) {}
+        return { ok:true, message:'Acordes de "'+key+'" actualizados desde Auto-Acordes.' };
+    }
     function duplicateEditorChord(sectionKey, index){
         const seq = project.sections?.[sectionKey];
         if(!Array.isArray(seq) || !seq.length) return { ok:false, message:'No hay acorde para duplicar.' };
@@ -3411,6 +3434,7 @@ function installStudio936AppBridge(){
         previewEditorChord,
         applyEditorChord,
         addEditorChord,
+        applyPentagramChords,
         duplicateEditorChord,
         deleteEditorChord,
         getArrangement: () => safeClone(safe(() => arrangementParts(), [])),
