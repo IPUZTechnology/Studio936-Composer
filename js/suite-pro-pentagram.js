@@ -196,16 +196,17 @@
          acciones, calcado del prototipo "Studio936 DAW - Master Edition"
          (actionPanel 2x2 + aside "LETRA Y COMPASES" + main con el
          pentagrama), no una reinvención. */
-      .s936pg-big-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 16px;flex-shrink:0;}
-      .s936pg-actbtn{border-radius:6px;font-size:11px;font-weight:700;padding:9px 10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid transparent;}
+      .s936pg-big-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;flex-shrink:0;}
+      .s936pg-actbtn{border-radius:6px;font-size:9px;font-weight:700;padding:6px 6px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;border:1px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
       .s936pg-actbtn:hover{filter:brightness(1.2);}
       .s936pg-actbtn.rec{background:rgba(16,185,129,.18);color:#34d399;border-color:rgba(16,185,129,.45);}
       .s936pg-actbtn.rec.is-recording{background:#dc2626;color:#fff;border-color:#ef4444;animation:s936pg-pulse 1.1s infinite;}
       .s936pg-actbtn.upload{background:rgba(168,85,247,.12);color:#c084fc;border-color:rgba(168,85,247,.4);}
-      .s936pg-actbtn.chords{background:rgba(37,99,235,.15);color:#60a5fa;border-color:rgba(37,99,235,.45);font-size:10px;padding:6px 8px;}
-      .s936pg-actbtn.vibe{background:rgba(99,102,241,.12);color:#a5b4fc;border-color:rgba(99,102,241,.4);font-size:10px;padding:6px 8px;}
+      .s936pg-actbtn.chords{background:rgba(37,99,235,.15);color:#60a5fa;border-color:rgba(37,99,235,.45);}
+      .s936pg-actbtn.vibe{background:rgba(99,102,241,.12);color:#a5b4fc;border-color:rgba(99,102,241,.4);}
       .s936pg-big-columns{display:flex;gap:10px;flex:1;min-height:0;padding:0 16px 16px;}
-      .s936pg-big-lyricspanel{width:340px;flex-shrink:0;display:flex;flex-direction:column;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:#0a0b10;overflow:hidden;}
+      .s936pg-big-leftcol{width:300px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;min-height:0;}
+      .s936pg-big-lyricspanel{flex:1;min-height:0;display:flex;flex-direction:column;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:#0a0b10;overflow:hidden;}
       .s936pg-big-panelhead{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.08);background:#14151f;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.8;}
       .s936pg-big-lyriclist{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:6px;}
       .s936pg-lyricrow{display:flex;align-items:center;gap:8px;}
@@ -1051,7 +1052,21 @@ Return strictly valid JSON and nothing else.`;
     vibeBtn.onclick = () => showOidoModal('🧑‍🚀', 'Analizar Vibe', analyzeVibeText(sectionKey, totalBars), true);
     actions.append(recBtn, uploadBtn, chordsBtn, vibeBtn);
 
-    // Columnas: LETRA Y COMPASES (izquierda) + pentagrama (derecha).
+    // Owner: "los 4 botones estaban muy grandes, ponerlos a la izquierda...
+    // al lado subes todas las notas del pentagrama bien distribuidos" (Val,
+    // con captura) -- en el prototipo original actionPanel y LETRA Y
+    // COMPASES viven en la MISMA columna angosta de la izquierda (un
+    // <aside> apilado), no en una fila propia de ancho completo; yo los
+    // había puesto arriba de las dos columnas, ocupando todo el ancho, lo
+    // que dejaba a los botones enormes y el pentagrama con menos alto útil
+    // del que en realidad tiene disponible. Corregido: acciones + LETRA Y
+    // COMPASES apiladas en la columna izquierda angosta; el pentagrama pasa
+    // a ocupar todo el alto disponible al lado.
+    const leftCol = document.createElement('div');
+    leftCol.className = 's936pg-big-leftcol';
+    leftCol.appendChild(actions);
+
+    // Columnas: [acciones + LETRA Y COMPASES] (izquierda) + pentagrama (derecha).
     const columns = document.createElement('div');
     columns.className = 's936pg-big-columns';
 
@@ -1063,6 +1078,7 @@ Return strictly valid JSON and nothing else.`;
     const lyricsList = document.createElement('div');
     lyricsList.className = 's936pg-big-lyriclist';
     lyricsPanel.append(lyricsHead, lyricsList);
+    leftCol.appendChild(lyricsPanel);
 
     const scorePanel = document.createElement('div');
     scorePanel.className = 's936pg-big-scorepanel';
@@ -1104,13 +1120,13 @@ Return strictly valid JSON and nothing else.`;
     canvas.className = 's936pg-canvas';
     const geo = makeGeo(1.6);
     canvas.style.width = (geo.pxPerBar * totalBars) + 'px';
-    canvas.style.height = '170px';
+    canvas.style.height = '220px';
     canvas.title = 'Pentagrama — clic para poner/quitar una nota';
     scoreBody.appendChild(canvas);
 
     scorePanel.append(scoreHead, scoreBody);
-    columns.append(lyricsPanel, scorePanel);
-    card.append(head, metaBar, actions, columns);
+    columns.append(leftCol, scorePanel);
+    card.append(head, metaBar, columns);
     backdrop.appendChild(card);
     document.body.appendChild(backdrop);
     backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) backdrop.remove(); });
