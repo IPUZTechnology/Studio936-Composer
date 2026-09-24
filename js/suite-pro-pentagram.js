@@ -978,7 +978,13 @@ Return strictly valid JSON and nothing else.`;
     openBtn.textContent = '⛶ Editor';
     openBtn.title = 'Abrir el editor grande — letra y partitura de toda la canción';
     openBtn.onclick = () => openBigEditor(null, 0, null);
-    panel.append(drag, label, openBtn);
+    const chordsBtn = document.createElement('button');
+    chordsBtn.type = 'button';
+    chordsBtn.className = 's936pg-oido-btn s936pg-oido-key';
+    chordsBtn.textContent = '🎸 Auto-Acordes';
+    chordsBtn.title = 'Calcular acordes desde las notas de toda la canción y aplicarlos al Chart real';
+    chordsBtn.onclick = () => runAutoChordsAllSections(chordsBtn);
+    panel.append(drag, label, openBtn, chordsBtn);
     document.body.appendChild(panel);
     _vozPanelEl = panel;
 
@@ -998,24 +1004,30 @@ Return strictly valid JSON and nothing else.`;
     drag.addEventListener('pointerup', () => { dragging = false; });
   }
 
-  // Owner: un solo lugar para el click de "Auto-Acordes" -- lo usan tanto el
-  // botón chiquito de la fila inline como el del editor grande.
-  function runAutoChords(sectionKey, totalBars, btn) {
+  // Owner: "un solo botón en el área de panel" (Val) -- Auto-Acordes ya no
+  // vive flotando arriba de cada pentagrama (11 botones repetidos, tapando
+  // el dibujo); es un único botón (panel de Voz y editor grande) que corre
+  // sobre TODA la canción de una, igual que el resto de los botones
+  // globales (Grabar/Subir/Play/Vibe).
+  function runAutoChordsAllSections(btn) {
     if (btn.classList.contains('is-busy')) return;
-    const chords = computeChordsForSection(sectionKey, totalBars);
+    const parts = readStructureParts();
     const label = btn.textContent;
-    if (!chords) {
-      btn.textContent = 'Sin notas';
-    } else {
-      const target = baseSectionType(sectionKey);
-      const draftWritten = writeChordsIntoStructureDraft(target, chords);
-      const result = window.Studio936AppBridge?.applyPentagramChords?.(target, chords);
-      const bridgeOk = !result || result.ok !== false;
-      btn.textContent = (draftWritten || bridgeOk) ? '✓ Aplicado' : '⚠ ' + (result?.message || 'Error');
-      try { window.dispatchEvent(new CustomEvent('studio936:section-chords-updated', { detail: { sectionKey: target } })); } catch (_) {}
-    }
+    let applied = 0;
+    parts.forEach((part, idx) => {
+      const key = computeInstanceKeyForPart(parts, idx);
+      const bars = Math.max(1, Number(part.bars) || 4);
+      const chords = computeChordsForSection(key, bars);
+      if (!chords) return;
+      const target = baseSectionType(key);
+      writeChordsIntoStructureDraft(target, chords);
+      window.Studio936AppBridge?.applyPentagramChords?.(target, chords);
+      applied++;
+    });
+    try { window.dispatchEvent(new CustomEvent('studio936:section-chords-updated', { detail: { full: true } })); } catch (_) {}
+    btn.textContent = applied ? '✓ Aplicado a toda la canción' : 'Sin notas todavía';
     btn.classList.add('is-busy');
-    setTimeout(() => { btn.textContent = label; btn.classList.remove('is-busy'); }, 1400);
+    setTimeout(() => { btn.textContent = label; btn.classList.remove('is-busy'); }, 1600);
   }
 
   // Owner: "LETRA Y COMPASES" -- calcado del prototipo original: una fila
@@ -1179,21 +1191,7 @@ Return strictly valid JSON and nothing else.`;
     chordsBtn.title = 'Calcular acordes desde las notas de TODAS las secciones y aplicarlos al Chart real';
     // Owner: en el prototipo, "Auto-Acordes" corre sobre AppState.sections
     // ENTERO (todas las secciones de una), no una sola -- acá igual.
-    chordsBtn.onclick = () => {
-      const label = chordsBtn.textContent;
-      parts.forEach((part, idx) => {
-        const key = computeInstanceKeyForPart(parts, idx);
-        const bars = Math.max(1, Number(part.bars) || 4);
-        const chords = computeChordsForSection(key, bars);
-        if (!chords) return;
-        const target = baseSectionType(key);
-        writeChordsIntoStructureDraft(target, chords);
-        window.Studio936AppBridge?.applyPentagramChords?.(target, chords);
-      });
-      try { window.dispatchEvent(new CustomEvent('studio936:section-chords-updated', { detail: { full: true } })); } catch (_) {}
-      chordsBtn.textContent = '✓ Aplicado a toda la canción';
-      setTimeout(() => { chordsBtn.textContent = label; }, 1600);
-    };
+    chordsBtn.onclick = () => runAutoChordsAllSections(chordsBtn);
     const vibeBtn = document.createElement('button');
     vibeBtn.type = 'button';
     vibeBtn.className = 's936pg-actbtn vibe';
@@ -1644,20 +1642,14 @@ Return strictly valid JSON and nothing else.`;
       const canvasWidth = PX_PER_BAR * totalBars + BLOCK_TRAILING_GAP_PX;
       canvas.style.width = canvasWidth + 'px';
       canvas.title = 'Voz — clic para poner/quitar una nota';
-      const autoBtn = document.createElement('button');
-      autoBtn.type = 'button';
-      autoBtn.className = 's936pg-autochords';
-      autoBtn.textContent = '🎼 Auto-Acordes';
-      autoBtn.title = 'Calcular acordes a partir de las notas de este pentagrama y aplicarlos a la sección';
-      autoBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        runAutoChords(sectionKey, totalBars, autoBtn);
-      });
-      // Owner: "en cada sección tiene un botón... ese es un único botón en
-      // panel de control de Voz" (Val) -- el ⛶ que abría el editor grande
-      // estaba repetido en las 11 secciones; se saca de acá (queda un solo
-      // botón, en el panel flotante de Voz -- ensureVozPanel más abajo).
-      wrap.append(canvas, autoBtn);
+      // Owner: "el botón Auto-Acorde... no debe estar encima del
+      // pentagrama, un solo botón en el área de panel" (Val) -- estaba
+      // flotando arriba del canvas en las 11 secciones, tapando el
+      // pentagrama. Se saca de acá -- Auto-Acordes vive ahora junto al
+      // Editor en el panel flotante único de Voz (ensureVozPanel), y corre
+      // sobre TODA la canción (igual que el resto de los botones de ese
+      // panel), no una sección aislada.
+      wrap.append(canvas);
       row.appendChild(wrap);
       block.appendChild(row);
       const drawClef = !(opts && opts.hideLabelColumn);
