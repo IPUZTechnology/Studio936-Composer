@@ -1,7 +1,7 @@
 # BITÁCORA — Studio 936 Composer
 ## Rumbo a lanzamiento (meta: 3 meses)
 
-**Última actualización:** 28 agosto 2026 — última Cambio documentado: **444** (más auditoría de repo agregada en esta actualización)
+**Última actualización:** 24 septiembre 2026 — agregada la sesión de Vista Continua en vivo (grabación + edición de audio real) y de "Voz" (pentagrama real integrado al DAW, editor grande), 22 al 24 de septiembre. Esta sesión no usó la numeración "Cambio N" de las anteriores (se trabajó por commits de git descriptivos en `refactor/js-modules`); el último "Cambio N" documentado sigue siendo el **474** (sesión de instrumentos/mixer/pads, más abajo).
 
 **Fuentes usadas para armar esta bitácora:**
 - `HANDOFF_Sesion_VistaContinua_Cambio371_430.md` (subido al proyecto)
@@ -369,4 +369,61 @@ Plan de lanzamiento (bitácora original, sin tocar toda esta sesión):
 
 Bloque 1: motor de audio real multipista (base para que Volumen/Mute/Solo de instrumentos dejen de ser decorativos).
 Bloque 2: editor tijera.
+
+---
+
+## Sesión — Vista Continua en vivo (grabación real) + "Voz": pentagrama real integrado al DAW
+Fecha: 22 al 24 de septiembre 2026. Rama: `refactor/js-modules`. Esta sesión se trabajó por commits de git descriptivos (no con la numeración "Cambio N" de las sesiones anteriores) — cada punto de abajo tiene su commit real en el historial de la rama para volver a leer el detalle si hace falta.
+
+### Parte 1 (22 sept) — Grabación en vivo y edición de audio real en Vista Continua
+Serie de bugs reales encontrados y corregidos sobre el flujo de grabar directo en Vista Continua (no el grabador rápido de Compose, este es dentro del DAW):
+- Panel de grabación al ras del borde izquierdo, péndulo que vibraba sin motivo, y un badge redundante ("Modo guitarra") que repetía el instrumento ya visible arriba — los tres quitados/corregidos.
+- "Full Song" (reproducir la canción completa) se quedaba pegado en la primera sección y volvía a arrancar en vez de seguir — corregido.
+- La grabación ahora puede cruzar de una sección a la siguiente sin parar y empalma sin huecos (antes había que parar y volver a grabar por sección).
+- La barra de grabación en vivo se desbordaba visualmente a la sección siguiente ("efecto aguas del mar") — corregido.
+- 4 problemas reales encontrados juntos en Vista Continua: mostraba "%" en vez de la nota real tocada, el péndulo no grababa desde donde se lo movía, y la tijera de edición quedaba inalcanzable — los 4 corregidos.
+- Bug de raíz encontrado: grabar tapaba/secuestraba la reproducción normal de Vista Continua — esa era la causa real de que "el compás 12 se volviera loco" (un reporte de Val de una sesión previa que no se había podido reproducir hasta entonces).
+- Las grabaciones de voz se clonaban entre secciones repetidas (Coro y Coro BIS compartían la misma toma sin querer) — corregido para que cada repetición sea independiente.
+- Forma de onda real dibujada en el canal (en vivo mientras se graba, y guardada después) + edición de audio estilo GarageBand: clic derecho para el menú, recorte real de ambas puntas de la toma.
+- La edición ya no abre ninguna ventana aparte — cortar/borrar actúa directo sobre el canal, en el lugar.
+- Grabar de nuevo sobre el mismo canal ya no lo dejaba invisible — cada toma quedó como su propia entidad, ubicada exactamente donde se grabó.
+- Canción nueva ya no inventaba 76 compases vacíos de la nada — el editor de Estructura pasó a ser el único lugar donde nacen las secciones (esta regla se terminó de completar recién en la Parte 3, ver "canción nueva con 1 sola sección Intro").
+- Bug de "Play con Canción completa" que quedaba encerrado en el loop de una sola sección sin importar el selector — corregido.
+
+### Parte 2 (23-24 sept) — "Voz": pentagrama real (notación musical tradicional), construido desde cero
+Antes de esta sesión no existía notación musical real en Studio 936 — el pedido de Val fue traer un pentagrama de verdad (clave de sol, compases, figuras, notas reales) integrado a Vista Continua, calcado del prototipo HTML "Studio936 DAW - Master Edition" que trajo como referencia. Se construyó en 3 pasos:
+1. **Pentagrama real** — notación tradicional dibujada con Canvas (nunca una librería externa), como un carril nuevo debajo de Chart y del karaoke en Vista Continua. Clic para poner/quitar una nota.
+2. **Auto-Acordes** — calcula el acorde real a partir de las notas dibujadas en el pentagrama y lo escribe directo en el Chart (de ahí en más ese acorde se edita en Chart, como cualquier otro).
+3. **Oído IA** — graba o sube un audio y, con Gemini, transcribe la canción ENTERA desde cero (secciones + acordes por compás + notas exactas cantadas/tocadas), a diferencia de Auto-Acordes que solo trabaja sobre una sección ya existente.
+
+A partir de ahí, varias rondas de corrección guiadas por capturas de Val comparando contra el HTML de referencia:
+- Alineación del pentagrama con el compás 1 real del Chart (antes quedaba corrido) + primera versión del editor grande de letra/pentagrama.
+- Ícono SVG propio para el pentagrama (reemplazó un emoji que no combinaba), atajo directo al editor grande, y se retiró el carril "Lyric" viejo (ahora redundante con Voz).
+- El editor grande se reconstruyó como réplica fiel del prototipo original — Val lo llama "el Editor / el cerebro" de la canción: panel de 4 acciones (Grabar con Oído IA / Subir Audio IA / Auto-Acordes / Analizar Vibe), columna "LETRA Y COMPASES", y el pentagrama con su propia cabecera (título, PLAY, figuras, imprimir/exportar/config IA).
+- Header de Nombre de Canción / Autor / BPM agregado al editor grande — Val: "ahí es donde nace la canción, es la cabeza de todo" — conectado a los mismos datos reales del resto del DAW (no un campo suelto).
+- Reordenamiento del layout: acciones + LETRA Y COMPASES apiladas a la izquierda (antes ocupaban todo el ancho arriba, dejando muy poco alto útil al pentagrama).
+- LETRA Y COMPASES pasó a mostrar TODA la canción (no una sección a la vez), con alta, baja, reordenar y duplicar secciones reales — el mismo `draft.parts` que ya usan Auto-Acordes y Oído IA, así que cualquier cambio ahí se ve al toque en el Chart.
+- El pentagrama se corrigió para comportarse como UN SOLO canal continuo (clave de sol dibujada una sola vez, no repetida por sección) — Val: "el canal es solo uno... cuando llegue la otra sección solo otra marca".
+- Bug real corregido: el pentagrama quedaba en blanco en secciones más adelante en canciones largas (11+ secciones) — causa de raíz: `drawPentagram` leía el ancho/alto del canvas desde el DOM (`canvas.clientWidth/clientHeight`), que en secciones lejos del inicio de la página no habían terminado su layout todavía en el mismo frame — se eliminó esa dependencia por completo (el ancho/alto se pasa siempre explícito). De paso, el carril se renombró de "Pentagrama" a "Voz".
+- La hoja del compositor (editor grande) pasó a mostrar TODAS las secciones apiladas como sistemas de partitura real, igual que el HTML de referencia — con alta/baja/duplicar/borrar/renombrar secciones reales.
+- Estándar de 4 compases por línea (antes cada sección era una sola línea larga de corrido) + un solo botón de "⛶ Editor" global (antes se repetía en cada sección) + una canción nueva ahora abre directo el Composer para empezar a crear, en vez de un mensaje muerto.
+- "🎸 Auto-Acordes" se sacó de flotar encima de cada pentagrama (tapaba el dibujo) y se unificó en el mismo panel flotante único "Voz" junto al botón de abrir el editor — y pasó a correr sobre TODA la canción de una vez, no una sección aislada.
+
+### Parte 3 (24 sept, hoy) — Refinamientos del Editor grande, ya con la base anterior funcionando
+Cuatro rondas más de ajuste fino, todas guiadas por capturas/voz de Val comparando el resultado en vivo:
+- **Sin scroll lateral**: las filas de 4 compases usaban una escala fija que las hacía más anchas que el panel real, forzando scroll horizontal — ahora la escala se calcula al vuelo según el ancho real disponible, para que 4 compases llenen justo la ventana visible ("como una hoja de composición").
+- **Canción nueva = 1 sola sección**: antes una canción nueva arrancaba con cero secciones (dejaba al usuario crear la primera a mano); ahora nace directo con una sola sección "Intro" de 4 compases — ni más secciones, ni más compases que eso. De paso se corrigió un bug relacionado en `normalizeArrangement()` que borraba cualquier arrangement sembrado para canciones nuevas.
+- **Editor anclado sobre "los canales"**: dejó de ser una tarjeta centrada flotante — ahora se posiciona empezando justo después de la columna de controles de canal (sin taparla) y llega pegado al borde derecho de la ventana de Vista Continua.
+- **Editor a todo el alto del DAW + animación**: el anclaje anterior dejaba el editor muy bajo/colapsado (alcanzaba para 1-2 filas); ahora usa casi todo el alto de la ventana, de punta a punta. Además entra deslizándose desde el borde derecho de la pantalla la primera vez que se abre (como un inspector de estilo workflow-maker, o una hoja de partitura que se despliega) y se desliza de vuelta al cerrar. Al cerrar también fuerza un último sync de Título/Autor/BPM y un refresco completo de Vista Continua.
+- **Header repetido quitado de Vista Continua**: el nombre de la canción y "funk · 95 BPM · N comp. · CHART CAMBIO 105" se repetían ahí (el nombre real ya vive arriba, en el header principal del DAW) — se dejó de mostrar esa fila; el ícono "✎ Editar secciones" que vivía en la misma fila también se sacó de la vista (el código de ambos queda intacto en el archivo, sin usar, por si hace falta de nuevo).
+- **Barra de Figura anclada a sus controles**: vivía flotando cerca de la barra superior del DAW, lejos de Vista Continua y tapando otros controles — ahora se re-ancla, pegada al propio header de Vista Continua (junto al selector de vista), cada vez que el Chart renderiza y en cada resize de ventana.
+- **Selector Bloques/Continua con íconos**: el botón de texto "Vista: Continua/Bloques" se reemplazó por dos íconos (grilla = Bloques, líneas = Continua tipo DAW) en un mismo grupo, el activo resaltado.
+- **Sincronización LETRA Y COMPASES ↔ pentagrama**: bug real encontrado — un clic directo en la partitura (poner/quitar una nota) redibujaba solo ese canvas, pero nunca refrescaba la grilla de texto de esa misma sección, que quedaba desincronizada hasta que otra acción forzara un refresco completo. Corregido: ahora cualquier nota puesta o quitada con clic directo en la partitura se refleja al instante en LETRA Y COMPASES.
+- **Editor cubre el header completo de Vista Continua**: el anclaje inicial cubría desde el cuerpo de canales hacia abajo, pero dejaba el header (con el selector de vista + la barra de Figura recién reubicada) visible por encima — se veían dos pentagramas a la vez. Se subió el borde superior del editor hasta cubrir ese header también, sin dejar ningún resto visible arriba.
+
+Todo lo de la Parte 3 se verificó con Playwright en cada paso (sin errores de consola) antes de darlo por cerrado.
+
+### Pendiente real al cierre de esta sesión
+- **"Péndulo loco rotado durante la reproducción"** — reportado por Val en una ronda anterior de esta misma sesión, no se pudo reproducir todavía con la información dada (no se tocó código de transporte/playhead). Sigue abierto, esperando más detalle (qué botón de play se usó, qué se ve exactamente que falla) antes de tocar ese código a ciegas.
+- La numeración "Cambio N" de las sesiones anteriores no se usó en esta — si se quiere mantener un solo hilo numerado hacia adelante, falta decidir si esta sesión se re-numera hacia atrás o si conviven los dos esquemas (por commit descriptivo vs. por número).
 
