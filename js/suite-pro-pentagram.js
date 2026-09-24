@@ -1290,12 +1290,19 @@ Return strictly valid JSON and nothing else.`;
     // debe tapar el control de los botones de los canales... pero debe
     // reemplazar toda la ventana de los canales, pegada hasta el último
     // lado" (Val) -- si la Vista Continua está en pantalla, el Editor se
-    // ancla exactamente sobre esa ventana (misma caja que ".s936-ch-body"),
-    // arrancando después de la columna fija de controles de canal
-    // (".s936-ch-cont-headerspacer", 320px), en vez de flotar centrado
-    // tapando toda la app. Si esa ventana no está visible (p.ej. otra
-    // pestaña del DAW activa), se cae de vuelta a la tarjeta centrada de
-    // siempre.
+    // ancla en esa misma posición (empieza después de la columna fija de
+    // controles de canal, ".s936-ch-cont-headerspacer", 320px), en vez de
+    // flotar centrado tapando toda la app.
+    // Owner, ronda siguiente: "quedó muy colapsada... tiene que quedar
+    // hasta abajo para que yo vea todo lo que tengo en la canción... como
+    // un inspector de un workflow maker... sale la ventana desde el lado
+    // derecho en la misma posición que la tiene... repasaría casi toda la
+    // vista del DAW" (Val, por voz) -- el alto ya NO se limita a la cajita
+    // corta de ".s936-ch-body" (bastaba para 1-2 filas y cortaba el resto);
+    // ahora usa casi todo el alto de la ventana del DAW, de arriba a abajo,
+    // como una hoja de partitura completa. Si esa ventana no está visible
+    // (otra pestaña del DAW activa), se cae de vuelta a la tarjeta
+    // centrada de siempre.
     function applyDockPosition() {
       try {
         const viewport = document.querySelector('.s936-ch-cont-viewport');
@@ -1303,17 +1310,33 @@ Return strictly valid JSON and nothing else.`;
         const panelRect = panel && panel.getBoundingClientRect();
         const spacer = viewport && viewport.querySelector('.s936-ch-cont-headerspacer');
         const spacerW = spacer ? spacer.getBoundingClientRect().width : 0;
-        if (!panelRect || panelRect.width < 240 || panelRect.height < 200) throw new Error('no-dock-target');
+        if (!panelRect || panelRect.width < 240 || panelRect.height <= 0) throw new Error('no-dock-target');
+        const wasDocked = backdrop.classList.contains('is-docked');
         const left = panelRect.left + spacerW;
         const top = panelRect.top;
         const width = panelRect.right - left;
-        const height = panelRect.bottom - top;
+        const height = Math.max(320, window.innerHeight - 12 - top);
         backdrop.classList.add('is-docked');
         card.style.position = 'fixed';
         card.style.left = Math.round(left) + 'px';
         card.style.top = Math.round(top) + 'px';
         card.style.width = Math.round(width) + 'px';
         card.style.height = Math.round(height) + 'px';
+        if (!wasDocked) {
+          // Owner: "sale la ventana desde el lado derecho... como si yo
+          // abriera una hoja de un libro" (Val) -- solo la PRIMERA vez que
+          // se ancla entra deslizándose desde el borde derecho; en cada
+          // recalculo posterior (resize de ventana) se queda quieta en su
+          // nuevo lugar, sin repetir la animación.
+          card.style.transition = 'none';
+          card.style.transform = 'translateX(100%)';
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              card.style.transition = 'transform .32s cubic-bezier(.22,.85,.28,1)';
+              card.style.transform = 'translateX(0)';
+            });
+          });
+        }
       } catch (_) {
         backdrop.classList.remove('is-docked');
         card.style.position = '';
@@ -1321,12 +1344,27 @@ Return strictly valid JSON and nothing else.`;
         card.style.top = '';
         card.style.width = '';
         card.style.height = '';
+        card.style.transition = '';
+        card.style.transform = '';
       }
     }
     function onWindowResize() { applyDockPosition(); mountAllSections(); }
     function closeEditor() {
       window.removeEventListener('resize', onWindowResize);
-      backdrop.remove();
+      // Owner: "al cerrarse salvaría o miraría si lo que yo cambié pasa a
+      // la plantilla del DAW" (Val) -- título/autor/BPM/acordes/notas ya se
+      // guardan en vivo apenas cambian, pero al cerrar se fuerza un último
+      // refresco completo de Vista Continua, sin depender de que el campo
+      // enfocado haya disparado su "change" todavía.
+      try { bridge?.setTitle?.(titleInput.value); bridge?.setAuthor?.(authorInput.value); bridge?.setBPM?.(bpmInput.value); } catch (_) {}
+      try { window.dispatchEvent(new CustomEvent('studio936:section-chords-updated', { detail: { full: true } })); } catch (_) {}
+      if (backdrop.classList.contains('is-docked')) {
+        card.style.transition = 'transform .22s ease-in';
+        card.style.transform = 'translateX(100%)';
+        setTimeout(() => backdrop.remove(), 220);
+      } else {
+        backdrop.remove();
+      }
     }
     closeBtn.onclick = closeEditor;
     backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) closeEditor(); });
