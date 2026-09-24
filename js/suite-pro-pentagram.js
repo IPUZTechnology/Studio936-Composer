@@ -443,6 +443,7 @@
     geo = geo || DEFAULT_GEO;
     opts = opts || {};
     const drawClef = opts.drawClef !== false;
+    const barOffset = opts.barOffset || 0;
     const dpr = window.devicePixelRatio || 1;
     const w = opts.width || (geo.pxPerBar * totalBars);
     const h = opts.height || 96;
@@ -461,6 +462,7 @@
     for (let i = 0; i < 5; i++) { const ly = staffTop + i * geo.lineGap; g.moveTo(0, ly); g.lineTo(w, ly); }
     g.stroke();
 
+    let leftMargin = 0;
     // Owner: "el canal es solo uno... mi lógica es lo mismo canal con marca
     // de dónde hasta dónde es cada parte" (Val) -- un pentagrama real solo
     // lleva la clave UNA vez al principio de la línea, no repetida en cada
@@ -471,6 +473,15 @@
     if (drawClef) {
       g.fillStyle = 'rgba(255,255,255,.85)'; g.font = Math.round(26 * geo.scale) + 'px serif'; g.textAlign = 'left';
       g.fillText('𝄞', 2, bottomLineY + 4);
+      leftMargin = 26 * geo.scale;
+    }
+    // Owner: "tal como está ahí abajo" (Val) -- el prototipo pone el
+    // compás 4/4 pegado a la clave, en cada sistema/fila.
+    if (opts.drawTimeSig) {
+      g.fillStyle = 'rgba(255,255,255,.8)'; g.font = 'bold ' + Math.round(15 * geo.scale) + 'px serif'; g.textAlign = 'left';
+      g.fillText('4', leftMargin + 2, staffTop + geo.lineGap * 1.6);
+      g.fillText('4', leftMargin + 2, staffTop + geo.lineGap * 3.6);
+      leftMargin += 16 * geo.scale;
     }
 
     g.strokeStyle = 'rgba(255,255,255,.12)';
@@ -479,8 +490,18 @@
       g.beginPath(); g.moveTo(x, staffTop); g.lineTo(x, bottomLineY); g.stroke();
     }
 
+    // Owner: números de compás arriba de cada uno (como el prototipo),
+    // numerados dentro de ESTA sección (barOffset+1, +2, ...), no del
+    // total de la canción.
+    if (opts.showBarNumbers) {
+      g.fillStyle = 'rgba(255,255,255,.45)'; g.font = Math.round(9 * geo.scale) + 'px Inter, sans-serif'; g.textAlign = 'left';
+      for (let b = 0; b < totalBars; b++) {
+        g.fillText(String(barOffset + b + 1), b * geo.pxPerBar + 4, staffTop - 5);
+      }
+    }
+
     for (let bar = 0; bar < totalBars; bar++) {
-      const barNotes = notes.filter(n => n.bar === bar);
+      const barNotes = notes.filter(n => n.bar === barOffset + bar);
       const beats = { 0: [], 1: [], 2: [], 3: [] };
       barNotes.forEach(n => { const bi = Math.floor(n.beat); if (bi >= 0 && bi <= 3) beats[bi].push(n); });
       const barStartX = bar * geo.pxPerBar;
@@ -513,12 +534,15 @@
     return { bar, exactBeat, midi: WHITE_KEYS[midiIdx] };
   }
 
-  function attachClickHandler(canvas, sectionKey, totalBars, redraw, geo) {
+  function attachClickHandler(canvas, sectionKey, totalBars, redraw, geo, barOffset) {
     geo = geo || DEFAULT_GEO;
+    barOffset = barOffset || 0;
     canvas.addEventListener('mousedown', (e) => {
       e.stopPropagation();
-      const { bar, exactBeat, midi } = pointToBarBeatMidi(canvas, e.clientX, e.clientY, geo);
-      if (bar < 0 || bar >= totalBars) return;
+      const local = pointToBarBeatMidi(canvas, e.clientX, e.clientY, geo);
+      const { exactBeat, midi } = local;
+      if (local.bar < 0 || local.bar >= totalBars) return;
+      const bar = local.bar + barOffset;
       const snap = selectedDuration;
       const beat = Math.floor(exactBeat / snap) * snap;
       if (beat + snap > 4) return;
@@ -929,6 +953,51 @@ Return strictly valid JSON and nothing else.`;
     drag.addEventListener('pointerup', () => { dragging = false; });
   }
 
+  // Owner: "en cada sección tiene un botón... ese es un único botón en
+  // panel de control de Voz, y cuando lo accione me busca en toda la
+  // canción" (Val) -- un solo panel flotante (mismo patrón que Oído IA),
+  // con un solo botón que abre el editor grande -- ahí es donde se ve/edita
+  // TODA la canción de una, no una sección aislada.
+  let _vozPanelEl = null;
+  function ensureVozPanel() {
+    if (_vozPanelEl) return;
+    installStyles();
+    const panel = document.createElement('div');
+    panel.className = 's936pg-oido';
+    panel.style.top = '8px';
+    panel.style.right = '200px';
+    const drag = document.createElement('span');
+    drag.className = 's936pg-drag';
+    drag.textContent = '⠿';
+    const label = document.createElement('span');
+    label.className = 's936pg-toolbar-label';
+    label.textContent = 'Voz:';
+    const openBtn = document.createElement('button');
+    openBtn.type = 'button';
+    openBtn.className = 's936pg-oido-btn s936pg-oido-key';
+    openBtn.textContent = '⛶ Editor';
+    openBtn.title = 'Abrir el editor grande — letra y partitura de toda la canción';
+    openBtn.onclick = () => openBigEditor(null, 0, null);
+    panel.append(drag, label, openBtn);
+    document.body.appendChild(panel);
+    _vozPanelEl = panel;
+
+    let dragging = false, startX = 0, startY = 0, panelStartLeft = 0, panelStartTop = 0;
+    drag.addEventListener('pointerdown', (e) => {
+      dragging = true; drag.setPointerCapture(e.pointerId);
+      startX = e.clientX; startY = e.clientY;
+      const r = panel.getBoundingClientRect();
+      panelStartLeft = r.left; panelStartTop = r.top;
+    });
+    drag.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      panel.style.right = 'auto';
+      panel.style.left = Math.max(0, panelStartLeft + (e.clientX - startX)) + 'px';
+      panel.style.top = Math.max(0, panelStartTop + (e.clientY - startY)) + 'px';
+    });
+    drag.addEventListener('pointerup', () => { dragging = false; });
+  }
+
   // Owner: un solo lugar para el click de "Auto-Acordes" -- lo usan tanto el
   // botón chiquito de la fila inline como el del editor grande.
   function runAutoChords(sectionKey, totalBars, btn) {
@@ -1238,6 +1307,12 @@ Return strictly valid JSON and nothing else.`;
     // uno con su propia clave (es una partitura real: cada sistema nuevo
     // lleva su clave) y su "[ Nombre ]" arriba -- no una sola sección a la
     // vez. Esto arma esa misma hoja de trabajo completa.
+    // Owner: "el estándar es 4 compases por sesión [línea]" (Val, con
+    // captura del HTML real) -- el prototipo parte cada sección en filas
+    // de 4 compases (cada una con su propia clave y compás 4/4, números de
+    // compás arriba), no una sola línea larga con todos los compases de la
+    // sección de corrido.
+    const MEASURES_PER_ROW = 4;
     function mountAllSections() {
       scoreBody.innerHTML = '';
       if (!parts.length) return;
@@ -1250,18 +1325,28 @@ Return strictly valid JSON and nothing else.`;
         const label = document.createElement('div');
         label.className = 's936pg-score-seclabel';
         label.textContent = '[ ' + (part.label || labelForType(part.section)) + ' ]';
-        const canvas = document.createElement('canvas');
-        canvas.className = 's936pg-canvas';
+        sys.appendChild(label);
         const geo = makeGeo(1.6);
-        canvas.style.width = (geo.pxPerBar * bars) + 'px';
-        canvas.style.height = '160px';
-        canvas.style.display = 'block';
-        canvas.title = 'Voz — clic para poner/quitar una nota';
-        sys.append(label, canvas);
+        for (let rowStart = 0; rowStart < bars; rowStart += MEASURES_PER_ROW) {
+          const rowBars = Math.min(MEASURES_PER_ROW, bars - rowStart);
+          const canvas = document.createElement('canvas');
+          canvas.className = 's936pg-canvas';
+          canvas.style.width = (geo.pxPerBar * rowBars) + 'px';
+          canvas.style.height = '160px';
+          canvas.style.display = 'block';
+          canvas.style.marginBottom = '10px';
+          canvas.title = 'Voz — clic para poner/quitar una nota';
+          sys.appendChild(canvas);
+          function redraw() {
+            drawPentagram(canvas, getNotes(key), rowBars, geo, {
+              width: geo.pxPerBar * rowBars, height: 160,
+              drawClef: true, drawTimeSig: true, showBarNumbers: true, barOffset: rowStart
+            });
+          }
+          attachClickHandler(canvas, key, rowBars, redraw, geo, rowStart);
+          redraw();
+        }
         scoreBody.appendChild(sys);
-        function redraw() { drawPentagram(canvas, getNotes(key), bars, geo, { width: geo.pxPerBar * bars, height: 160, drawClef: true }); }
-        attachClickHandler(canvas, key, bars, redraw, geo);
-        redraw();
       });
     }
 
@@ -1568,16 +1653,11 @@ Return strictly valid JSON and nothing else.`;
         e.stopPropagation();
         runAutoChords(sectionKey, totalBars, autoBtn);
       });
-      const bigBtn = document.createElement('button');
-      bigBtn.type = 'button';
-      bigBtn.className = 's936pg-bigeditor';
-      bigBtn.textContent = '⛶';
-      bigBtn.title = 'Abrir editor grande (letra + pentagrama)';
-      bigBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openBigEditor(sectionKey, totalBars, sectionLabel);
-      });
-      wrap.append(canvas, autoBtn, bigBtn);
+      // Owner: "en cada sección tiene un botón... ese es un único botón en
+      // panel de control de Voz" (Val) -- el ⛶ que abría el editor grande
+      // estaba repetido en las 11 secciones; se saca de acá (queda un solo
+      // botón, en el panel flotante de Voz -- ensureVozPanel más abajo).
+      wrap.append(canvas, autoBtn);
       row.appendChild(wrap);
       block.appendChild(row);
       const drawClef = !(opts && opts.hideLabelColumn);
@@ -1608,6 +1688,7 @@ Return strictly valid JSON and nothing else.`;
       });
       ensureFiguresToolbar();
       ensureOidoIAPanel();
+      ensureVozPanel();
     } catch (e) {
       console.error('[Pentagrama] renderSectionPentagram falló:', e);
     }
@@ -1618,6 +1699,7 @@ Return strictly valid JSON and nothing else.`;
     getNotes,
     setNotes,
     calculateChordForNotes,
-    transcribeAudioWithAI
+    transcribeAudioWithAI,
+    openBigEditor
   };
 })();

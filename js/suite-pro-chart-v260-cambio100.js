@@ -8155,10 +8155,23 @@ body.s936-chart-stage main{
     const voicingLibrary = edState.voicingLibrary || {};
 
     if (!arrangement.length) {
+      // Owner: "para canciones nuevas no me lleva al Composer para poder
+      // editar y componer" (Val) -- una canción nueva no debería aterrizar
+      // en un mensaje muerto apuntando a otro módulo; el Editor grande de
+      // Voz (suite-pro-pentagram.js) ya sabe crear la primera sección
+      // ("+ Añadir Sección"), así que es ahí donde nace la canción.
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "padding:32px;text-align:center;";
       const p = document.createElement("p");
-      p.style.cssText = "color:rgba(255,255,255,.3);padding:32px;text-align:center;font-size:.7rem";
-      p.textContent = "Sin arreglo — crea partes en Estructura.";
-      container.appendChild(p);
+      p.style.cssText = "color:rgba(255,255,255,.4);font-size:.7rem;margin:0 0 14px;";
+      p.textContent = "Todavía no hay ninguna sección en esta canción.";
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "🎼 Abrir el Editor y componer";
+      btn.style.cssText = "background:rgba(37,99,235,.18);color:#60a5fa;border:1px solid rgba(37,99,235,.45);border-radius:8px;padding:10px 18px;font-size:.75rem;font-weight:700;cursor:pointer;";
+      btn.onclick = () => { try { window.Studio936Pentagram?.openBigEditor?.(null, 0, null); } catch(_) {} };
+      wrap.append(p, btn);
+      container.appendChild(wrap);
       return;
     }
 
