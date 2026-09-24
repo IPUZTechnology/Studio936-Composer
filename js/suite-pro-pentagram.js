@@ -1150,6 +1150,15 @@ Return strictly valid JSON and nothing else.`;
     // el Chart ya lo muestra apenas se guarda (misma fuente de siempre).
     let parts = readStructureParts();
     const initialIdx = Math.max(0, parts.findIndex((p, i) => computeInstanceKeyForPart(parts, i) === sectionKey));
+    // Owner, por voz: "las notas están en el pentagrama pero no está
+    // activada la casilla del texto en el lado izquierdo" (Val) -- clic
+    // directo en la PARTITURA (agregar/quitar una nota) solo redibujaba su
+    // propio canvas, nunca refrescaba la grilla LETRA Y COMPASES de esa
+    // misma sección -- quedaba desincronizada hasta que algo más forzara
+    // un renderSectionsList() completo (ej. subir/bajar otra sección).
+    // Este mapa guarda, por clave de sección, su grilla real en pantalla
+    // para poder refrescarla justo ahí, cada vez que la partitura cambia.
+    const lyricGridRefs = {};
 
     const head = document.createElement('div');
     head.className = 's936pg-big-head';
@@ -1343,8 +1352,21 @@ Return strictly valid JSON and nothing else.`;
         const spacerW = spacer ? spacer.getBoundingClientRect().width : 0;
         if (!panelRect || panelRect.width < 240 || panelRect.height <= 0) throw new Error('no-dock-target');
         const wasDocked = backdrop.classList.contains('is-docked');
+        // Owner, por voz: "hay que subir un poquitito más todo el frame del
+        // editor para que tape las notas de arriba que tenía yo abiertas y
+        // no se vean dobles notas de pentagrama" (Val) -- ".s936-ch-body"
+        // (el área de canales en sí) empieza JUSTO debajo de
+        // ".s936-ch-head" (el header con el selector de vista + la barra de
+        // Figura recién anclada ahí) -- si el Editor solo cubría desde el
+        // body, ese header con su fila de Vista Continua quedaba visible
+        // por encima, mostrando dos pentagramas a la vez (el inline de
+        // Vista Continua y el del Editor). Se extiende el borde superior
+        // hasta el header (si existe como hermano directo del body), para
+        // que no quede ningún resto visible por arriba.
+        const headSibling = panel && panel.previousElementSibling;
+        const headRect = headSibling && headSibling.classList.contains('s936-ch-head') ? headSibling.getBoundingClientRect() : null;
         const left = panelRect.left + spacerW;
-        const top = panelRect.top;
+        const top = headRect ? headRect.top : panelRect.top;
         const width = panelRect.right - left;
         const height = Math.max(320, window.innerHeight - 12 - top);
         backdrop.classList.add('is-docked');
@@ -1479,6 +1501,14 @@ Return strictly valid JSON and nothing else.`;
               width: geo.pxPerBar * rowBars, height: rowHeight,
               drawClef: true, drawTimeSig: true, showBarNumbers: true, barOffset: rowStart
             });
+            // Owner: "las notas están en el pentagrama pero no está
+            // activada la casilla del texto en el lado izquierdo" (Val) --
+            // un clic acá (poner/quitar nota) redibujaba solo este canvas;
+            // la grilla LETRA Y COMPASES de esta misma sección se refresca
+            // también, para que quede sincronizada al toque, sin esperar a
+            // que otra acción fuerce un renderSectionsList() completo.
+            const ref = lyricGridRefs[key];
+            if (ref) buildLyricGrid(ref.el, key, ref.bars, () => mountAllSections());
           }
           attachClickHandler(canvas, key, rowBars, redraw, geo, rowStart);
           redraw();
@@ -1661,6 +1691,7 @@ Return strictly valid JSON and nothing else.`;
       grid.className = 's936pg-sec-lyricgrid';
       const key = computeInstanceKeyForPart(parts, idx);
       const bars = Math.max(1, Number(part.bars) || 4);
+      lyricGridRefs[key] = { el: grid, bars };
       buildLyricGrid(grid, key, bars, () => mountAllSections());
       block.appendChild(grid);
 
