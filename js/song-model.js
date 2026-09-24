@@ -288,18 +288,25 @@ function normalizeSectionSolos(raw, legacy, defaults){
 }
 
 function normalizeArrangement(raw, prj){
-    // Cambio 239: canción nueva sin secciones — arrangement vacío.
-    if(prj && prj.isNewSong) return [];
-    const fallback = defaultArrangement();
+    const isNew = !!(prj && prj.isNewSong);
+    // Cambio 239 (canción nueva): nunca cae en la plantilla completa del
+    // demo (defaultArrangement, 11 secciones armadas) -- pero si trae su
+    // propio arrangement sembrado (Val: "una canción nueva entra nomás con
+    // una... sesión, la sesión intro, pero nomás" -- ver newSong() en
+    // app.js, que ahora siembra 1 sola sección Intro de 4 compases), ese
+    // arrangement real se respeta tal cual, en vez de forzarlo a vacío.
+    const fallback = isNew ? [] : defaultArrangement();
     const sections = prj && prj.sections ? prj.sections : {};
     let arr = Array.isArray(raw) && raw.length ? raw : fallback;
     arr = arr.map((p,i)=>{
         if(typeof p === 'string') return {id:'part_'+i+'_'+p, section:p, label:sectionNames[p] || p};
-        const section = p && p.section && sections[p.section] ? p.section : null;
+        const section = p && p.section && (isNew || sections[p.section]) ? p.section : null;
         if(!section) return null;
-        return {id: p.id || ('part_'+i+'_'+section), section, label: String(p.label || sectionNames[section] || section)};
+        const out = {id: p.id || ('part_'+i+'_'+section), section, label: String(p.label || sectionNames[section] || section)};
+        if(p && p.bars) out.bars = p.bars;
+        return out;
     }).filter(Boolean);
-    if(!arr.length) arr = Object.keys(sections).filter(k=>sections[k] && sections[k].length).slice(0,1).map((k,i)=>({id:'part_'+i+'_'+k,section:k,label:sectionNames[k]||k}));
+    if(!arr.length && !isNew) arr = Object.keys(sections).filter(k=>sections[k] && sections[k].length).slice(0,1).map((k,i)=>({id:'part_'+i+'_'+k,section:k,label:sectionNames[k]||k}));
     return arr;
 }
 

@@ -219,7 +219,17 @@
       .s936pg-bigeditor{position:absolute;top:2px;right:2px;z-index:2;background:rgba(255,255,255,.1);color:#e5e7eb;border:1px solid rgba(255,255,255,.18);border-radius:5px;font-size:12px;line-height:1;padding:3px 6px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.35);}
       .s936pg-bigeditor:hover{background:rgba(255,255,255,.2);}
       .s936pg-big-backdrop{position:fixed;inset:0;z-index:9990;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);}
-      .s936pg-big-card{background:#0f111a;border:1px solid rgba(255,255,255,.15);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.85);width:min(96vw,1320px);height:min(90vh,860px);display:flex;flex-direction:column;overflow:hidden;}
+      .s936pg-big-card{background:#0f111a;border:1px solid rgba(255,255,255,.15);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.85);width:min(96vw,1320px);height:min(90vh,860px);display:flex;flex-direction:column;overflow:hidden;margin:0;}
+      /* Owner: "debe salir posicionada como al inicio de los canales...
+         no debe tapar el control de los botones de los canales... pero
+         debe reemplazar toda la ventana de los canales, pegada hasta el
+         último lado" (Val) -- cuando la ventana de canales está visible en
+         pantalla, el Editor se ancla ahí (ver applyDockPosition), en vez
+         de flotar centrado tapando toda la app; el fondo se vuelve
+         transparente para no oscurecer la columna de control de canales
+         que queda fuera del Editor. */
+      .s936pg-big-backdrop.is-docked{background:transparent;align-items:stretch;justify-content:stretch;}
+      .s936pg-big-backdrop.is-docked .s936pg-big-card{border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.6);}
       .s936pg-big-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.1);background:#14151f;flex-shrink:0;}
       .s936pg-big-meta{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.08);background:#14151f;flex-wrap:wrap;flex-shrink:0;}
       .s936pg-meta-field{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:6px 10px;}
@@ -289,7 +299,7 @@
       .s936pg-big-iconbtn{width:26px;height:26px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#c5c6c7;font-size:11px;cursor:pointer;flex-shrink:0;}
       .s936pg-big-iconbtn:hover{background:rgba(255,255,255,.16);}
       .s936pg-big-figures{display:flex;align-items:center;gap:1px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:2px 4px;}
-      .s936pg-big-scorebody{flex:1;overflow:auto;padding:16px;}
+      .s936pg-big-scorebody{flex:1;overflow-x:hidden;overflow-y:auto;padding:16px;}
       /* Owner: "tal como está ahí abajo" (Val) -- la hoja del compositor
          dibuja TODAS las secciones apiladas, cada una como su propio
          sistema (clave propia, "[ Nombre ]" arriba), igual que el
@@ -1123,7 +1133,8 @@ Return strictly valid JSON and nothing else.`;
     closeBtn.type = 'button';
     closeBtn.className = 's936pg-big-close';
     closeBtn.textContent = '✕';
-    closeBtn.onclick = () => backdrop.remove();
+    // closeBtn.onclick real se define más abajo (closeEditor), una vez que
+    // existen backdrop/card y el listener de resize que hay que limpiar.
     head.append(headText, closeBtn);
 
     // Owner: "aquí es donde nace la canción, es la cabeza de todo" (Val,
@@ -1274,7 +1285,52 @@ Return strictly valid JSON and nothing else.`;
     card.append(head, metaBar, columns);
     backdrop.appendChild(card);
     document.body.appendChild(backdrop);
-    backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) backdrop.remove(); });
+
+    // Owner: "debe salir posicionada como al inicio de los canales... no
+    // debe tapar el control de los botones de los canales... pero debe
+    // reemplazar toda la ventana de los canales, pegada hasta el último
+    // lado" (Val) -- si la Vista Continua está en pantalla, el Editor se
+    // ancla exactamente sobre esa ventana (misma caja que ".s936-ch-body"),
+    // arrancando después de la columna fija de controles de canal
+    // (".s936-ch-cont-headerspacer", 320px), en vez de flotar centrado
+    // tapando toda la app. Si esa ventana no está visible (p.ej. otra
+    // pestaña del DAW activa), se cae de vuelta a la tarjeta centrada de
+    // siempre.
+    function applyDockPosition() {
+      try {
+        const viewport = document.querySelector('.s936-ch-cont-viewport');
+        const panel = viewport && (viewport.closest('.s936-ch-body') || viewport.parentElement);
+        const panelRect = panel && panel.getBoundingClientRect();
+        const spacer = viewport && viewport.querySelector('.s936-ch-cont-headerspacer');
+        const spacerW = spacer ? spacer.getBoundingClientRect().width : 0;
+        if (!panelRect || panelRect.width < 240 || panelRect.height < 200) throw new Error('no-dock-target');
+        const left = panelRect.left + spacerW;
+        const top = panelRect.top;
+        const width = panelRect.right - left;
+        const height = panelRect.bottom - top;
+        backdrop.classList.add('is-docked');
+        card.style.position = 'fixed';
+        card.style.left = Math.round(left) + 'px';
+        card.style.top = Math.round(top) + 'px';
+        card.style.width = Math.round(width) + 'px';
+        card.style.height = Math.round(height) + 'px';
+      } catch (_) {
+        backdrop.classList.remove('is-docked');
+        card.style.position = '';
+        card.style.left = '';
+        card.style.top = '';
+        card.style.width = '';
+        card.style.height = '';
+      }
+    }
+    function onWindowResize() { applyDockPosition(); mountAllSections(); }
+    function closeEditor() {
+      window.removeEventListener('resize', onWindowResize);
+      backdrop.remove();
+    }
+    closeBtn.onclick = closeEditor;
+    backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) closeEditor(); });
+    window.addEventListener('resize', onWindowResize);
 
     // Owner: misma barra de figuras global de siempre (⠿ arrastrable la
     // deja el hilo de arriba), acá se clona chiquita para vivir adentro del
@@ -1311,7 +1367,21 @@ Return strictly valid JSON and nothing else.`;
     // compás arriba), no una sola línea larga con todos los compases de la
     // sección de corrido.
     const MEASURES_PER_ROW = 4;
+    // Owner: "los cuatro compases se deben ver plenos en la ventana no debe
+    // haber scroll hacia el lado, eso debe ser como una hoja de
+    // composición" (Val) -- una escala fija (1.6) dibujaba cada fila de 4
+    // compases más ancha que el panel real (512px/compás x 4 = 2048px),
+    // forzando scroll horizontal. En vez de una escala fija, se calcula al
+    // vuelo a partir del ancho REAL disponible del panel, para que 4
+    // compases llenen justo la ventana visible, sin sobrar ni recortarse.
+    function computeRowGeo() {
+      const PADDING_ALLOWANCE = 32; // .s936pg-big-scorebody{padding:16px} (izq+der)
+      const avail = Math.max(240, scoreBody.clientWidth - PADDING_ALLOWANCE);
+      const scale = avail / (PX_PER_BAR * MEASURES_PER_ROW);
+      return makeGeo(scale);
+    }
     function mountAllSections() {
+      const geo = computeRowGeo();
       scoreBody.innerHTML = '';
       if (!parts.length) return;
       parts.forEach((part, idx) => {
@@ -1324,20 +1394,20 @@ Return strictly valid JSON and nothing else.`;
         label.className = 's936pg-score-seclabel';
         label.textContent = '[ ' + (part.label || labelForType(part.section)) + ' ]';
         sys.appendChild(label);
-        const geo = makeGeo(1.6);
         for (let rowStart = 0; rowStart < bars; rowStart += MEASURES_PER_ROW) {
           const rowBars = Math.min(MEASURES_PER_ROW, bars - rowStart);
+          const rowHeight = Math.round(160 * geo.scale / 1.6);
           const canvas = document.createElement('canvas');
           canvas.className = 's936pg-canvas';
           canvas.style.width = (geo.pxPerBar * rowBars) + 'px';
-          canvas.style.height = '160px';
+          canvas.style.height = rowHeight + 'px';
           canvas.style.display = 'block';
           canvas.style.marginBottom = '10px';
           canvas.title = 'Voz — clic para poner/quitar una nota';
           sys.appendChild(canvas);
           function redraw() {
             drawPentagram(canvas, getNotes(key), rowBars, geo, {
-              width: geo.pxPerBar * rowBars, height: 160,
+              width: geo.pxPerBar * rowBars, height: rowHeight,
               drawClef: true, drawTimeSig: true, showBarNumbers: true, barOffset: rowStart
             });
           }
@@ -1345,6 +1415,16 @@ Return strictly valid JSON and nothing else.`;
           redraw();
         }
         scoreBody.appendChild(sys);
+      });
+      // Owner: el ancho real puede cambiar apenas se termina de montar
+      // (aparece/desaparece la barra de scroll vertical según cuántas
+      // secciones entren) -- se vuelve a medir una vez montado y, si
+      // cambió de verdad, se reconstruye ya con el ancho final correcto
+      // (misma idea de doble pasada que ya usa la fila en línea de Vista
+      // Continua para cerrar el hueco entre secciones).
+      requestAnimationFrame(() => {
+        const fresh = computeRowGeo();
+        if (Math.abs(fresh.pxPerBar - geo.pxPerBar) > 1) mountAllSections();
       });
     }
 
@@ -1574,6 +1654,7 @@ Return strictly valid JSON and nothing else.`;
     }
 
     title.textContent = '🎼 ' + (bridge?.getTitle?.() || 'Canción');
+    applyDockPosition();
     renderSectionsList();
     mountAllSections();
     if (initialIdx > 0) requestAnimationFrame(() => scrollToSection(initialIdx));

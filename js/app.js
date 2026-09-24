@@ -3560,7 +3560,15 @@ function installStudio936AppBridge(){
                     sections: { intro:[], verse:[], verse1:[], verse2:[], verse3:[], prechorus:[], chorus:[], interlude:[], solo:[], bridge:[], outro:[] },
                     lyrics: { intro:'', verse:'', verse1:'', verse2:'', verse3:'', prechorus:'', chorus:'', interlude:'', solo:'', bridge:'', outro:'' },
                     sectionSolos: {},
-                    arrangement: []
+                    // Owner: "una canción nueva entra nomás con una, una,
+                    // una sesión, la sesión eh, intro, ¿no? pero nomás"
+                    // (Val) -- antes arrancaba con arrangement:[] (cero
+                    // secciones), lo que dejaba el Editor grande en un
+                    // estado vacío hasta que el usuario creaba la primera a
+                    // mano. Ahora nace ya con UNA sola sección (Intro,
+                    // estándar de 4 compases) -- ni más secciones ni más
+                    // compases que eso.
+                    arrangement: [{ id: 'a_intro', section: 'intro', label: 'Intro', bars: 4 }]
                 };
                 // Guardar plantilla en sessionStorage ANTES de limpiar cachés
                 if(titleOverride) sessionStorage.setItem('s936_new_title', titleOverride);
