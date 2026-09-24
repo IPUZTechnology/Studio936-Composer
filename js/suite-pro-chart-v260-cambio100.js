@@ -1487,6 +1487,12 @@ window.Studio936SuiteProChart = (() => {
   letter-spacing:.4px;cursor:pointer;
 }
 .s936-ch-continuous-toggle:hover{background:rgba(0,255,204,.16)}
+/* Owner: reemplaza el botón de texto de arriba por dos íconos (grilla =
+   Bloques, líneas = Continua) -- ver setContinuousView() en render(). */
+.s936-ch-viewtoggle{display:inline-flex;align-items:center;gap:2px;margin-left:8px;padding:2px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);flex-shrink:0;}
+.s936-ch-viewtoggle-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border-radius:999px;border:none;background:transparent;color:rgba(255,255,255,.4);cursor:pointer;}
+.s936-ch-viewtoggle-btn:hover{color:rgba(255,255,255,.75);}
+.s936-ch-viewtoggle-btn.is-active{background:rgba(0,255,204,.16);color:#7dffe0;}
 /* Cambio 430: BUG real encontrado — display:inline-flex + min-width:100%
    dejaba que el scroller creciera hasta el ancho de TODO su contenido
    (18487px en una canción larga), no solo el 100% visible. El
@@ -8227,28 +8233,65 @@ body.s936-chart-stage main{
     const instWrap = document.createElement("div");
     instWrap.className = "s936-ch-inst-wrap main-controlled";
 
-    // Cambio 260 (paso 1): botón para alternar entre la vista de siempre
-    // (bloques apilados) y la vista nueva (línea continua, solo lectura
-    // por ahora). No reemplaza nada — es una vista alterna, reversible con
-    // un clic, sin tocar el camino de código que ya funciona.
-    const continuousToggle = document.createElement("button");
-    continuousToggle.type = "button";
-    continuousToggle.className = "s936-ch-continuous-toggle";
-    continuousToggle.textContent = _chartContinuousViewOn ? "Vista: Continua" : "Vista: Bloques";
-    continuousToggle.title = "Alternar entre vista de bloques y vista de línea continua (solo lectura por ahora)";
-    continuousToggle.onclick = () => {
-      _chartContinuousViewOn = !_chartContinuousViewOn;
+    // Cambio 260 (paso 1): alternar entre la vista de siempre (bloques
+    // apilados) y la vista nueva (línea continua, solo lectura por ahora).
+    // No reemplaza nada — es una vista alterna, reversible con un clic,
+    // sin tocar el camino de código que ya funciona.
+    // Owner, por voz: "al lado donde dice lineal o chart, eso debería ser
+    // un iconito, no me debería ser esto [el texto]... la vista, cambiar
+    // de vista, con un icono, como una matriz de charts y la matriz de
+    // lineal tipo DAW" (Val) -- el botón de texto "Vista: Continua/
+    // Bloques" se reemplaza por dos íconos (grilla = Bloques, líneas =
+    // Continua/DAW), el activo resaltado.
+    const viewToggleWrap = document.createElement("div");
+    viewToggleWrap.className = "s936-ch-viewtoggle";
+    const ICON_GRID = '<svg viewBox="0 0 16 16" width="13" height="13" fill="none"><rect x="1" y="1" width="6" height="6" rx="1.2" fill="currentColor"/><rect x="9" y="1" width="6" height="6" rx="1.2" fill="currentColor"/><rect x="1" y="9" width="6" height="6" rx="1.2" fill="currentColor"/><rect x="9" y="9" width="6" height="6" rx="1.2" fill="currentColor"/></svg>';
+    const ICON_LINEAR = '<svg viewBox="0 0 16 16" width="13" height="13" fill="none"><rect x="1" y="2" width="14" height="2.4" rx="1.2" fill="currentColor"/><rect x="1" y="6.8" width="14" height="2.4" rx="1.2" fill="currentColor"/><rect x="1" y="11.6" width="14" height="2.4" rx="1.2" fill="currentColor"/></svg>';
+    function setContinuousView(on) {
+      if (_chartContinuousViewOn === on) return;
+      _chartContinuousViewOn = on;
       if (!_chartContinuousViewOn && _contPlayheadCleanup) {
         try { _contPlayheadCleanup(); } catch(_) {}
         _contPlayheadCleanup = null;
         if (_contPlayheadRAF) { try { cancelAnimationFrame(_contPlayheadRAF); } catch(_) {} _contPlayheadRAF = null; }
       }
       render({ container, instrument, onChordEdit });
-    };
-    instWrap.appendChild(continuousToggle);
+    }
+    const blocksViewBtn = document.createElement("button");
+    blocksViewBtn.type = "button";
+    blocksViewBtn.className = "s936-ch-viewtoggle-btn" + (!_chartContinuousViewOn ? " is-active" : "");
+    blocksViewBtn.innerHTML = ICON_GRID;
+    blocksViewBtn.title = "Vista: Bloques";
+    blocksViewBtn.onclick = () => setContinuousView(false);
+    const linearViewBtn = document.createElement("button");
+    linearViewBtn.type = "button";
+    linearViewBtn.className = "s936-ch-viewtoggle-btn" + (_chartContinuousViewOn ? " is-active" : "");
+    linearViewBtn.innerHTML = ICON_LINEAR;
+    linearViewBtn.title = "Vista: Continua (línea, tipo DAW)";
+    linearViewBtn.onclick = () => setContinuousView(true);
+    viewToggleWrap.append(blocksViewBtn, linearViewBtn);
+    instWrap.appendChild(viewToggleWrap);
 
-    head.append(info, instWrap);
+    // Owner, por voz: "ahí hay un header que repite la canción, la
+    // canción ya la tenemos arriba... eso no se requiere, quítalo. Ahí
+    // había un icono para editar las secciones... ya no lo necesitamos
+    // ahí [pero] tenerlas comentadas para el futuro" (Val) -- el nombre de
+    // la canción y el ícono "✎ Editar secciones" quedaban repetidos acá
+    // (el nombre real ya vive arriba, en el header principal del DAW). Se
+    // deja de mostrar esta fila (título + meta + ícono) -- el código que
+    // la arma (info/titleEl/metaRow/editSectionsBtn más arriba) se deja
+    // intacto, sin usar, por si alguna de estas piezas hace falta de
+    // nuevo más adelante.
+    instWrap.style.marginLeft = "auto";
+    head.append(instWrap);
     container.appendChild(head);
+    // Owner: "los botones del DAW deberían estar siempre ahí metidos,
+    // abajo no arriba, como parte de los controles... está muy feo [la
+    // barra de Figura flotando arriba del todo]" (Val) -- la barra
+    // flotante de Figura/duración (suite-pro-pentagram.js) se re-ancla acá,
+    // pegada a este mismo header de Vista Continua, en vez de flotar suelta
+    // cerca de la barra superior del DAW.
+    try { window.Studio936Pentagram?.dockFiguresToolbar?.(instWrap); } catch(_) {}
 
     // Cambio 24: los controles de práctica viven en la Mini consola sesión del panel izquierdo.
     // El Chart queda limpio como partitura/tablatura electrónica; conserva las funciones públicas

@@ -660,6 +660,37 @@
     drag.addEventListener('pointerup', () => { dragging = false; });
   }
 
+  // Owner, por voz: "los botones del DAW deberían estar siempre ahí
+  // metidos, abajo no arriba, como parte de los controles... eso está muy
+  // feo" (Val) -- la barra de Figura vivía flotando cerca de la barra
+  // superior del DAW (top:96px;right:24px por default), lejos de Vista
+  // Continua. Se re-ancla, pegada al propio header de Vista Continua
+  // (junto al selector de vista), cada vez que Chart renderiza -- sigue
+  // siendo `position:fixed` (no un hijo real del DOM de Chart, que se
+  // reconstruye en cada render) para no desaparecer entre renders, pero
+  // su posición por default ahora sigue a ese header en vez de quedar
+  // suelta arriba de todo.
+  let _toolbarAnchorEl = null;
+  let _toolbarResizeBound = false;
+  function dockFiguresToolbar(anchorEl) {
+    ensureFiguresToolbar();
+    if (!_toolbarEl || !anchorEl) return;
+    _toolbarAnchorEl = anchorEl;
+    try {
+      const r = anchorEl.getBoundingClientRect();
+      if (!r.width && !r.height) return;
+      _toolbarEl.style.left = 'auto';
+      _toolbarEl.style.right = Math.max(8, Math.round(window.innerWidth - r.left + 10)) + 'px';
+      _toolbarEl.style.top = Math.round(r.top) + 'px';
+    } catch (_) {}
+    if (!_toolbarResizeBound) {
+      _toolbarResizeBound = true;
+      window.addEventListener('resize', () => {
+        if (_toolbarAnchorEl && document.body.contains(_toolbarAnchorEl)) dockFiguresToolbar(_toolbarAnchorEl);
+      });
+    }
+  }
+
   // ── PASO 3/3: Oído IA ────────────────────────────────────────────────────
   // Owner: graba (o sube) audio, lo manda a Gemini con el mismo prompt del
   // prototipo (pedir secciones + acordes por compás + notas exactas
@@ -1811,6 +1842,7 @@ Return strictly valid JSON and nothing else.`;
     setNotes,
     calculateChordForNotes,
     transcribeAudioWithAI,
-    openBigEditor
+    openBigEditor,
+    dockFiguresToolbar
   };
 })();
